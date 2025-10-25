@@ -1,0 +1,44 @@
+# src-tauri/.cargo/config.toml
+
+[build]
+# target = "x86_64-pc-windows-msvc" # opcional
+
+[target.x86_64-pc-windows-msvc]
+rustflags = [
+  "-C", "target-cpu=x86-64-v3",
+  "-C", "link-arg=/OPT:REF",
+  "-C", "link-arg=/OPT:ICF",
+
+  # LLVM tuning (válidos no MSVC/LLVM do rustc)
+  "-C", "llvm-args=--inline-threshold=275",
+  "-C", "llvm-args=--unroll-threshold=1000",
+  "-C", "llvm-args=--enable-loopinterchange=true",
+]
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+  "-C", "target-cpu=x86-64-v3",
+  "-C", "link-arg=-fuse-ld=lld",
+  "-C", "link-arg=-Wl,--icf=safe",
+  "-C", "link-arg=-Wl,-O2",
+
+  "-C", "llvm-args=--inline-threshold=275",
+  "-C", "llvm-args=--unroll-threshold=1000",
+  "-C", "llvm-args=--enable-loopinterchange=true",
+]
+
+[target.x86_64-apple-darwin]
+rustflags = [
+  "-C", "target-cpu=x86-64-v3",
+  "-C", "llvm-args=--inline-threshold=275",
+  "-C", "llvm-args=--unroll-threshold=1000",
+  "-C", "llvm-args=--enable-loopinterchange=true",
+]
+
+[target.aarch64-apple-darwin]
+rustflags = [
+  "-C", "target-cpu=apple-m1",
+  "-C", "llvm-args=--inline-threshold=275",
+  "-C", "llvm-args=--unroll-threshold=1000",
+  "-C", "llvm-args=--enable-loopinterchange=true",
+]

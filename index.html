@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tibia Assets Editor</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+
+  <body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+      <div class="loading-container">
+        <div class="loading-logo">
+          <div class="tibia-logo">⚔️</div>
+          <h1>Tibia Assets Editor</h1>
+          <p class="loading-subtitle">Professional Asset Management Tool</p>
+        </div>
+        
+        <div class="loading-progress">
+          <div class="progress-bar">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+          <p id="loading-text" class="loading-text">Initializing...</p>
+        </div>
+
+        <div class="setup-section" id="setup-section">
+          <div class="setup-card">
+            <h2>🎯 Setup Your Tibia Client</h2>
+            <div class="input-group">
+              <label for="tibia-path">Tibia Client Path:</label>
+              <div class="input-row">
+                <input
+                  type="text"
+                  id="tibia-path"
+                  placeholder="C:\Path\To\Tibia"
+                  class="modern-input"
+                />
+                <button id="browse-dir" class="btn-secondary">Selecionar diretório</button>
+              </div>
+            </div>
+            <button id="load-button" class="btn-primary">
+              <span class="btn-icon">🚀</span>
+              Load Assets
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="main-app" class="main-app" style="display: none;">
+      <!-- Navigation Header -->
+      <header class="app-header">
+        <div class="header-content">
+          <div class="logo-section">
+            <div class="app-logo">⚔️</div>
+            <div class="app-title">
+              <h1>Tibia Assets Editor</h1>
+              <p class="app-subtitle">Professional Asset Management</p>
+            </div>
+          </div>
+          
+          <div class="header-stats" id="header-stats">
+            <!-- Stats will be loaded here -->
+          </div>
+
+          <div class="header-actions">
+            <button id="settings-btn" class="icon-btn" title="Configurações">⚙️</button>
+            <div id="settings-menu" class="settings-menu" style="display: none;">
+              <div class="settings-item">
+                <label>
+                  <input type="checkbox" id="auto-animate-toggle" />
+                  Animação automática na grade
+                </label>
+              </div>
+              <div class="menu-divider"></div>
+              <button id="clear-cache-btn" class="menu-btn">Limpar cache de sprites</button>
+            </div>
+            <button id="home-btn" class="icon-btn" title="Tela inicial">🏠</button>
+            <button id="refresh-btn" class="icon-btn" title="Refresh">🔄</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Category Navigation -->
+      <nav class="category-nav">
+        <div class="nav-container">
+          <!-- Main Categories -->
+          <div class="category-cards">
+            <div class="category-card" data-category="Objects">
+              <div class="card-icon">📦</div>
+              <div class="card-content">
+                <h3>Objects</h3>
+                <p id="objects-count">0 items</p>
+              </div>
+              <div class="card-arrow">→</div>
+            </div>
+
+            <div class="category-card" data-category="Outfits">
+              <div class="card-icon">👕</div>
+              <div class="card-content">
+                <h3>Outfits</h3>
+                <p id="outfits-count">0 items</p>
+              </div>
+              <div class="card-arrow">→</div>
+            </div>
+
+            <div class="category-card" data-category="Effects">
+              <div class="card-icon">✨</div>
+              <div class="card-content">
+                <h3>Effects</h3>
+                <p id="effects-count">0 items</p>
+              </div>
+              <div class="card-arrow">→</div>
+            </div>
+
+            <div class="category-card" data-category="Missiles">
+              <div class="card-icon">🏹</div>
+              <div class="card-content">
+                <h3>Missiles</h3>
+                <p id="missiles-count">0 items</p>
+              </div>
+              <div class="card-arrow">→</div>
+            </div>
+          </div>
+
+          <!-- Subcategories Section -->
+          <div class="subcategories-section">
+            <h3 class="subcategories-title">Object Subcategories</h3>
+            <div class="subcategories-grid">
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Armors">
+                <span class="subcat-icon">🛡️</span>
+                <span class="subcat-name">Armors</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Amulets">
+                <span class="subcat-icon">📿</span>
+                <span class="subcat-name">Amulets</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Boots">
+                <span class="subcat-icon">👢</span>
+                <span class="subcat-name">Boots</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Containers">
+                <span class="subcat-icon">🎒</span>
+                <span class="subcat-name">Containers</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Decoration">
+                <span class="subcat-icon">🎨</span>
+                <span class="subcat-name">Decoration</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Food">
+                <span class="subcat-icon">🍖</span>
+                <span class="subcat-name">Food</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="HelmetsHats">
+                <span class="subcat-icon">⛑️</span>
+                <span class="subcat-name">Helmets & Hats</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Legs">
+                <span class="subcat-icon">👖</span>
+                <span class="subcat-name">Legs</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Potions">
+                <span class="subcat-icon">🧪</span>
+                <span class="subcat-name">Potions</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Rings">
+                <span class="subcat-icon">💍</span>
+                <span class="subcat-name">Rings</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Runes">
+                <span class="subcat-icon">🔮</span>
+                <span class="subcat-name">Runes</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Shields">
+                <span class="subcat-icon">🛡️</span>
+                <span class="subcat-name">Shields</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Tools">
+                <span class="subcat-icon">🔧</span>
+                <span class="subcat-name">Tools</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Valuables">
+                <span class="subcat-icon">💎</span>
+                <span class="subcat-name">Valuables</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Axes">
+                <span class="subcat-icon">🪓</span>
+                <span class="subcat-name">Axes</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Clubs">
+                <span class="subcat-icon">🏏</span>
+                <span class="subcat-name">Clubs</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="DistanceWeapons">
+                <span class="subcat-icon">🏹</span>
+                <span class="subcat-name">Distance</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="Swords">
+                <span class="subcat-icon">⚔️</span>
+                <span class="subcat-name">Swords</span>
+              </div>
+              <div class="subcategory-card" data-category="Objects" data-subcategory="WandsRods">
+                <span class="subcat-icon">🪄</span>
+                <span class="subcat-name">Wands & Rods</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Category View -->
+      <main id="category-view" class="category-view" style="display: none;">
+        <!-- Modern Unified Header -->
+        <header class="modern-header">
+          <div class="header-left">
+            <button id="back-btn" class="modern-back-btn">
+              <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
+              <span>Back</span>
+            </button>
+            
+            <div class="header-divider"></div>
+            <!-- Removido: bloco de categoria (ícone, título e subtítulo) -->
+          </div>
+
+          <div class="header-center">
+            <div class="search-container">
+              <div class="search-input-wrapper">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="M21 21l-4.35-4.35"/>
+                </svg>
+                <input 
+                  type="text" 
+                  id="asset-search" 
+                  placeholder="Search assets..." 
+                  class="search-input"
+                />
+                <button id="clear-search" class="clear-search-btn" style="display: none;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="header-right">
+            <div class="results-info">
+              <span id="results-count" class="results-text">0 items</span>
+            </div>
+            
+            <div class="pagination-nav">
+              <button id="prev-page" class="pagination-btn" disabled>
+                <span>←</span>
+              </button>
+              <div class="pagination-info">
+                <span id="page-info">1/1</span>
+              </div>
+              <button id="next-page" class="pagination-btn" disabled>
+                <span>→</span>
+              </button>
+            </div>
+            
+            <div id="subcategory-container" class="filter-container" style="display: none;">
+              <select id="subcategory-select" class="filter-select">
+                <option value="All">All</option>
+              </select>
+            </div>
+            
+            <div class="page-size-container">
+              <select id="page-size" class="page-size-select">
+                <option value="20">20</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+        </header>
+
+        <div class="view-content">
+          <div id="assets-grid" class="modern-assets-grid">
+            <!-- Assets will be loaded here -->
+          </div>
+        </div>
+      </main>
+
+      <!-- Asset Details Modal -->
+      <div id="asset-details" class="asset-details-modal">
+        <div class="modal-backdrop" onclick="closeAssetDetails()"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-tabs">
+              <button id="tab-edit" class="tab-btn" data-tab="edit">Edit</button>
+              <button id="tab-details" class="tab-btn active" data-tab="details">Asset Details</button>
+            </div>
+            <button id="close-details" class="close-btn">✕</button>
+          </div>
+          <div class="modal-body">
+            <div id="edit-content" class="tab-content" style="display: none;"></div>
+            <div id="details-content" class="tab-content">
+              <!-- Asset details will be loaded here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Messages -->
+    <div id="status-message" class="status-toast" style="display: none;"></div>
+  </body>
+</html>

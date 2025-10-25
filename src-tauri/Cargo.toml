@@ -1,0 +1,59 @@
+[package]
+name = "tibia-assets-editor"
+version = "0.1.0"
+description = "A Tibia Assets Editor"
+authors = ["Beats"]
+edition = "2021"
+default-run = "tibia-assets-editor" 
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+incremental = false
+debug = 0
+overflow-checks = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "tibia_assets_editor_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+prost-build = "0.13"
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Protobuf parsing
+prost = "0.13"
+prost-types = "0.13"
+
+# LZMA decompression
+lzma-rs = "0.3"
+xz2 = "0.1"
+
+# Image manipulation
+image = { version = "0.25", features = ["png", "jpeg", "bmp"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+
+# Base64 encoding
+base64 = "0.22"
+
