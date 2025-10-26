@@ -217,4 +217,6 @@ tibia-assets-editor/
 
 ---
 
+https://github.com/user-attachments/assets/3743432a-b795-49c3-a1a9-d7e9045d6f83
+
 Feito com ❤️ usando **Rust + Tauri** e **TypeScript + Vite**.
