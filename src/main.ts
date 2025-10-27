@@ -773,6 +773,174 @@ function setupCategoryListeners() {
       }
     }
 
+    // Handle save automap button click in modal
+    const saveAutomapBtn = target.closest('#save-automap') as HTMLElement | null;
+    if (saveAutomapBtn) {
+      const cat = saveAutomapBtn.dataset.category;
+      const idStr = saveAutomapBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetAutomap(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save automap button');
+      }
+    }
+
+    // Handle save hook button click in modal
+    const saveHookBtn = target.closest('#save-hook') as HTMLElement | null;
+    if (saveHookBtn) {
+      const cat = saveHookBtn.dataset.category;
+      const idStr = saveHookBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetHook(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save hook button');
+      }
+    }
+
+    // Handle save lenshelp button click in modal
+    const saveLenshelpBtn = target.closest('#save-lenshelp') as HTMLElement | null;
+    if (saveLenshelpBtn) {
+      const cat = saveLenshelpBtn.dataset.category;
+      const idStr = saveLenshelpBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetLenshelp(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save lenshelp button');
+      }
+    }
+
+    // Handle save clothes button click in modal
+    const saveClothesBtn = target.closest('#save-clothes') as HTMLElement | null;
+    if (saveClothesBtn) {
+      const cat = saveClothesBtn.dataset.category;
+      const idStr = saveClothesBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetClothes(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save clothes button');
+      }
+    }
+
+    // Handle save default action button click in modal
+    const saveDefaultActionBtn = target.closest('#save-default-action') as HTMLElement | null;
+    if (saveDefaultActionBtn) {
+      const cat = saveDefaultActionBtn.dataset.category;
+      const idStr = saveDefaultActionBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetDefaultAction(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save default action button');
+      }
+    }
+
+    // Handle save market button click in modal
+    const saveMarketBtn = target.closest('#save-market') as HTMLElement | null;
+    if (saveMarketBtn) {
+      const cat = saveMarketBtn.dataset.category;
+      const idStr = saveMarketBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetMarket(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save market button');
+      }
+    }
+
+    // Handle save bank button click in modal
+    const saveBankBtn = target.closest('#save-bank') as HTMLElement | null;
+    if (saveBankBtn) {
+      const cat = saveBankBtn.dataset.category;
+      const idStr = saveBankBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetBank(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save bank button');
+      }
+    }
+
+    // Handle save changed-to-expire button click in modal
+    const saveChangedToExpireBtn = target.closest('#save-changed-to-expire') as HTMLElement | null;
+    if (saveChangedToExpireBtn) {
+      const cat = saveChangedToExpireBtn.dataset.category;
+      const idStr = saveChangedToExpireBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetChangedToExpire(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save changed-to-expire button');
+      }
+    }
+
+    // Handle save cyclopedia item button click in modal
+    const saveCyclopediaItemBtn = target.closest('#save-cyclopedia-item') as HTMLElement | null;
+    if (saveCyclopediaItemBtn) {
+      const cat = saveCyclopediaItemBtn.dataset.category;
+      const idStr = saveCyclopediaItemBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetCyclopediaItem(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save cyclopedia item button');
+      }
+    }
+
+    // Handle save upgrade classification button click in modal
+    const saveUpgradeClassificationBtn = target.closest('#save-upgrade-classification') as HTMLElement | null;
+    if (saveUpgradeClassificationBtn) {
+      const cat = saveUpgradeClassificationBtn.dataset.category;
+      const idStr = saveUpgradeClassificationBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetUpgradeClassification(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save upgrade classification button');
+      }
+    }
+
+    // Handle save skillwheel gem button click in modal
+    const saveSkillwheelGemBtn = target.closest('#save-skillwheel-gem') as HTMLElement | null;
+    if (saveSkillwheelGemBtn) {
+      const cat = saveSkillwheelGemBtn.dataset.category;
+      const idStr = saveSkillwheelGemBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetSkillwheelGem(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save skillwheel gem button');
+      }
+    }
+
+    // Handle save imbueable button click in modal
+    const saveImbueableBtn = target.closest('#save-imbueable') as HTMLElement | null;
+    if (saveImbueableBtn) {
+      const cat = saveImbueableBtn.dataset.category;
+      const idStr = saveImbueableBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetImbueable(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save imbueable button');
+      }
+    }
+
+    // Handle save proficiency button click in modal
+    const saveProficiencyBtn = target.closest('#save-proficiency') as HTMLElement | null;
+    if (saveProficiencyBtn) {
+      const cat = saveProficiencyBtn.dataset.category;
+      const idStr = saveProficiencyBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetProficiency(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save proficiency button');
+      }
+    }
+
+    // Handle save transparency level button click in modal
+    const saveTransparencyLevelBtn = target.closest('#save-transparency-level') as HTMLElement | null;
+    if (saveTransparencyLevelBtn) {
+      const cat = saveTransparencyLevelBtn.dataset.category;
+      const idStr = saveTransparencyLevelBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetTransparencyLevel(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save transparency level button');
+      }
+    }
+
     // Handle flag checkbox toggle
     const flagCheckbox = target.closest('.flag-checkbox') as HTMLInputElement | null;
     if (flagCheckbox) {
@@ -1819,6 +1987,8 @@ async function displayCompleteAssetDetails(details: CompleteAppearanceItem, cate
       { key: 'expirestop', label: 'Expire Stop', value: !!flags?.expirestop },
       { key: 'decoitemkit', label: 'Deco Item Kit', value: !!flags?.deco_item_kit },
       { key: 'dualwielding', label: 'Dual Wielding', value: !!flags?.dual_wielding },
+      { key: 'hooksouth', label: 'Hook South', value: getFlagBool(flags, 'hooksouth') },
+      { key: 'hookeast', label: 'Hook East', value: getFlagBool(flags, 'hookeast') },
     ];
 
     const flagsHtml = flagDefs.map(f => `
@@ -1945,6 +2115,269 @@ async function displayCompleteAssetDetails(details: CompleteAppearanceItem, cate
         </div>
         <button id="save-write-once" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Write Once</button>
       </div>
+
+      <div class="detail-section">
+        <h4>Automap</h4>
+        <div class="detail-item">
+          <span class="detail-label">Color:</span>
+          <div class="number-input">
+            <input type="number" id="automap-color" value="${flags?.automap?.color ?? ''}" placeholder="ex: 215" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="automap-color"></button>
+              <button type="button" class="spinner-down" data-input-id="automap-color"></button>
+            </div>
+          </div>
+        </div>
+        <button id="save-automap" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Automap</button>
+      </div>
+
+      <div class="detail-section">
+        <h4>Hook</h4>
+        <div class="detail-item">
+          <span class="detail-label">Direction:</span>
+          <div class="number-input">
+            <input type="number" id="hook-direction" value="${flags?.hook?.direction ?? ''}" placeholder="ex: 1=Sul, 2=Leste" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="hook-direction"></button>
+              <button type="button" class="spinner-down" data-input-id="hook-direction"></button>
+            </div>
+          </div>
+        </div>
+        <button id="save-hook" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Hook</button>
+      </div>
+
+      <div class="detail-section">
+        <h4>Lens Help</h4>
+        <div class="detail-item">
+          <span class="detail-label">ID:</span>
+          <div class="number-input">
+            <input type="number" id="lenshelp-id" value="${flags?.lenshelp?.id ?? ''}" placeholder="ex: 1000" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="lenshelp-id"></button>
+              <button type="button" class="spinner-down" data-input-id="lenshelp-id"></button>
+            </div>
+          </div>
+        </div>
+        <button id="save-lenshelp" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Lens Help</button>
+      </div>
+
+      <div class="detail-section">
+        <h4>Clothes</h4>
+        <div class="detail-item">
+          <span class="detail-label">Slot:</span>
+          <div class="number-input">
+            <input type="number" id="clothes-slot" value="${flags?.clothes?.slot ?? ''}" placeholder="ex: 8" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="clothes-slot"></button>
+              <button type="button" class="spinner-down" data-input-id="clothes-slot"></button>
+            </div>
+          </div>
+        </div>
+        <button id="save-clothes" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Clothes</button>
+      </div>
+
+      <div class="detail-section">
+        <h4>Default Action</h4>
+        <div class="detail-item">
+          <span class="detail-label">Action:</span>
+          <div class="number-input">
+            <input type="number" id="default-action" value="${flags?.default_action?.action ?? ''}" placeholder="ex: 5" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="default-action"></button>
+              <button type="button" class="spinner-down" data-input-id="default-action"></button>
+            </div>
+          </div>
+        </div>
+        <button id="save-default-action" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Default Action</button>
+      </div>
+
+      <div class="detail-section">
+        <h4>Market</h4>
+        <div class="detail-item">
+          <span class="detail-label">Category:</span>
+          <div class="number-input">
+            <input type="number" id="market-category" value="${flags?.market?.category ?? ''}" placeholder="ex: 2" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="market-category"></button>
+              <button type="button" class="spinner-down" data-input-id="market-category"></button>
+            </div>
+          </div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Trade As Object ID:</span>
+          <div class="number-input">
+            <input type="number" id="market-trade-as-object-id" value="${flags?.market?.trade_as_object_id ?? ''}" placeholder="ex: 1234" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="market-trade-as-object-id"></button>
+              <button type="button" class="spinner-down" data-input-id="market-trade-as-object-id"></button>
+            </div>
+          </div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Show As Object ID:</span>
+          <div class="number-input">
+            <input type="number" id="market-show-as-object-id" value="${flags?.market?.show_as_object_id ?? ''}" placeholder="ex: 5678" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="market-show-as-object-id"></button>
+              <button type="button" class="spinner-down" data-input-id="market-show-as-object-id"></button>
+            </div>
+          </div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Restrict To Vocation:</span>
+          <input type="text" id="market-restrict-to-vocation" value="${flags?.market?.restrict_to_vocation?.join(',') ?? ''}" placeholder="ex: 1,2,3" />
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Minimum Level:</span>
+          <div class="number-input">
+            <input type="number" id="market-minimum-level" value="${flags?.market?.minimum_level ?? ''}" placeholder="ex: 20" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="market-minimum-level"></button>
+              <button type="button" class="spinner-down" data-input-id="market-minimum-level"></button>
+            </div>
+          </div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Name:</span>
+          <input type="text" id="market-name" value="${details?.name ?? ''}" placeholder="ex: Magic Sword" />
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Vocation:</span>
+          <input type="text" id="market-vocation" value="" placeholder="ex: Knight" />
+        </div>
+        <button id="save-market" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Market</button>
+      </div>
+
+      <div class="detail-section">
+        <h4>Bank</h4>
+        <div class="detail-item">
+          <span class="detail-label">Waypoints:</span>
+          <div class="number-input">
+            <input type="number" id="bank-waypoints" value="${flags?.bank?.waypoints ?? ''}" placeholder="ex: 3" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="bank-waypoints"></button>
+              <button type="button" class="spinner-down" data-input-id="bank-waypoints"></button>
+            </div>
+          </div>
+        </div>
+        <button id="save-bank" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Bank</button>
+      </div>
+
+      <div class="detail-section">
+        <h4>Changed To Expire</h4>
+        <div class="detail-item">
+          <span class="detail-label">Former Object Type ID:</span>
+          <div class="number-input">
+            <input type="number" id="changed-to-expire-former-id" value="${flags?.changed_to_expire?.former_object_typeid ?? ''}" placeholder="ex: 100" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="changed-to-expire-former-id"></button>
+              <button type="button" class="spinner-down" data-input-id="changed-to-expire-former-id"></button>
+            </div>
+          </div>
+        </div>
+        <button id="save-changed-to-expire" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Changed To Expire</button>
+      </div>
+
+      <div class="detail-section">
+        <h4>Cyclopedia Item</h4>
+        <div class="detail-item">
+          <span class="detail-label">Type:</span>
+          <div class="number-input">
+            <input type="number" id="cyclopedia-type" value="${flags?.cyclopedia_item?.cyclopedia_type ?? ''}" placeholder="ex: 1" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="cyclopedia-type"></button>
+              <button type="button" class="spinner-down" data-input-id="cyclopedia-type"></button>
+            </div>
+          </div>
+        </div>
+        <button id="save-cyclopedia-item" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Cyclopedia Item</button>
+      </div>
+
+      <div class="detail-section">
+        <h4>Upgrade Classification</h4>
+        <div class="detail-item">
+          <span class="detail-label">Classification:</span>
+          <div class="number-input">
+            <input type="number" id="upgrade-classification" value="${flags?.upgrade_classification?.upgrade_classification ?? ''}" placeholder="ex: 2" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="upgrade-classification"></button>
+              <button type="button" class="spinner-down" data-input-id="upgrade-classification"></button>
+            </div>
+          </div>
+        </div>
+        <button id="save-upgrade-classification" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Upgrade Classification</button>
+      </div>
+
+      <div class="detail-section">
+        <h4>Skill Wheel Gem</h4>
+        <div class="detail-item">
+          <span class="detail-label">Gem Quality ID:</span>
+          <div class="number-input">
+            <input type="number" id="skillwheel-gem-quality-id" value="${flags?.skillwheel_gem?.gem_quality_id ?? ''}" placeholder="ex: 1" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="skillwheel-gem-quality-id"></button>
+              <button type="button" class="spinner-down" data-input-id="skillwheel-gem-quality-id"></button>
+            </div>
+          </div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Vocation ID:</span>
+          <div class="number-input">
+            <input type="number" id="skillwheel-vocation-id" value="${flags?.skillwheel_gem?.vocation_id ?? ''}" placeholder="ex: 4" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="skillwheel-vocation-id"></button>
+              <button type="button" class="spinner-down" data-input-id="skillwheel-vocation-id"></button>
+            </div>
+          </div>
+        </div>
+        <button id="save-skillwheel-gem" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Skill Wheel Gem</button>
+      </div>
+
+      <div class="detail-section">
+        <h4>Imbueable</h4>
+        <div class="detail-item">
+          <span class="detail-label">Slot Count:</span>
+          <div class="number-input">
+            <input type="number" id="imbueable-slot-count" value="${flags?.imbueable?.slot_count ?? ''}" placeholder="ex: 1" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="imbueable-slot-count"></button>
+              <button type="button" class="spinner-down" data-input-id="imbueable-slot-count"></button>
+            </div>
+          </div>
+        </div>
+        <button id="save-imbueable" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Imbueable</button>
+      </div>
+
+      <div class="detail-section">
+        <h4>Proficiency</h4>
+        <div class="detail-item">
+          <span class="detail-label">Proficiency ID:</span>
+          <div class="number-input">
+            <input type="number" id="proficiency-id" value="${flags?.proficiency?.proficiency_id ?? ''}" placeholder="ex: 3" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="proficiency-id"></button>
+              <button type="button" class="spinner-down" data-input-id="proficiency-id"></button>
+            </div>
+          </div>
+        </div>
+        <button id="save-proficiency" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Proficiency</button>
+      </div>
+
+      <div class="detail-section">
+        <h4>Transparency Level</h4>
+        <div class="detail-item">
+          <span class="detail-label">Level:</span>
+          <div class="number-input">
+            <input type="number" id="transparency-level" value="${flags?.transparency_level ?? ''}" placeholder="ex: 50" />
+            <div class="spinner-controls">
+              <button type="button" class="spinner-up" data-input-id="transparency-level"></button>
+              <button type="button" class="spinner-down" data-input-id="transparency-level"></button>
+            </div>
+          </div>
+        </div>
+        <button id="save-transparency-level" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Transparency Level</button>
+      </div>
+
     `;
   }
 
@@ -2227,6 +2660,401 @@ async function refreshAssetDetails(category: string, id: number) {
   } catch (err) {
     console.error('Erro ao salvar Write Once:', err);
     alert('Falha ao salvar Write Once.');
+  }
+}
+
+;(window as any).saveAssetAutomap = async function (category: string, id: number) {
+  try {
+    const el = document.getElementById('automap-color') as HTMLInputElement | null;
+    const color = el && el.value !== '' ? parseInt(el.value, 10) : null;
+
+    await invoke('update_appearance_automap', { category, id, color });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-automap') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Automap';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Automap:', err);
+    alert('Falha ao salvar Automap.');
+  }
+}
+
+;(window as any).saveAssetHook = async function (category: string, id: number) {
+  try {
+    const el = document.getElementById('hook-direction') as HTMLInputElement | null;
+    const direction = el && el.value !== '' ? parseInt(el.value, 10) : null;
+
+    await invoke('update_appearance_hook', { category, id, direction });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-hook') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Hook';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Hook:', err);
+    alert('Falha ao salvar Hook.');
+  }
+}
+
+;(window as any).saveAssetLenshelp = async function (category: string, id: number) {
+  try {
+    const el = document.getElementById('lenshelp-id') as HTMLInputElement | null;
+    const lenshelpId = el && el.value !== '' ? parseInt(el.value, 10) : null;
+
+    await invoke('update_appearance_lenshelp', { category, id, lenshelpId });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-lenshelp') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Lens Help';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Lens Help:', err);
+    alert('Falha ao salvar Lens Help.');
+  }
+}
+
+;(window as any).saveAssetClothes = async function (category: string, id: number) {
+  try {
+    const el = document.getElementById('clothes-slot') as HTMLInputElement | null;
+    const slot = el && el.value !== '' ? parseInt(el.value, 10) : null;
+
+    await invoke('update_appearance_clothes', { category, id, slot });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-clothes') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Clothes';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Clothes:', err);
+    alert('Falha ao salvar Clothes.');
+  }
+}
+
+;(window as any).saveAssetDefaultAction = async function (category: string, id: number) {
+  try {
+    const el = document.getElementById('default-action') as HTMLInputElement | null;
+    const action = el && el.value !== '' ? parseInt(el.value, 10) : null;
+
+    await invoke('update_appearance_default_action', { category, id, action });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-default-action') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Default Action';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Default Action:', err);
+    alert('Falha ao salvar Default Action.');
+  }
+}
+
+;(window as any).saveAssetMarket = async function (category: string, id: number) {
+  try {
+    const catEl = document.getElementById('market-category') as HTMLInputElement | null;
+    const tradeEl = document.getElementById('market-trade-as-object-id') as HTMLInputElement | null;
+    const showEl = document.getElementById('market-show-as-object-id') as HTMLInputElement | null;
+    const restEl = document.getElementById('market-restrict-to-vocation') as HTMLInputElement | null;
+    const minLvlEl = document.getElementById('market-minimum-level') as HTMLInputElement | null;
+    const nameEl = document.getElementById('market-name') as HTMLInputElement | null;
+    const vocEl = document.getElementById('market-vocation') as HTMLInputElement | null;
+
+    const categoryValue = catEl && catEl.value !== '' ? parseInt(catEl.value, 10) : null;
+    const tradeAsObjectId = tradeEl && tradeEl.value !== '' ? parseInt(tradeEl.value, 10) : null;
+    const showAsObjectId = showEl && showEl.value !== '' ? parseInt(showEl.value, 10) : null;
+    const minimumLevel = minLvlEl && minLvlEl.value !== '' ? parseInt(minLvlEl.value, 10) : null;
+
+    const restrictStr = restEl?.value?.trim() || '';
+    const restrictToVocation = restrictStr
+      ? restrictStr.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !Number.isNaN(n))
+      : [];
+
+    const name = nameEl && nameEl.value !== '' ? nameEl.value : null;
+    const vocation = vocEl && vocEl.value !== '' ? vocEl.value : null;
+
+    await invoke('update_appearance_market', {
+      category,
+      id,
+      categoryValue,
+      tradeAsObjectId,
+      showAsObjectId,
+      restrictToVocation,
+      minimumLevel,
+      name,
+      vocation,
+    });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-market') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Market';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Market:', err);
+    alert('Falha ao salvar Market.');
+  }
+}
+
+;(window as any).saveAssetBank = async function (category: string, id: number) {
+  try {
+    const el = document.getElementById('bank-waypoints') as HTMLInputElement | null;
+    const waypoints = el && el.value !== '' ? parseInt(el.value, 10) : null;
+
+    await invoke('update_appearance_bank', { category, id, waypoints });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-bank') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Bank';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Bank:', err);
+    alert('Falha ao salvar Bank.');
+  }
+}
+
+;(window as any).saveAssetChangedToExpire = async function (category: string, id: number) {
+  try {
+    const el = document.getElementById('changed-to-expire-former-id') as HTMLInputElement | null;
+    const formerObjectTypeid = el && el.value !== '' ? parseInt(el.value, 10) : null;
+
+    await invoke('update_appearance_changed_to_expire', { category, id, formerObjectTypeid });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-changed-to-expire') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Changed To Expire';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Changed To Expire:', err);
+    alert('Falha ao salvar Changed To Expire.');
+  }
+}
+
+;(window as any).saveAssetCyclopediaItem = async function (category: string, id: number) {
+  try {
+    const el = document.getElementById('cyclopedia-type') as HTMLInputElement | null;
+    const cyclopediaType = el && el.value !== '' ? parseInt(el.value, 10) : null;
+
+    await invoke('update_appearance_cyclopedia_item', { category, id, cyclopediaType });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-cyclopedia-item') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Cyclopedia Item';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Cyclopedia Item:', err);
+    alert('Falha ao salvar Cyclopedia Item.');
+  }
+}
+
+;(window as any).saveAssetUpgradeClassification = async function (category: string, id: number) {
+  try {
+    const el = document.getElementById('upgrade-classification') as HTMLInputElement | null;
+    const upgradeClassification = el && el.value !== '' ? parseInt(el.value, 10) : null;
+
+    await invoke('update_appearance_upgrade_classification', { category, id, upgradeClassification });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-upgrade-classification') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Upgrade Classification';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Upgrade Classification:', err);
+    alert('Falha ao salvar Upgrade Classification.');
+  }
+}
+
+;(window as any).saveAssetSkillwheelGem = async function (category: string, id: number) {
+  try {
+    const qEl = document.getElementById('skillwheel-gem-quality-id') as HTMLInputElement | null;
+    const vEl = document.getElementById('skillwheel-vocation-id') as HTMLInputElement | null;
+
+    const gemQualityId = qEl && qEl.value !== '' ? parseInt(qEl.value, 10) : null;
+    const vocationId = vEl && vEl.value !== '' ? parseInt(vEl.value, 10) : null;
+
+    await invoke('update_appearance_skillwheel_gem', { category, id, gemQualityId, vocationId });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-skillwheel-gem') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Skill Wheel Gem';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Skill Wheel Gem:', err);
+    alert('Falha ao salvar Skill Wheel Gem.');
+  }
+}
+
+;(window as any).saveAssetImbueable = async function (category: string, id: number) {
+  try {
+    const el = document.getElementById('imbueable-slot-count') as HTMLInputElement | null;
+    const slotCount = el && el.value !== '' ? parseInt(el.value, 10) : null;
+
+    await invoke('update_appearance_imbueable', { category, id, slotCount });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-imbueable') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Imbueable';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Imbueable:', err);
+    alert('Falha ao salvar Imbueable.');
+  }
+}
+
+;(window as any).saveAssetProficiency = async function (category: string, id: number) {
+  try {
+    const el = document.getElementById('proficiency-id') as HTMLInputElement | null;
+    const proficiencyId = el && el.value !== '' ? parseInt(el.value, 10) : null;
+
+    await invoke('update_appearance_proficiency', { category, id, proficiencyId });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-proficiency') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Proficiency';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Proficiency:', err);
+    alert('Falha ao salvar Proficiency.');
+  }
+}
+
+;(window as any).saveAssetTransparencyLevel = async function (category: string, id: number) {
+  try {
+    const el = document.getElementById('transparency-level') as HTMLInputElement | null;
+    const transparencyLevel = el && el.value !== '' ? parseInt(el.value, 10) : null;
+
+    await invoke('update_appearance_transparency_level', { category, id, transparencyLevel });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-transparency-level') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Transparency Level';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Transparency Level:', err);
+    alert('Falha ao salvar Transparency Level.');
   }
 }
 
