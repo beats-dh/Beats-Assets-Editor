@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core';
 import { showAssetDetails, closeAssetDetails, refreshAssetDetails, getCurrentAppearanceDetails } from './assetDetails';
 import { openCategory, openCategoryWithSubcategory, goBack } from './navigation';
 import {
@@ -73,7 +72,6 @@ export function setupGlobalEventListeners(): void {
       const cat = saveBasicBtn.dataset.category;
       const idStr = saveBasicBtn.dataset.id;
       if (cat && idStr) {
-        const currentDetails = getCurrentAppearanceDetails();
         await saveAssetBasicInfo(cat, parseInt(idStr, 10), async () => {
           await refreshAssetDetails(cat, parseInt(idStr, 10));
         });
@@ -102,10 +100,10 @@ export function setupGlobalEventListeners(): void {
   document.querySelector('#close-details')?.addEventListener('click', closeAssetDetails);
 }
 
-async function handleSpinnerButtons(e: Event, target: HTMLElement): Promise<void> {
+async function handleSpinnerButtons(_e: Event, target: HTMLElement): Promise<void> {
   const spinnerUp = target.closest('.spinner-up') as HTMLElement | null;
   if (spinnerUp) {
-    e.preventDefault();
+    _e.preventDefault();
     const inputId = spinnerUp.dataset.inputId;
     if (inputId) {
       const input = document.getElementById(inputId) as HTMLInputElement | null;
@@ -123,7 +121,7 @@ async function handleSpinnerButtons(e: Event, target: HTMLElement): Promise<void
 
   const spinnerDown = target.closest('.spinner-down') as HTMLElement | null;
   if (spinnerDown) {
-    e.preventDefault();
+    _e.preventDefault();
     const inputId = spinnerDown.dataset.inputId;
     if (inputId) {
       const input = document.getElementById(inputId) as HTMLInputElement | null;
@@ -140,7 +138,7 @@ async function handleSpinnerButtons(e: Event, target: HTMLElement): Promise<void
   }
 }
 
-async function handleSaveButtons(e: Event, target: HTMLElement): Promise<void> {
+async function handleSaveButtons(_e: Event, target: HTMLElement): Promise<void> {
   const saveButtons = [
     { id: '#save-light', handler: saveAssetLight },
     { id: '#save-shift', handler: saveAssetShift },
@@ -182,7 +180,7 @@ async function handleSaveButtons(e: Event, target: HTMLElement): Promise<void> {
   }
 }
 
-async function handleFlagCheckbox(e: Event, target: HTMLElement): Promise<void> {
+async function handleFlagCheckbox(_e: Event, target: HTMLElement): Promise<void> {
   const flagCheckbox = target.closest('.flag-checkbox') as HTMLInputElement | null;
   if (flagCheckbox) {
     const cat = flagCheckbox.dataset.category;
@@ -204,7 +202,7 @@ async function handleFlagCheckbox(e: Event, target: HTMLElement): Promise<void> 
   }
 }
 
-function handleModalTabs(e: Event, target: HTMLElement): void {
+function handleModalTabs(_e: Event, target: HTMLElement): void {
   const tabClick = target.closest('.tab-btn') as HTMLElement | null;
   if (tabClick) {
     const tab = tabClick.dataset.tab;

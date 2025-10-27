@@ -43,6 +43,7 @@ export function updateHeaderStats(): void {
   const outfitsCount = document.getElementById('outfits-count');
   const effectsCount = document.getElementById('effects-count');
   const missilesCount = document.getElementById('missiles-count');
+  const soundsCount = document.getElementById('sounds-count');
 
   if (objectsCount && currentStats) {
     objectsCount.textContent = `${currentStats.object_count} itens`;
@@ -55,6 +56,10 @@ export function updateHeaderStats(): void {
   }
   if (missilesCount && currentStats) {
     missilesCount.textContent = `${currentStats.missile_count} itens`;
+  }
+  // Sounds count will be loaded separately
+  if (soundsCount) {
+    // Will be updated when sounds are loaded
   }
 }
 
@@ -72,6 +77,16 @@ export function openCategory(category: string): void {
   if (appHeader) appHeader.style.display = 'none';
   if (categoryNav) categoryNav.style.display = 'none';
   if (categoryView) categoryView.style.display = 'block';
+
+  // Show/hide subcategory selector based on category
+  const subcategoryContainer = document.getElementById('subcategory-container') as HTMLElement | null;
+  if (subcategoryContainer) {
+    if (category === 'Objects' || category === 'Sounds') {
+      subcategoryContainer.style.display = 'flex';
+    } else {
+      subcategoryContainer.style.display = 'none';
+    }
+  }
 
   updateCategoryHeader(category);
   renderSubcategoryOptions(category);
@@ -94,6 +109,16 @@ export function openCategoryWithSubcategory(category: string, subcategory: strin
   if (appHeader) appHeader.style.display = 'none';
   if (categoryNav) categoryNav.style.display = 'none';
   if (categoryView) categoryView.style.display = 'block';
+
+  // Show/hide subcategory selector based on category
+  const subcategoryContainer = document.getElementById('subcategory-container') as HTMLElement | null;
+  if (subcategoryContainer) {
+    if (category === 'Objects' || category === 'Sounds') {
+      subcategoryContainer.style.display = 'flex';
+    } else {
+      subcategoryContainer.style.display = 'none';
+    }
+  }
 
   updateCategoryHeader(category);
   renderSubcategoryOptions(category);
@@ -155,6 +180,55 @@ function renderSubcategoryOptions(category: string): void {
         option.value = 'All';
         option.textContent = 'Todas as subcategorias';
         subcategorySelect.appendChild(option);
+      });
+  } else if (category === 'Sounds') {
+    // Load sound types as subcategories
+    invoke<string[]>('list_sound_types')
+      .then((soundTypes) => {
+        // Add "All" option first
+        const allOption = document.createElement('option');
+        allOption.value = 'All';
+        allOption.textContent = 'Todos os tipos';
+        subcategorySelect.appendChild(allOption);
+
+        // Add each sound type as a subcategory
+        soundTypes.forEach((soundType) => {
+          const option = document.createElement('option');
+          option.value = soundType;
+          option.textContent = soundType;
+          subcategorySelect.appendChild(option);
+        });
+
+        // Add special groups for streams/templates
+        const ambienceOption = document.createElement('option');
+        ambienceOption.value = 'Ambience Streams';
+        ambienceOption.textContent = 'Ambience Streams';
+        subcategorySelect.appendChild(ambienceOption);
+
+        const ambienceObjOption = document.createElement('option');
+        ambienceObjOption.value = 'Ambience Object Streams';
+        ambienceObjOption.textContent = 'Ambience Object Streams';
+        subcategorySelect.appendChild(ambienceObjOption);
+
+        const musicTemplateOption = document.createElement('option');
+        musicTemplateOption.value = 'Music Templates';
+        musicTemplateOption.textContent = 'Music Templates';
+        subcategorySelect.appendChild(musicTemplateOption);
+      })
+      .catch((err) => {
+        console.error('Erro ao carregar tipos de sons:', err);
+        const option = document.createElement('option');
+        option.value = 'All';
+        option.textContent = 'Todos os tipos';
+        subcategorySelect.appendChild(option);
+
+        // Fallback: still add special groups
+        ['Ambience Streams', 'Ambience Object Streams', 'Music Templates'].forEach((label) => {
+          const opt = document.createElement('option');
+          opt.value = label;
+          opt.textContent = label;
+          subcategorySelect.appendChild(opt);
+        });
       });
   } else {
     const option = document.createElement('option');

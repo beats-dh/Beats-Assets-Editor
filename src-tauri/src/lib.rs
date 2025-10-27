@@ -4,6 +4,7 @@ mod commands;
 use std::sync::Mutex;
 use std::collections::HashMap;
 use commands::AppState;
+use commands::sounds_api::SoundsState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -21,6 +22,7 @@ pub fn run() {
             tibia_path: Mutex::new(None),
             sprite_cache: Mutex::new(HashMap::new()),
         })
+        .manage(SoundsState::new())
         .invoke_handler(tauri::generate_handler![
             commands::appearances_api::load_appearances_file,
             commands::appearances_api::get_appearance_stats,
@@ -63,6 +65,28 @@ pub fn run() {
             commands::appearances_api::save_appearances_file,
             commands::settings::set_tibia_base_path,
             commands::settings::get_tibia_base_path,
+            // Sounds API
+            commands::sounds_api::load_sounds_file,
+            commands::sounds_api::get_sounds_stats,
+            commands::sounds_api::list_sound_types,
+            commands::sounds_api::get_sound_by_id,
+            commands::sounds_api::get_sounds_by_type,
+            commands::sounds_api::list_all_sounds,
+            commands::sounds_api::list_numeric_sound_effects,
+            commands::sounds_api::get_sound_effect_count,
+            commands::sounds_api::get_sound_audio_data,
+            commands::sounds_api::get_sound_file_path,
+            commands::sounds_api::get_numeric_sound_effect_by_id,
+            // New sounds entities
+            commands::sounds_api::list_ambience_streams,
+            commands::sounds_api::get_ambience_stream_by_id,
+            commands::sounds_api::get_ambience_stream_count,
+            commands::sounds_api::list_ambience_object_streams,
+            commands::sounds_api::get_ambience_object_stream_by_id,
+            commands::sounds_api::get_ambience_object_stream_count,
+            commands::sounds_api::list_music_templates,
+            commands::sounds_api::get_music_template_by_id,
+            commands::sounds_api::get_music_template_count,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

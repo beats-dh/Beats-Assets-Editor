@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { CompleteAppearanceItem, CompleteFlags } from './types';
-import { getVocationName, getVocationOptionsHTML, getFlagBool } from './utils';
+import { getVocationOptionsHTML, getFlagBool } from './utils';
 import { getAppearanceSprites } from './spriteCache';
 import { stopDetailAnimationPlayers, initAnimationPlayersForDetails, initDetailSpriteCardAnimations } from './animation';
 
@@ -27,33 +27,70 @@ export function setCurrentAppearanceDetails(details: CompleteAppearanceItem | nu
 export async function showAssetDetails(category: string, id: number): Promise<void> {
   console.log(`showAssetDetails called with category: ${category}, id: ${id}`);
 
+  // Ensure modal elements are initialized
+  if (!assetDetails || !detailsContent) {
+    initAssetDetailsElements();
+  }
+
   if (!assetDetails || !detailsContent) {
     console.error('assetDetails or detailsContent is null');
     return;
   }
 
   try {
-    console.log('Invoking get_complete_appearance...');
-    const completeData = await invoke('get_complete_appearance', {
-      category,
-      id
-    }) as CompleteAppearanceItem;
+    if (category === 'Sounds') {
+      // Determine current sound subcategory from UI
+      const subSelect = document.getElementById('subcategory-select') as HTMLSelectElement | null;
+      const sub = subSelect?.value || 'All';
 
-    console.log('Received complete data:', completeData);
-    currentAppearanceDetails = completeData;
-    await displayCompleteAssetDetails(completeData, category);
+      if (sub === 'Ambience Streams') {
+        console.log('Loading ambience stream details...');
+        const stream = await invoke('get_ambience_stream_by_id', { id });
+        await displayAmbienceStreamDetails(stream as any, id);
+      } else if (sub === 'Ambience Object Streams') {
+        console.log('Loading ambience object stream details...');
+        const objStream = await invoke('get_ambience_object_stream_by_id', { id });
+        await displayAmbienceObjectStreamDetails(objStream as any, id);
+      } else if (sub === 'Music Templates') {
+        console.log('Loading music template details...');
+        const tmpl = await invoke('get_music_template_by_id', { id });
+        await displayMusicTemplateDetails(tmpl as any, id);
+      } else {
+        // Numeric sound effect details by ID
+        console.log('Loading sound effect details...');
+        const soundData = await invoke('get_numeric_sound_effect_by_id', { id });
+        console.log('Received sound effect data:', soundData);
+        await displaySoundDetails(soundData as any, id);
+      }
 
-    // Force display the modal
-    assetDetails.style.display = 'flex';
-    assetDetails.classList.add('show');
-    console.log('Modal display:', window.getComputedStyle(assetDetails).display);
-    console.log('Modal should now be visible');
+      // Force display the modal
+      assetDetails.style.display = 'flex';
+      assetDetails.classList.add('show');
+      console.log('Sound modal should now be visible');
+    } else {
+      // Handle appearances (existing logic)
+      console.log('Invoking get_complete_appearance...');
+      const completeData = await invoke('get_complete_appearance', {
+        category,
+        id
+      }) as CompleteAppearanceItem;
 
-    // Initialize animation players per frame group
-    await initAnimationPlayersForDetails(completeData, category);
+      console.log('Received complete data:', completeData);
+      currentAppearanceDetails = completeData;
+      await displayCompleteAssetDetails(completeData, category);
 
-    // Load sprites for this specific item
-    await loadDetailSprites(category, id);
+      // Force display the modal
+      assetDetails.style.display = 'flex';
+      assetDetails.classList.add('show');
+      console.log('Modal display:', window.getComputedStyle(assetDetails).display);
+      console.log('Modal should now be visible');
+
+      // Initialize animation players per frame group
+      await initAnimationPlayersForDetails(completeData, category);
+
+      // Load sprites for this specific item
+      await loadDetailSprites(category, id);
+    }
   } catch (error) {
     console.error('Error loading asset details:', error);
   }
@@ -100,13 +137,389 @@ export async function loadDetailSprites(category: string, id: number): Promise<v
   }
 }
 
+async function displaySoundDetails(sound: any, soundId: number): Promise<void> {
+  if (!detailsContent) return;
+
+  const soundType = sound.sound_type || 'Unknown';
+  const hasRandomSounds = sound.random_sound_ids && sound.random_sound_ids.length > 0;
+  const primarySoundId: number | undefined = (sound.sound_id !== null && sound.sound_id !== undefined)
+    ? sound.sound_id
+    : (hasRandomSounds ? sound.random_sound_ids[0] : undefined);
+  const hasPlayable = primarySoundId !== undefined;
+
+  let html = `
+    <div class="asset-details-header">
+      <div class="detail-header-left">
+        <div class="detail-icon">🔊</div>
+        <div class="detail-title-group">
+          <h2>Sound Effect #${soundId}</h2>
+          <p class="detail-subtitle">${soundType}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="details-section">
+      <h3>Basic Information</h3>
+      <div class="details-grid">
+        <div class="detail-item">
+          <span class="detail-label">Sound ID:</span>
+          <span class="detail-value">#${soundId}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Type:</span>
+          <span class="detail-value">${soundType}</span>
+        </div>
+  `;
+
+  if (hasPlayable) {
+    html += `
+        <div class="detail-item">
+          <span class="detail-label">Primary Sound ID:</span>
+          <span class="detail-value">${primarySoundId}</span>
+        </div>
+    `;
+  }
+
+  if (hasRandomSounds) {
+    html += `
+        <div class="detail-item">
+          <span class="detail-label">Random Sounds:</span>
+          <span class="detail-value">
+            <div class="random-sounds-controls">
+              ${sound.random_sound_ids.map((rid: number) => `
+                <button class="random-sound-btn" data-effect-id="${soundId}" data-sound-id="${rid}" title="Play ${rid}">▶ ${rid}</button>
+              `).join(' ')}
+              <button class="random-sounds-playall-btn" data-effect-id="${soundId}" title="Play all random sounds">▶ Play All</button>
+            </div>
+          </span>
+        </div>
+    `;
+  }
+
+  html += `
+      </div>
+    </div>
+  `;
+
+  // Randomization properties (real fields)
+  const hasRandomization =
+    (sound.random_pitch_min != null && sound.random_pitch_max != null) ||
+    (sound.random_volume_min != null && sound.random_volume_max != null);
+
+  if (hasRandomization) {
+    html += `
+      <div class="details-section">
+        <h3>Randomization</h3>
+        <div class="details-grid">
+    `;
+
+    if (sound.random_pitch_min != null && sound.random_pitch_max != null) {
+      html += `
+          <div class="detail-item">
+            <span class="detail-label">Random Pitch:</span>
+            <span class="detail-value">${sound.random_pitch_min} – ${sound.random_pitch_max}</span>
+          </div>
+      `;
+    }
+
+    if (sound.random_volume_min != null && sound.random_volume_max != null) {
+      html += `
+          <div class="detail-item">
+            <span class="detail-label">Random Volume:</span>
+            <span class="detail-value">${sound.random_volume_min} – ${sound.random_volume_max}</span>
+          </div>
+      `;
+    }
+
+    html += `
+        </div>
+      </div>
+    `;
+  }
+
+  // Audio player section
+  if (hasPlayable) {
+    html += `
+      <div class="details-section">
+        <h3>Audio Preview</h3>
+        <div id="sound-audio-player-${soundId}" class="sound-audio-container">
+          <div class="loading-audio">Loading audio...</div>
+        </div>
+      </div>
+    `;
+  }
+
+  detailsContent.innerHTML = html;
+
+  // Wire random sound buttons
+  if (hasRandomSounds) {
+    const randomButtons = Array.from(document.querySelectorAll(`.random-sound-btn[data-effect-id="${soundId}"]`)) as HTMLButtonElement[];
+    randomButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const ridStr = btn.getAttribute('data-sound-id');
+        const rid = ridStr ? parseInt(ridStr, 10) : NaN;
+        if (!isNaN(rid)) {
+          loadAudioPlayer(rid, soundId, true);
+        }
+      });
+    });
+
+    const playAllBtn = document.querySelector(`.random-sounds-playall-btn[data-effect-id="${soundId}"]`) as HTMLButtonElement | null;
+    if (playAllBtn) {
+      playAllBtn.addEventListener('click', () => {
+        const ids: number[] = Array.isArray(sound.random_sound_ids) ? sound.random_sound_ids : [];
+        playRandomSequence(ids, soundId);
+      });
+    }
+  }
+
+  // Load and display audio player
+  if (hasPlayable && primarySoundId !== undefined) {
+    loadAudioPlayer(primarySoundId, soundId);
+  }
+}
+
+async function displayAmbienceStreamDetails(stream: any, streamId: number): Promise<void> {
+  if (!detailsContent) return;
+
+  const hasDelayed = stream.delayed_effects && stream.delayed_effects.length > 0;
+
+  let html = `
+    <div class="asset-details-header">
+      <div class="detail-header-left">
+        <div class="detail-icon">🌫️</div>
+        <div class="detail-title-group">
+          <h2>Ambience Stream #${streamId}</h2>
+          <p class="detail-subtitle">Looping ambience with optional delayed effects</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="details-section">
+      <h3>Basic Information</h3>
+      <div class="details-grid">
+        <div class="detail-item">
+          <span class="detail-label">ID:</span>
+          <span class="detail-value">#${streamId}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Looping Sound ID:</span>
+          <span class="detail-value">${stream.looping_sound_id}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Delayed Effects:</span>
+          <span class="detail-value">${hasDelayed ? stream.delayed_effects.length : 0}</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (hasDelayed) {
+    html += `
+      <div class="details-section">
+        <h3>Delayed Effects</h3>
+        <div class="table-like">
+          <div class="table-row table-header">
+            <div>Effect ID</div>
+            <div>Delay (s)</div>
+          </div>
+          ${stream.delayed_effects.map((d: any) => `
+            <div class="table-row">
+              <div>${d.numeric_sound_effect_id}</div>
+              <div>${d.delay_seconds}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  html += `
+    <div class="details-section">
+      <h3>Audio Preview</h3>
+      <div id="sound-audio-player-${streamId}" class="sound-audio-container">
+        <div class="loading-audio">Loading audio...</div>
+      </div>
+    </div>
+  `;
+
+  detailsContent.innerHTML = html;
+
+  // Load audio for the looping sound
+  await loadAudioPlayer(stream.looping_sound_id, streamId, false);
+}
+
+async function displayAmbienceObjectStreamDetails(obj: any, objId: number): Promise<void> {
+  if (!detailsContent) return;
+
+  const hasEffects = obj.sound_effects && obj.sound_effects.length > 0;
+
+  let html = `
+    <div class="asset-details-header">
+      <div class="detail-header-left">
+        <div class="detail-icon">🪵</div>
+        <div class="detail-title-group">
+          <h2>Ambience Object Stream #${objId}</h2>
+          <p class="detail-subtitle">Object-based ambience with counts</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="details-section">
+      <h3>Basic Information</h3>
+      <div class="details-grid">
+        <div class="detail-item">
+          <span class="detail-label">ID:</span>
+          <span class="detail-value">#${objId}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Max Sound Distance:</span>
+          <span class="detail-value">${obj.max_sound_distance ?? '—'}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Counted Appearance Types:</span>
+          <span class="detail-value">${obj.counted_appearance_types?.length || 0}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Sound Effects:</span>
+          <span class="detail-value">${hasEffects ? obj.sound_effects.length : 0}</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (obj.counted_appearance_types && obj.counted_appearance_types.length > 0) {
+    html += `
+      <div class="details-section">
+        <h3>Counted Appearance Types</h3>
+        <div class="tag-list">
+          ${obj.counted_appearance_types.map((t: number) => `<span class="tag">${t}</span>`).join(' ')}
+        </div>
+      </div>
+    `;
+  }
+
+  if (hasEffects) {
+    html += `
+      <div class="details-section">
+        <h3>Sound Effects by Count</h3>
+        <div class="table-like">
+          <div class="table-row table-header">
+            <div>Count</div>
+            <div>Looping Sound ID</div>
+          </div>
+          ${obj.sound_effects.map((e: any) => `
+            <div class="table-row">
+              <div>${e.count}</div>
+              <div>${e.looping_sound_id}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  const previewSoundId = hasEffects ? obj.sound_effects[0].looping_sound_id : undefined;
+  if (previewSoundId !== undefined) {
+    html += `
+      <div class="details-section">
+        <h3>Audio Preview</h3>
+        <div id="sound-audio-player-${objId}" class="sound-audio-container">
+          <div class="loading-audio">Loading audio...</div>
+        </div>
+      </div>
+    `;
+  }
+
+  detailsContent.innerHTML = html;
+
+  if (previewSoundId !== undefined) {
+    await loadAudioPlayer(previewSoundId, objId, false);
+  }
+}
+
+async function displayMusicTemplateDetails(tmpl: any, tmplId: number): Promise<void> {
+  if (!detailsContent) return;
+
+  let html = `
+    <div class="asset-details-header">
+      <div class="detail-header-left">
+        <div class="detail-icon">🎼</div>
+        <div class="detail-title-group">
+          <h2>Music Template #${tmplId}</h2>
+          <p class="detail-subtitle">Background music template</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="details-section">
+      <h3>Basic Information</h3>
+      <div class="details-grid">
+        <div class="detail-item">
+          <span class="detail-label">ID:</span>
+          <span class="detail-value">#${tmplId}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Sound ID:</span>
+          <span class="detail-value">${tmpl.sound_id}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Music Type:</span>
+          <span class="detail-value">${tmpl.music_type || 'Unknown'}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="details-section">
+      <h3>Audio Preview</h3>
+      <div id="sound-audio-player-${tmplId}" class="sound-audio-container">
+        <div class="loading-audio">Loading audio...</div>
+      </div>
+    </div>
+  `;
+
+  detailsContent.innerHTML = html;
+
+  await loadAudioPlayer(tmpl.sound_id, tmplId, false);
+}
+
+async function loadAudioPlayer(soundFileId: number, containerId: number, autoPlay: boolean = false): Promise<void> {
+  try {
+    const audioData = await invoke('get_sound_audio_data', { soundId: soundFileId });
+    const container = document.getElementById(`sound-audio-player-${containerId}`);
+
+    if (container && audioData) {
+      container.innerHTML = `
+        <audio controls preload="metadata" class="sound-player" ${autoPlay ? 'autoplay' : ''}>
+          <source src="data:audio/ogg;base64,${audioData}" type="audio/ogg">
+          Your browser does not support the audio element.
+        </audio>
+      `;
+      const audioEl = container.querySelector('audio') as HTMLAudioElement | null;
+      if (audioEl && autoPlay) {
+        audioEl.play().catch(() => {});
+      }
+    }
+  } catch (error) {
+    console.error(`Failed to load audio for sound ${soundFileId}:`, error);
+    const container = document.getElementById(`sound-audio-player-${containerId}`);
+    if (container) {
+      container.innerHTML = `
+        <div class="audio-error">
+          <span>❌ Failed to load audio</span>
+        </div>
+      `;
+    }
+  }
+}
+
 export async function displayCompleteAssetDetails(details: CompleteAppearanceItem, category: string): Promise<void> {
   if (!detailsContent) return;
 
   const flags = details.flags;
 
   // Build basic boolean flags list
-  const basicFlags = flags ? [
+  const basicFlags: { name: string; value: boolean }[] = flags ? [
     { name: 'Clip', value: flags.clip },
     { name: 'Bottom', value: flags.bottom },
     { name: 'Top', value: flags.top },
@@ -149,7 +562,7 @@ export async function displayCompleteAssetDetails(details: CompleteAppearanceIte
     { name: 'Expire Stop', value: flags.expirestop },
     { name: 'Deco Item Kit', value: flags.deco_item_kit },
     { name: 'Dual Wielding', value: flags.dual_wielding },
-  ].filter(f => f.value === true) : [];
+  ].filter((f): f is { name: string; value: boolean } => f.value === true) : [];
 
   const basicInfoHTML = generateBasicInfoHTML(details, category);
   const spritePreviewHTML = generateSpritePreviewHTML(details);
@@ -924,4 +1337,39 @@ export async function refreshAssetDetails(category: string, id: number): Promise
   } catch (err) {
     console.error('Falha ao atualizar detalhes do item:', err);
   }
+}
+
+async function playRandomSequence(randomIds: number[], containerId: number): Promise<void> {
+  if (!randomIds || randomIds.length === 0) return;
+  const container = document.getElementById(`sound-audio-player-${containerId}`);
+  if (!container) return;
+
+  let index = 0;
+  const playNext = async (): Promise<void> => {
+    if (index >= randomIds.length) {
+      return;
+    }
+    const currentId = randomIds[index++];
+    try {
+      const audioData = await invoke('get_sound_audio_data', { soundId: currentId });
+      container.innerHTML = `
+        <audio controls preload="metadata" class="sound-player" autoplay>
+          <source src="data:audio/ogg;base64,${audioData}" type="audio/ogg">
+          Your browser does not support the audio element.
+        </audio>
+      `;
+      const audioEl = container.querySelector('audio') as HTMLAudioElement | null;
+      if (audioEl) {
+        audioEl.onended = () => { playNext(); };
+        audioEl.play().catch(() => {});
+      }
+    } catch (err) {
+      console.error(`Failed to load audio for random sound ${currentId}:`, err);
+      // Skip failed and continue
+      playNext();
+    }
+  };
+
+  index = 0;
+  await playNext();
 }

@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { getAppearanceSprites, createSpriteImage, createPlaceholderImage, getSpritesCacheKey, clearSpritesCache } from './spriteCache';
+import { getAppearanceSprites, createSpriteImage, createPlaceholderImage } from './spriteCache';
 import { stopAllAnimationPlayers, initAssetCardAutoAnimation } from './animation';
 
 let currentCategory = 'Objects';
@@ -84,25 +84,73 @@ export async function loadAssets(): Promise<void> {
   try {
     showLoadingState();
 
-    // Get total count
-    const totalCount = await invoke('get_appearance_count', {
-      category: currentCategory,
-      search: currentSearch || null,
-      subcategory: currentCategory === 'Objects' && currentSubcategory !== 'All' ? currentSubcategory : null
-    });
-    totalItems = totalCount as number;
+    if (currentCategory === 'Sounds') {
+      // Determine subcategory
+      const sub = currentSubcategory;
 
-    // Load assets for current page
-    const assets = await invoke('list_appearances_by_category', {
-      category: currentCategory,
-      page: currentPage,
-      pageSize: currentPageSize,
-      search: currentSearch || null,
-      subcategory: currentCategory === 'Objects' && currentSubcategory !== 'All' ? currentSubcategory : null
-    });
+      if (sub === 'Ambience Streams') {
+        const totalCount = await invoke('get_ambience_stream_count');
+        totalItems = totalCount as number;
+        const assets = await invoke('list_ambience_streams', {
+          page: currentPage,
+          pageSize: currentPageSize
+        });
+        displayAmbienceStreams(assets as any[]);
+        updatePaginationInfo();
+      } else if (sub === 'Ambience Object Streams') {
+        const totalCount = await invoke('get_ambience_object_stream_count');
+        totalItems = totalCount as number;
+        const assets = await invoke('list_ambience_object_streams', {
+          page: currentPage,
+          pageSize: currentPageSize
+        });
+        displayAmbienceObjectStreams(assets as any[]);
+        updatePaginationInfo();
+      } else if (sub === 'Music Templates') {
+        const totalCount = await invoke('get_music_template_count');
+        totalItems = totalCount as number;
+        const assets = await invoke('list_music_templates', {
+          page: currentPage,
+          pageSize: currentPageSize
+        });
+        displayMusicTemplates(assets as any[]);
+        updatePaginationInfo();
+      } else {
+        // Numeric sound effects (All or specific type)
+        const totalCount = await invoke('get_sound_effect_count');
+        totalItems = totalCount as number;
 
-    displayAssets(assets as any[]);
-    updatePaginationInfo();
+        const soundType = currentSubcategory !== 'All' ? currentSubcategory : null;
+        const assets = await invoke('list_numeric_sound_effects', {
+          page: currentPage,
+          pageSize: currentPageSize,
+          soundType
+        });
+
+        displaySounds(assets as any[]);
+        updatePaginationInfo();
+      }
+    } else {
+      // Get total count
+      const totalCount = await invoke('get_appearance_count', {
+        category: currentCategory,
+        search: currentSearch || null,
+        subcategory: currentCategory === 'Objects' && currentSubcategory !== 'All' ? currentSubcategory : null
+      });
+      totalItems = totalCount as number;
+
+      // Load assets for current page
+      const assets = await invoke('list_appearances_by_category', {
+        category: currentCategory,
+        page: currentPage,
+        pageSize: currentPageSize,
+        search: currentSearch || null,
+        subcategory: currentCategory === 'Objects' && currentSubcategory !== 'All' ? currentSubcategory : null
+      });
+
+      displayAssets(assets as any[]);
+      updatePaginationInfo();
+    }
   } catch (error) {
     console.error('Error loading assets:', error);
     showErrorState(error as string);
@@ -197,6 +245,157 @@ async function loadSpritesForAssets(assets: any[]): Promise<void> {
       }
     }
   }
+}
+
+function displaySounds(sounds: any[]): void {
+  if (!assetsGrid) return;
+
+  if (sounds.length === 0) {
+    assetsGrid.innerHTML = `
+      <div class="empty-state">
+        <h3>📭 No Sounds Found</h3>
+        <p>No sounds match your current filter criteria.</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Create sound items
+  assetsGrid.innerHTML = sounds.map(sound => {
+    const soundType = sound.sound_type || 'Unknown';
+    const hasSoundFile = sound.sound_id !== null && sound.sound_id !== undefined;
+    const hasRandomSounds = sound.random_sound_ids && sound.random_sound_ids.length > 0;
+
+    return `
+      <div class="asset-item sound-item" data-asset-id="${sound.id}" data-category="Sounds">
+        <div class="asset-item-header">
+          <span class="asset-id">#${sound.id}</span>
+          <div class="asset-flags">
+            ${hasSoundFile ? '<div class="sound-indicator" title="Has sound file">🎵</div>' : ''}
+            ${hasRandomSounds ? '<div class="random-indicator" title="Random sounds">🎲</div>' : ''}
+          </div>
+        </div>
+        <div class="asset-image-container sound-icon-container">
+          <div class="sound-icon-large">🔊</div>
+        </div>
+        <div class="asset-name">${soundType}</div>
+        <div class="asset-description">
+          ${hasSoundFile ? `Sound: ${sound.sound_id}` : ''}
+          ${hasRandomSounds ? `Random: ${sound.random_sound_ids.length} files` : ''}
+        </div>
+        <div class="asset-meta">
+          ${sound.volume !== null && sound.volume !== undefined ? `<span>Vol: ${sound.volume}</span>` : ''}
+          ${sound.loop ? '<span>Loop</span>' : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function displayAmbienceStreams(streams: any[]): void {
+  if (!assetsGrid) return;
+
+  if (streams.length === 0) {
+    assetsGrid.innerHTML = `
+      <div class="empty-state">
+        <h3>📭 No Ambience Streams Found</h3>
+        <p>No ambience streams in current page.</p>
+      </div>
+    `;
+    return;
+  }
+
+  assetsGrid.innerHTML = streams.map(stream => {
+    const hasDelayed = stream.delayed_effects && stream.delayed_effects.length > 0;
+    return `
+      <div class="asset-item sound-item" data-asset-id="${stream.id}" data-category="Sounds">
+        <div class="asset-item-header">
+          <span class="asset-id">#${stream.id}</span>
+          <div class="asset-flags">
+            <div class="sound-indicator" title="Looping Sound">🔁 ${stream.looping_sound_id}</div>
+            ${hasDelayed ? '<div class="random-indicator" title="Delayed effects">⏱️</div>' : ''}
+          </div>
+        </div>
+        <div class="asset-image-container sound-icon-container">
+          <div class="sound-icon-large">🌫️</div>
+        </div>
+        <div class="asset-name">Ambience Stream</div>
+        <div class="asset-description">
+          Loop: ${stream.looping_sound_id} ${hasDelayed ? ` • Delays: ${stream.delayed_effects.length}` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function displayAmbienceObjectStreams(streams: any[]): void {
+  if (!assetsGrid) return;
+
+  if (streams.length === 0) {
+    assetsGrid.innerHTML = `
+      <div class="empty-state">
+        <h3>📭 No Ambience Object Streams Found</h3>
+        <p>No ambience object streams in current page.</p>
+      </div>
+    `;
+    return;
+  }
+
+  assetsGrid.innerHTML = streams.map(stream => {
+    const hasEffects = stream.sound_effects && stream.sound_effects.length > 0;
+    return `
+      <div class="asset-item sound-item" data-asset-id="${stream.id}" data-category="Sounds">
+        <div class="asset-item-header">
+          <span class="asset-id">#${stream.id}</span>
+          <div class="asset-flags">
+            ${hasEffects ? '<div class="random-indicator" title="Effects by count">🔢</div>' : ''}
+            ${stream.max_sound_distance !== null && stream.max_sound_distance !== undefined ? `<div class="sound-indicator" title="Max distance">📏 ${stream.max_sound_distance}</div>` : ''}
+          </div>
+        </div>
+        <div class="asset-image-container sound-icon-container">
+          <div class="sound-icon-large">🪵</div>
+        </div>
+        <div class="asset-name">Ambience Object Stream</div>
+        <div class="asset-description">
+          Types: ${stream.counted_appearance_types.length} • Effects: ${hasEffects ? stream.sound_effects.length : 0}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function displayMusicTemplates(templates: any[]): void {
+  if (!assetsGrid) return;
+
+  if (templates.length === 0) {
+    assetsGrid.innerHTML = `
+      <div class="empty-state">
+        <h3>📭 No Music Templates Found</h3>
+        <p>No music templates in current page.</p>
+      </div>
+    `;
+    return;
+  }
+
+  assetsGrid.innerHTML = templates.map(t => {
+    return `
+      <div class="asset-item sound-item" data-asset-id="${t.id}" data-category="Sounds">
+        <div class="asset-item-header">
+          <span class="asset-id">#${t.id}</span>
+          <div class="asset-flags">
+            <div class="sound-indicator" title="Sound ID">🎵 ${t.sound_id}</div>
+          </div>
+        </div>
+        <div class="asset-image-container sound-icon-container">
+          <div class="sound-icon-large">🎼</div>
+        </div>
+        <div class="asset-name">Music Template</div>
+        <div class="asset-description">
+          Type: ${t.music_type || 'Unknown'}
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 function updatePaginationInfo(): void {

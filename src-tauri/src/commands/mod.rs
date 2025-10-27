@@ -12,6 +12,7 @@ pub use appearance_types::*;
 // New API module housing all Tauri commands for appearances and sprites
 pub mod appearances_api;
 pub mod settings;
+pub mod sounds_api;
 
 /// Application state to hold loaded appearances and sprites
 pub struct AppState {

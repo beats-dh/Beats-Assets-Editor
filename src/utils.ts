@@ -120,6 +120,11 @@ export function getCategoryInfo(category: string): CategoryInfo {
       icon: '🏹',
       title: 'Missiles',
       description: 'Projéteis e mísseis'
+    },
+    'Sounds': {
+      icon: '🔊',
+      title: 'Sounds',
+      description: 'Sons e efeitos sonoros'
     }
   };
 

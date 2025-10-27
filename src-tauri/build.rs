@@ -5,7 +5,7 @@ fn main() {
     prost_build::Config::new()
         .out_dir(&out_dir)
         .compile_protos(
-            &["protobuf/appearances.proto"],
+            &["protobuf/appearances.proto", "protobuf/sounds.proto"],
             &["protobuf"]
         )
         .expect("Failed to compile protobuf files");

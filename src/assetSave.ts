@@ -171,7 +171,7 @@ export async function saveAssetDefaultAction(category: string, id: number, onRef
 }
 
 // Save Market
-export async function saveAssetMarket(category: string, id: number, onRefresh: () => Promise<void>, details: any): Promise<void> {
+export async function saveAssetMarket(category: string, id: number, onRefresh: () => Promise<void>, _details: any): Promise<void> {
   await saveWithFeedback('save-market', async () => {
     const catEl = document.getElementById('market-category') as HTMLSelectElement | null;
     const tradeEl = document.getElementById('market-trade-as-object-id') as HTMLInputElement | null;

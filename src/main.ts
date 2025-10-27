@@ -5,7 +5,7 @@ import { join } from "@tauri-apps/api/path";
 // Import all modules
 import type { AppearanceStats } from './types';
 import { showStatus, delay, updateProgress } from './utils';
-import { setUserTibiaPath, debugCache, loadSprites } from './spriteCache';
+import { setUserTibiaPath, debugCache } from './spriteCache';
 import {
   initAssetUIElements,
   loadAssets,
@@ -15,8 +15,7 @@ import {
   setCurrentCategory,
   setCurrentPage,
   setCurrentSearch,
-  setCurrentSubcategory,
-  getCurrentCategory
+  setCurrentSubcategory
 } from './assetUI';
 import {
   showMainApp,
@@ -36,13 +35,11 @@ declare global {
 
 // Minimal global state needed for initialization
 const LAST_TIBIA_PATH_KEY = 'lastTibiaPath';
-let userTibiaPath: string | null = null;
 
 // DOM references for setup screen
 let tibiaPathInput: HTMLInputElement | null;
 let loadButton: HTMLButtonElement | null;
 let statsContainer: HTMLElement | null;
-let statusMessage: HTMLElement | null;
 let filesList: HTMLElement | null;
 
 async function loadAppearances(): Promise<void> {
@@ -56,7 +53,6 @@ async function loadAppearances(): Promise<void> {
   }
 
   // Store the user's Tibia path for later use
-  userTibiaPath = tibiaPath;
   setUserTibiaPath(tibiaPath);
   localStorage.setItem(LAST_TIBIA_PATH_KEY, tibiaPath);
 
@@ -92,6 +88,25 @@ async function loadAppearances(): Promise<void> {
     const result = await invoke<AppearanceStats>("load_appearances_file", {
       path: appearancePath
     });
+
+    // Load sounds from the sounds directory
+    try {
+      const soundsDir = await join(tibiaPath, "sounds");
+      await invoke("load_sounds_file", { soundsDir });
+      console.log("Sounds loaded successfully");
+
+      // Update sounds count in header
+      const soundsCount = document.getElementById('sounds-count');
+      if (soundsCount) {
+        const stats = await invoke("get_sounds_stats");
+        if (stats && typeof stats === 'object' && 'total_sounds' in stats) {
+          soundsCount.textContent = `${(stats as any).total_sounds} itens`;
+        }
+      }
+    } catch (soundError) {
+      console.warn("Failed to load sounds (this is optional):", soundError);
+      // Don't fail the entire app if sounds fail to load
+    }
 
     // Show main UI immediately after successfully loading appearances
     displayStats(result);
@@ -254,7 +269,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   tibiaPathInput = document.querySelector("#tibia-path");
   loadButton = document.querySelector("#load-button");
   statsContainer = document.querySelector("#header-stats");
-  statusMessage = document.querySelector("#status-message");
   filesList = document.querySelector("#files-list");
 
   const savedPath = localStorage.getItem(LAST_TIBIA_PATH_KEY);
