@@ -45,7 +45,6 @@ pub fn run() {
             commands::appearances_api::update_appearance_height,
             commands::appearances_api::update_appearance_write,
             commands::appearances_api::update_appearance_write_once,
-            // Newly added complex flag update commands
             commands::appearances_api::update_appearance_automap,
             commands::appearances_api::update_appearance_hook,
             commands::appearances_api::update_appearance_lenshelp,
