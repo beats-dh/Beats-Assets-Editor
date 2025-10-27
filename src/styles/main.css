@@ -30,3 +30,6 @@
 
 /* 6. Responsive Styles (must be last) */
 @import './responsive.css';
+
+/* 7. Texture Styles */
+@import './texture.css';

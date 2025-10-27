@@ -1,5 +1,206 @@
+use super::types::{AppearanceCategory, AppearanceItem};
 use crate::commands::AppState;
-use super::types::{AppearanceItem, AppearanceCategory};
+use crate::core::protobuf::{
+    Box as ProtoBoundingBox, SpriteAnimation as ProtoSpriteAnimation,
+    SpriteInfo as ProtoSpriteInfo, SpritePhase as ProtoSpritePhase,
+};
+use serde::Deserialize;
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct BoundingBoxInput {
+    pub x: Option<u32>,
+    pub y: Option<u32>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SpritePhaseInput {
+    pub duration_min: Option<u32>,
+    pub duration_max: Option<u32>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SpriteAnimationInput {
+    pub default_start_phase: Option<u32>,
+    pub synchronized: Option<bool>,
+    pub random_start_phase: Option<bool>,
+    pub loop_type: Option<i32>,
+    pub loop_count: Option<u32>,
+    pub animation_mode: Option<i32>,
+    pub phases: Vec<SpritePhaseInput>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct TextureSettingsUpdate {
+    pub frame_group_index: usize,
+    pub pattern_width: Option<Option<u32>>,
+    pub pattern_height: Option<Option<u32>>,
+    pub pattern_depth: Option<Option<u32>>,
+    pub layers: Option<Option<u32>>,
+    pub pattern_size: Option<Option<u32>>,
+    pub pattern_layers: Option<Option<u32>>,
+    pub pattern_x: Option<Option<u32>>,
+    pub pattern_y: Option<Option<u32>>,
+    pub pattern_z: Option<Option<u32>>,
+    pub pattern_frames: Option<Option<u32>>,
+    pub bounding_square: Option<Option<u32>>,
+    pub is_opaque: Option<Option<bool>>,
+    pub is_animation: Option<Option<bool>>,
+    pub bounding_boxes: Option<Vec<BoundingBoxInput>>,
+    pub animation: Option<Option<SpriteAnimationInput>>,
+}
+
+#[tauri::command]
+pub async fn update_appearance_texture_settings(
+    category: AppearanceCategory,
+    id: u32,
+    update: TextureSettingsUpdate,
+    state: tauri::State<'_, AppState>,
+) -> Result<AppearanceItem, String> {
+    let mut appearances_lock = state.appearances.lock().unwrap();
+
+    let appearances = match &mut *appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = match category {
+        AppearanceCategory::Objects => &mut appearances.object,
+        AppearanceCategory::Outfits => &mut appearances.outfit,
+        AppearanceCategory::Effects => &mut appearances.effect,
+        AppearanceCategory::Missiles => &mut appearances.missile,
+    };
+
+    let appearance = items
+        .iter_mut()
+        .find(|app| app.id.unwrap_or(0) == id)
+        .ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+
+    if update.frame_group_index >= appearance.frame_group.len() {
+        return Err(format!(
+            "Frame group {} not found for appearance {}",
+            update.frame_group_index, id
+        ));
+    }
+
+    let frame_group = appearance
+        .frame_group
+        .get_mut(update.frame_group_index)
+        .expect("validated above");
+
+    if frame_group.sprite_info.is_none() {
+        frame_group.sprite_info = Some(ProtoSpriteInfo::default());
+    }
+
+    let sprite_info = frame_group
+        .sprite_info
+        .as_mut()
+        .expect("sprite info set above");
+
+    if let Some(value) = update.pattern_width {
+        sprite_info.pattern_width = value;
+    }
+    if let Some(value) = update.pattern_height {
+        sprite_info.pattern_height = value;
+    }
+    if let Some(value) = update.pattern_depth {
+        sprite_info.pattern_depth = value;
+    }
+    if let Some(value) = update.layers {
+        sprite_info.layers = value;
+    }
+    if let Some(value) = update.pattern_size {
+        sprite_info.pattern_size = value;
+    }
+    if let Some(value) = update.pattern_layers {
+        sprite_info.pattern_layers = value;
+    }
+    if let Some(value) = update.pattern_x {
+        sprite_info.pattern_x = value;
+    }
+    if let Some(value) = update.pattern_y {
+        sprite_info.pattern_y = value;
+    }
+    if let Some(value) = update.pattern_z {
+        sprite_info.pattern_z = value;
+    }
+    if let Some(value) = update.pattern_frames {
+        sprite_info.pattern_frames = value;
+    }
+    if let Some(value) = update.bounding_square {
+        sprite_info.bounding_square = value;
+    }
+    if let Some(value) = update.is_opaque {
+        sprite_info.is_opaque = value;
+    }
+    if let Some(value) = update.is_animation {
+        sprite_info.is_animation = value;
+    }
+
+    if let Some(boxes) = update.bounding_boxes {
+        sprite_info.bounding_box_per_direction.clear();
+        for bb in boxes {
+            sprite_info
+                .bounding_box_per_direction
+                .push(ProtoBoundingBox {
+                    x: bb.x,
+                    y: bb.y,
+                    width: bb.width,
+                    height: bb.height,
+                });
+        }
+    }
+
+    if let Some(animation_opt) = update.animation {
+        match animation_opt {
+            Some(anim) => {
+                let mut proto_anim = ProtoSpriteAnimation::default();
+                proto_anim.default_start_phase = anim.default_start_phase;
+                proto_anim.synchronized = anim.synchronized;
+                proto_anim.random_start_phase = anim.random_start_phase;
+                proto_anim.loop_type = anim.loop_type;
+                proto_anim.loop_count = anim.loop_count;
+                proto_anim.animation_mode = anim.animation_mode;
+                proto_anim.sprite_phase.clear();
+                for phase in anim.phases {
+                    proto_anim.sprite_phase.push(ProtoSpritePhase {
+                        duration_min: phase.duration_min,
+                        duration_max: phase.duration_max,
+                    });
+                }
+                sprite_info.animation = Some(proto_anim);
+            }
+            None => {
+                sprite_info.animation = None;
+            }
+        }
+    }
+
+    let sprite_count: u32 = appearance
+        .frame_group
+        .iter()
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
+        .sum();
+
+    Ok(AppearanceItem {
+        id,
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        has_flags: appearance.flags.is_some(),
+        sprite_count,
+    })
+}
 
 #[tauri::command]
 pub async fn update_appearance_name(
@@ -36,13 +237,23 @@ pub async fn update_appearance_name(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -88,13 +299,23 @@ pub async fn update_appearance_automap(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -140,13 +361,23 @@ pub async fn update_appearance_hook(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -192,13 +423,23 @@ pub async fn update_appearance_lenshelp(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -244,13 +485,23 @@ pub async fn update_appearance_clothes(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -296,13 +547,23 @@ pub async fn update_appearance_default_action(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -371,13 +632,23 @@ pub async fn update_appearance_market(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -423,13 +694,23 @@ pub async fn update_appearance_bank(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -469,19 +750,31 @@ pub async fn update_appearance_changed_to_expire(
     if former_object_typeid.is_none() {
         flags.changedtoexpire = None;
     } else {
-        flags.changedtoexpire = Some(crate::core::protobuf::AppearanceFlagChangedToExpire { former_object_typeid });
+        flags.changedtoexpire = Some(crate::core::protobuf::AppearanceFlagChangedToExpire {
+            former_object_typeid,
+        });
     }
 
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -521,19 +814,30 @@ pub async fn update_appearance_cyclopedia_item(
     if cyclopedia_type.is_none() {
         flags.cyclopediaitem = None;
     } else {
-        flags.cyclopediaitem = Some(crate::core::protobuf::AppearanceFlagCyclopedia { cyclopedia_type });
+        flags.cyclopediaitem =
+            Some(crate::core::protobuf::AppearanceFlagCyclopedia { cyclopedia_type });
     }
 
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -573,19 +877,32 @@ pub async fn update_appearance_upgrade_classification(
     if upgrade_classification.is_none() {
         flags.upgradeclassification = None;
     } else {
-        flags.upgradeclassification = Some(crate::core::protobuf::AppearanceFlagUpgradeClassification { upgrade_classification });
+        flags.upgradeclassification =
+            Some(crate::core::protobuf::AppearanceFlagUpgradeClassification {
+                upgrade_classification,
+            });
     }
 
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -626,19 +943,32 @@ pub async fn update_appearance_skillwheel_gem(
     if gem_quality_id.is_none() && vocation_id.is_none() {
         flags.skillwheel_gem = None;
     } else {
-        flags.skillwheel_gem = Some(crate::core::protobuf::AppearanceFlagSkillWheelGem { gem_quality_id, vocation_id });
+        flags.skillwheel_gem = Some(crate::core::protobuf::AppearanceFlagSkillWheelGem {
+            gem_quality_id,
+            vocation_id,
+        });
     }
 
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -684,13 +1014,23 @@ pub async fn update_appearance_imbueable(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -730,19 +1070,30 @@ pub async fn update_appearance_proficiency(
     if proficiency_id.is_none() {
         flags.proficiency = None;
     } else {
-        flags.proficiency = Some(crate::core::protobuf::AppearanceFlagProficiency { proficiency_id });
+        flags.proficiency =
+            Some(crate::core::protobuf::AppearanceFlagProficiency { proficiency_id });
     }
 
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -782,19 +1133,31 @@ pub async fn update_appearance_transparency_level(
     if transparency_level.is_none() {
         flags.transparencylevel = None;
     } else {
-        flags.transparencylevel = Some(crate::core::protobuf::AppearanceFlagTransparencyLevel { level: transparency_level });
+        flags.transparencylevel = Some(crate::core::protobuf::AppearanceFlagTransparencyLevel {
+            level: transparency_level,
+        });
     }
 
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -837,13 +1200,23 @@ pub async fn update_appearance_weapon_type(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -884,13 +1257,23 @@ pub async fn update_appearance_description(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -903,51 +1286,139 @@ fn set_bool_flag(
 ) -> Result<(), String> {
     let k = key.to_lowercase().replace('_', "").replace(' ', "");
     match k.as_str() {
-        "clip" => { flags.clip = Some(value); }
-        "bottom" => { flags.bottom = Some(value); }
-        "top" => { flags.top = Some(value); }
-        "container" => { flags.container = Some(value); }
-        "cumulative" => { flags.cumulative = Some(value); }
-        "usable" => { flags.usable = Some(value); }
-        "forceuse" => { flags.forceuse = Some(value); }
-        "multiuse" => { flags.multiuse = Some(value); }
-        "liquidpool" => { flags.liquidpool = Some(value); }
-        "unpass" | "unpassable" => { flags.unpass = Some(value); }
-        "unmove" | "unmovable" => { flags.unmove = Some(value); }
-        "unsight" | "blocksight" => { flags.unsight = Some(value); }
-        "avoid" | "avoidwalk" => { flags.avoid = Some(value); }
-        "nomovementanimation" => { flags.no_movement_animation = Some(value); }
-        "take" | "takeable" => { flags.take = Some(value); }
-        "liquidcontainer" => { flags.liquidcontainer = Some(value); }
-        "hang" | "hangable" => { flags.hang = Some(value); }
-        "rotate" | "rotatable" => { flags.rotate = Some(value); }
-        "donthide" => { flags.dont_hide = Some(value); }
-        "translucent" => { flags.translucent = Some(value); }
-        "lyingobject" => { flags.lying_object = Some(value); }
-        "animatealways" => { flags.animate_always = Some(value); }
-        "fullbank" => { flags.fullbank = Some(value); }
-        "ignorelook" => { flags.ignore_look = Some(value); }
-        "wrap" => { flags.wrap = Some(value); }
-        "unwrap" => { flags.unwrap = Some(value); }
-        "topeffect" => { flags.topeffect = Some(value); }
-        "corpse" => { flags.corpse = Some(value); }
-        "playercorpse" => { flags.player_corpse = Some(value); }
-        "ammo" => { flags.ammo = Some(value); }
-        "showoffsocket" => { flags.show_off_socket = Some(value); }
-        "reportable" => { flags.reportable = Some(value); }
-        "reverseaddonseast" => { flags.reverse_addons_east = Some(value); }
-        "reverseaddonswest" => { flags.reverse_addons_west = Some(value); }
-        "reverseaddonssouth" => { flags.reverse_addons_south = Some(value); }
-        "reverseaddonsnorth" => { flags.reverse_addons_north = Some(value); }
-        "wearout" => { flags.wearout = Some(value); }
-        "clockexpire" => { flags.clockexpire = Some(value); }
-        "expire" => { flags.expire = Some(value); }
-        "expirestop" => { flags.expirestop = Some(value); }
-        "decoitemkit" => { flags.deco_item_kit = Some(value); }
-        "dualwielding" => { flags.dual_wielding = Some(value); }
-        "hooksouth" => { flags.hook_south = Some(value); }
-        "hookeast" => { flags.hook_east = Some(value); }
-        _ => return Err(format!("Unknown boolean flag '{}'" , key)),
+        "clip" => {
+            flags.clip = Some(value);
+        }
+        "bottom" => {
+            flags.bottom = Some(value);
+        }
+        "top" => {
+            flags.top = Some(value);
+        }
+        "container" => {
+            flags.container = Some(value);
+        }
+        "cumulative" => {
+            flags.cumulative = Some(value);
+        }
+        "usable" => {
+            flags.usable = Some(value);
+        }
+        "forceuse" => {
+            flags.forceuse = Some(value);
+        }
+        "multiuse" => {
+            flags.multiuse = Some(value);
+        }
+        "liquidpool" => {
+            flags.liquidpool = Some(value);
+        }
+        "unpass" | "unpassable" => {
+            flags.unpass = Some(value);
+        }
+        "unmove" | "unmovable" => {
+            flags.unmove = Some(value);
+        }
+        "unsight" | "blocksight" => {
+            flags.unsight = Some(value);
+        }
+        "avoid" | "avoidwalk" => {
+            flags.avoid = Some(value);
+        }
+        "nomovementanimation" => {
+            flags.no_movement_animation = Some(value);
+        }
+        "take" | "takeable" => {
+            flags.take = Some(value);
+        }
+        "liquidcontainer" => {
+            flags.liquidcontainer = Some(value);
+        }
+        "hang" | "hangable" => {
+            flags.hang = Some(value);
+        }
+        "rotate" | "rotatable" => {
+            flags.rotate = Some(value);
+        }
+        "donthide" => {
+            flags.dont_hide = Some(value);
+        }
+        "translucent" => {
+            flags.translucent = Some(value);
+        }
+        "lyingobject" => {
+            flags.lying_object = Some(value);
+        }
+        "animatealways" => {
+            flags.animate_always = Some(value);
+        }
+        "fullbank" => {
+            flags.fullbank = Some(value);
+        }
+        "ignorelook" => {
+            flags.ignore_look = Some(value);
+        }
+        "wrap" => {
+            flags.wrap = Some(value);
+        }
+        "unwrap" => {
+            flags.unwrap = Some(value);
+        }
+        "topeffect" => {
+            flags.topeffect = Some(value);
+        }
+        "corpse" => {
+            flags.corpse = Some(value);
+        }
+        "playercorpse" => {
+            flags.player_corpse = Some(value);
+        }
+        "ammo" => {
+            flags.ammo = Some(value);
+        }
+        "showoffsocket" => {
+            flags.show_off_socket = Some(value);
+        }
+        "reportable" => {
+            flags.reportable = Some(value);
+        }
+        "reverseaddonseast" => {
+            flags.reverse_addons_east = Some(value);
+        }
+        "reverseaddonswest" => {
+            flags.reverse_addons_west = Some(value);
+        }
+        "reverseaddonssouth" => {
+            flags.reverse_addons_south = Some(value);
+        }
+        "reverseaddonsnorth" => {
+            flags.reverse_addons_north = Some(value);
+        }
+        "wearout" => {
+            flags.wearout = Some(value);
+        }
+        "clockexpire" => {
+            flags.clockexpire = Some(value);
+        }
+        "expire" => {
+            flags.expire = Some(value);
+        }
+        "expirestop" => {
+            flags.expirestop = Some(value);
+        }
+        "decoitemkit" => {
+            flags.deco_item_kit = Some(value);
+        }
+        "dualwielding" => {
+            flags.dual_wielding = Some(value);
+        }
+        "hooksouth" => {
+            flags.hook_south = Some(value);
+        }
+        "hookeast" => {
+            flags.hook_east = Some(value);
+        }
+        _ => return Err(format!("Unknown boolean flag '{}'", key)),
     }
     Ok(())
 }
@@ -989,13 +1460,23 @@ pub async fn update_appearance_flag_bool(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -1042,13 +1523,23 @@ pub async fn update_appearance_light(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -1095,13 +1586,23 @@ pub async fn update_appearance_shift(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -1147,13 +1648,23 @@ pub async fn update_appearance_height(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -1199,13 +1710,23 @@ pub async fn update_appearance_write(
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })
@@ -1245,19 +1766,31 @@ pub async fn update_appearance_write_once(
     if max_text_length_once.is_none() {
         flags.write_once = None;
     } else {
-        flags.write_once = Some(crate::core::protobuf::AppearanceFlagWriteOnce { max_text_length_once });
+        flags.write_once = Some(crate::core::protobuf::AppearanceFlagWriteOnce {
+            max_text_length_once,
+        });
     }
 
     let sprite_count: u32 = appearance
         .frame_group
         .iter()
-        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .map(|fg| {
+            fg.sprite_info
+                .as_ref()
+                .map_or(0, |si| si.sprite_id.len() as u32)
+        })
         .sum();
 
     Ok(AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        name: appearance
+            .name
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance
+            .description
+            .as_ref()
+            .map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     })

@@ -1,10 +1,10 @@
-pub mod core;
 mod commands;
+pub mod core;
 
-use std::sync::Mutex;
-use std::collections::HashMap;
-use commands::AppState;
 use commands::sounds_api::SoundsState;
+use commands::AppState;
+use std::collections::HashMap;
+use std::sync::Mutex;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -63,6 +63,7 @@ pub fn run() {
             commands::appearances_api::update_appearance_proficiency,
             commands::appearances_api::update_appearance_transparency_level,
             commands::appearances_api::update_appearance_weapon_type,
+            commands::appearances_api::update_appearance_texture_settings,
             commands::appearances_api::save_appearances_file,
             commands::settings::set_tibia_base_path,
             commands::settings::get_tibia_base_path,

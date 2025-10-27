@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::convert::TryFrom;
 use serde::{Deserialize, Serialize};
 use anyhow::{Result, Context};
 use prost::Message;
@@ -194,28 +194,31 @@ impl SoundsParser {
             .numeric_sound_effect
             .iter()
             .map(|e| {
-                let sound_type = match ENumericSoundType::from_i32(e.numeric_sound_type.unwrap_or_default()) {
-                    Some(ENumericSoundType::NumericSoundTypeUnknown) => "Unknown",
-                    Some(ENumericSoundType::NumericSoundTypeSpellAttack) => "Spell Attack",
-                    Some(ENumericSoundType::NumericSoundTypeSpellHealing) => "Spell Healing",
-                    Some(ENumericSoundType::NumericSoundTypeSpellSupport) => "Spell Support",
-                    Some(ENumericSoundType::NumericSoundTypeWeaponAttack) => "Weapon Attack",
-                    Some(ENumericSoundType::NumericSoundTypeCreatureNoise) => "Creature Noise",
-                    Some(ENumericSoundType::NumericSoundTypeCreatureDeath) => "Creature Death",
-                    Some(ENumericSoundType::NumericSoundTypeCreatureAttack) => "Creature Attack",
-                    Some(ENumericSoundType::NumericSoundTypeAmbienceStream) => "Ambience Stream",
-                    Some(ENumericSoundType::NumericSoundTypeFoodAndDrink) => "Food and Drink",
-                    Some(ENumericSoundType::NumericSoundTypeItemMovement) => "Item Movement",
-                    Some(ENumericSoundType::NumericSoundTypeEvent) => "Event",
-                    Some(ENumericSoundType::NumericSoundTypeUi) => "UI",
-                    Some(ENumericSoundType::NumericSoundTypeWhisperWithoutOpenChat) => "Whisper",
-                    Some(ENumericSoundType::NumericSoundTypeChatMessage) => "Chat Message",
-                    Some(ENumericSoundType::NumericSoundTypeParty) => "Party",
-                    Some(ENumericSoundType::NumericSoundTypeVipList) => "VIP List",
-                    Some(ENumericSoundType::NumericSoundTypeRaidAnnouncement) => "Raid Announcement",
-                    Some(ENumericSoundType::NumericSoundTypeServerMessage) => "Server Message",
-                    Some(ENumericSoundType::NumericSoundTypeSpellGeneric) => "Spell Generic",
-                    None => "Unknown",
+                let sound_type_enum = ENumericSoundType::try_from(
+                    e.numeric_sound_type.unwrap_or_default(),
+                )
+                .unwrap_or(ENumericSoundType::NumericSoundTypeUnknown);
+                let sound_type = match sound_type_enum {
+                    ENumericSoundType::NumericSoundTypeUnknown => "Unknown",
+                    ENumericSoundType::NumericSoundTypeSpellAttack => "Spell Attack",
+                    ENumericSoundType::NumericSoundTypeSpellHealing => "Spell Healing",
+                    ENumericSoundType::NumericSoundTypeSpellSupport => "Spell Support",
+                    ENumericSoundType::NumericSoundTypeWeaponAttack => "Weapon Attack",
+                    ENumericSoundType::NumericSoundTypeCreatureNoise => "Creature Noise",
+                    ENumericSoundType::NumericSoundTypeCreatureDeath => "Creature Death",
+                    ENumericSoundType::NumericSoundTypeCreatureAttack => "Creature Attack",
+                    ENumericSoundType::NumericSoundTypeAmbienceStream => "Ambience Stream",
+                    ENumericSoundType::NumericSoundTypeFoodAndDrink => "Food and Drink",
+                    ENumericSoundType::NumericSoundTypeItemMovement => "Item Movement",
+                    ENumericSoundType::NumericSoundTypeEvent => "Event",
+                    ENumericSoundType::NumericSoundTypeUi => "UI",
+                    ENumericSoundType::NumericSoundTypeWhisperWithoutOpenChat => "Whisper",
+                    ENumericSoundType::NumericSoundTypeChatMessage => "Chat Message",
+                    ENumericSoundType::NumericSoundTypeParty => "Party",
+                    ENumericSoundType::NumericSoundTypeVipList => "VIP List",
+                    ENumericSoundType::NumericSoundTypeRaidAnnouncement => "Raid Announcement",
+                    ENumericSoundType::NumericSoundTypeServerMessage => "Server Message",
+                    ENumericSoundType::NumericSoundTypeSpellGeneric => "Spell Generic",
                 };
 
                 let (sound_id, random_sound_ids) = if let Some(simple) = &e.simple_sound_effect {
@@ -290,12 +293,13 @@ impl SoundsParser {
             .music_template
             .iter()
             .map(|m| {
-                let music_type = match EMusicType::from_i32(m.music_type.unwrap_or_default()) {
-                    Some(EMusicType::MusicTypeUnknown) => "Unknown",
-                    Some(EMusicType::MusicTypeMusic) => "Music",
-                    Some(EMusicType::MusicTypeMusicImmediate) => "Music Immediate",
-                    Some(EMusicType::MusicTypeMusicTitle) => "Music Title",
-                    None => "Unknown",
+                let music_type_enum = EMusicType::try_from(m.music_type.unwrap_or_default())
+                    .unwrap_or(EMusicType::MusicTypeUnknown);
+                let music_type = match music_type_enum {
+                    EMusicType::MusicTypeUnknown => "Unknown",
+                    EMusicType::MusicTypeMusic => "Music",
+                    EMusicType::MusicTypeMusicImmediate => "Music Immediate",
+                    EMusicType::MusicTypeMusicTitle => "Music Title",
                 };
 
                 MusicTemplateInfo {

@@ -2611,3 +2611,244 @@ body {
   color: var(--text-primary);
   border-color: var(--border-hover);
 }
+
+/* Texture tab layout */
+.texture-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.texture-preview-column {
+  flex: 1 1 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.texture-preview-card {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 220px;
+}
+
+.texture-preview-card canvas {
+  image-rendering: pixelated;
+  max-width: 100%;
+}
+
+.texture-preview-controls {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.texture-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.texture-control-row label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.texture-control-row input[type="range"] {
+  width: 180px;
+}
+
+.texture-control-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.texture-color-row label {
+  gap: 6px;
+}
+
+.texture-color-row input[type="color"],
+.texture-control-row input[type="color"] {
+  width: 42px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: transparent;
+}
+
+.texture-checkbox-row label {
+  flex-direction: row;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.texture-direction-btn {
+  border: 1px solid var(--border-color);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.texture-direction-btn.active,
+.texture-direction-btn:hover {
+  background: var(--primary-color);
+  color: #fff;
+  border-color: var(--primary-color);
+}
+
+.texture-settings-column {
+  flex: 1 1 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.texture-form-section {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.texture-form-section h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.texture-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.texture-form-grid label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.texture-form-grid input[type="number"],
+.texture-form-grid input[type="text"] {
+  margin-top: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+}
+
+.texture-form-grid input[type="number"]:focus,
+.texture-form-grid input[type="text"]:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(47, 128, 237, 0.15);
+}
+
+.texture-form-grid .texture-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.texture-animation-phases {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.texture-phase-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.texture-phase-row label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.texture-bounding-boxes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.texture-bounding-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  background: var(--surface-muted);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.texture-bounding-table th,
+.texture-bounding-table td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.texture-bounding-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.texture-bounding-table input[type="number"] {
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-base);
+  color: var(--text-primary);
+}
+
+.texture-remove-box {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.texture-remove-box:hover {
+  color: var(--danger-color);
+}
+
+.texture-form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.texture-empty-state {
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px dashed var(--border-color);
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  text-align: center;
+}

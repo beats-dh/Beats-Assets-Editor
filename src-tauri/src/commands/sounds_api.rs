@@ -1,7 +1,6 @@
-use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
-
+use std::fs;
 use tauri::State;
 
 // Add base64 engine for proper encoding to string
@@ -135,13 +134,13 @@ pub async fn list_all_sounds(
 #[tauri::command]
 pub async fn list_numeric_sound_effects(
   page: Option<usize>,
-  pageSize: Option<usize>,
-  soundType: Option<String>,
+  page_size: Option<usize>,
+  sound_type: Option<String>,
   state: State<'_, SoundsState>,
 ) -> Result<Vec<NumericSoundEffectInfo>, String> {
   let parser = state.parser.lock().map_err(|e| e.to_string())?;
 
-  let mut effects: Vec<NumericSoundEffectInfo> = if let Some(st) = soundType {
+  let mut effects: Vec<NumericSoundEffectInfo> = if let Some(st) = sound_type {
     parser
       .get_sounds_by_type(&st)
       .into_iter()
@@ -160,7 +159,7 @@ pub async fn list_numeric_sound_effects(
 
   // Pagination
   let page = page.unwrap_or(0);
-  let page_size = pageSize.unwrap_or(50);
+  let page_size = page_size.unwrap_or(50);
   let start = page * page_size;
   let end = start + page_size;
   let slice = if start < effects.len() { &effects[start..effects.len().min(end)] } else { &[] };
@@ -181,7 +180,7 @@ pub async fn get_sound_effect_count(
 #[tauri::command]
 pub async fn list_ambience_streams(
   page: Option<usize>,
-  pageSize: Option<usize>,
+  page_size: Option<usize>,
   state: State<'_, SoundsState>,
 ) -> Result<Vec<AmbienceStreamInfo>, String> {
   let parser = state.parser.lock().map_err(|e| e.to_string())?;
@@ -192,7 +191,7 @@ pub async fn list_ambience_streams(
     .clone();
   items.sort_by_key(|e| e.id);
   let page = page.unwrap_or(0);
-  let page_size = pageSize.unwrap_or(50);
+  let page_size = page_size.unwrap_or(50);
   let start = page * page_size;
   let end = start + page_size;
   let slice = if start < items.len() { &items[start..items.len().min(end)] } else { &[] };
@@ -228,7 +227,7 @@ pub async fn get_ambience_stream_count(
 #[tauri::command]
 pub async fn list_ambience_object_streams(
   page: Option<usize>,
-  pageSize: Option<usize>,
+  page_size: Option<usize>,
   state: State<'_, SoundsState>,
 ) -> Result<Vec<AmbienceObjectStreamInfo>, String> {
   let parser = state.parser.lock().map_err(|e| e.to_string())?;
@@ -239,7 +238,7 @@ pub async fn list_ambience_object_streams(
     .clone();
   items.sort_by_key(|e| e.id);
   let page = page.unwrap_or(0);
-  let page_size = pageSize.unwrap_or(50);
+  let page_size = page_size.unwrap_or(50);
   let start = page * page_size;
   let end = start + page_size;
   let slice = if start < items.len() { &items[start..items.len().min(end)] } else { &[] };
@@ -275,7 +274,7 @@ pub async fn get_ambience_object_stream_count(
 #[tauri::command]
 pub async fn list_music_templates(
   page: Option<usize>,
-  pageSize: Option<usize>,
+  page_size: Option<usize>,
   state: State<'_, SoundsState>,
 ) -> Result<Vec<MusicTemplateInfo>, String> {
   let parser = state.parser.lock().map_err(|e| e.to_string())?;
@@ -286,7 +285,7 @@ pub async fn list_music_templates(
     .clone();
   items.sort_by_key(|e| e.id);
   let page = page.unwrap_or(0);
-  let page_size = pageSize.unwrap_or(50);
+  let page_size = page_size.unwrap_or(50);
   let start = page * page_size;
   let end = start + page_size;
   let slice = if start < items.len() { &items[start..items.len().min(end)] } else { &[] };
