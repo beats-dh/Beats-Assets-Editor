@@ -801,6 +801,55 @@ pub async fn update_appearance_transparency_level(
 }
 
 #[tauri::command]
+pub async fn update_appearance_weapon_type(
+    category: AppearanceCategory,
+    id: u32,
+    weapon_type: Option<i32>,
+    state: tauri::State<'_, AppState>,
+) -> Result<AppearanceItem, String> {
+    let mut appearances_lock = state.appearances.lock().unwrap();
+
+    let appearances = match &mut *appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = match category {
+        AppearanceCategory::Objects => &mut appearances.object,
+        AppearanceCategory::Outfits => &mut appearances.outfit,
+        AppearanceCategory::Effects => &mut appearances.effect,
+        AppearanceCategory::Missiles => &mut appearances.missile,
+    };
+
+    let appearance = items
+        .iter_mut()
+        .find(|app| app.id.unwrap_or(0) == id)
+        .ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+
+    if appearance.flags.is_none() {
+        appearance.flags = Some(crate::core::protobuf::AppearanceFlags::default());
+    }
+    let flags = appearance.flags.as_mut().unwrap();
+
+    // Direct optional enum/integer flag; None removes it
+    flags.weapon_type = weapon_type;
+
+    let sprite_count: u32 = appearance
+        .frame_group
+        .iter()
+        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
+        .sum();
+
+    Ok(AppearanceItem {
+        id,
+        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        has_flags: appearance.flags.is_some(),
+        sprite_count,
+    })
+}
+
+#[tauri::command]
 pub async fn update_appearance_description(
     category: AppearanceCategory,
     id: u32,

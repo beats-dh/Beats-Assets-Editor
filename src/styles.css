@@ -2011,7 +2011,8 @@ body {
 
 #edit-content input[type="text"],
 #edit-content input[type="number"],
-#edit-content textarea {
+#edit-content textarea,
+#edit-content select {
   width: 100%;
   padding: var(--space-sm) var(--space-md);
   background: var(--control-bg);
@@ -2030,7 +2031,8 @@ body {
 
 #edit-content input[type="text"]:focus,
 #edit-content input[type="number"]:focus,
-#edit-content textarea:focus {
+#edit-content textarea:focus,
+#edit-content select:focus {
   outline: none;
   border-color: var(--border-focus);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);

@@ -149,6 +149,8 @@ interface CompleteFlags {
     show_as_object_id?: number;
     restrict_to_vocation: number[];
     minimum_level?: number;
+    name?: string;
+    vocation?: number;
   };
   npc_sale_data: FlagNPC[];
   changed_to_expire?: { former_object_typeid?: number };
@@ -159,7 +161,39 @@ interface CompleteFlags {
   imbueable?: { slot_count?: number };
   proficiency?: { proficiency_id?: number };
   // Extras
+  weapon_type?: number;
   transparency_level?: number;
+}
+
+// VOCATION enum helpers para UI
+const VOCATION_OPTIONS = [
+  { value: -1, label: 'Any' },
+  { value: 0, label: 'None' },
+  { value: 1, label: 'Knight' },
+  { value: 2, label: 'Paladin' },
+  { value: 3, label: 'Sorcerer' },
+  { value: 4, label: 'Druid' },
+  { value: 5, label: 'Monk' },
+  { value: 10, label: 'Promoted' },
+];
+
+function getVocationName(value?: number | null): string {
+  if (value === null || value === undefined) return '';
+  const opt = VOCATION_OPTIONS.find(o => o.value === value);
+  return opt ? opt.label : String(value);
+}
+
+function getVocationOptionsHTML(selected?: number | null, includeEmpty = true, includeAny = true): string {
+  const opts = includeAny ? VOCATION_OPTIONS : VOCATION_OPTIONS.filter(o => o.value !== -1);
+  const emptyOpt = includeEmpty ? `<option value="">-- Selecione --</option>` : '';
+  const optionsHTML = opts.map(o => `<option value="${o.value}" ${selected === o.value ? 'selected' : ''}>${o.label}</option>`).join('');
+  return emptyOpt + optionsHTML;
+}
+
+function getVocationMultiOptionsHTML(selectedValues?: number[] | null, includeAny = true): string {
+  const opts = includeAny ? VOCATION_OPTIONS : VOCATION_OPTIONS.filter(o => o.value !== -1);
+  const selectedSet = new Set(selectedValues || []);
+  return opts.map(o => `<option value="${o.value}" ${selectedSet.has(o.value) ? 'selected' : ''}>${o.label}</option>`).join('');
 }
 
 // Helper para normalização de chaves de flags (snake_case/camelCase/no-underscore)
@@ -929,6 +963,18 @@ function setupCategoryListeners() {
       }
     }
 
+    // Handle save weapon type button click in modal
+    const saveWeaponTypeBtn = target.closest('#save-weapon-type') as HTMLElement | null;
+    if (saveWeaponTypeBtn) {
+      const cat = saveWeaponTypeBtn.dataset.category;
+      const idStr = saveWeaponTypeBtn.dataset.id;
+      if (cat && idStr) {
+        (window as any).saveAssetWeaponType(cat, parseInt(idStr, 10));
+      } else {
+        console.error('Missing data attributes on save weapon type button');
+      }
+    }
+
     // Handle save transparency level button click in modal
     const saveTransparencyLevelBtn = target.closest('#save-transparency-level') as HTMLElement | null;
     if (saveTransparencyLevelBtn) {
@@ -1672,7 +1718,40 @@ async function displayCompleteAssetDetails(details: CompleteAppearanceItem, cate
         ${flags.market.category !== undefined ? `
           <div class="detail-item">
             <span class="detail-label">Category:</span>
-            <span class="detail-value">${flags.market.category}</span>
+            <span class="detail-value">${(function(){
+              const c = flags.market.category;
+              const options = [
+                { v: 1, l: 'Armors' },
+                { v: 2, l: 'Amulets' },
+                { v: 3, l: 'Boots' },
+                { v: 4, l: 'Containers' },
+                { v: 5, l: 'Decoration' },
+                { v: 6, l: 'Food' },
+                { v: 7, l: 'Helmets' },
+                { v: 8, l: 'Legs' },
+                { v: 9, l: 'Others' },
+                { v: 10, l: 'Potions' },
+                { v: 11, l: 'Rings' },
+                { v: 12, l: 'Runes' },
+                { v: 13, l: 'Shields' },
+                { v: 14, l: 'Tools' },
+                { v: 15, l: 'Valuables' },
+                { v: 16, l: 'Ammo' },
+                { v: 17, l: 'Axes' },
+                { v: 18, l: 'Clubs' },
+                { v: 19, l: 'Distance Weapons' },
+                { v: 20, l: 'Swords' },
+                { v: 21, l: 'Wands Rods' },
+                { v: 22, l: 'Spellbooks' },
+                { v: 23, l: 'Quivers' },
+                { v: 24, l: 'Creature Products' },
+                { v: 25, l: 'Gems' },
+                { v: 26, l: 'Parcels' },
+                { v: 27, l: 'Distance Ammunition' },
+              ];
+              const match = options.find(x => x.v === c);
+              return match ? `${match.l} (${c})` : `Desconhecido (${c})`;
+            })()}</span>
           </div>
         ` : ''}
         ${flags.market.minimum_level !== undefined ? `
@@ -1696,7 +1775,7 @@ async function displayCompleteAssetDetails(details: CompleteAppearanceItem, cate
         ${flags.market.restrict_to_vocation.length > 0 ? `
           <div class="detail-item">
             <span class="detail-label">Restricted Vocations:</span>
-            <span class="detail-value">${flags.market.restrict_to_vocation.join(', ')}</span>
+            <span class="detail-value">${flags.market.restrict_to_vocation.map(v => getVocationName(v)).join(', ')}</span>
           </div>
         ` : ''}
       </div>
@@ -1837,7 +1916,15 @@ async function displayCompleteAssetDetails(details: CompleteAppearanceItem, cate
         <h4>Default Action</h4>
         <div class="detail-item">
           <span class="detail-label">Action:</span>
-          <span class="detail-value">${flags.default_action.action}</span>
+          <span class="detail-value">${(function(){
+            const a = flags.default_action.action;
+            return a === 0 ? 'None (0)'
+              : a === 1 ? 'Look (1)'
+              : a === 2 ? 'Use (2)'
+              : a === 3 ? 'Open (3)'
+              : a === 4 ? 'Autowalk Highlight (4)'
+              : `Desconhecido (${a})`;
+          })()}</span>
         </div>
       </div>
     ` : ''}
@@ -1893,8 +1980,8 @@ async function displayCompleteAssetDetails(details: CompleteAppearanceItem, cate
         ` : ''}
         ${flags.skillwheel_gem.vocation_id !== undefined ? `
           <div class="detail-item">
-            <span class="detail-label">Vocation ID:</span>
-            <span class="detail-value">${flags.skillwheel_gem.vocation_id}</span>
+            <span class="detail-label">Vocation:</span>
+            <span class="detail-value">${getVocationName(flags.skillwheel_gem.vocation_id)}</span>
           </div>
         ` : ''}
       </div>
@@ -1916,6 +2003,28 @@ async function displayCompleteAssetDetails(details: CompleteAppearanceItem, cate
         <div class="detail-item">
           <span class="detail-label">ID:</span>
           <span class="detail-value">${flags.proficiency.proficiency_id}</span>
+        </div>
+      </div>
+    ` : ''}
+
+    ${typeof flags?.weapon_type === 'number' ? `
+      <div class="detail-section">
+        <h4>Weapon Type</h4>
+        <div class="detail-item">
+          <span class="detail-label">Type:</span>
+          <span class="detail-value">${(function(){
+            const wt = flags.weapon_type;
+            return wt === 0 ? 'No Weapon (0)'
+              : wt === 1 ? 'Sword (1)'
+              : wt === 2 ? 'Axe (2)'
+              : wt === 3 ? 'Club (3)'
+              : wt === 4 ? 'Fist (4)'
+              : wt === 5 ? 'Bow (5)'
+              : wt === 6 ? 'Crossbow (6)'
+              : wt === 7 ? 'Wand Rod (7)'
+              : wt === 8 ? 'Throw (8)'
+              : `Desconhecido (${wt})`;
+          })()}</span>
         </div>
       </div>
     ` : ''}
@@ -2135,12 +2244,19 @@ async function displayCompleteAssetDetails(details: CompleteAppearanceItem, cate
         <h4>Hook</h4>
         <div class="detail-item">
           <span class="detail-label">Direction:</span>
-          <div class="number-input">
-            <input type="number" id="hook-direction" value="${flags?.hook?.direction ?? ''}" placeholder="ex: 1=Sul, 2=Leste" />
-            <div class="spinner-controls">
-              <button type="button" class="spinner-up" data-input-id="hook-direction"></button>
-              <button type="button" class="spinner-down" data-input-id="hook-direction"></button>
-            </div>
+          <div class="select-input">
+            <select id="hook-direction">
+              ${(() => {
+                const selected = flags?.hook?.direction ?? null;
+                const options = [
+                  { value: 1, label: 'Sul' },
+                  { value: 2, label: 'Leste' }
+                ];
+                const empty = `<option value="" ${selected == null ? 'selected' : ''}>—</option>`;
+                const optHtml = options.map(o => `<option value="${o.value}" ${selected === o.value ? 'selected' : ''}>${o.label} (${o.value})</option>`).join('');
+                return empty + optHtml;
+              })()}
+            </select>
           </div>
         </div>
         <button id="save-hook" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Hook</button>
@@ -2180,12 +2296,22 @@ async function displayCompleteAssetDetails(details: CompleteAppearanceItem, cate
         <h4>Default Action</h4>
         <div class="detail-item">
           <span class="detail-label">Action:</span>
-          <div class="number-input">
-            <input type="number" id="default-action" value="${flags?.default_action?.action ?? ''}" placeholder="ex: 5" />
-            <div class="spinner-controls">
-              <button type="button" class="spinner-up" data-input-id="default-action"></button>
-              <button type="button" class="spinner-down" data-input-id="default-action"></button>
-            </div>
+          <div class="select-input">
+            <select id="default-action">
+              ${(() => {
+                const selected = flags?.default_action?.action ?? null;
+                const options = [
+                  { value: 0, label: 'None' },
+                  { value: 1, label: 'Look' },
+                  { value: 2, label: 'Use' },
+                  { value: 3, label: 'Open' },
+                  { value: 4, label: 'Autowalk Highlight' },
+                ];
+                const empty = `<option value="" ${selected == null ? 'selected' : ''}>—</option>`;
+                const optHtml = options.map(o => `<option value="${o.value}" ${selected === o.value ? 'selected' : ''}>${o.label} (${o.value})</option>`).join('');
+                return empty + optHtml;
+              })()}
+            </select>
           </div>
         </div>
         <button id="save-default-action" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Default Action</button>
@@ -2195,12 +2321,44 @@ async function displayCompleteAssetDetails(details: CompleteAppearanceItem, cate
         <h4>Market</h4>
         <div class="detail-item">
           <span class="detail-label">Category:</span>
-          <div class="number-input">
-            <input type="number" id="market-category" value="${flags?.market?.category ?? ''}" placeholder="ex: 2" />
-            <div class="spinner-controls">
-              <button type="button" class="spinner-up" data-input-id="market-category"></button>
-              <button type="button" class="spinner-down" data-input-id="market-category"></button>
-            </div>
+          <div class="select-input">
+            <select id="market-category">
+              ${(() => {
+                const selected = flags?.market?.category ?? null;
+                const options = [
+                  { value: 1, label: 'Armors' },
+                  { value: 2, label: 'Amulets' },
+                  { value: 3, label: 'Boots' },
+                  { value: 4, label: 'Containers' },
+                  { value: 5, label: 'Decoration' },
+                  { value: 6, label: 'Food' },
+                  { value: 7, label: 'Helmets Hats' },
+                  { value: 8, label: 'Legs' },
+                  { value: 9, label: 'Others' },
+                  { value: 10, label: 'Potions' },
+                  { value: 11, label: 'Rings' },
+                  { value: 12, label: 'Runes' },
+                  { value: 13, label: 'Shields' },
+                  { value: 14, label: 'Tools' },
+                  { value: 15, label: 'Valuables' },
+                  { value: 16, label: 'Ammunition' },
+                  { value: 17, label: 'Axes' },
+                  { value: 18, label: 'Clubs' },
+                  { value: 19, label: 'Distance Weapons' },
+                  { value: 20, label: 'Swords' },
+                  { value: 21, label: 'Wands Rods' },
+                  { value: 22, label: 'Premium Scrolls' },
+                  { value: 23, label: 'Tibia Coins' },
+                  { value: 24, label: 'Creature Products' },
+                  { value: 25, label: 'Quiver' },
+                  { value: 26, label: 'Soul Cores' },
+                  { value: 27, label: 'Fist Weapons' },
+                ];
+                const empty = `<option value="" ${selected == null ? 'selected' : ''}>—</option>`;
+                const optHtml = options.map(o => `<option value="${o.value}" ${selected === o.value ? 'selected' : ''}>${o.label} (${o.value})</option>`).join('');
+                return empty + optHtml;
+              })()}
+            </select>
           </div>
         </div>
         <div class="detail-item">
@@ -2225,7 +2383,9 @@ async function displayCompleteAssetDetails(details: CompleteAppearanceItem, cate
         </div>
         <div class="detail-item">
           <span class="detail-label">Restrict To Vocation:</span>
-          <input type="text" id="market-restrict-to-vocation" value="${flags?.market?.restrict_to_vocation?.join(',') ?? ''}" placeholder="ex: 1,2,3" />
+          <select id="market-restrict-to-vocation">
+            ${getVocationOptionsHTML((flags?.market?.restrict_to_vocation?.length ? flags.market.restrict_to_vocation[0] : null), true, true)}
+          </select>
         </div>
         <div class="detail-item">
           <span class="detail-label">Minimum Level:</span>
@@ -2243,7 +2403,9 @@ async function displayCompleteAssetDetails(details: CompleteAppearanceItem, cate
         </div>
         <div class="detail-item">
           <span class="detail-label">Vocation:</span>
-          <input type="text" id="market-vocation" value="" placeholder="ex: Knight" />
+          <select id="market-vocation">
+            ${getVocationOptionsHTML(flags?.market?.vocation ?? null, true, true)}
+          </select>
         </div>
         <button id="save-market" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Market</button>
       </div>
@@ -2321,14 +2483,10 @@ async function displayCompleteAssetDetails(details: CompleteAppearanceItem, cate
           </div>
         </div>
         <div class="detail-item">
-          <span class="detail-label">Vocation ID:</span>
-          <div class="number-input">
-            <input type="number" id="skillwheel-vocation-id" value="${flags?.skillwheel_gem?.vocation_id ?? ''}" placeholder="ex: 4" />
-            <div class="spinner-controls">
-              <button type="button" class="spinner-up" data-input-id="skillwheel-vocation-id"></button>
-              <button type="button" class="spinner-down" data-input-id="skillwheel-vocation-id"></button>
-            </div>
-          </div>
+          <span class="detail-label">Vocation:</span>
+          <select id="skillwheel-vocation-id">
+            ${getVocationOptionsHTML(flags?.skillwheel_gem?.vocation_id ?? null, true, false)}
+          </select>
         </div>
         <button id="save-skillwheel-gem" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Skill Wheel Gem</button>
       </div>
@@ -2362,6 +2520,35 @@ async function displayCompleteAssetDetails(details: CompleteAppearanceItem, cate
         </div>
         <button id="save-proficiency" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Proficiency</button>
       </div>
+
+      <div class="detail-section">
+          <h4>Weapon Type</h4>
+          <div class="detail-item">
+            <span class="detail-label">Type:</span>
+            <div class="select-input">
+              <select id="weapon-type">
+                ${(() => {
+                  const selected = typeof flags?.weapon_type === 'number' ? flags.weapon_type : null;
+                  const options = [
+                    { value: 0, label: 'No Weapon' },
+                    { value: 1, label: 'Sword' },
+                    { value: 2, label: 'Axe' },
+                    { value: 3, label: 'Club' },
+                    { value: 4, label: 'Fist' },
+                    { value: 5, label: 'Bow' },
+                    { value: 6, label: 'Crossbow' },
+                    { value: 7, label: 'Wand Rod' },
+                    { value: 8, label: 'Throw' },
+                  ];
+                  const empty = `<option value="" ${selected == null ? 'selected' : ''}>—</option>`;
+                  const optHtml = options.map(o => `<option value="${o.value}" ${selected === o.value ? 'selected' : ''}>${o.label} (${o.value})</option>`).join('');
+                  return empty + optHtml;
+                })()}
+              </select>
+            </div>
+          </div>
+          <button id="save-weapon-type" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Weapon Type</button>
+        </div>
 
       <div class="detail-section">
         <h4>Transparency Level</h4>
@@ -2691,7 +2878,7 @@ async function refreshAssetDetails(category: string, id: number) {
 
 ;(window as any).saveAssetHook = async function (category: string, id: number) {
   try {
-    const el = document.getElementById('hook-direction') as HTMLInputElement | null;
+    const el = document.getElementById('hook-direction') as HTMLSelectElement | null;
     const direction = el && el.value !== '' ? parseInt(el.value, 10) : null;
 
     await invoke('update_appearance_hook', { category, id, direction });
@@ -2769,7 +2956,7 @@ async function refreshAssetDetails(category: string, id: number) {
 
 ;(window as any).saveAssetDefaultAction = async function (category: string, id: number) {
   try {
-    const el = document.getElementById('default-action') as HTMLInputElement | null;
+    const el = document.getElementById('default-action') as HTMLSelectElement | null;
     const action = el && el.value !== '' ? parseInt(el.value, 10) : null;
 
     await invoke('update_appearance_default_action', { category, id, action });
@@ -2795,26 +2982,25 @@ async function refreshAssetDetails(category: string, id: number) {
 
 ;(window as any).saveAssetMarket = async function (category: string, id: number) {
   try {
-    const catEl = document.getElementById('market-category') as HTMLInputElement | null;
+    const catEl = document.getElementById('market-category') as HTMLSelectElement | null;
     const tradeEl = document.getElementById('market-trade-as-object-id') as HTMLInputElement | null;
     const showEl = document.getElementById('market-show-as-object-id') as HTMLInputElement | null;
-    const restEl = document.getElementById('market-restrict-to-vocation') as HTMLInputElement | null;
+    const restEl = document.getElementById('market-restrict-to-vocation') as HTMLSelectElement | null;
     const minLvlEl = document.getElementById('market-minimum-level') as HTMLInputElement | null;
     const nameEl = document.getElementById('market-name') as HTMLInputElement | null;
-    const vocEl = document.getElementById('market-vocation') as HTMLInputElement | null;
+    const vocEl = document.getElementById('market-vocation') as HTMLSelectElement | null;
 
     const categoryValue = catEl && catEl.value !== '' ? parseInt(catEl.value, 10) : null;
     const tradeAsObjectId = tradeEl && tradeEl.value !== '' ? parseInt(tradeEl.value, 10) : null;
     const showAsObjectId = showEl && showEl.value !== '' ? parseInt(showEl.value, 10) : null;
     const minimumLevel = minLvlEl && minLvlEl.value !== '' ? parseInt(minLvlEl.value, 10) : null;
 
-    const restrictStr = restEl?.value?.trim() || '';
-    const restrictToVocation = restrictStr
-      ? restrictStr.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !Number.isNaN(n))
+    const restrictToVocation = restEl && restEl.value !== ''
+      ? [parseInt(restEl.value, 10)]
       : [];
 
     const name = nameEl && nameEl.value !== '' ? nameEl.value : null;
-    const vocation = vocEl && vocEl.value !== '' ? vocEl.value : null;
+    const vocation = vocEl && vocEl.value !== '' ? parseInt(vocEl.value, 10) : null;
 
     await invoke('update_appearance_market', {
       category,
@@ -2954,7 +3140,7 @@ async function refreshAssetDetails(category: string, id: number) {
 ;(window as any).saveAssetSkillwheelGem = async function (category: string, id: number) {
   try {
     const qEl = document.getElementById('skillwheel-gem-quality-id') as HTMLInputElement | null;
-    const vEl = document.getElementById('skillwheel-vocation-id') as HTMLInputElement | null;
+    const vEl = document.getElementById('skillwheel-vocation-id') as HTMLSelectElement | null;
 
     const gemQualityId = qEl && qEl.value !== '' ? parseInt(qEl.value, 10) : null;
     const vocationId = vEl && vEl.value !== '' ? parseInt(vEl.value, 10) : null;
@@ -3029,6 +3215,32 @@ async function refreshAssetDetails(category: string, id: number) {
   } catch (err) {
     console.error('Erro ao salvar Proficiency:', err);
     alert('Falha ao salvar Proficiency.');
+  }
+}
+
+;(window as any).saveAssetWeaponType = async function (category: string, id: number) {
+  try {
+    const el = document.getElementById('weapon-type') as HTMLSelectElement | null;
+    const weaponType = el && el.value !== '' ? parseInt(el.value, 10) : null;
+
+    await invoke('update_appearance_weapon_type', { category, id, weaponType });
+    await invoke('save_appearances_file');
+
+    const btn = document.getElementById('save-weapon-type') as HTMLButtonElement | null;
+    if (btn) {
+      const oldText = btn.textContent;
+      btn.textContent = 'Salvo!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = oldText || 'Salvar Weapon Type';
+        btn.disabled = false;
+      }, 1200);
+    }
+
+    await refreshAssetDetails(category, id);
+  } catch (err) {
+    console.error('Erro ao salvar Weapon Type:', err);
+    alert('Falha ao salvar Weapon Type.');
   }
 }
 

@@ -60,6 +60,7 @@ pub fn run() {
             commands::appearances_api::update_appearance_imbueable,
             commands::appearances_api::update_appearance_proficiency,
             commands::appearances_api::update_appearance_transparency_level,
+            commands::appearances_api::update_appearance_weapon_type,
             commands::appearances_api::save_appearances_file,
             commands::settings::set_tibia_base_path,
             commands::settings::get_tibia_base_path,
