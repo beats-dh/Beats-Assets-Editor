@@ -49,9 +49,12 @@ export interface CompleteSpriteInfo {
 }
 
 export interface SpriteAnimation {
+  default_start_phase?: number;
   synchronized?: boolean;
+  random_start_phase?: boolean;
   loop_type?: number;
   loop_count?: number;
+  animation_mode?: number;
   phases: SpritePhase[];
 }
 

@@ -3,6 +3,7 @@ import type { CompleteAppearanceItem, CompleteFlags } from './types';
 import { getVocationOptionsHTML, getFlagBool } from './utils';
 import { getAppearanceSprites } from './spriteCache';
 import { stopDetailAnimationPlayers, initAnimationPlayersForDetails, initDetailSpriteCardAnimations } from './animation';
+import { renderTextureTab } from './textureTab';
 
 // Current appearance being displayed
 let currentAppearanceDetails: CompleteAppearanceItem | null = null;
@@ -43,6 +44,17 @@ export async function showAssetDetails(category: string, id: number): Promise<vo
     await showAppearanceDetails(category, id);
   }
 }
+
+document.addEventListener('texture-settings-saved', async (event: Event) => {
+  const custom = event as CustomEvent<{ category: string; id: number }>;
+  const detail = custom.detail;
+  if (!detail) return;
+  try {
+    await showAssetDetails(detail.category, detail.id);
+  } catch (err) {
+    console.error('Failed to refresh asset details after texture save', err);
+  }
+});
 
 async function showSoundDetails(id: number): Promise<void> {
   try {
@@ -982,6 +994,8 @@ export async function displayCompleteAssetDetails(details: CompleteAppearanceIte
   if (editContent) {
     editContent.innerHTML = editFormHTML;
   }
+
+  await renderTextureTab(details, category);
 }
 
 function generateBasicInfoHTML(details: CompleteAppearanceItem, category: string): string {

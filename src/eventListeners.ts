@@ -208,23 +208,31 @@ function handleModalTabs(_e: Event, target: HTMLElement): void {
     const tab = tabClick.dataset.tab;
     const editContainer = document.getElementById('edit-content');
     const detailsContainer = document.getElementById('details-content');
+    const textureContainer = document.getElementById('texture-content');
     const tabEdit = document.getElementById('tab-edit');
     const tabDetails = document.getElementById('tab-details');
+    const tabTexture = document.getElementById('tab-texture');
 
-    if (tab === 'edit') {
-      if (editContainer && detailsContainer) {
-        editContainer.style.display = 'block';
-        detailsContainer.style.display = 'none';
+    const containers = [detailsContainer, editContainer, textureContainer];
+    containers.forEach((container) => {
+      if (container) {
+        container.style.display = 'none';
       }
+    });
+
+    tabDetails?.classList.remove('active');
+    tabEdit?.classList.remove('active');
+    tabTexture?.classList.remove('active');
+
+    if (tab === 'edit' && editContainer) {
+      editContainer.style.display = 'block';
       tabEdit?.classList.add('active');
-      tabDetails?.classList.remove('active');
-    } else if (tab === 'details') {
-      if (editContainer && detailsContainer) {
-        editContainer.style.display = 'none';
-        detailsContainer.style.display = 'block';
-      }
+    } else if (tab === 'texture' && textureContainer) {
+      textureContainer.style.display = 'block';
+      tabTexture?.classList.add('active');
+    } else if (detailsContainer) {
+      detailsContainer.style.display = 'block';
       tabDetails?.classList.add('active');
-      tabEdit?.classList.remove('active');
     }
   }
 }

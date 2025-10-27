@@ -305,16 +305,18 @@
         <div class="modal-content">
           <div class="modal-header">
             <div class="modal-tabs">
-              <button id="tab-edit" class="tab-btn" data-tab="edit">Edit</button>
               <button id="tab-details" class="tab-btn active" data-tab="details">Asset Details</button>
+              <button id="tab-edit" class="tab-btn" data-tab="edit">Edit</button>
+              <button id="tab-texture" class="tab-btn" data-tab="texture">Texture</button>
             </div>
             <button id="close-details" class="close-btn">✕</button>
           </div>
           <div class="modal-body">
-            <div id="edit-content" class="tab-content" style="display: none;"></div>
             <div id="details-content" class="tab-content">
               <!-- Asset details will be loaded here -->
             </div>
+            <div id="edit-content" class="tab-content" style="display: none;"></div>
+            <div id="texture-content" class="tab-content" style="display: none;"></div>
           </div>
         </div>
       </div>
