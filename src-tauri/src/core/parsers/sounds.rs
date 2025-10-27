@@ -378,4 +378,254 @@ impl SoundsParser {
             .iter()
             .find(|e| e.id == id)
     }
+
+    // NEW: Update helpers for runtime edits
+    pub fn update_sound_info(&mut self, updated: SoundInfo) -> Result<()> {
+        let data = self.sounds_data.as_mut().context("Sounds not loaded")?;
+        if let Some(s) = data.sounds.iter_mut().find(|s| s.id == updated.id) {
+            *s = updated;
+            Ok(())
+        } else {
+            anyhow::bail!("Sound with id {} not found", updated.id);
+        }
+    }
+
+    pub fn update_numeric_sound_effect(&mut self, updated: NumericSoundEffectInfo) -> Result<()> {
+        let data = self.sounds_data.as_mut().context("Sounds not loaded")?;
+        if let Some(eff) = data
+            .numeric_sound_effects
+            .iter_mut()
+            .find(|e| e.id == updated.id)
+        {
+            *eff = updated;
+            Ok(())
+        } else {
+            anyhow::bail!("NumericSoundEffect with id {} not found", updated.id);
+        }
+    }
+
+    pub fn update_ambience_stream(&mut self, updated: AmbienceStreamInfo) -> Result<()> {
+        let data = self.sounds_data.as_mut().context("Sounds not loaded")?;
+        if let Some(s) = data.ambience_streams.iter_mut().find(|s| s.id == updated.id) {
+            *s = updated;
+            Ok(())
+        } else {
+            anyhow::bail!("AmbienceStream with id {} not found", updated.id);
+        }
+    }
+
+    pub fn update_ambience_object_stream(&mut self, updated: AmbienceObjectStreamInfo) -> Result<()> {
+        let data = self.sounds_data.as_mut().context("Sounds not loaded")?;
+        if let Some(s) = data
+            .ambience_object_streams
+            .iter_mut()
+            .find(|s| s.id == updated.id)
+        {
+            *s = updated;
+            Ok(())
+        } else {
+            anyhow::bail!("AmbienceObjectStream with id {} not found", updated.id);
+        }
+    }
+
+    pub fn update_music_template(&mut self, updated: MusicTemplateInfo) -> Result<()> {
+        let data = self.sounds_data.as_mut().context("Sounds not loaded")?;
+        if let Some(m) = data.music_templates.iter_mut().find(|m| m.id == updated.id) {
+            *m = updated;
+            Ok(())
+        } else {
+            anyhow::bail!("MusicTemplate with id {} not found", updated.id);
+        }
+    }
+
+    // NEW: Encode current SoundsData back into protobuf
+    fn map_numeric_sound_type(&self, s: &str) -> i32 {
+        match s {
+            "Spell Attack" => ENumericSoundType::NumericSoundTypeSpellAttack as i32,
+            "Spell Healing" => ENumericSoundType::NumericSoundTypeSpellHealing as i32,
+            "Spell Support" => ENumericSoundType::NumericSoundTypeSpellSupport as i32,
+            "Weapon Attack" => ENumericSoundType::NumericSoundTypeWeaponAttack as i32,
+            "Creature Noise" => ENumericSoundType::NumericSoundTypeCreatureNoise as i32,
+            "Creature Death" => ENumericSoundType::NumericSoundTypeCreatureDeath as i32,
+            "Creature Attack" => ENumericSoundType::NumericSoundTypeCreatureAttack as i32,
+            "Ambience Stream" => ENumericSoundType::NumericSoundTypeAmbienceStream as i32,
+            "Food and Drink" => ENumericSoundType::NumericSoundTypeFoodAndDrink as i32,
+            "Item Movement" => ENumericSoundType::NumericSoundTypeItemMovement as i32,
+            "Event" => ENumericSoundType::NumericSoundTypeEvent as i32,
+            "UI" => ENumericSoundType::NumericSoundTypeUi as i32,
+            "Whisper" => ENumericSoundType::NumericSoundTypeWhisperWithoutOpenChat as i32,
+            "Chat Message" => ENumericSoundType::NumericSoundTypeChatMessage as i32,
+            "Party" => ENumericSoundType::NumericSoundTypeParty as i32,
+            "VIP List" => ENumericSoundType::NumericSoundTypeVipList as i32,
+            "Raid Announcement" => ENumericSoundType::NumericSoundTypeRaidAnnouncement as i32,
+            "Server Message" => ENumericSoundType::NumericSoundTypeServerMessage as i32,
+            "Spell Generic" => ENumericSoundType::NumericSoundTypeSpellGeneric as i32,
+            _ => ENumericSoundType::NumericSoundTypeUnknown as i32,
+        }
+    }
+
+    fn map_music_type(&self, s: &str) -> i32 {
+        match s {
+            "Music" => EMusicType::MusicTypeMusic as i32,
+            "Music Immediate" => EMusicType::MusicTypeMusicImmediate as i32,
+            "Music Title" => EMusicType::MusicTypeMusicTitle as i32,
+            _ => EMusicType::MusicTypeUnknown as i32,
+        }
+    }
+
+    fn rebuild_protobuf(&self) -> Result<Sounds> {
+        use crate::core::protobuf::sound::{
+            SimpleSoundEffect, RandomSoundEffect, DelayedSoundEffect, AppearanceTypesCountSoundEffect,
+            MinMaxFloat,
+        };
+
+        let data = self.sounds_data.as_ref().context("Sounds not loaded")?;
+
+        let sounds: Vec<Sound> = data
+            .sounds
+            .iter()
+            .map(|s| Sound {
+                id: Some(s.id),
+                filename: Some(s.filename.clone()),
+                original_filename: s.original_filename.clone(),
+                is_stream: Some(s.is_stream),
+            })
+            .collect();
+
+        let numeric_sound_effect: Vec<NumericSoundEffect> = data
+            .numeric_sound_effects
+            .iter()
+            .map(|e| {
+                let numeric_sound_type = Some(self.map_numeric_sound_type(&e.sound_type));
+
+                let simple_sound_effect = e.sound_id.map(|sid| SimpleSoundEffect { sound_id: Some(sid) });
+                let random_sound_effect = if !e.random_sound_ids.is_empty() {
+                    Some(RandomSoundEffect { random_sound_id: e.random_sound_ids.clone() })
+                } else { None };
+
+                let random_pitch = match (e.random_pitch_min, e.random_pitch_max) {
+                    (Some(min), Some(max)) => Some(MinMaxFloat { min: Some(min), max: Some(max) }),
+                    (Some(min), None) => Some(MinMaxFloat { min: Some(min), max: None }),
+                    (None, Some(max)) => Some(MinMaxFloat { min: None, max: Some(max) }),
+                    _ => None,
+                };
+
+                let random_volume = match (e.random_volume_min, e.random_volume_max) {
+                    (Some(min), Some(max)) => Some(MinMaxFloat { min: Some(min), max: Some(max) }),
+                    (Some(min), None) => Some(MinMaxFloat { min: Some(min), max: None }),
+                    (None, Some(max)) => Some(MinMaxFloat { min: None, max: Some(max) }),
+                    _ => None,
+                };
+
+                NumericSoundEffect {
+                    id: Some(e.id),
+                    numeric_sound_type,
+                    simple_sound_effect,
+                    random_sound_effect,
+                    random_pitch,
+                    random_volume,
+                }
+            })
+            .collect();
+
+        let ambience_stream: Vec<AmbienceStream> = data
+            .ambience_streams
+            .iter()
+            .map(|a| AmbienceStream {
+                id: Some(a.id),
+                looping_sound_id: Some(a.looping_sound_id),
+                delayed_effects: a
+                    .delayed_effects
+                    .iter()
+                    .map(|d| DelayedSoundEffect {
+                        numeric_sound_effect_id: Some(d.numeric_sound_effect_id),
+                        delay_seconds: Some(d.delay_seconds),
+                    })
+                    .collect(),
+            })
+            .collect();
+
+        let ambience_object_stream: Vec<AmbienceObjectStream> = data
+            .ambience_object_streams
+            .iter()
+            .map(|o| AmbienceObjectStream {
+                id: Some(o.id),
+                counted_appearance_types: o.counted_appearance_types.clone(),
+                sound_effects: o
+                    .sound_effects
+                    .iter()
+                    .map(|s| AppearanceTypesCountSoundEffect {
+                        count: Some(s.count),
+                        looping_sound_id: Some(s.looping_sound_id),
+                    })
+                    .collect(),
+                max_sound_distance: o.max_sound_distance,
+            })
+            .collect();
+
+        let music_template: Vec<MusicTemplate> = data
+            .music_templates
+            .iter()
+            .map(|m| MusicTemplate {
+                id: Some(m.id),
+                sound_id: Some(m.sound_id),
+                music_type: Some(self.map_music_type(&m.music_type)),
+            })
+            .collect();
+
+        Ok(Sounds {
+            sound: sounds,
+            numeric_sound_effect,
+            ambience_stream,
+            ambience_object_stream,
+            music_template,
+        })
+    }
+
+    pub fn encode_sounds_bytes(&self) -> Result<Vec<u8>> {
+        let sounds = self.rebuild_protobuf()?;
+        let mut buf = Vec::with_capacity(sounds.encoded_len());
+        sounds.encode(&mut buf)?;
+        Ok(buf)
+    }
+
+    /// Save current sounds data back to the original .dat from catalog-sound.json
+    pub fn save_to_directory(&self) -> Result<PathBuf> {
+        let dir = self.sounds_dir.as_ref().context("Sounds directory not set")?;
+        // Read catalog-sound.json again to get target file
+        let catalog_path = dir.join("catalog-sound.json");
+        let catalog_content = fs::read_to_string(&catalog_path)
+            .context("Failed to read catalog-sound.json")?;
+
+        let entries: Vec<SoundCatalog> = match serde_json::from_str(&catalog_content) {
+            Ok(v) => v,
+            Err(_) => {
+                let single: SoundCatalog = serde_json::from_str(&catalog_content)
+                    .context("Failed to parse catalog-sound.json")?;
+                vec![single]
+            }
+        };
+        if entries.is_empty() {
+            anyhow::bail!("catalog-sound.json has no entries");
+        }
+        let selected = entries
+            .iter()
+            .find(|e| e.catalog_type == "sounds")
+            .cloned()
+            .unwrap_or_else(|| entries[0].clone());
+
+        let dat_path = dir.join(&selected.file);
+        let existing = fs::read(&dat_path).context("Failed to read existing sounds dat")?;
+        let compressed = Sounds::decode(existing.as_slice()).is_err();
+
+        let raw = self.encode_sounds_bytes()?;
+        let to_write = if compressed {
+            crate::core::lzma::compress(&raw).context("Failed to LZMA-compress sounds data")?
+        } else {
+            raw
+        };
+
+        fs::write(&dat_path, &to_write).context("Failed to write sounds dat")?;
+        Ok(dat_path)
+    }
 }

@@ -37,62 +37,124 @@ export async function showAssetDetails(category: string, id: number): Promise<vo
     return;
   }
 
+  if (category === 'Sounds') {
+    await showSoundDetails(id);
+  } else {
+    await showAppearanceDetails(category, id);
+  }
+}
+
+async function showSoundDetails(id: number): Promise<void> {
   try {
-    if (category === 'Sounds') {
-      // Determine current sound subcategory from UI
-      const subSelect = document.getElementById('subcategory-select') as HTMLSelectElement | null;
-      const sub = subSelect?.value || 'All';
-
-      if (sub === 'Ambience Streams') {
-        console.log('Loading ambience stream details...');
-        const stream = await invoke('get_ambience_stream_by_id', { id });
-        await displayAmbienceStreamDetails(stream as any, id);
-      } else if (sub === 'Ambience Object Streams') {
-        console.log('Loading ambience object stream details...');
-        const objStream = await invoke('get_ambience_object_stream_by_id', { id });
-        await displayAmbienceObjectStreamDetails(objStream as any, id);
-      } else if (sub === 'Music Templates') {
-        console.log('Loading music template details...');
-        const tmpl = await invoke('get_music_template_by_id', { id });
-        await displayMusicTemplateDetails(tmpl as any, id);
-      } else {
-        // Numeric sound effect details by ID
-        console.log('Loading sound effect details...');
-        const soundData = await invoke('get_numeric_sound_effect_by_id', { id });
-        console.log('Received sound effect data:', soundData);
-        await displaySoundDetails(soundData as any, id);
-      }
-
-      // Force display the modal
-      assetDetails.style.display = 'flex';
-      assetDetails.classList.add('show');
-      console.log('Sound modal should now be visible');
-    } else {
-      // Handle appearances (existing logic)
-      console.log('Invoking get_complete_appearance...');
-      const completeData = await invoke('get_complete_appearance', {
-        category,
-        id
-      }) as CompleteAppearanceItem;
-
-      console.log('Received complete data:', completeData);
-      currentAppearanceDetails = completeData;
-      await displayCompleteAssetDetails(completeData, category);
-
-      // Force display the modal
-      assetDetails.style.display = 'flex';
-      assetDetails.classList.add('show');
-      console.log('Modal display:', window.getComputedStyle(assetDetails).display);
-      console.log('Modal should now be visible');
-
-      // Initialize animation players per frame group
-      await initAnimationPlayersForDetails(completeData, category);
-
-      // Load sprites for this specific item
-      await loadDetailSprites(category, id);
+    if (!assetDetails || !detailsContent) {
+      console.error('assetDetails or detailsContent is null');
+      return;
     }
+    // Determine current sound subcategory from UI
+    const subSelect = document.getElementById('subcategory-select') as HTMLSelectElement | null;
+    const sub = subSelect?.value || 'All';
+
+    if (sub === 'Ambience Streams') {
+      console.log('Loading ambience stream details...');
+      const stream = await invoke('get_ambience_stream_by_id', { id });
+      await displayAmbienceStreamDetails(stream as any, id);
+    } else if (sub === 'Ambience Object Streams') {
+      console.log('Loading ambience object stream details...');
+      const objStream = await invoke('get_ambience_object_stream_by_id', { id });
+      await displayAmbienceObjectStreamDetails(objStream as any, id);
+    } else if (sub === 'Music Templates') {
+      console.log('Loading music template details...');
+      const tmpl = await invoke('get_music_template_by_id', { id });
+      await displayMusicTemplateDetails(tmpl as any, id);
+    } else {
+      // Numeric sound effect details by ID
+      console.log('Loading sound effect details...');
+      const soundData = await invoke('get_numeric_sound_effect_by_id', { id });
+      console.log('Received sound effect data:', soundData);
+      await displaySoundDetails(soundData as any, id);
+    }
+
+    // Ensure tabs visible for Sounds; default to Details active
+    const editContainer = document.getElementById('edit-content');
+    const detailsContainer = document.getElementById('details-content');
+    const tabEdit = document.getElementById('tab-edit');
+    const tabDetails = document.getElementById('tab-details');
+
+    if (tabEdit) {
+      tabEdit.style.display = '';
+      tabEdit.classList.remove('active');
+      tabEdit.textContent = 'Edit';
+    }
+    if (tabDetails) {
+      tabDetails.classList.add('active');
+      tabDetails.textContent = 'Sound Details';
+    }
+    if (editContainer && detailsContainer) {
+      editContainer.style.display = 'none';
+      detailsContainer.style.display = 'block';
+    }
+
+    // Force display the modal
+    const modal = assetDetails as HTMLElement;
+    modal.style.display = 'flex';
+    modal.classList.add('show');
+    console.log('Sound modal should now be visible');
   } catch (error) {
-    console.error('Error loading asset details:', error);
+    console.error('Error loading sound details:', error);
+  }
+}
+
+async function showAppearanceDetails(category: string, id: number): Promise<void> {
+  try {
+    if (!assetDetails || !detailsContent) {
+      console.error('assetDetails or detailsContent is null');
+      return;
+    }
+    // Handle appearances (existing logic)
+    console.log('Invoking get_complete_appearance...');
+    const completeData = await invoke('get_complete_appearance', {
+      category,
+      id
+    }) as CompleteAppearanceItem;
+
+    console.log('Received complete data:', completeData);
+    currentAppearanceDetails = completeData;
+    await displayCompleteAssetDetails(completeData, category);
+
+    // Ensure tabs are correct for Objects (Edit visible)
+    const editContainer = document.getElementById('edit-content');
+    const detailsContainer = document.getElementById('details-content');
+    const tabEdit = document.getElementById('tab-edit');
+    const tabDetails = document.getElementById('tab-details');
+
+    if (tabEdit) {
+      tabEdit.style.display = '';
+      tabEdit.classList.remove('active');
+      tabEdit.textContent = 'Edit';
+    }
+    if (tabDetails) {
+      tabDetails.classList.add('active');
+      tabDetails.textContent = 'Asset Details';
+    }
+    if (editContainer && detailsContainer) {
+      editContainer.style.display = 'none';
+      detailsContainer.style.display = 'block';
+    }
+
+    // Force display the modal
+    const modal = assetDetails as HTMLElement;
+    modal.style.display = 'flex';
+    modal.classList.add('show');
+    console.log('Modal display:', window.getComputedStyle(modal).display);
+    console.log('Modal should now be visible');
+
+    // Initialize animation players per frame group
+    await initAnimationPlayersForDetails(completeData, category);
+
+    // Load sprites for this specific item
+    await loadDetailSprites(category, id);
+  } catch (error) {
+    console.error('Error loading appearance details:', error);
   }
 }
 
@@ -277,6 +339,123 @@ async function displaySoundDetails(sound: any, soundId: number): Promise<void> {
   if (hasPlayable && primarySoundId !== undefined) {
     loadAudioPlayer(primarySoundId, soundId);
   }
+
+  // Render edit form for numeric sound effect
+  renderSoundEffectEdit(sound, soundId);
+}
+
+// Render edit form: Numeric Sound Effect
+function renderSoundEffectEdit(sound: any, soundId: number): void {
+  const editContent = document.getElementById('edit-content');
+  const tabEdit = document.getElementById('tab-edit');
+  const tabDetails = document.getElementById('tab-details');
+  if (!editContent) return;
+
+  const typeOptions = [
+    'Unknown','Spell Attack','Spell Healing','Spell Support','Weapon Attack','Creature Noise','Creature Death','Creature Attack','Ambience Stream','Food and Drink','Item Movement','Event','UI','Whisper','Chat Message','Party','VIP List','Raid Announcement','Server Message','Spell Generic'
+  ];
+
+  const currentType = sound.sound_type || 'Unknown';
+  const modeSimple = sound.sound_id != null;
+  const randomIds = Array.isArray(sound.random_sound_ids) ? sound.random_sound_ids.join(',') : '';
+
+  editContent.innerHTML = `
+    <div class="edit-section">
+      <h3>Editar Sound Effect</h3>
+      <div class="form-grid">
+        <label>Tipo
+          <select id="se-sound-type">
+            ${typeOptions.map(t => `<option value="${t}" ${t === currentType ? 'selected' : ''}>${t}</option>`).join('')}
+          </select>
+        </label>
+        <label>Modo
+          <div class="radio-group">
+            <label><input type="radio" name="se-mode" value="simple" ${modeSimple ? 'checked' : ''}/> Simple</label>
+            <label><input type="radio" name="se-mode" value="random" ${!modeSimple ? 'checked' : ''}/> Random</label>
+          </div>
+        </label>
+        <label>Sound ID
+          <input id="se-sound-id" type="number" value="${sound.sound_id ?? ''}" />
+        </label>
+        <label>Random IDs (comma)
+          <input id="se-random-ids" type="text" value="${randomIds}" placeholder="e.g. 101,102,103" />
+        </label>
+        <label>Pitch Min
+          <input id="se-random-pitch-min" type="number" step="0.01" value="${sound.random_pitch_min ?? ''}" />
+        </label>
+        <label>Pitch Max
+          <input id="se-random-pitch-max" type="number" step="0.01" value="${sound.random_pitch_max ?? ''}" />
+        </label>
+        <label>Volume Min
+          <input id="se-random-volume-min" type="number" step="0.01" value="${sound.random_volume_min ?? ''}" />
+        </label>
+        <label>Volume Max
+          <input id="se-random-volume-max" type="number" step="0.01" value="${sound.random_volume_max ?? ''}" />
+        </label>
+      </div>
+      <div class="edit-actions">
+        <button id="save-sound-effect" data-sound-effect-id="${soundId}" class="primary-btn">Salvar</button>
+      </div>
+    </div>
+  `;
+
+  // Ensure Edit tab visible
+  if (tabEdit) {
+    tabEdit.style.display = '';
+    tabEdit.textContent = 'Edit';
+  }
+  if (tabDetails) {
+    tabDetails.textContent = 'Sound Details';
+  }
+
+  const saveBtn = document.getElementById('save-sound-effect');
+  saveBtn?.addEventListener('click', async () => {
+    try {
+      const typeEl = document.getElementById('se-sound-type') as HTMLSelectElement | null;
+      const modeEl = document.querySelector('input[name="se-mode"]:checked') as HTMLInputElement | null;
+      const soundIdEl = document.getElementById('se-sound-id') as HTMLInputElement | null;
+      const randomIdsEl = document.getElementById('se-random-ids') as HTMLInputElement | null;
+      const rpmEl = document.getElementById('se-random-pitch-min') as HTMLInputElement | null;
+      const rpxEl = document.getElementById('se-random-pitch-max') as HTMLInputElement | null;
+      const rvmEl = document.getElementById('se-random-volume-min') as HTMLInputElement | null;
+      const rvxEl = document.getElementById('se-random-volume-max') as HTMLInputElement | null;
+
+      const chosenType = typeEl?.value || 'Unknown';
+      const mode = modeEl?.value || 'simple';
+      const parsedRandomIds = (randomIdsEl?.value || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => s.length > 0)
+        .map(s => Number(s));
+
+      const info: any = {
+        id: soundId,
+        sound_type: chosenType,
+        sound_id: undefined,
+        random_sound_ids: undefined,
+        random_pitch_min: rpmEl?.value ? Number(rpmEl.value) : undefined,
+        random_pitch_max: rpxEl?.value ? Number(rpxEl.value) : undefined,
+        random_volume_min: rvmEl?.value ? Number(rvmEl.value) : undefined,
+        random_volume_max: rvxEl?.value ? Number(rvxEl.value) : undefined,
+      };
+
+      if (mode === 'simple') {
+        info.sound_id = soundIdEl?.value ? Number(soundIdEl.value) : undefined;
+        info.random_sound_ids = [];
+      } else {
+        info.sound_id = undefined;
+        info.random_sound_ids = parsedRandomIds;
+      }
+
+      await invoke('update_numeric_sound_effect', { info });
+      await invoke('save_sounds_file');
+      // Refresh details
+      await showAssetDetails('Sounds', soundId);
+    } catch (err) {
+      console.error('Failed to save sound effect', err);
+      alert('Failed to save sound effect. See console for details.');
+    }
+  });
 }
 
 async function displayAmbienceStreamDetails(stream: any, streamId: number): Promise<void> {
@@ -347,6 +526,91 @@ async function displayAmbienceStreamDetails(stream: any, streamId: number): Prom
 
   // Load audio for the looping sound
   await loadAudioPlayer(stream.looping_sound_id, streamId, false);
+
+  // Render edit form for ambience stream
+  renderAmbienceStreamEdit(stream, streamId);
+}
+
+function renderAmbienceStreamEdit(stream: any, streamId: number): void {
+  const editContent = document.getElementById('edit-content');
+  if (!editContent) return;
+  editContent.innerHTML = `
+    <div class="edit-section">
+      <h3>Editar Ambience Stream</h3>
+      <div class="form-grid">
+        <label>Looping Sound ID
+          <input id="as-looping-sound-id" type="number" value="${stream.looping_sound_id}" />
+        </label>
+      </div>
+      <div class="details-section">
+        <h4>Delayed Effects</h4>
+        <div id="as-delayed-effects-container">
+          ${(stream.delayed_effects || []).map((d: any, idx: number) => `
+            <div class="table-row delay-row" data-index="${idx}">
+              <input class="delay-effect-id" type="number" value="${d.numeric_sound_effect_id}" placeholder="Effect ID" />
+              <input class="delay-effect-seconds" type="number" value="${d.delay_seconds}" placeholder="Delay (s)" />
+              <button type="button" class="remove-delay">Remover</button>
+            </div>
+          `).join('')}
+        </div>
+        <button type="button" id="add-delay-effect">Adicionar Efeito</button>
+      </div>
+      <div class="edit-actions">
+        <button id="save-ambience-stream" data-ambience-stream-id="${streamId}" class="primary-btn">Salvar</button>
+      </div>
+    </div>
+  `;
+
+  // Add/remove row handlers
+  const container = document.getElementById('as-delayed-effects-container');
+  const addBtn = document.getElementById('add-delay-effect');
+  addBtn?.addEventListener('click', () => {
+    const idx = (container?.children.length || 0);
+    const row = document.createElement('div');
+    row.className = 'table-row delay-row';
+    row.setAttribute('data-index', String(idx));
+    row.innerHTML = `
+      <input class="delay-effect-id" type="number" placeholder="Effect ID" />
+      <input class="delay-effect-seconds" type="number" placeholder="Delay (s)" />
+      <button type="button" class="remove-delay">Remover</button>
+    `;
+    container?.appendChild(row);
+  });
+  container?.addEventListener('click', (ev) => {
+    const t = ev.target as HTMLElement;
+    if (t.closest('.remove-delay')) {
+      const row = t.closest('.delay-row');
+      row?.parentElement?.removeChild(row!);
+    }
+  });
+
+  const saveBtn = document.getElementById('save-ambience-stream');
+  saveBtn?.addEventListener('click', async () => {
+    try {
+      const loopingEl = document.getElementById('as-looping-sound-id') as HTMLInputElement | null;
+      const rows = Array.from(document.querySelectorAll('#as-delayed-effects-container .delay-row')) as HTMLElement[];
+      const delayed_effects = rows.map(r => {
+        const idEl = r.querySelector('.delay-effect-id') as HTMLInputElement | null;
+        const secEl = r.querySelector('.delay-effect-seconds') as HTMLInputElement | null;
+        return {
+          numeric_sound_effect_id: idEl?.value ? Number(idEl.value) : 0,
+          delay_seconds: secEl?.value ? Number(secEl.value) : 0,
+        };
+      }).filter(d => d.numeric_sound_effect_id > 0);
+
+      const info = {
+        id: streamId,
+        looping_sound_id: loopingEl?.value ? Number(loopingEl.value) : 0,
+        delayed_effects,
+      };
+      await invoke('update_ambience_stream', { info });
+      await invoke('save_sounds_file');
+      await showAssetDetails('Sounds', streamId);
+    } catch (err) {
+      console.error('Failed to save ambience stream', err);
+      alert('Failed to save ambience stream. See console for details.');
+    }
+  });
 }
 
 async function displayAmbienceObjectStreamDetails(obj: any, objId: number): Promise<void> {
@@ -436,6 +700,94 @@ async function displayAmbienceObjectStreamDetails(obj: any, objId: number): Prom
   if (previewSoundId !== undefined) {
     await loadAudioPlayer(previewSoundId, objId, false);
   }
+
+  // Render edit form for ambience object stream
+  renderAmbienceObjectStreamEdit(obj, objId);
+}
+
+function renderAmbienceObjectStreamEdit(obj: any, objId: number): void {
+  const editContent = document.getElementById('edit-content');
+  if (!editContent) return;
+  editContent.innerHTML = `
+    <div class="edit-section">
+      <h3>Editar Ambience Object Stream</h3>
+      <div class="form-grid">
+        <label>Max Sound Distance
+          <input id="aos-max-distance" type="number" value="${obj.max_sound_distance ?? ''}" />
+        </label>
+        <label>Counted Appearance Types (comma)
+          <input id="aos-counted-types" type="text" value="${(obj.counted_appearance_types || []).join(',')}" />
+        </label>
+      </div>
+      <div class="details-section">
+        <h4>Sound Effects by Count</h4>
+        <div id="aos-sound-effects-container">
+          ${(obj.sound_effects || []).map((s: any) => `
+            <div class="table-row effect-row">
+              <input class="effect-count" type="number" value="${s.count}" placeholder="Count" />
+              <input class="effect-looping-id" type="number" value="${s.looping_sound_id}" placeholder="Looping Sound ID" />
+              <button type="button" class="remove-effect">Remover</button>
+            </div>
+          `).join('')}
+        </div>
+        <button type="button" id="add-aos-effect">Adicionar Efeito</button>
+      </div>
+      <div class="edit-actions">
+        <button id="save-ambience-object-stream" data-ambience-object-id="${objId}" class="primary-btn">Salvar</button>
+      </div>
+    </div>
+  `;
+
+  const container = document.getElementById('aos-sound-effects-container');
+  const addBtn = document.getElementById('add-aos-effect');
+  addBtn?.addEventListener('click', () => {
+    const row = document.createElement('div');
+    row.className = 'table-row effect-row';
+    row.innerHTML = `
+      <input class="effect-count" type="number" placeholder="Count" />
+      <input class="effect-looping-id" type="number" placeholder="Looping Sound ID" />
+      <button type="button" class="remove-effect">Remover</button>
+    `;
+    container?.appendChild(row);
+  });
+  container?.addEventListener('click', (ev) => {
+    const t = (ev.target as HTMLElement);
+    if (t.closest('.remove-effect')) {
+      const row = t.closest('.effect-row');
+      row?.parentElement?.removeChild(row!);
+    }
+  });
+
+  const saveBtn = document.getElementById('save-ambience-object-stream');
+  saveBtn?.addEventListener('click', async () => {
+    try {
+      const maxDistEl = document.getElementById('aos-max-distance') as HTMLInputElement | null;
+      const countedEl = document.getElementById('aos-counted-types') as HTMLInputElement | null;
+      const types = (countedEl?.value || '').split(',').map(s => s.trim()).filter(Boolean);
+      const rows = Array.from(document.querySelectorAll('#aos-sound-effects-container .effect-row')) as HTMLElement[];
+      const sound_effects = rows.map(r => {
+        const cEl = r.querySelector('.effect-count') as HTMLInputElement | null;
+        const lEl = r.querySelector('.effect-looping-id') as HTMLInputElement | null;
+        return {
+          count: cEl?.value ? Number(cEl.value) : 0,
+          looping_sound_id: lEl?.value ? Number(lEl.value) : 0,
+        };
+      }).filter(e => e.count > 0 && e.looping_sound_id > 0);
+
+      const info = {
+        id: objId,
+        max_sound_distance: maxDistEl?.value ? Number(maxDistEl.value) : undefined,
+        counted_appearance_types: types,
+        sound_effects,
+      };
+      await invoke('update_ambience_object_stream', { info });
+      await invoke('save_sounds_file');
+      await showAssetDetails('Sounds', objId);
+    } catch (err) {
+      console.error('Failed to save ambience object stream', err);
+      alert('Failed to save ambience object stream. See console for details.');
+    }
+  });
 }
 
 async function displayMusicTemplateDetails(tmpl: any, tmplId: number): Promise<void> {
@@ -481,6 +833,52 @@ async function displayMusicTemplateDetails(tmpl: any, tmplId: number): Promise<v
   detailsContent.innerHTML = html;
 
   await loadAudioPlayer(tmpl.sound_id, tmplId, false);
+
+  // Render edit form for music template
+  renderMusicTemplateEdit(tmpl, tmplId);
+}
+
+function renderMusicTemplateEdit(tmpl: any, tmplId: number): void {
+  const editContent = document.getElementById('edit-content');
+  if (!editContent) return;
+  const musicOptions = ['Unknown','Music','Music Immediate','Music Title'];
+  editContent.innerHTML = `
+    <div class="edit-section">
+      <h3>Editar Music Template</h3>
+      <div class="form-grid">
+        <label>Sound ID
+          <input id="mt-sound-id" type="number" value="${tmpl.sound_id}" />
+        </label>
+        <label>Music Type
+          <select id="mt-music-type">
+            ${musicOptions.map(o => `<option value="${o}" ${o === (tmpl.music_type || 'Unknown') ? 'selected' : ''}>${o}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+      <div class="edit-actions">
+        <button id="save-music-template" data-music-template-id="${tmplId}" class="primary-btn">Salvar</button>
+      </div>
+    </div>
+  `;
+
+  const saveBtn = document.getElementById('save-music-template');
+  saveBtn?.addEventListener('click', async () => {
+    try {
+      const soundIdEl = document.getElementById('mt-sound-id') as HTMLInputElement | null;
+      const typeEl = document.getElementById('mt-music-type') as HTMLSelectElement | null;
+      const info = {
+        id: tmplId,
+        sound_id: soundIdEl?.value ? Number(soundIdEl.value) : 0,
+        music_type: typeEl?.value || 'Unknown',
+      };
+      await invoke('update_music_template', { info });
+      await invoke('save_sounds_file');
+      await showAssetDetails('Sounds', tmplId);
+    } catch (err) {
+      console.error('Failed to save music template', err);
+      alert('Failed to save music template. See console for details.');
+    }
+  });
 }
 
 async function loadAudioPlayer(soundFileId: number, containerId: number, autoPlay: boolean = false): Promise<void> {

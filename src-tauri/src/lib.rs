@@ -87,6 +87,13 @@ pub fn run() {
             commands::sounds_api::list_music_templates,
             commands::sounds_api::get_music_template_by_id,
             commands::sounds_api::get_music_template_count,
+            // Update & Save sounds
+            commands::sounds_api::update_sound_info,
+            commands::sounds_api::update_numeric_sound_effect,
+            commands::sounds_api::update_ambience_stream,
+            commands::sounds_api::update_ambience_object_stream,
+            commands::sounds_api::update_music_template,
+            commands::sounds_api::save_sounds_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

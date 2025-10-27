@@ -342,3 +342,70 @@ pub async fn get_sound_file_path(
     .ok_or(format!("Sound with ID {} not found", sound_id))?;
   Ok(path.to_string_lossy().to_string())
 }
+
+// NEW: Update commands for sound editing
+#[tauri::command]
+pub async fn update_sound_info(
+  info: SoundInfo,
+  state: State<'_, SoundsState>,
+) -> Result<(), String> {
+  let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+  parser
+    .update_sound_info(info)
+    .map_err(|e| format!("Failed to update sound info: {}", e))
+}
+
+#[tauri::command]
+pub async fn update_numeric_sound_effect(
+  info: NumericSoundEffectInfo,
+  state: State<'_, SoundsState>,
+) -> Result<(), String> {
+  let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+  parser
+    .update_numeric_sound_effect(info)
+    .map_err(|e| format!("Failed to update numeric sound effect: {}", e))
+}
+
+#[tauri::command]
+pub async fn update_ambience_stream(
+  info: AmbienceStreamInfo,
+  state: State<'_, SoundsState>,
+) -> Result<(), String> {
+  let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+  parser
+    .update_ambience_stream(info)
+    .map_err(|e| format!("Failed to update ambience stream: {}", e))
+}
+
+#[tauri::command]
+pub async fn update_ambience_object_stream(
+  info: AmbienceObjectStreamInfo,
+  state: State<'_, SoundsState>,
+) -> Result<(), String> {
+  let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+  parser
+    .update_ambience_object_stream(info)
+    .map_err(|e| format!("Failed to update ambience object stream: {}", e))
+}
+
+#[tauri::command]
+pub async fn update_music_template(
+  info: MusicTemplateInfo,
+  state: State<'_, SoundsState>,
+) -> Result<(), String> {
+  let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+  parser
+    .update_music_template(info)
+    .map_err(|e| format!("Failed to update music template: {}", e))
+}
+
+#[tauri::command]
+pub async fn save_sounds_file(
+  state: State<'_, SoundsState>,
+) -> Result<String, String> {
+  let parser = state.parser.lock().map_err(|e| e.to_string())?;
+  let path = parser
+    .save_to_directory()
+    .map_err(|e| format!("Failed to save sounds file: {}", e))?;
+  Ok(path.to_string_lossy().to_string())
+}
