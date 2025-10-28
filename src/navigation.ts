@@ -3,6 +3,7 @@ import type { AppearanceStats } from './types';
 import { getCategoryInfo } from './utils';
 import { loadAssets, setCurrentCategory, setCurrentSubcategory, setCurrentPage, setCurrentSearch } from './assetUI';
 import { stopAllAnimationPlayers } from './animation';
+import { clearAssetSelection } from './assetSelection';
 
 let currentView = 'main';
 let currentStats: AppearanceStats | null = null;
@@ -69,6 +70,7 @@ export function openCategory(category: string): void {
   setCurrentPage(0);
   setCurrentSearch('');
   setCurrentSubcategory('All');
+  clearAssetSelection();
 
   const appHeader = document.querySelector('.app-header') as HTMLElement;
   const categoryNav = document.querySelector('.category-nav') as HTMLElement;
@@ -101,6 +103,7 @@ export function openCategoryWithSubcategory(category: string, subcategory: strin
   currentView = 'category';
   setCurrentPage(0);
   setCurrentSearch('');
+  clearAssetSelection();
 
   const appHeader = document.querySelector('.app-header') as HTMLElement;
   const categoryNav = document.querySelector('.category-nav') as HTMLElement;
@@ -135,6 +138,7 @@ export function goBack(): void {
   if (currentView === 'category') {
     currentView = 'main';
     setCurrentCategory('Objects');
+    clearAssetSelection();
 
     const categoryView = document.querySelector('#category-view') as HTMLElement;
     const appHeader = document.querySelector('.app-header') as HTMLElement;

@@ -996,6 +996,10 @@ export async function displayCompleteAssetDetails(details: CompleteAppearanceIte
   }
 
   await renderTextureTab(details, category);
+
+  document.dispatchEvent(new CustomEvent('appearance-details-rendered', {
+    detail: { category, id: details.id }
+  }));
 }
 
 function generateBasicInfoHTML(details: CompleteAppearanceItem, category: string): string {
@@ -1736,6 +1740,8 @@ export function closeAssetDetails(): void {
     assetDetails.classList.remove('show');
     assetDetails.style.display = 'none';
   }
+  currentAppearanceDetails = null;
+  document.dispatchEvent(new CustomEvent('appearance-details-closed'));
 }
 
 export async function refreshAssetDetails(category: string, id: number): Promise<void> {

@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getAppearanceSprites, createSpriteImage, createPlaceholderImage } from './spriteCache';
 import { stopAllAnimationPlayers, initAssetCardAutoAnimation } from './animation';
+import { isAssetSelected } from './assetSelection';
 
 let currentCategory = 'Objects';
 let currentSubcategory = 'All';
@@ -193,16 +194,24 @@ async function displayAssets(assets: any[]): Promise<void> {
   }
 
   // Create asset items with placeholders first
-  assetsGrid.innerHTML = assets.map(asset => `
-    <div class="asset-item" data-asset-id="${asset.id}" data-category="${currentCategory}">
+  assetsGrid.innerHTML = assets.map(asset => {
+    const selected = isAssetSelected(currentCategory, asset.id);
+    return `
+    <div class="asset-item${selected ? ' is-selected' : ''}" data-asset-id="${asset.id}" data-category="${currentCategory}">
       <div class="asset-item-header">
         <span class="asset-id">#${asset.id}</span>
         <div class="asset-flags">
           ${asset.has_flags ? '<div class="flag-indicator" title="Has flags"></div>' : ''}
         </div>
       </div>
-      <div class="asset-image-container" id="sprite-${asset.id}">
-        <div class="sprite-loading">🔄</div>
+      <div class="asset-visual-row">
+        <label class="asset-select-control" aria-label="Select appearance #${asset.id}">
+          <input type="checkbox" class="asset-select-checkbox" data-asset-id="${asset.id}" data-category="${currentCategory}" ${selected ? 'checked' : ''} />
+          <span class="asset-select-indicator" aria-hidden="true"></span>
+        </label>
+        <div class="asset-image-container" id="sprite-${asset.id}">
+          <div class="sprite-loading">🔄</div>
+        </div>
       </div>
       <div class="asset-name">${asset.name || 'Unnamed'}</div>
       <div class="asset-description">${asset.description || 'No description'}</div>
@@ -211,7 +220,7 @@ async function displayAssets(assets: any[]): Promise<void> {
         <span>${currentCategory.slice(0, -1)}</span>
       </div>
     </div>
-  `).join('');
+  `; }).join('');
 
   // Load sprites asynchronously
   loadSpritesForAssets(assets);

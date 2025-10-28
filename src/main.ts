@@ -25,6 +25,7 @@ import {
 } from './navigation';
 import { initAssetDetailsElements } from './assetDetails';
 import { setupGlobalEventListeners } from './eventListeners';
+import { setupImportExportFeature } from './importExport';
 
 // Extend Window interface to include debugCache
 declare global {
@@ -191,6 +192,7 @@ function initializeAssetsBrowser(): void {
   // Initialize asset browser elements
   initAssetUIElements();
   initAssetDetailsElements();
+  setupImportExportFeature();
 
   // Setup pagination and search
   setupAssetsPaginationListeners();
