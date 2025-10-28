@@ -189,6 +189,88 @@
   flex: 0 0 auto;
 }
 
+.appearance-action-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0 var(--space-sm);
+  margin-left: -20px;
+  padding-left: calc(var(--space-sm) + 60px);
+}
+
+.appearance-action-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.appearance-action-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.appearance-action-button {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.35);
+  color: var(--text-primary, #e2e8f0);
+  border-radius: var(--radius-md);
+  padding: 0.45rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  cursor: pointer;
+  transition: background var(--transition-fast, 0.2s) ease, color var(--transition-fast, 0.2s) ease, border-color var(--transition-fast, 0.2s) ease, box-shadow var(--transition-fast, 0.2s) ease;
+  white-space: nowrap;
+  backdrop-filter: blur(12px);
+}
+
+.appearance-action-button:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.22);
+  border-color: rgba(59, 130, 246, 0.55);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.18);
+}
+
+.appearance-action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(15, 23, 42, 0.15);
+  border-color: rgba(148, 163, 184, 0.2);
+  color: rgba(148, 163, 184, 0.65);
+  box-shadow: none;
+}
+
+.appearance-action-button.destructive {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(127, 29, 29, 0.38);
+  color: #fca5a5;
+}
+
+.appearance-action-button.destructive:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.28);
+  border-color: rgba(248, 113, 113, 0.65);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(248, 113, 113, 0.18);
+}
+
+.appearance-action-button.primary {
+  border-color: rgba(129, 140, 248, 0.55);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.42), rgba(129, 140, 248, 0.38));
+  color: #ede9fe;
+}
+
+.appearance-action-button.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.58), rgba(129, 140, 248, 0.54));
+  border-color: rgba(129, 140, 248, 0.75);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.2);
+}
+
 .modern-back-btn {
   display: flex;
   align-items: center;

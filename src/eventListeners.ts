@@ -24,12 +24,17 @@ import {
   saveAssetTransparencyLevel,
   saveFlagCheckbox
 } from './assetSave';
+import { setAssetSelection } from './assetSelection';
 
 export function setupGlobalEventListeners(): void {
   // Global click listener for category navigation and all save buttons
   document.addEventListener('click', async (e) => {
     const target = e.target as HTMLElement;
     console.log('Global click detected on:', target);
+
+    if (target.closest('.asset-select-control')) {
+      return;
+    }
 
     // Handle category card clicks
     if (target.closest('.category-card')) {
@@ -98,6 +103,19 @@ export function setupGlobalEventListeners(): void {
 
   // Close details button
   document.querySelector('#close-details')?.addEventListener('click', closeAssetDetails);
+
+  document.addEventListener('change', (event) => {
+    const target = event.target as HTMLInputElement;
+    if (target && target.classList.contains('asset-select-checkbox')) {
+      const { assetId, category } = target.dataset;
+      if (assetId && category) {
+        const parsedId = parseInt(assetId, 10);
+        if (!Number.isNaN(parsedId)) {
+          setAssetSelection(category, parsedId, target.checked);
+        }
+      }
+    }
+  });
 }
 
 async function handleSpinnerButtons(_e: Event, target: HTMLElement): Promise<void> {

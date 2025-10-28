@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use crate::core::protobuf::Appearances;
 use crate::core::parsers::SpriteLoader;
+use crate::core::protobuf::Appearances;
 
 // Keep complete types separated
 mod appearance_types;
@@ -20,4 +20,5 @@ pub struct AppState {
     pub sprite_loader: Mutex<Option<SpriteLoader>>,
     pub tibia_path: Mutex<Option<PathBuf>>,
     pub sprite_cache: Mutex<HashMap<String, Vec<String>>>, // cache key -> base64 sprites
+    pub flags_clipboard: Mutex<Option<CompleteFlags>>,
 }

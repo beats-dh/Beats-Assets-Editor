@@ -225,6 +225,16 @@
   margin-bottom: 0;
 }
 
+.detail-actions {
+  margin-top: 1rem;
+}
+
+.detail-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.5rem;
+}
+
 .detail-section h4 {
   color: #8b5cf6;
   font-size: 1.1rem;
