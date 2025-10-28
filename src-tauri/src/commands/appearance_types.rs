@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::core::protobuf::{Appearance, FrameGroup, SpriteInfo, AppearanceFlags};
+use base64;
 
 /// Complete appearance data with ALL information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -7,8 +8,10 @@ pub struct CompleteAppearanceItem {
     pub id: u32,
     pub name: Option<String>,
     pub description: Option<String>,
+    pub appearance_type: Option<i32>,
     pub frame_groups: Vec<CompleteFrameGroup>,
     pub flags: Option<CompleteFlags>,
+    pub sprite_data: Vec<String>, // Base64 encoded sprite data
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,10 +43,13 @@ pub struct CompleteSpriteInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpriteAnimation {
+    pub default_start_phase: Option<u32>,
     pub synchronized: Option<bool>,
+    pub random_start_phase: Option<bool>,
     pub loop_type: Option<i32>,
     pub loop_count: Option<u32>,
     pub phases: Vec<SpritePhase>,
+    pub animation_mode: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -244,6 +250,42 @@ pub struct FlagProficiency {
     pub proficiency_id: Option<u32>,
 }
 
+/// Coordinate for position-based data
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Coordinate {
+    pub x: Option<u32>,
+    pub y: Option<u32>,
+    pub z: Option<u32>,
+}
+
+/// Special meaning appearance IDs (coins, chests, etc.)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpecialMeaningAppearanceIds {
+    pub gold_coin_id: Option<u32>,
+    pub platinum_coin_id: Option<u32>,
+    pub crystal_coin_id: Option<u32>,
+    pub tibia_coin_id: Option<u32>,
+    pub stamped_letter_id: Option<u32>,
+    pub supply_stash_id: Option<u32>,
+    pub standard_reward_chest_id: Option<u32>,
+    pub blank_imbuement_scroll_id: Option<u32>,
+}
+
+impl SpecialMeaningAppearanceIds {
+    pub fn from_protobuf(special: &crate::core::protobuf::SpecialMeaningAppearanceIds) -> Self {
+        Self {
+            gold_coin_id: special.gold_coin_id,
+            platinum_coin_id: special.platinum_coin_id,
+            crystal_coin_id: special.crystal_coin_id,
+            tibia_coin_id: special.tibia_coin_id,
+            stamped_letter_id: special.stamped_letter_id,
+            supply_stash_id: special.supply_stash_id,
+            standard_reward_chest_id: special.standard_reward_chest_id,
+            blank_imbuement_scroll_id: special.blank_imbuement_scroll_id,
+        }
+    }
+}
+
 // Conversion functions
 impl CompleteAppearanceItem {
     pub fn from_protobuf(appearance: &Appearance) -> Self {
@@ -256,13 +298,22 @@ impl CompleteAppearanceItem {
             .description
             .as_ref()
             .map(|b| String::from_utf8_lossy(b).to_string());
-        
+
+        // Convert sprite_data bytes to base64 strings
+        let sprite_data: Vec<String> = appearance
+            .sprite_data
+            .iter()
+            .map(|bytes| base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes))
+            .collect();
+
         Self {
             id: appearance.id.unwrap_or(0),
             name,
             description,
+            appearance_type: appearance.appearance_type,
             frame_groups: appearance.frame_group.iter().map(CompleteFrameGroup::from_protobuf).collect(),
             flags: appearance.flags.as_ref().map(CompleteFlags::from_protobuf),
+            sprite_data,
         }
     }
 }
@@ -293,13 +344,16 @@ impl CompleteSpriteInfo {
             sprite_ids: si.sprite_id.clone(),
             bounding_square: si.bounding_square,
             animation: si.animation.as_ref().map(|a| SpriteAnimation {
+                default_start_phase: a.default_start_phase,
                 synchronized: a.synchronized,
+                random_start_phase: a.random_start_phase,
                 loop_type: a.loop_type,
                 loop_count: a.loop_count,
                 phases: a.sprite_phase.iter().map(|p| SpritePhase {
                     duration_min: p.duration_min,
                     duration_max: p.duration_max,
                 }).collect(),
+                animation_mode: a.animation_mode,
             }),
             is_animation: si.is_animation,
             is_opaque: si.is_opaque,

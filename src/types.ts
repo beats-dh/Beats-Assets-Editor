@@ -18,8 +18,10 @@ export interface CompleteAppearanceItem {
   id: number;
   name?: string;
   description?: string;
+  appearance_type?: number;
   frame_groups: CompleteFrameGroup[];
   flags?: CompleteFlags;
+  sprite_data: string[];
 }
 
 export interface CompleteFrameGroup {
@@ -33,6 +35,7 @@ export interface CompleteSpriteInfo {
   pattern_height?: number;
   pattern_depth?: number;
   layers?: number;
+  pattern_size?: number;
   // Extra optional pattern fields present from backend mapping
   pattern_layers?: number;
   pattern_x?: number;
@@ -49,9 +52,12 @@ export interface CompleteSpriteInfo {
 }
 
 export interface SpriteAnimation {
+  default_start_phase?: number;
   synchronized?: boolean;
+  random_start_phase?: boolean;
   loop_type?: number;
   loop_count?: number;
+  animation_mode?: number;
   phases: SpritePhase[];
 }
 
@@ -145,6 +151,8 @@ export interface CompleteFlags {
   imbueable?: { slot_count?: number };
   proficiency?: { proficiency_id?: number };
   // Extras
+  restrict_to_vocation: number[];
+  minimum_level?: number;
   weapon_type?: number;
   transparency_level?: number;
 }
@@ -156,6 +164,23 @@ export interface FlagNPC {
   buy_price?: number;
   currency_object_type_id?: number;
   currency_quest_flag_display_name?: string;
+}
+
+export interface SpecialMeaningAppearanceIds {
+  gold_coin_id?: number;
+  platinum_coin_id?: number;
+  crystal_coin_id?: number;
+  tibia_coin_id?: number;
+  stamped_letter_id?: number;
+  supply_stash_id?: number;
+  standard_reward_chest_id?: number;
+  blank_imbuement_scroll_id?: number;
+}
+
+export interface Coordinate {
+  x?: number;
+  y?: number;
+  z?: number;
 }
 
 // Vocation options for UI

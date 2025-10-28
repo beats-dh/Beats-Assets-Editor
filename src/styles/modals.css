@@ -554,3 +554,207 @@
   margin-left: 6px;
   opacity: 0.7;
 }
+
+/* Bounding Boxes Table */
+.bounding-boxes-section {
+  margin-top: 1rem;
+}
+
+.bounding-boxes-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  background: rgba(139, 92, 246, 0.05);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 8px;
+  padding: 0.5rem;
+  overflow-x: auto;
+}
+
+.bb-header,
+.bb-row {
+  display: grid;
+  grid-template-columns: 100px repeat(4, 1fr);
+  gap: 0.5rem;
+  padding: 0.5rem;
+  align-items: center;
+}
+
+.bb-header {
+  background: rgba(139, 92, 246, 0.15);
+  border-radius: 6px;
+  font-weight: 700;
+  color: #8b5cf6;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bb-row {
+  background: rgba(139, 92, 246, 0.03);
+  border: 1px solid rgba(139, 92, 246, 0.1);
+  border-radius: 6px;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.bb-row:hover {
+  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(139, 92, 246, 0.2);
+  transform: translateX(4px);
+}
+
+.bb-direction {
+  color: #8b5cf6;
+  font-weight: 600;
+}
+
+.bb-header span,
+.bb-row span {
+  text-align: center;
+}
+
+.bb-header span:first-child,
+.bb-row span:first-child {
+  text-align: left;
+}
+
+/* NPC Sale Data Table */
+.npc-sale-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  padding: 0.5rem;
+  overflow-x: auto;
+}
+
+.npc-sale-header,
+.npc-sale-row {
+  display: grid;
+  grid-template-columns: 150px 120px 100px 100px 100px 150px;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  align-items: center;
+}
+
+.npc-sale-header {
+  background: rgba(99, 102, 241, 0.15);
+  border-radius: 6px;
+  font-weight: 700;
+  color: #6366f1;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.npc-sale-row {
+  background: rgba(99, 102, 241, 0.03);
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  border-radius: 6px;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.npc-sale-row:hover {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.2);
+  transform: translateX(4px);
+}
+
+.npc-sale-header span,
+.npc-sale-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.npc-sale-row span:nth-child(3),
+.npc-sale-row span:nth-child(4),
+.npc-sale-row span:nth-child(5) {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  color: #10b981;
+  font-weight: 600;
+}
+
+/* Flags Groups */
+.flags-group {
+  margin-bottom: 1.25rem;
+}
+
+.flags-group:last-child {
+  margin-bottom: 0;
+}
+
+.flags-group-title {
+  color: #8b5cf6;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.flags-group-title::before {
+  content: '';
+  width: 3px;
+  height: 0.95rem;
+  background: linear-gradient(180deg, #8b5cf6 0%, #3b82f6 100%);
+  border-radius: 2px;
+}
+
+/* Animation Section Improvements */
+.animation-section .detail-label {
+  color: #8b5cf6;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.animation-phases {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.phase-item {
+  background: rgba(139, 92, 246, 0.05);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 6px;
+  padding: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.phase-item:hover {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.3);
+  transform: translateY(-2px);
+}
+
+.phase-index {
+  color: #8b5cf6;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.phase-duration {
+  color: #cbd5e1;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+}

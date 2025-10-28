@@ -25,6 +25,7 @@ import {
 } from './navigation';
 import { initAssetDetailsElements } from './assetDetails';
 import { setupGlobalEventListeners } from './eventListeners';
+import { loadSpecialMeaningIds } from './specialMeaning';
 
 // Extend Window interface to include debugCache
 declare global {
@@ -88,6 +89,9 @@ async function loadAppearances(): Promise<void> {
     const result = await invoke<AppearanceStats>("load_appearances_file", {
       path: appearancePath
     });
+
+    // Load special meaning IDs for global access
+    await loadSpecialMeaningIds();
 
     // Load sounds from the sounds directory
     try {

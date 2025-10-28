@@ -300,3 +300,19 @@ pub async fn get_complete_appearance(
 
     Ok(CompleteAppearanceItem::from_protobuf(appearance))
 }
+
+/// Get special meaning appearance IDs (coins, chests, etc.)
+#[tauri::command]
+pub async fn get_special_meaning_ids(
+    state: State<'_, AppState>,
+) -> Result<Option<crate::commands::SpecialMeaningAppearanceIds>, String> {
+    let appearances_lock = state.appearances.lock().unwrap();
+
+    let appearances = match &*appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    Ok(appearances.special_meaning_appearance_ids.as_ref()
+        .map(crate::commands::SpecialMeaningAppearanceIds::from_protobuf))
+}

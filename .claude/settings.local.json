@@ -7,7 +7,10 @@
       "Bash(npm run build:*)",
       "Bash(cargo build)",
       "Bash(mkdir:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(Get-Content \"c:\\Users\\danie\\tibia-assets-editor\\src-tauri\\target\\debug\\build\\tibia-assets-editor-48894c73f2839aae\\out\\tibia.protobuf.appearances.rs\" -Head 100)",
+      "Bash(dir \"C:\\Users\\danie\\tibia-assets-editor\\Assets Editor\")",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

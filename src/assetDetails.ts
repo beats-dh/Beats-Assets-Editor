@@ -973,7 +973,7 @@ export async function displayCompleteAssetDetails(details: CompleteAppearanceIte
 
   const flags = details.flags;
 
-  // Build basic boolean flags list
+  // Build basic boolean flags list - Names identical to C# Assets Editor
   const basicFlags: { name: string; value: boolean }[] = flags ? [
     { name: 'Clip', value: flags.clip },
     { name: 'Bottom', value: flags.bottom },
@@ -981,40 +981,40 @@ export async function displayCompleteAssetDetails(details: CompleteAppearanceIte
     { name: 'Container', value: flags.container },
     { name: 'Cumulative', value: flags.cumulative },
     { name: 'Usable', value: flags.usable },
-    { name: 'Force Use', value: flags.forceuse },
-    { name: 'Multi Use', value: flags.multiuse },
-    { name: 'Liquid Pool', value: flags.liquidpool },
-    { name: 'Unpassable', value: flags.unpass },
-    { name: 'Unmovable', value: flags.unmove },
-    { name: 'Blocks Sight', value: flags.unsight },
-    { name: 'Avoid Walk', value: flags.avoid },
+    { name: 'Forceuse', value: flags.forceuse },
+    { name: 'Multiuse', value: flags.multiuse },
+    { name: 'Liquidpool', value: flags.liquidpool },
+    { name: 'Unpass', value: flags.unpass },
+    { name: 'Unmove', value: flags.unmove },
+    { name: 'Unsight', value: flags.unsight },
+    { name: 'Avoid', value: flags.avoid },
     { name: 'No Move Animation', value: flags.no_movement_animation },
-    { name: 'Takeable', value: flags.take },
+    { name: 'Take', value: flags.take },
     { name: 'Liquid Container', value: flags.liquidcontainer },
-    { name: 'Hangable', value: flags.hang },
-    { name: 'Rotatable', value: flags.rotate },
-    { name: "Don't Hide", value: flags.dont_hide },
+    { name: 'Hang', value: flags.hang },
+    { name: 'Rotate', value: flags.rotate },
+    { name: 'Dont Hide', value: flags.dont_hide },
     { name: 'Translucent', value: flags.translucent },
     { name: 'Lying Object', value: flags.lying_object },
     { name: 'Animate Always', value: flags.animate_always },
-    { name: 'Full Bank', value: flags.fullbank },
+    { name: 'Fullbank', value: flags.fullbank },
     { name: 'Ignore Look', value: flags.ignore_look },
     { name: 'Wrap', value: flags.wrap },
     { name: 'Unwrap', value: flags.unwrap },
-    { name: 'Top Effect', value: flags.topeffect },
+    { name: 'Topeffect', value: flags.topeffect },
     { name: 'Corpse', value: flags.corpse },
     { name: 'Player Corpse', value: flags.player_corpse },
     { name: 'Ammo', value: flags.ammo },
     { name: 'Show Off Socket', value: flags.show_off_socket },
     { name: 'Reportable', value: flags.reportable },
-    { name: 'Reverse Addons East', value: flags.reverse_addons_east },
-    { name: 'Reverse Addons West', value: flags.reverse_addons_west },
-    { name: 'Reverse Addons South', value: flags.reverse_addons_south },
-    { name: 'Reverse Addons North', value: flags.reverse_addons_north },
+    { name: 'Reverse addon east', value: flags.reverse_addons_east },
+    { name: 'Reverse addon west', value: flags.reverse_addons_west },
+    { name: 'Reverse addon south', value: flags.reverse_addons_south },
+    { name: 'Reverse addon north', value: flags.reverse_addons_north },
     { name: 'Wearout', value: flags.wearout },
-    { name: 'Clock Expire', value: flags.clockexpire },
+    { name: 'Clockexpire', value: flags.clockexpire },
     { name: 'Expire', value: flags.expire },
-    { name: 'Expire Stop', value: flags.expirestop },
+    { name: 'Expirestop', value: flags.expirestop },
     { name: 'Deco Item Kit', value: flags.deco_item_kit },
     { name: 'Dual Wielding', value: flags.dual_wielding },
   ].filter((f): f is { name: string; value: boolean } => f.value === true) : [];
@@ -1042,6 +1042,7 @@ export async function displayCompleteAssetDetails(details: CompleteAppearanceIte
 }
 
 function generateBasicInfoHTML(details: CompleteAppearanceItem, category: string): string {
+  const flags = details.flags;
   return `
     <div class="detail-section">
       <h4>Basic Information</h4>
@@ -1049,18 +1050,34 @@ function generateBasicInfoHTML(details: CompleteAppearanceItem, category: string
         <span class="detail-label">ID:</span>
         <span class="detail-value">#${details.id}</span>
       </div>
-      <div class="detail-item">
-        <span class="detail-label">Name:</span>
-        <span class="detail-value" id="detail-name-value">${details.name || 'Unnamed'}</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Description:</span>
-        <span class="detail-value">${details.description || 'No description'}</span>
-      </div>
+      ${details.name ? `
+        <div class="detail-item">
+          <span class="detail-label">Name:</span>
+          <span class="detail-value" id="detail-name-value">${details.name}</span>
+        </div>
+      ` : ''}
+      ${details.description ? `
+        <div class="detail-item">
+          <span class="detail-label">Description:</span>
+          <span class="detail-value">${details.description}</span>
+        </div>
+      ` : ''}
       <div class="detail-item">
         <span class="detail-label">Category:</span>
         <span class="detail-value">${category}</span>
       </div>
+      ${details.appearance_type !== null && details.appearance_type !== undefined ? `
+        <div class="detail-item">
+          <span class="detail-label">Appearance Type:</span>
+          <span class="detail-value">${getAppearanceTypeName(details.appearance_type)}</span>
+        </div>
+      ` : ''}
+      ${flags?.transparency_level !== null && flags?.transparency_level !== undefined ? `
+        <div class="detail-item">
+          <span class="detail-label">Transparency Level:</span>
+          <span class="detail-value">${flags.transparency_level}</span>
+        </div>
+      ` : ''}
     </div>
   `;
 }
@@ -1090,12 +1107,12 @@ function generateFrameGroupsHTML(details: CompleteAppearanceItem): string {
             ${fg.fixed_frame_group !== undefined ? `
               <div class="detail-item">
                 <span class="detail-label">Fixed Frame Group:</span>
-                <span class="detail-value">${fg.fixed_frame_group}</span>
+                <span class="detail-value">${getFixedFrameGroupName(fg.fixed_frame_group)} (${fg.fixed_frame_group})</span>
               </div>
             ` : ''}
             ${fg.id !== undefined ? `
               <div class="detail-item">
-                <span class="detail-label">ID:</span>
+                <span class="detail-label">Group ID:</span>
                 <span class="detail-value">${fg.id}</span>
               </div>
             ` : ''}
@@ -1109,16 +1126,82 @@ function generateFrameGroupsHTML(details: CompleteAppearanceItem): string {
 
 function generateSpriteInfoHTML(spriteInfo: any): string {
   return `
-    ${spriteInfo.pattern_width ? `
+    ${spriteInfo.pattern_width !== undefined && spriteInfo.pattern_width !== null ? `
       <div class="detail-item">
-        <span class="detail-label">Pattern Size:</span>
-        <span class="detail-value">${spriteInfo.pattern_width}x${spriteInfo.pattern_height}x${spriteInfo.pattern_depth || 1}</span>
+        <span class="detail-label">Pattern Width:</span>
+        <span class="detail-value">${spriteInfo.pattern_width}</span>
       </div>
     ` : ''}
-    ${spriteInfo.layers ? `
+    ${spriteInfo.pattern_height !== undefined && spriteInfo.pattern_height !== null ? `
+      <div class="detail-item">
+        <span class="detail-label">Pattern Height:</span>
+        <span class="detail-value">${spriteInfo.pattern_height}</span>
+      </div>
+    ` : ''}
+    ${spriteInfo.pattern_depth !== undefined && spriteInfo.pattern_depth !== null ? `
+      <div class="detail-item">
+        <span class="detail-label">Pattern Depth:</span>
+        <span class="detail-value">${spriteInfo.pattern_depth}</span>
+      </div>
+    ` : ''}
+    ${spriteInfo.layers !== undefined && spriteInfo.layers !== null ? `
       <div class="detail-item">
         <span class="detail-label">Layers:</span>
         <span class="detail-value">${spriteInfo.layers}</span>
+      </div>
+    ` : ''}
+    ${spriteInfo.pattern_size !== undefined && spriteInfo.pattern_size !== null ? `
+      <div class="detail-item">
+        <span class="detail-label">Pattern Size:</span>
+        <span class="detail-value">${spriteInfo.pattern_size}</span>
+      </div>
+    ` : ''}
+    ${spriteInfo.pattern_layers !== undefined && spriteInfo.pattern_layers !== null ? `
+      <div class="detail-item">
+        <span class="detail-label">Pattern Layers:</span>
+        <span class="detail-value">${spriteInfo.pattern_layers}</span>
+      </div>
+    ` : ''}
+    ${spriteInfo.pattern_x !== undefined && spriteInfo.pattern_x !== null ? `
+      <div class="detail-item">
+        <span class="detail-label">Pattern X:</span>
+        <span class="detail-value">${spriteInfo.pattern_x}</span>
+      </div>
+    ` : ''}
+    ${spriteInfo.pattern_y !== undefined && spriteInfo.pattern_y !== null ? `
+      <div class="detail-item">
+        <span class="detail-label">Pattern Y:</span>
+        <span class="detail-value">${spriteInfo.pattern_y}</span>
+      </div>
+    ` : ''}
+    ${spriteInfo.pattern_z !== undefined && spriteInfo.pattern_z !== null ? `
+      <div class="detail-item">
+        <span class="detail-label">Pattern Z:</span>
+        <span class="detail-value">${spriteInfo.pattern_z}</span>
+      </div>
+    ` : ''}
+    ${spriteInfo.pattern_frames !== undefined && spriteInfo.pattern_frames !== null ? `
+      <div class="detail-item">
+        <span class="detail-label">Pattern Frames:</span>
+        <span class="detail-value">${spriteInfo.pattern_frames}</span>
+      </div>
+    ` : ''}
+    ${spriteInfo.bounding_square !== undefined && spriteInfo.bounding_square !== null ? `
+      <div class="detail-item">
+        <span class="detail-label">Bounding Square:</span>
+        <span class="detail-value">${spriteInfo.bounding_square}</span>
+      </div>
+    ` : ''}
+    ${spriteInfo.is_opaque !== undefined && spriteInfo.is_opaque !== null ? `
+      <div class="detail-item">
+        <span class="detail-label">Is Opaque:</span>
+        <span class="detail-value">${spriteInfo.is_opaque ? '✅ Yes' : '❌ No'}</span>
+      </div>
+    ` : ''}
+    ${spriteInfo.is_animation !== undefined && spriteInfo.is_animation !== null ? `
+      <div class="detail-item">
+        <span class="detail-label">Is Animation:</span>
+        <span class="detail-value">${spriteInfo.is_animation ? '✅ Yes' : '❌ No'}</span>
       </div>
     ` : ''}
     ${spriteInfo.sprite_ids && spriteInfo.sprite_ids.length > 0 ? `
@@ -1147,7 +1230,36 @@ function generateSpriteInfoHTML(spriteInfo: any): string {
         ` : ''}
       </div>
     ` : ''}
+    ${spriteInfo.bounding_boxes && spriteInfo.bounding_boxes.length > 0 ? generateBoundingBoxesHTML(spriteInfo.bounding_boxes) : ''}
     ${spriteInfo.animation ? generateAnimationHTML(spriteInfo.animation) : ''}
+  `;
+}
+
+function generateBoundingBoxesHTML(boxes: any[]): string {
+  if (!boxes || boxes.length === 0) return '';
+
+  return `
+    <div class="detail-item-full bounding-boxes-section">
+      <div class="detail-label">Bounding Boxes per Direction:</div>
+      <div class="bounding-boxes-table">
+        <div class="bb-header">
+          <span>Direction</span>
+          <span>X</span>
+          <span>Y</span>
+          <span>Width</span>
+          <span>Height</span>
+        </div>
+        ${boxes.map((box, idx) => `
+          <div class="bb-row">
+            <span class="bb-direction">#${idx + 1}</span>
+            <span>${box.x ?? '—'}</span>
+            <span>${box.y ?? '—'}</span>
+            <span>${box.width ?? '—'}</span>
+            <span>${box.height ?? '—'}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
   `;
 }
 
@@ -1157,9 +1269,12 @@ function generateAnimationHTML(animation: any): string {
       <div class="detail-label">Animation Details:</div>
       <div class="detail-value">
         <div>Phases: ${animation.phases.length}</div>
-        ${animation.synchronized !== undefined ? `<div>Synchronized: ${animation.synchronized ? 'Yes' : 'No'}</div>` : ''}
-        ${animation.loop_type !== undefined ? `<div>Loop Type: ${getLoopTypeName(animation.loop_type)}</div>` : ''}
-        ${animation.loop_count !== undefined ? `<div>Loop Count: ${animation.loop_count}</div>` : ''}
+        ${animation.default_start_phase !== undefined && animation.default_start_phase !== null ? `<div>Default Start Phase: ${animation.default_start_phase}</div>` : ''}
+        ${animation.random_start_phase !== undefined && animation.random_start_phase !== null ? `<div>Random Start Phase: ${animation.random_start_phase ? 'Yes' : 'No'}</div>` : ''}
+        ${animation.synchronized !== undefined && animation.synchronized !== null ? `<div>Synchronized: ${animation.synchronized ? 'Yes' : 'No'}</div>` : ''}
+        ${animation.loop_type !== undefined && animation.loop_type !== null ? `<div>Loop Type: ${getLoopTypeName(animation.loop_type)}</div>` : ''}
+        ${animation.loop_count !== undefined && animation.loop_count !== null ? `<div>Loop Count: ${animation.loop_count}</div>` : ''}
+        ${animation.animation_mode !== undefined && animation.animation_mode !== null ? `<div>Animation Mode: ${getAnimationModeName(animation.animation_mode)}</div>` : ''}
         <div class="animation-phases">
           ${animation.phases.map((ph: any, idx: number) => `
             <div class="phase-item">
@@ -1180,19 +1295,147 @@ function getLoopTypeName(loopType: number): string {
   return `Desconhecido (${loopType})`;
 }
 
+function getAppearanceTypeName(type: number | undefined): string {
+  if (type === undefined || type === null) return 'Unknown';
+  switch (type) {
+    case 1: return 'Object';
+    case 2: return 'Outfit';
+    case 3: return 'Effect';
+    case 4: return 'Missile';
+    default: return `Unknown (${type})`;
+  }
+}
+
+function getFixedFrameGroupName(group: number | undefined): string {
+  if (group === undefined || group === null) return 'Unknown';
+  switch (group) {
+    case 0: return 'Outfit Idle';
+    case 1: return 'Outfit Moving';
+    case 2: return 'Object Initial';
+    default: return `Unknown (${group})`;
+  }
+}
+
+function getAnimationModeName(mode: number | undefined): string {
+  if (mode === undefined || mode === null) return 'Unknown';
+  switch (mode) {
+    case 0: return 'Asynchronized';
+    case 1: return 'Synchronized';
+    default: return `Unknown (${mode})`;
+  }
+}
+
+function getHookDirectionName(direction: number | undefined): string {
+  if (direction === undefined || direction === null) return 'None';
+  switch (direction) {
+    case 1: return 'South';
+    case 2: return 'East';
+    default: return `Unknown (${direction})`;
+  }
+}
+
+function getPlayerActionName(action: number | undefined): string {
+  if (action === undefined || action === null) return 'None';
+  switch (action) {
+    case 0: return 'None';
+    case 1: return 'Look';
+    case 2: return 'Use';
+    case 3: return 'Open';
+    case 4: return 'Autowalk Highlight';
+    default: return `Unknown (${action})`;
+  }
+}
+
+function getWeaponTypeName(type: number | undefined): string {
+  if (type === undefined || type === null) return 'No Weapon';
+  switch (type) {
+    case 0: return 'No Weapon';
+    case 1: return 'Sword';
+    case 2: return 'Axe';
+    case 3: return 'Club';
+    case 4: return 'Fist';
+    case 5: return 'Bow';
+    case 6: return 'Crossbow';
+    case 7: return 'Wand/Rod';
+    case 8: return 'Throw';
+    default: return `Unknown (${type})`;
+  }
+}
+
+function getVocationName(vocation: number | undefined): string {
+  if (vocation === undefined || vocation === null) return 'None';
+  switch (vocation) {
+    case -1: return 'Any';
+    case 0: return 'None';
+    case 1: return 'Knight';
+    case 2: return 'Paladin';
+    case 3: return 'Sorcerer';
+    case 4: return 'Druid';
+    case 5: return 'Monk';
+    case 10: return 'Promoted';
+    default: return `Unknown (${vocation})`;
+  }
+}
+
+function getClothesSlotName(slot: number | undefined): string {
+  if (slot === undefined || slot === null) return 'None';
+  const slots: Record<number, string> = {
+    0: 'None',
+    1: 'Helmet',
+    2: 'Amulet',
+    3: 'Backpack',
+    4: 'Armor',
+    5: 'Shield',
+    6: 'Weapon',
+    7: 'Legs',
+    8: 'Boots',
+    9: 'Ring',
+    10: 'Arrow/Quiver'
+  };
+  return slots[slot] || `Unknown (${slot})`;
+}
+
 function generateFlagsHTML(basicFlags: Array<{ name: string; value: boolean }>): string {
   if (basicFlags.length === 0) return '';
 
-  return `
-    <div class="detail-section">
-      <h4>Active Flags (${basicFlags.length})</h4>
-      <div class="flags-grid">
-        ${basicFlags.map(flag => `
-          <span class="flag-badge">✅ ${flag.name}</span>
-        `).join('')}
-      </div>
-    </div>
-  `;
+  // Organize flags into thematic groups like C# Assets Editor
+  const flagGroups = {
+    'Ground & Stack Order': ['Clip', 'Bottom', 'Top', 'Fullbank'],
+    'Container & Stacking': ['Container', 'Cumulative', 'Liquid Container'],
+    'Usage': ['Usable', 'Forceuse', 'Multiuse', 'Take'],
+    'Liquids': ['Liquidpool', 'Liquid Container'],
+    'Movement & Pathfinding': ['Unpass', 'Unmove', 'Unsight', 'Avoid', 'No Move Animation'],
+    'Placement': ['Hang', 'Rotate'],
+    'Visual': ['Dont Hide', 'Translucent', 'Lying Object', 'Animate Always', 'Ignore Look', 'Topeffect'],
+    'Wrapping': ['Wrap', 'Unwrap'],
+    'Special Types': ['Corpse', 'Player Corpse', 'Ammo', 'Show Off Socket'],
+    'Reportable': ['Reportable'],
+    'Reverse Addons': ['Reverse addon east', 'Reverse addon west', 'Reverse addon south', 'Reverse addon north'],
+    'Expiration': ['Wearout', 'Clockexpire', 'Expire', 'Expirestop'],
+    'Special': ['Deco Item Kit', 'Dual Wielding']
+  };
+
+  let html = `<div class="detail-section"><h4>Active Flags (${basicFlags.length})</h4>`;
+
+  // Group flags by category
+  for (const [groupName, flagNames] of Object.entries(flagGroups)) {
+    const groupFlags = basicFlags.filter(f => flagNames.includes(f.name));
+    if (groupFlags.length > 0) {
+      html += `
+        <div class="flags-group">
+          <h5 class="flags-group-title">${groupName}</h5>
+          <div class="flags-grid">
+            ${groupFlags.map(flag => `
+              <span class="flag-badge">✅ ${flag.name}</span>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  html += '</div>';
+  return html;
 }
 
 function generateComplexFlagsHTML(flags: CompleteFlags | undefined): string {
@@ -1200,21 +1443,224 @@ function generateComplexFlagsHTML(flags: CompleteFlags | undefined): string {
 
   let html = '';
 
+  // Ground/Bank
+  if (flags.bank && flags.bank.waypoints !== null && flags.bank.waypoints !== undefined) {
+    html += `
+      <div class="detail-section">
+        <h4>Ground / Bank</h4>
+        ${flags.bank.waypoints !== undefined ? `
+          <div class="detail-item">
+            <span class="detail-label">Waypoints / Speed:</span>
+            <span class="detail-value">${flags.bank.waypoints}</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // Write & Write Once
+  const hasWriteData = (flags.write?.max_text_length !== null && flags.write?.max_text_length !== undefined) ||
+                       (flags.write_once?.max_text_length_once !== null && flags.write_once?.max_text_length_once !== undefined);
+
+  if (hasWriteData) {
+    html += `
+      <div class="detail-section">
+        <h4>Writable Properties</h4>
+        ${flags.write?.max_text_length !== null && flags.write?.max_text_length !== undefined ? `
+          <div class="detail-item">
+            <span class="detail-label">Max Text Length:</span>
+            <span class="detail-value">${flags.write.max_text_length}</span>
+          </div>
+        ` : ''}
+        ${flags.write_once?.max_text_length_once !== null && flags.write_once?.max_text_length_once !== undefined ? `
+          <div class="detail-item">
+            <span class="detail-label">Max Text Length Once:</span>
+            <span class="detail-value">${flags.write_once.max_text_length_once}</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // Hook
+  const hasHookData = (flags.hook?.direction !== null && flags.hook?.direction !== undefined) ||
+                      (flags.hook_south !== null && flags.hook_south !== undefined) ||
+                      (flags.hook_east !== null && flags.hook_east !== undefined);
+
+  if (hasHookData) {
+    html += `
+      <div class="detail-section">
+        <h4>Hook Properties</h4>
+        ${flags.hook?.direction !== undefined ? `
+          <div class="detail-item">
+            <span class="detail-label">Hook Direction:</span>
+            <span class="detail-value">${getHookDirectionName(flags.hook.direction)}</span>
+          </div>
+        ` : ''}
+        ${flags.hook_south !== undefined ? `
+          <div class="detail-item">
+            <span class="detail-label">Hook South:</span>
+            <span class="detail-value">${flags.hook_south ? '✅ Yes' : '❌ No'}</span>
+          </div>
+        ` : ''}
+        ${flags.hook_east !== undefined ? `
+          <div class="detail-item">
+            <span class="detail-label">Hook East:</span>
+            <span class="detail-value">${flags.hook_east ? '✅ Yes' : '❌ No'}</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // Light
+  const hasLightData = flags.light && ((flags.light.brightness !== null && flags.light.brightness !== undefined) ||
+                                        (flags.light.color !== null && flags.light.color !== undefined));
+  if (hasLightData && flags.light) {
+    html += `
+      <div class="detail-section">
+        <h4>Light Properties</h4>
+        ${flags.light.brightness !== null && flags.light.brightness !== undefined ? `
+          <div class="detail-item">
+            <span class="detail-label">Brightness:</span>
+            <span class="detail-value">${flags.light.brightness}</span>
+          </div>
+        ` : ''}
+        ${flags.light.color !== null && flags.light.color !== undefined ? `
+          <div class="detail-item">
+            <span class="detail-label">Color:</span>
+            <span class="detail-value">${flags.light.color}</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // Shift
+  const hasShiftData = flags.shift && ((flags.shift.x !== null && flags.shift.x !== undefined) ||
+                                        (flags.shift.y !== null && flags.shift.y !== undefined));
+  if (hasShiftData && flags.shift) {
+    html += `
+      <div class="detail-section">
+        <h4>Shift / Displacement</h4>
+        ${flags.shift.x !== null && flags.shift.x !== undefined ? `
+          <div class="detail-item">
+            <span class="detail-label">Shift X:</span>
+            <span class="detail-value">${flags.shift.x}</span>
+          </div>
+        ` : ''}
+        ${flags.shift.y !== null && flags.shift.y !== undefined ? `
+          <div class="detail-item">
+            <span class="detail-label">Shift Y:</span>
+            <span class="detail-value">${flags.shift.y}</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // Height
+  if (flags.height?.elevation !== null && flags.height?.elevation !== undefined) {
+    html += `
+      <div class="detail-section">
+        <h4>Height / Elevation</h4>
+        <div class="detail-item">
+          <span class="detail-label">Elevation:</span>
+          <span class="detail-value">${flags.height.elevation}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Automap
+  if (flags.automap?.color !== null && flags.automap?.color !== undefined) {
+    html += `
+      <div class="detail-section">
+        <h4>Minimap / Automap</h4>
+        <div class="detail-item">
+          <span class="detail-label">Minimap Color:</span>
+          <span class="detail-value">${flags.automap.color}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Lens Help
+  if (flags.lenshelp?.id !== null && flags.lenshelp?.id !== undefined) {
+    html += `
+      <div class="detail-section">
+        <h4>Lens Help</h4>
+        <div class="detail-item">
+          <span class="detail-label">Help ID:</span>
+          <span class="detail-value">${flags.lenshelp.id}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Clothes
+  if (flags.clothes?.slot !== null && flags.clothes?.slot !== undefined) {
+    html += `
+      <div class="detail-section">
+        <h4>Clothes / Equipment</h4>
+        <div class="detail-item">
+          <span class="detail-label">Slot:</span>
+          <span class="detail-value">${getClothesSlotName(flags.clothes.slot)}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Default Action
+  if (flags.default_action?.action !== null && flags.default_action?.action !== undefined) {
+    html += `
+      <div class="detail-section">
+        <h4>Default Action</h4>
+        <div class="detail-item">
+          <span class="detail-label">Action:</span>
+          <span class="detail-value">${getPlayerActionName(flags.default_action.action)}</span>
+        </div>
+      </div>
+    `;
+  }
+
   // Market
-  if (flags.market) {
+  const hasMarketData = flags.market && (
+    (flags.market.category !== null && flags.market.category !== undefined) ||
+    flags.market.name ||
+    (flags.market.minimum_level !== null && flags.market.minimum_level !== undefined) ||
+    (flags.market.vocation !== null && flags.market.vocation !== undefined) ||
+    (flags.market.trade_as_object_id !== null && flags.market.trade_as_object_id !== undefined) ||
+    (flags.market.show_as_object_id !== null && flags.market.show_as_object_id !== undefined) ||
+    (flags.market.restrict_to_vocation && flags.market.restrict_to_vocation.length > 0)
+  );
+
+  if (hasMarketData && flags.market) {
     html += `
       <div class="detail-section">
         <h4>Market Information</h4>
-        ${flags.market.category !== undefined ? `
+        ${flags.market.category !== null && flags.market.category !== undefined ? `
           <div class="detail-item">
             <span class="detail-label">Category:</span>
             <span class="detail-value">${getMarketCategoryName(flags.market.category)}</span>
+          </div>
+        ` : ''}
+        ${flags.market.name !== undefined ? `
+          <div class="detail-item">
+            <span class="detail-label">Market Name:</span>
+            <span class="detail-value">${flags.market.name}</span>
           </div>
         ` : ''}
         ${flags.market.minimum_level !== undefined ? `
           <div class="detail-item">
             <span class="detail-label">Minimum Level:</span>
             <span class="detail-value">${flags.market.minimum_level}</span>
+          </div>
+        ` : ''}
+        ${flags.market.vocation !== undefined ? `
+          <div class="detail-item">
+            <span class="detail-label">Vocation:</span>
+            <span class="detail-value">${getVocationName(flags.market.vocation)}</span>
           </div>
         ` : ''}
         ${flags.market.trade_as_object_id !== undefined ? `
@@ -1229,25 +1675,167 @@ function generateComplexFlagsHTML(flags: CompleteFlags | undefined): string {
             <span class="detail-value">${flags.market.show_as_object_id}</span>
           </div>
         ` : ''}
+        ${flags.market.restrict_to_vocation && flags.market.restrict_to_vocation.length > 0 ? `
+          <div class="detail-item">
+            <span class="detail-label">Restrict To Vocation:</span>
+            <span class="detail-value">${flags.market.restrict_to_vocation.map(v => getVocationName(v)).join(', ')}</span>
+          </div>
+        ` : ''}
       </div>
     `;
   }
 
-  // Light, Shift, Height, etc. (simplified for brevity)
-  if (flags.light) {
+  // NPC Sale Data
+  if (flags.npc_sale_data && flags.npc_sale_data.length > 0) {
     html += `
       <div class="detail-section">
-        <h4>Light Properties</h4>
-        ${flags.light.brightness !== undefined ? `
+        <h4>NPC Sale Data (${flags.npc_sale_data.length} entries)</h4>
+        <div class="npc-sale-table">
+          <div class="npc-sale-header">
+            <span>NPC Name</span>
+            <span>Location</span>
+            <span>Buy Price</span>
+            <span>Sale Price</span>
+            <span>Currency ID</span>
+            <span>Currency Name</span>
+          </div>
+          ${flags.npc_sale_data.map(npc => `
+            <div class="npc-sale-row">
+              <span>${npc.name || '—'}</span>
+              <span>${npc.location || '—'}</span>
+              <span>${npc.buy_price !== undefined ? npc.buy_price : '—'}</span>
+              <span>${npc.sale_price !== undefined ? npc.sale_price : '—'}</span>
+              <span>${npc.currency_object_type_id !== undefined ? npc.currency_object_type_id : '—'}</span>
+              <span>${npc.currency_quest_flag_display_name || '—'}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // Changed To Expire
+  if (flags.changed_to_expire?.former_object_typeid !== null && flags.changed_to_expire?.former_object_typeid !== undefined) {
+    html += `
+      <div class="detail-section">
+        <h4>Changed To Expire</h4>
+        <div class="detail-item">
+          <span class="detail-label">Former Object Type ID:</span>
+          <span class="detail-value">${flags.changed_to_expire.former_object_typeid}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Cyclopedia Item
+  if (flags.cyclopedia_item?.cyclopedia_type !== null && flags.cyclopedia_item?.cyclopedia_type !== undefined) {
+    html += `
+      <div class="detail-section">
+        <h4>Cyclopedia Item</h4>
+        <div class="detail-item">
+          <span class="detail-label">Cyclopedia Type:</span>
+          <span class="detail-value">${flags.cyclopedia_item.cyclopedia_type}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Upgrade Classification
+  if (flags.upgrade_classification?.upgrade_classification !== null && flags.upgrade_classification?.upgrade_classification !== undefined) {
+    html += `
+      <div class="detail-section">
+        <h4>Upgrade Classification</h4>
+        <div class="detail-item">
+          <span class="detail-label">Classification:</span>
+          <span class="detail-value">${flags.upgrade_classification.upgrade_classification}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Skill Wheel Gem
+  const hasSkillWheelData = flags.skillwheel_gem && (
+    (flags.skillwheel_gem.gem_quality_id !== null && flags.skillwheel_gem.gem_quality_id !== undefined) ||
+    (flags.skillwheel_gem.vocation_id !== null && flags.skillwheel_gem.vocation_id !== undefined)
+  );
+
+  if (hasSkillWheelData && flags.skillwheel_gem) {
+    html += `
+      <div class="detail-section">
+        <h4>Skill Wheel Gem</h4>
+        ${flags.skillwheel_gem.gem_quality_id !== null && flags.skillwheel_gem.gem_quality_id !== undefined ? `
           <div class="detail-item">
-            <span class="detail-label">Brightness:</span>
-            <span class="detail-value">${flags.light.brightness}</span>
+            <span class="detail-label">Gem Quality ID:</span>
+            <span class="detail-value">${flags.skillwheel_gem.gem_quality_id}</span>
           </div>
         ` : ''}
-        ${flags.light.color !== undefined ? `
+        ${flags.skillwheel_gem.vocation_id !== null && flags.skillwheel_gem.vocation_id !== undefined ? `
           <div class="detail-item">
-            <span class="detail-label">Color:</span>
-            <span class="detail-value">${flags.light.color}</span>
+            <span class="detail-label">Vocation:</span>
+            <span class="detail-value">${getVocationName(flags.skillwheel_gem.vocation_id)}</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // Imbueable
+  if (flags.imbueable?.slot_count !== null && flags.imbueable?.slot_count !== undefined) {
+    html += `
+      <div class="detail-section">
+        <h4>Imbueable</h4>
+        <div class="detail-item">
+          <span class="detail-label">Imbuement Slots:</span>
+          <span class="detail-value">${flags.imbueable.slot_count}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Proficiency
+  if (flags.proficiency?.proficiency_id !== null && flags.proficiency?.proficiency_id !== undefined) {
+    html += `
+      <div class="detail-section">
+        <h4>Proficiency</h4>
+        <div class="detail-item">
+          <span class="detail-label">Proficiency ID:</span>
+          <span class="detail-value">${flags.proficiency.proficiency_id}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Weapon Type
+  if (flags.weapon_type !== null && flags.weapon_type !== undefined) {
+    html += `
+      <div class="detail-section">
+        <h4>Weapon Type</h4>
+        <div class="detail-item">
+          <span class="detail-label">Type:</span>
+          <span class="detail-value">${getWeaponTypeName(flags.weapon_type)}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Minimum Level & Restrict to Vocation (at root level)
+  const hasRequirements = (flags.minimum_level !== null && flags.minimum_level !== undefined) ||
+                          (flags.restrict_to_vocation && flags.restrict_to_vocation.length > 0);
+
+  if (hasRequirements) {
+    html += `
+      <div class="detail-section">
+        <h4>Requirements</h4>
+        ${flags.minimum_level !== null && flags.minimum_level !== undefined ? `
+          <div class="detail-item">
+            <span class="detail-label">Minimum Level:</span>
+            <span class="detail-value">${flags.minimum_level}</span>
+          </div>
+        ` : ''}
+        ${flags.restrict_to_vocation && flags.restrict_to_vocation.length > 0 ? `
+          <div class="detail-item">
+            <span class="detail-label">Restrict To Vocation:</span>
+            <span class="detail-value">${flags.restrict_to_vocation.map(v => getVocationName(v)).join(', ')}</span>
           </div>
         ` : ''}
       </div>
