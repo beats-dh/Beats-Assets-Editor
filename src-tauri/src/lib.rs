@@ -94,6 +94,13 @@ pub fn run() {
             commands::sounds_api::update_ambience_object_stream,
             commands::sounds_api::update_music_template,
             commands::sounds_api::save_sounds_file,
+            // Create/Delete sounds
+            commands::sounds_api::add_sound,
+            commands::sounds_api::delete_sound,
+            commands::sounds_api::add_numeric_sound_effect,
+            commands::sounds_api::delete_numeric_sound_effect,
+            // Import new audio file and add base sound
+            commands::sounds_api::import_and_add_sound,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

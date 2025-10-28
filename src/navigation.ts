@@ -89,6 +89,7 @@ export function openCategory(category: string): void {
   }
 
   updateCategoryHeader(category);
+  updateSoundsHeaderActions(category);
   renderSubcategoryOptions(category);
   loadAssets();
 }
@@ -121,6 +122,7 @@ export function openCategoryWithSubcategory(category: string, subcategory: strin
   }
 
   updateCategoryHeader(category);
+  updateSoundsHeaderActions(category);
   renderSubcategoryOptions(category);
 
   const subcategorySelect = document.getElementById('subcategory-select') as HTMLSelectElement;
@@ -156,6 +158,36 @@ function updateCategoryHeader(category: string): void {
   if (viewIcon) viewIcon.textContent = categoryInfo.icon;
   if (viewTitle) viewTitle.textContent = categoryInfo.title;
   if (viewSubtitle) viewSubtitle.textContent = categoryInfo.description;
+}
+
+function updateSoundsHeaderActions(category: string): void {
+  const headerLeft = document.querySelector('.modern-header .header-left') as HTMLElement | null;
+  if (!headerLeft) return;
+
+  // Ensure a dedicated actions container exists on the left header area (won't affect centered search)
+  let actions = document.getElementById('sounds-header-actions') as HTMLElement | null;
+  if (!actions) {
+    actions = document.createElement('div');
+    actions.id = 'sounds-header-actions';
+    actions.className = 'header-actions';
+    headerLeft.appendChild(actions);
+  }
+
+  // Clear any existing actions
+  actions.innerHTML = '';
+
+  if (category === 'Sounds') {
+    const addBtn = document.createElement('button');
+    addBtn.id = 'add-sound-header';
+    addBtn.className = 'btn-add';
+    addBtn.textContent = 'Adicionar Som';
+    addBtn.title = 'Criar novo efeito de som';
+    addBtn.addEventListener('click', async () => {
+      const mod = await import('./addSoundModal');
+      mod.openAddSoundModal();
+    });
+    actions.appendChild(addBtn);
+  }
 }
 
 function renderSubcategoryOptions(category: string): void {

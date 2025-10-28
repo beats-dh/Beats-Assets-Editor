@@ -1,0 +1,66 @@
+/* Modern Professional Design System */
+:root {
+  /* Color Palette - Professional Dark Theme */
+  --primary-bg: #0a0e1a;
+  --secondary-bg: #1a1f2e;
+  --tertiary-bg: #252b3d;
+  --surface-bg: #2d3548;
+  --elevated-bg: #3a4259;
+
+  --primary-accent: #4f46e5;
+  --secondary-accent: #7c3aed;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --error-color: #ef4444;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-disabled: #64748b;
+
+  --border-color: #374151;
+  --border-hover: #4b5563;
+  --border-focus: #6366f1;
+  /* Soft border tokens */
+  --border-soft: rgba(148, 163, 184, 0.25);
+  --border-soft-20: rgba(148, 163, 184, 0.20);
+  --border-soft-30: rgba(148, 163, 184, 0.30);
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  --gradient-surface: linear-gradient(135deg, #1a1f2e 0%, #252b3d 100%);
+  --gradient-card: linear-gradient(135deg, #2d3548 0%, #3a4259 100%);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+
+  /* Typography */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  /* Controls */
+  --control-height: 34px;
+  --control-bg: rgba(15, 23, 42, 0.7);
+
+  /* Border Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* Transitions */
+  --transition-fast: 0.15s ease-out;
+  --transition-normal: 0.25s ease-out;
+  --transition-slow: 0.35s ease-out;
+}

@@ -327,6 +327,11 @@ impl SoundsParser {
             .find(|s| s.id == id)
     }
 
+    /// Get currently loaded sounds directory
+    pub fn get_sounds_dir(&self) -> Option<PathBuf> {
+        self.sounds_dir.clone()
+    }
+
     pub fn get_sounds_by_type(&self, sound_type: &str) -> Vec<&NumericSoundEffectInfo> {
         if let Some(data) = &self.sounds_data {
             data.numeric_sound_effects
@@ -436,6 +441,114 @@ impl SoundsParser {
         } else {
             anyhow::bail!("MusicTemplate with id {} not found", updated.id);
         }
+    }
+
+    /// Add a new base Sound entry. If the provided id is 0 or already exists,
+    /// a new unique id will be assigned (max(existing)+1). Returns the final id.
+    pub fn add_sound(&mut self, mut new: SoundInfo) -> Result<u32> {
+        let data = self.sounds_data.as_mut().context("Sounds not loaded")?;
+
+        if new.filename.trim().is_empty() {
+            anyhow::bail!("filename must not be empty");
+        }
+
+        let mut max_id = 0u32;
+        let mut id_exists = false;
+        for s in &data.sounds {
+            max_id = max_id.max(s.id);
+            if s.id == new.id { id_exists = true; }
+        }
+
+        if new.id == 0 || id_exists {
+            new.id = max_id.checked_add(1).unwrap_or(max_id);
+        }
+
+        data.sounds.push(new.clone());
+        Ok(new.id)
+    }
+
+    /// Delete a base Sound by id. Fails if referenced by any effect/stream/template.
+    pub fn delete_sound(&mut self, id: u32) -> Result<()> {
+        let data = self.sounds_data.as_mut().context("Sounds not loaded")?;
+
+        // Check references
+        let referenced_by_effect = data
+            .numeric_sound_effects
+            .iter()
+            .any(|e| e.sound_id == Some(id) || e.random_sound_ids.iter().any(|rid| *rid == id));
+        if referenced_by_effect {
+            anyhow::bail!("Sound {} is referenced by a NumericSoundEffect", id);
+        }
+
+        let referenced_by_stream = data
+            .ambience_streams
+            .iter()
+            .any(|a| a.looping_sound_id == id);
+        if referenced_by_stream {
+            anyhow::bail!("Sound {} is referenced by an AmbienceStream", id);
+        }
+
+        let referenced_by_object_stream = data
+            .ambience_object_streams
+            .iter()
+            .any(|a| a.sound_effects.iter().any(|s| s.looping_sound_id == id));
+        if referenced_by_object_stream {
+            anyhow::bail!("Sound {} is referenced by an AmbienceObjectStream", id);
+        }
+
+        let referenced_by_music = data
+            .music_templates
+            .iter()
+            .any(|m| m.sound_id == id);
+        if referenced_by_music {
+            anyhow::bail!("Sound {} is referenced by a MusicTemplate", id);
+        }
+
+        let before_len = data.sounds.len();
+        data.sounds.retain(|s| s.id != id);
+        if data.sounds.len() == before_len {
+            anyhow::bail!("Sound with id {} not found", id);
+        }
+        Ok(())
+    }
+
+    /// Add a new NumericSoundEffect. If id is 0 or collides, assign max+1. Returns the final id.
+    pub fn add_numeric_sound_effect(&mut self, mut new: NumericSoundEffectInfo) -> Result<u32> {
+        let data = self.sounds_data.as_mut().context("Sounds not loaded")?;
+
+        let mut max_id = 0u32;
+        let mut id_exists = false;
+        for e in &data.numeric_sound_effects {
+            max_id = max_id.max(e.id);
+            if e.id == new.id { id_exists = true; }
+        }
+
+        if new.id == 0 || id_exists {
+            new.id = max_id.checked_add(1).unwrap_or(max_id);
+        }
+
+        data.numeric_sound_effects.push(new.clone());
+        Ok(new.id)
+    }
+
+    /// Delete a NumericSoundEffect by id. Fails if referenced by an AmbienceStream delayed effect.
+    pub fn delete_numeric_sound_effect(&mut self, id: u32) -> Result<()> {
+        let data = self.sounds_data.as_mut().context("Sounds not loaded")?;
+
+        let referenced_by_delayed = data
+            .ambience_streams
+            .iter()
+            .any(|a| a.delayed_effects.iter().any(|d| d.numeric_sound_effect_id == id));
+        if referenced_by_delayed {
+            anyhow::bail!("NumericSoundEffect {} is referenced by an AmbienceStream delayed effect", id);
+        }
+
+        let before_len = data.numeric_sound_effects.len();
+        data.numeric_sound_effects.retain(|e| e.id != id);
+        if data.numeric_sound_effects.len() == before_len {
+            anyhow::bail!("NumericSoundEffect with id {} not found", id);
+        }
+        Ok(())
     }
 
     // NEW: Encode current SoundsData back into protobuf

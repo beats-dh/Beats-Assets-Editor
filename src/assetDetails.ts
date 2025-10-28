@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { openConfirmModal } from './confirmModal';
 import type { CompleteAppearanceItem, CompleteFlags } from './types';
 import { getVocationOptionsHTML, getFlagBool } from './utils';
 import { getAppearanceSprites } from './spriteCache';
@@ -370,8 +371,8 @@ function renderSoundEffectEdit(sound: any, soundId: number): void {
         </label>
         <label>Modo
           <div class="radio-group">
-            <label><input type="radio" name="se-mode" value="simple" ${modeSimple ? 'checked' : ''}/> Simple</label>
-            <label><input type="radio" name="se-mode" value="random" ${!modeSimple ? 'checked' : ''}/> Random</label>
+            <label><input type="radio" name="se-mode" value="simple" ${modeSimple ? 'checked' : ''}/> Simples</label>
+            <label><input type="radio" name="se-mode" value="random" ${!modeSimple ? 'checked' : ''}/> Aleatório</label>
           </div>
         </label>
         <label>Sound ID
@@ -394,7 +395,8 @@ function renderSoundEffectEdit(sound: any, soundId: number): void {
         </label>
       </div>
       <div class="edit-actions">
-        <button id="save-sound-effect" data-sound-effect-id="${soundId}" class="primary-btn">Salvar</button>
+        <button id="save-sound-effect" data-sound-effect-id="${soundId}" class="btn-save">Salvar</button>
+        <button id="delete-sound-effect" class="btn-delete">Excluir Som</button>
       </div>
     </div>
   `;
@@ -447,15 +449,70 @@ function renderSoundEffectEdit(sound: any, soundId: number): void {
         info.random_sound_ids = parsedRandomIds;
       }
 
-      await invoke('update_numeric_sound_effect', { info });
-      await invoke('save_sounds_file');
-      // Refresh details
-      await showAssetDetails('Sounds', soundId);
+      if (soundId === 0) {
+        const newId = await invoke('add_numeric_sound_effect', { info }) as number;
+        await invoke('save_sounds_file');
+        await showAssetDetails('Sounds', newId);
+      } else {
+        await invoke('update_numeric_sound_effect', { info });
+        await invoke('save_sounds_file');
+        await showAssetDetails('Sounds', soundId);
+      }
     } catch (err) {
       console.error('Failed to save sound effect', err);
       alert('Failed to save sound effect. See console for details.');
     }
   });
+
+  const deleteBtn = document.getElementById('delete-sound-effect');
+  deleteBtn?.addEventListener('click', async () => {
+    try {
+      const ok = await openConfirmModal('Tem certeza que deseja excluir este som?', 'Confirmar exclusão');
+      if (!ok) return;
+      await invoke('delete_numeric_sound_effect', { id: soundId });
+      await invoke('save_sounds_file');
+      // Fecha a modal de detalhes usando a rotina centralizada (para parar áudio imediatamente)
+      closeAssetDetails();
+      const { loadAssets } = await import('./assetUI');
+      await loadAssets();
+    } catch (err) {
+      console.error('Failed to delete sound effect', err);
+      alert('Failed to delete sound effect. See console for details.');
+    }
+  });
+
+}
+
+export function openNewSoundEffectModal(): void {
+  if (!assetDetails) return;
+  const editContainer = document.getElementById('edit-content');
+  const detailsContainer = document.getElementById('details-content');
+  const tabEdit = document.getElementById('tab-edit');
+  const tabDetails = document.getElementById('tab-details');
+
+  // Show modal
+  assetDetails.style.display = 'flex';
+  assetDetails.classList.add('show');
+
+  // Switch to Edit tab
+  if (tabEdit) { tabEdit.style.display = ''; tabEdit.classList.add('active'); }
+  if (tabDetails) { tabDetails.classList.remove('active'); tabDetails.textContent = 'Sound Details'; }
+  if (editContainer) editContainer.style.display = 'block';
+  if (detailsContainer) detailsContainer.style.display = 'none';
+
+  // Default empty sound effect for creation
+  const emptySound = {
+    sound_type: 'Unknown',
+    sound_id: undefined,
+    random_sound_ids: [],
+    random_pitch_min: undefined,
+    random_pitch_max: undefined,
+    random_volume_min: undefined,
+    random_volume_max: undefined,
+  } as any;
+
+  // Render edit form in create mode (soundId = 0)
+  renderSoundEffectEdit(emptySound, 0);
 }
 
 async function displayAmbienceStreamDetails(stream: any, streamId: number): Promise<void> {
@@ -1716,9 +1773,26 @@ function generateEditFormHTML(details: CompleteAppearanceItem, category: string,
   `;
 }
 
+function stopAllAssetAudio(): void {
+  if (!assetDetails) return;
+  const audios = assetDetails.querySelectorAll('audio.sound-player');
+  audios.forEach((el) => {
+    const audio = el as HTMLAudioElement;
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch {}
+  });
+  const containers = assetDetails.querySelectorAll('.sound-audio-container');
+  containers.forEach((c) => {
+    c.innerHTML = '';
+  });
+}
+
 export function closeAssetDetails(): void {
   if (assetDetails) {
     stopDetailAnimationPlayers();
+    stopAllAssetAudio();
     assetDetails.classList.remove('show');
     assetDetails.style.display = 'none';
   }

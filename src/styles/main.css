@@ -1,0 +1,32 @@
+/**
+ * Tibia Assets Editor - Main Stylesheet
+ *
+ * This file imports all modular CSS files in the correct order.
+ * Order matters: variables first, then base styles, then components.
+ */
+
+/* 1. Design Tokens & Variables */
+@import './variables.css';
+
+/* 2. Base & Reset Styles */
+@import './base.css';
+
+/* 3. Layout Components */
+@import './loading.css';
+@import './header.css';
+@import './categories.css';
+
+/* 4. UI Components */
+@import './search.css';
+@import './forms.css';
+@import './buttons.css';
+@import './modals.css';
+@import './assets.css';
+@import './audio.css';
+
+/* 5. Utilities & Helpers */
+@import './utilities.css';
+@import './animations.css';
+
+/* 6. Responsive Styles (must be last) */
+@import './responsive.css';

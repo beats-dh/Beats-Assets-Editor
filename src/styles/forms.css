@@ -1,0 +1,351 @@
+/* Modern Form Elements */
+.modern-input,
+.modern-select {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--tertiary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: all var(--transition-fast);
+  min-height: var(--control-height);
+}
+
+.modern-input:focus,
+.modern-select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.input-group {
+  margin-bottom: var(--space-lg);
+}
+
+/* Grid de formulário para o modal de adicionar som */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
+  align-items: start;
+  grid-auto-rows: auto;
+}
+
+.form-grid > * {
+  min-width: 0;
+}
+
+/* TÍTULO ACIMA DO INPUT - VERTICAL */
+.form-grid > label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Primeiro label ocupa apenas 1 linha */
+.form-grid > label:first-child {
+  grid-row: span 1;
+}
+
+.form-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.form-grid > label input,
+.form-grid > label select,
+.form-grid > label textarea {
+  width: 100%;
+}
+
+/* Form field - para radio buttons e outros campos customizados */
+.form-grid .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.form-grid .form-field .field-label {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.form-grid .form-field .radio-group {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+/* Checkbox inline - título e checkbox vertical também */
+.form-grid > label.checkbox-inline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  align-items: flex-start;
+}
+
+.form-grid > label.checkbox-inline input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--primary-accent);
+}
+
+/* Checkbox toggle button style */
+.form-grid > label.checkbox-toggle {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  align-self: start;
+  gap: 8px;
+  padding: 0.5rem 0.75rem;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-top: 1.4rem;
+  width: fit-content;
+  font-size: 0.9rem;
+}
+
+.form-grid > label.checkbox-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-accent);
+  cursor: pointer;
+}
+
+.form-grid > label.checkbox-toggle:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+.radio-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  min-height: auto;
+  width: auto;
+}
+
+.radio-group legend {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.radio-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  line-height: 1;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+}
+
+.radio-group input[type="radio"] {
+  margin: 0;
+  vertical-align: middle;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary-accent);
+  flex-shrink: 0;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: var(--space-sm);
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.input-row {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.input-row .modern-input {
+  flex: 1;
+}
+
+/* Edit Modal - Form Styling */
+#edit-content .detail-item {
+  display: grid;
+  grid-template-columns: 160px 1fr auto;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.08);
+}
+
+#edit-content .detail-item .detail-label {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+#edit-content input[type="text"],
+#edit-content input[type="number"],
+#edit-content textarea,
+#edit-content select {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--control-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  transition: all var(--transition-fast);
+}
+
+#edit-content input[type="text"]::placeholder,
+#edit-content input[type="number"]::placeholder,
+#edit-content textarea::placeholder {
+  color: var(--text-muted);
+}
+
+#edit-content input[type="text"]:focus,
+#edit-content input[type="number"]:focus,
+#edit-content textarea:focus,
+#edit-content select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  background: var(--tertiary-bg);
+}
+
+#edit-content textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+/* Container para ações na seção Editar Item */
+#edit-content .detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  padding-top: 0.5rem;
+}
+
+/* Inputs numéricos: ocultar spinners nativos e usar controles custom */
+#edit-content input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+#edit-content input[type="number"]::-webkit-outer-spin-button,
+#edit-content input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Wrapper e controles customizados */
+#edit-content .number-input {
+  position: relative;
+}
+
+#edit-content .number-input input[type="number"] {
+  padding-right: 2.4rem;
+}
+
+#edit-content .spinner-controls {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#edit-content .spinner-controls button {
+  width: 24px;
+  height: 16px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-bg);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+#edit-content .spinner-controls button:hover {
+  background: var(--tertiary-bg);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+#edit-content .spinner-controls .spinner-up::before {
+  content: '▲';
+  font-size: 10px;
+  display: block;
+  text-align: center;
+}
+
+#edit-content .spinner-controls .spinner-down::before {
+  content: '▼';
+  font-size: 10px;
+  display: block;
+  text-align: center;
+}
+
+#edit-content .detail-section h4 {
+  margin-bottom: 0.75rem;
+}
+
+#edit-content .flags-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+#edit-content .flag-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+#edit-content .flag-toggle:hover {
+  background: var(--tertiary-bg);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+#edit-content .flag-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-accent);
+  cursor: pointer;
+}

@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use tauri::{AppHandle, State};
+use tauri::State;
 
 // Add base64 engine for proper encoding to string
 use base64::{engine::general_purpose, Engine as _};
@@ -408,4 +408,143 @@ pub async fn save_sounds_file(
     .save_to_directory()
     .map_err(|e| format!("Failed to save sounds file: {}", e))?;
   Ok(path.to_string_lossy().to_string())
+}
+
+// Creation & deletion commands
+#[tauri::command]
+pub async fn add_sound(
+  info: SoundInfo,
+  state: State<'_, SoundsState>,
+) -> Result<u32, String> {
+  let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+  parser
+    .add_sound(info)
+    .map_err(|e| format!("Failed to add sound: {}", e))
+}
+
+#[tauri::command]
+pub async fn delete_sound(
+  sound_id: u32,
+  state: State<'_, SoundsState>,
+) -> Result<(), String> {
+  let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+  parser
+    .delete_sound(sound_id)
+    .map_err(|e| format!("Failed to delete sound: {}", e))
+}
+
+#[tauri::command]
+pub async fn add_numeric_sound_effect(
+  info: NumericSoundEffectInfo,
+  state: State<'_, SoundsState>,
+) -> Result<u32, String> {
+  let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+  parser
+    .add_numeric_sound_effect(info)
+    .map_err(|e| format!("Failed to add numeric sound effect: {}", e))
+}
+
+#[tauri::command]
+pub async fn delete_numeric_sound_effect(
+  id: u32,
+  state: State<'_, SoundsState>,
+) -> Result<(), String> {
+  let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+  parser
+    .delete_numeric_sound_effect(id)
+    .map_err(|e| format!("Failed to delete numeric sound effect: {}", e))
+}
+
+/// Import an external .ogg file into the loaded sounds directory and add a Sound entry to the .dat
+#[tauri::command]
+pub async fn import_and_add_sound(
+  source_path: String,
+  dest_filename: Option<String>,
+  is_stream: Option<bool>,
+  id: Option<u32>,
+  state: State<'_, SoundsState>,
+) -> Result<SoundInfo, String> {
+  use std::path::Path;
+
+  // Lock parser only to obtain sounds_dir, then drop before any await
+  let sounds_dir = {
+    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    parser
+      .get_sounds_dir()
+      .ok_or_else(|| "No sounds loaded".to_string())?
+  };
+
+  let src_path = Path::new(&source_path).to_path_buf();
+  let ext = src_path
+    .extension()
+    .and_then(|e| e.to_str())
+    .unwrap_or("")
+    .to_lowercase();
+  let is_ogg = ext == "ogg";
+
+  // Sanitize destination filename (keep alnum, '-', '_', '.', and ensure .ogg)
+  let base_name = dest_filename
+    .unwrap_or_else(|| src_path.file_name().and_then(|n| n.to_str()).unwrap_or("sound.ogg").to_string());
+  let mut sanitized: String = base_name
+    .chars()
+    .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_' || *c == '.')
+    .collect();
+  if !sanitized.to_lowercase().ends_with(".ogg") {
+    // Remove trailing dots and append .ogg
+    while sanitized.ends_with('.') { sanitized.pop(); }
+    sanitized.push_str(".ogg");
+  }
+
+  // Avoid overwrite: pick a unique name if file exists
+  let mut dest_path = sounds_dir.join(&sanitized);
+  if dest_path.exists() {
+    let stem = Path::new(&sanitized)
+      .file_stem()
+      .and_then(|s| s.to_str())
+      .unwrap_or("sound");
+    let mut counter = 1u32;
+    loop {
+      let candidate = format!("{}-{}", stem, counter);
+      let candidate_name = format!("{}.ogg", candidate);
+      dest_path = sounds_dir.join(&candidate_name);
+      if !dest_path.exists() { break; }
+      counter += 1;
+    }
+  }
+
+  // Apenas aceitar .ogg; rejeitar outros formatos
+  if !is_ogg {
+    return Err("Formato de áudio não suportado. Selecione um arquivo .ogg.".to_string());
+  }
+
+  fs::copy(&src_path, &dest_path)
+    .map_err(|e| format!("Falha ao copiar arquivo de áudio: {}", e))?;
+
+  let mut info = SoundInfo {
+    id: id.unwrap_or(0),
+    filename: dest_path
+      .file_name()
+      .map(|n| n.to_string_lossy().to_string())
+      .unwrap_or_else(|| sanitized.clone()),
+    original_filename: src_path
+      .file_name()
+      .and_then(|n| n.to_str())
+      .map(|s| s.to_string()),
+    is_stream: is_stream.unwrap_or(false),
+  };
+
+  // Re-lock parser after conversion/copy is done
+  {
+    let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let assigned_id = parser
+      .add_sound(info.clone())
+      .map_err(|e| format!("Failed to add sound: {}", e))?;
+    info.id = assigned_id;
+
+    parser
+      .save_to_directory()
+      .map_err(|e| format!("Failed to save sounds file: {}", e))?;
+  }
+
+  Ok(info)
 }

@@ -1040,6 +1040,19 @@ body {
   gap: var(--space-sm);
 }
 
+.search-container .search-input-wrapper {
+  flex: 1;
+}
+
+/* Alinhamento do botão Adicionar Som à esquerda da busca */
+.search-container #sounds-header-actions {
+  display: flex;
+  align-items: center;
+}
+.search-container #add-sound-header {
+  height: var(--control-height);
+}
+
 .modern-search {
   flex: 1;
   padding: var(--space-sm) var(--space-md);
@@ -1108,6 +1121,7 @@ body {
   color: var(--text-primary);
   font-size: 0.9rem;
   transition: all var(--transition-fast);
+  min-height: var(--control-height);
 }
 
 .modern-input:focus, .modern-select:focus {
@@ -1118,6 +1132,95 @@ body {
 
 .input-group {
   margin-bottom: var(--space-lg);
+}
+
+/* Grid de formulário para o modal de adicionar som */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+.form-grid > * { min-width: 0; }
+.form-grid > label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  color: var(--text-primary);
+}
+.form-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+/* Ensure vertical stack for the right column in Add Sound */
+.form-grid .stack-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  position: relative;
+  margin-top: 0; /* manter alinhamento natural com a coluna esquerda */
+}
+.form-grid .stack-vertical > .radio-group {
+  position: absolute;
+  top: -36px; /* mantém os rádios visuais acima do label */
+  left: 0;
+  margin: 0;
+}
+.form-grid .stack-vertical > label {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-xs);
+}
+.form-grid > label input,
+.form-grid > label select {
+  width: 100%;
+}
+.form-grid .radio-group {
+  grid-column: 1 / -1;
+}
+/* Checkbox inline em rótulos específicos */
+.form-grid > label.checkbox-inline {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.radio-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+.radio-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.radio-group input[type="radio"] {
+  margin: 0;
+  vertical-align: middle;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }
 
 .input-group label {
@@ -1150,6 +1253,121 @@ body {
   gap: var(--space-sm);
   font-size: 0.9rem;
 }
+
+/* Seletor de sons (acessível) */
+.sound-picker {
+  margin-top: var(--space-lg);
+  /* Removido o traço superior para evitar "barra" visual */
+  /* border-top: 1px solid var(--border-color); */
+  padding-top: var(--space-md);
+  /* Espaçamento extra entre lista e botões */
+  margin-bottom: var(--space-lg);
+}
+.picker-controls {
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+.picker-actions { display: flex; gap: var(--space-sm); }
+.sound-picker-list {
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+}
+.sound-picker-item {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-color);
+}
+.sound-picker-item:last-child { border-bottom: none; }
+.sound-picker-item[aria-selected="true"] { background: rgba(99,102,241,0.08); }
+.sp-id { color: var(--text-secondary); font-weight: 600; }
+.sp-name { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-buttons { display: inline-flex; gap: var(--space-sm); }
+
+/* Botões da lista do seletor de som */
+.sp-buttons .sp-play,
+.sp-buttons .sp-add {
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--tertiary-bg);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-sm);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.sp-buttons .sp-play {
+  width: 32px;
+  padding: 0;
+}
+
+.sp-buttons .sp-add {
+  min-width: 88px;
+  background: var(--gradient-primary);
+  color: #fff;
+  border-color: transparent;
+}
+
+.sp-buttons .sp-play:hover {
+  background: var(--surface-bg);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.sp-buttons .sp-add:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.sp-buttons .sp-play:active,
+.sp-buttons .sp-add:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.sp-buttons .sp-play:focus-visible,
+.sp-buttons .sp-add:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.sp-buttons .sp-play[disabled],
+.sp-buttons .sp-add[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.selected-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+.chip {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 2px 8px;
+  font-size: 0.85rem;
+}
+.chip-remove { margin-left: 6px; opacity: 0.7; }
 
 .btn-primary {
   background: var(--gradient-primary);
@@ -1356,7 +1574,8 @@ body {
 }
 
 .modal-header {
-  padding: 1.5rem;
+  /* Reduz a altura do cabeçalho */
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid rgba(139, 92, 246, 0.2);
   display: flex;
   align-items: center;
@@ -1389,6 +1608,7 @@ body {
   padding: 1rem;
 }
 
+.modal-header h2,
 .modal-header h3 {
   font-size: 1.5rem;
   font-weight: 700;
@@ -1396,6 +1616,8 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  /* Remove margens padrão para compactar o header */
+  margin: 0;
 }
 
 .close-btn {
@@ -1431,6 +1653,32 @@ body {
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(139, 92, 246, 0.5) rgba(139, 92, 246, 0.1);
+}
+
+/* Seções e ações dentro de modais de edição (inclui Adicionar Som) */
+.edit-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.edit-section > p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+.edit-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.edit-subsection .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
 }
 
 .modal-body::-webkit-scrollbar {
@@ -2217,6 +2465,25 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+/* Oculta o container do player quando está vazio para não formar uma barra */
+.sound-audio-container:empty {
+  display: none;
+}
+
+/* No Add Sound modal, fixe o player e evite impactar o layout */
+#add-sound-modal #add-sound-audio-player {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 88px; /* acima dos botões Salvar/Cancelar */
+  z-index: 5;
+  pointer-events: none; /* permite clicar nos elementos abaixo quando vazio */
+}
+#add-sound-modal #add-sound-audio-player .sound-player {
+  pointer-events: auto; /* o áudio continua interativo */
+  height: 32px;
+}
+
 .sound-player {
   width: 100%;
   height: 40px;
@@ -2273,4 +2540,74 @@ body {
 .random-sounds-playall-btn:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
+}
+/* New standardized buttons for Save/Add/Delete in modal */
+.btn-save,
+.btn-add,
+.btn-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-height);
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  border: 1px solid var(--border-soft-20);
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+}
+
+.btn-save {
+  background: var(--gradient-primary);
+  color: white;
+  border-color: var(--border-soft-30);
+}
+.btn-save:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-add {
+  background: linear-gradient(135deg, var(--success-color) 0%, #34d399 100%);
+  color: white;
+  border-color: var(--border-soft-30);
+}
+.btn-add:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-delete {
+  background: linear-gradient(135deg, var(--error-color) 0%, #dc2626 100%);
+  color: white;
+  border-color: var(--border-soft-30);
+}
+.btn-delete:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Secondary/neutral button */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-height);
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  border: 1px solid var(--border-soft-20);
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  background: var(--control-bg);
+  color: var(--text-secondary);
+}
+.btn-secondary:hover {
+  background: var(--tertiary-bg);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
 }

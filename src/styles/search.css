@@ -1,0 +1,208 @@
+/* Search Container */
+.search-container {
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.search-container .search-input-wrapper {
+  flex: 1;
+}
+
+/* Alinhamento do botão Adicionar Som à esquerda da busca */
+.search-container #sounds-header-actions {
+  display: flex;
+  align-items: center;
+}
+
+.search-container #add-sound-header {
+  height: var(--control-height);
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--control-bg);
+  min-height: var(--control-height);
+  border: 2px solid var(--border-soft-20);
+  border-radius: var(--radius-xl);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.2),
+    inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.search-input-wrapper:focus-within {
+  border-color: #4f46e5;
+  box-shadow:
+    0 8px 25px -5px rgba(79, 70, 229, 0.3),
+    0 4px 6px -1px rgba(0, 0, 0, 0.2),
+    inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.search-icon {
+  position: absolute;
+  left: var(--space-md);
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+  stroke-width: 2;
+  z-index: 1;
+}
+
+.search-input {
+  width: 100%;
+  height: var(--control-height);
+  padding: 0 var(--space-xl);
+  padding-left: 48px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  outline: none;
+  border-radius: var(--radius-lg);
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: var(--space-sm);
+  width: var(--control-height);
+  height: var(--control-height);
+  background: var(--tertiary-bg);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clear-search-btn:hover {
+  background: var(--error-color);
+  color: white;
+}
+
+.clear-search-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+.modern-search {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--tertiary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: all var(--transition-fast);
+}
+
+.modern-search:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.search-btn,
+.clear-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-btn {
+  background: var(--primary-accent);
+  color: white;
+}
+
+.search-btn:hover {
+  background: #4338ca;
+  transform: translateY(-1px);
+}
+
+.clear-btn {
+  background: var(--error-color);
+  color: white;
+}
+
+.clear-btn:hover {
+  background: #dc2626;
+}
+
+.view-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.items-count {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* Filter Controls */
+.filter-container {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.filter-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.filter-select {
+  padding: var(--space-sm) var(--space-md);
+  height: var(--control-height);
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--border-soft-30);
+  border-radius: var(--radius-lg);
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.filter-select:hover {
+  border-color: #4f46e5;
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow:
+    0 0 0 3px rgba(79, 70, 229, 0.3),
+    0 4px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}

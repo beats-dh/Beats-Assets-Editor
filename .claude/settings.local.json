@@ -5,7 +5,9 @@
       "Bash(Format-Table)",
       "Bash(npm run tauri:*)",
       "Bash(npm run build:*)",
-      "Bash(cargo build)"
+      "Bash(cargo build)",
+      "Bash(mkdir:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []

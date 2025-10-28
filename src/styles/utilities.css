@@ -1,0 +1,28 @@
+/* Status Toast */
+.status-toast {
+  position: fixed;
+  top: var(--space-lg);
+  right: var(--space-lg);
+  background: var(--gradient-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md) var(--space-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 10001;
+  transform: translateX(100%);
+  transition: transform var(--transition-normal);
+}
+
+.status-toast.show {
+  transform: translateX(0);
+}
+
+.status-toast.success {
+  border-color: var(--success-color);
+  background: linear-gradient(135deg, var(--tertiary-bg) 0%, rgba(16, 185, 129, 0.1) 100%);
+}
+
+.status-toast.error {
+  border-color: var(--error-color);
+  background: linear-gradient(135deg, var(--tertiary-bg) 0%, rgba(239, 68, 68, 0.1) 100%);
+}
