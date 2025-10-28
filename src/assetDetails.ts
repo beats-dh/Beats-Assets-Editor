@@ -1860,6 +1860,7 @@ function getMarketCategoryName(category: number): string {
 
 // Generate edit form HTML - Complete version with all fields
 function generateEditFormHTML(details: CompleteAppearanceItem, category: string, flags: CompleteFlags | undefined): string {
+  // Flag labels identical to C# Assets Editor DatEditor.xaml
   const flagDefs = [
     { key: 'clip', label: 'Clip', value: !!flags?.clip },
     { key: 'bottom', label: 'Bottom', value: !!flags?.bottom },
@@ -1867,40 +1868,40 @@ function generateEditFormHTML(details: CompleteAppearanceItem, category: string,
     { key: 'container', label: 'Container', value: !!flags?.container },
     { key: 'cumulative', label: 'Cumulative', value: !!flags?.cumulative },
     { key: 'usable', label: 'Usable', value: !!flags?.usable },
-    { key: 'forceuse', label: 'Force Use', value: !!flags?.forceuse },
-    { key: 'multiuse', label: 'Multi-use', value: !!flags?.multiuse },
-    { key: 'liquidpool', label: 'Liquid Pool', value: getFlagBool(flags, 'liquidpool') },
+    { key: 'forceuse', label: 'Forceuse', value: !!flags?.forceuse },
+    { key: 'multiuse', label: 'Multiuse', value: !!flags?.multiuse },
+    { key: 'liquidpool', label: 'Liquidpool', value: getFlagBool(flags, 'liquidpool') },
     { key: 'liquidcontainer', label: 'Liquid Container', value: !!flags?.liquidcontainer },
-    { key: 'unpass', label: 'Unpassable', value: !!flags?.unpass },
-    { key: 'unmove', label: 'Unmovable', value: !!flags?.unmove },
-    { key: 'unsight', label: 'Block Sight', value: !!flags?.unsight },
-    { key: 'avoid', label: 'Avoid Walk', value: !!flags?.avoid },
-    { key: 'nomovementanimation', label: 'No Movement Animation', value: !!flags?.no_movement_animation },
-    { key: 'take', label: 'Takeable', value: !!flags?.take },
-    { key: 'hang', label: 'Hangable', value: !!flags?.hang },
-    { key: 'rotate', label: 'Rotatable', value: !!flags?.rotate },
-    { key: 'donthide', label: "Don't Hide", value: !!flags?.dont_hide },
+    { key: 'unpass', label: 'Unpass', value: !!flags?.unpass },
+    { key: 'unmove', label: 'Unmove', value: !!flags?.unmove },
+    { key: 'unsight', label: 'Unsight', value: !!flags?.unsight },
+    { key: 'avoid', label: 'Avoid', value: !!flags?.avoid },
+    { key: 'nomovementanimation', label: 'No Move Animation', value: !!flags?.no_movement_animation },
+    { key: 'take', label: 'Take', value: !!flags?.take },
+    { key: 'hang', label: 'Hang', value: !!flags?.hang },
+    { key: 'rotate', label: 'Rotate', value: !!flags?.rotate },
+    { key: 'donthide', label: 'Dont Hide', value: !!flags?.dont_hide },
     { key: 'translucent', label: 'Translucent', value: !!flags?.translucent },
     { key: 'lyingobject', label: 'Lying Object', value: !!flags?.lying_object },
     { key: 'animatealways', label: 'Animate Always', value: !!flags?.animate_always },
-    { key: 'fullbank', label: 'Full Bank', value: !!flags?.fullbank },
+    { key: 'fullbank', label: 'Fullbank', value: !!flags?.fullbank },
     { key: 'ignorelook', label: 'Ignore Look', value: !!flags?.ignore_look },
     { key: 'wrap', label: 'Wrap', value: !!flags?.wrap },
     { key: 'unwrap', label: 'Unwrap', value: !!flags?.unwrap },
-    { key: 'topeffect', label: 'Top Effect', value: !!flags?.topeffect },
+    { key: 'topeffect', label: 'Topeffect', value: !!flags?.topeffect },
     { key: 'corpse', label: 'Corpse', value: !!flags?.corpse },
     { key: 'playercorpse', label: 'Player Corpse', value: !!flags?.player_corpse },
     { key: 'ammo', label: 'Ammo', value: !!flags?.ammo },
     { key: 'showoffsocket', label: 'Show Off Socket', value: !!flags?.show_off_socket },
     { key: 'reportable', label: 'Reportable', value: !!flags?.reportable },
-    { key: 'reverseaddonseast', label: 'Reverse Addons East', value: !!flags?.reverse_addons_east },
-    { key: 'reverseaddonswest', label: 'Reverse Addons West', value: !!flags?.reverse_addons_west },
-    { key: 'reverseaddonssouth', label: 'Reverse Addons South', value: !!flags?.reverse_addons_south },
-    { key: 'reverseaddonsnorth', label: 'Reverse Addons North', value: !!flags?.reverse_addons_north },
+    { key: 'reverseaddonseast', label: 'Reverse addon east', value: !!flags?.reverse_addons_east },
+    { key: 'reverseaddonswest', label: 'Reverse addon west', value: !!flags?.reverse_addons_west },
+    { key: 'reverseaddonssouth', label: 'Reverse addon south', value: !!flags?.reverse_addons_south },
+    { key: 'reverseaddonsnorth', label: 'Reverse addon north', value: !!flags?.reverse_addons_north },
     { key: 'wearout', label: 'Wearout', value: !!flags?.wearout },
-    { key: 'clockexpire', label: 'Clock Expire', value: !!flags?.clockexpire },
+    { key: 'clockexpire', label: 'Clockexpire', value: !!flags?.clockexpire },
     { key: 'expire', label: 'Expire', value: !!flags?.expire },
-    { key: 'expirestop', label: 'Expire Stop', value: !!flags?.expirestop },
+    { key: 'expirestop', label: 'Expirestop', value: !!flags?.expirestop },
     { key: 'decoitemkit', label: 'Deco Item Kit', value: !!flags?.deco_item_kit },
     { key: 'dualwielding', label: 'Dual Wielding', value: !!flags?.dual_wielding },
     { key: 'hooksouth', label: 'Hook South', value: getFlagBool(flags, 'hooksouth') },
@@ -2088,12 +2089,28 @@ function generateEditFormHTML(details: CompleteAppearanceItem, category: string,
       <h4>Clothes</h4>
       <div class="detail-item">
         <span class="detail-label">Slot:</span>
-        <div class="number-input">
-          <input type="number" id="clothes-slot" value="${flags?.clothes?.slot ?? ''}" placeholder="ex: 8" />
-          <div class="spinner-controls">
-            <button type="button" class="spinner-up" data-input-id="clothes-slot"></button>
-            <button type="button" class="spinner-down" data-input-id="clothes-slot"></button>
-          </div>
+        <div class="select-input">
+          <select id="clothes-slot">
+            ${(() => {
+              const selected = flags?.clothes?.slot ?? null;
+              const options = [
+                { value: 0, label: 'None' },
+                { value: 1, label: 'Helmet' },
+                { value: 2, label: 'Amulet' },
+                { value: 3, label: 'Backpack' },
+                { value: 4, label: 'Armor' },
+                { value: 5, label: 'Shield' },
+                { value: 6, label: 'Weapon' },
+                { value: 7, label: 'Legs' },
+                { value: 8, label: 'Boots' },
+                { value: 9, label: 'Ring' },
+                { value: 10, label: 'Arrow / Quiver' },
+              ];
+              const empty = `<option value="" ${selected == null ? 'selected' : ''}>—</option>`;
+              const optHtml = options.map(o => `<option value="${o.value}" ${selected === o.value ? 'selected' : ''}>${o.label} (${o.value})</option>`).join('');
+              return empty + optHtml;
+            })()}
+          </select>
         </div>
       </div>
       <button id="save-clothes" class="btn-secondary" data-category="${category}" data-id="${details.id}">Salvar Clothes</button>

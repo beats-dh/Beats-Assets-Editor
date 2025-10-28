@@ -153,7 +153,7 @@ export async function saveAssetLenshelp(category: string, id: number, onRefresh:
 // Save Clothes
 export async function saveAssetClothes(category: string, id: number, onRefresh: () => Promise<void>): Promise<void> {
   await saveWithFeedback('save-clothes', async () => {
-    const el = document.getElementById('clothes-slot') as HTMLInputElement | null;
+    const el = document.getElementById('clothes-slot') as HTMLSelectElement | null;
     const slot = el && el.value !== '' ? parseInt(el.value, 10) : null;
     await invoke('update_appearance_clothes', { category, id, slot });
   });
