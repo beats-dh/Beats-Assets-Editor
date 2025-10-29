@@ -4,6 +4,10 @@ import {
   computeSpriteIndex,
   decomposeSpriteIndex
 } from '../../animation';
+import {
+  resolveOutfitPreviewDirection,
+  resolveOutfitPreviewInterval
+} from './outfit/outfitPreviewSettings';
 
 export interface PreviewAnimationSequence {
   frames: string[];
@@ -90,13 +94,19 @@ async function buildSequence(
   const baseOffset = groupOffsets[groupIndex] ?? 0;
 
   if (category === 'Outfits') {
-    const frames = await buildOutfitFrames(spriteInfo, baseOffset, sprites, frameCount, 1);
-    if (frames.length === 0 || !frames[0]) {
+    const directionIndex = resolveOutfitPreviewDirection(spriteInfo);
+    const frames = await buildOutfitFrames(
+      spriteInfo,
+      baseOffset,
+      sprites,
+      frameCount,
+      directionIndex
+    );
+    if (frames.length === 0) {
       return null;
     }
-    const firstFrame = frames[0];
-    const interval = resolveOutfitInterval(frameCount);
-    return { frames: [firstFrame], interval };
+    const interval = resolveOutfitPreviewInterval(spriteInfo);
+    return { frames, interval };
   }
 
   const frames = buildGenericFrames(spriteInfo, baseOffset, sprites, frameCount);
@@ -134,16 +144,6 @@ function buildGenericFrames(
   return frames;
 }
 
-function resolveOutfitInterval(frameCount: number): number {
-  if (frameCount < 4) {
-    return 300;
-  }
-  if (frameCount <= 8) {
-    return 100;
-  }
-  return 75;
-}
-
 function ensureNumber(value: number | undefined, fallback: number): number {
   return typeof value === 'number' && !Number.isNaN(value) ? value : fallback;
 }
@@ -153,13 +153,14 @@ async function buildOutfitFrames(
   baseOffset: number,
   sprites: string[],
   frameCount: number,
+  directionIndex: number,
   maxFrames = frameCount
 ): Promise<string[]> {
   const frames: string[] = [];
   const directionCount = Math.max(1, ensureNumber(spriteInfo.pattern_width, 1));
   const addonCount = Math.max(1, ensureNumber(spriteInfo.pattern_height, 1));
   const mountCount = Math.max(1, ensureNumber(spriteInfo.pattern_depth, 1));
-  const directionIndex = Math.min(2, directionCount - 1);
+  const safeDirectionIndex = Math.min(Math.max(0, directionIndex), directionCount - 1);
   const addonMax = Math.max(addonCount - 1, 0);
   const mountIndex = Math.min(0, mountCount - 1);
   const imageCache = new Map<number, Promise<HTMLImageElement>>();
@@ -172,7 +173,7 @@ async function buildOutfitFrames(
       const spriteIndex = baseOffset + computeSpriteIndex(
         spriteInfo,
         0,
-        directionIndex,
+        safeDirectionIndex,
         addon,
         mountIndex,
         frame
