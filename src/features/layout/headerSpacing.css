@@ -1,0 +1,46 @@
+.modern-header {
+  justify-content: flex-start;
+  gap: clamp(0.75rem, 2vw, 2.5rem);
+}
+
+.modern-header .appearance-action-bar {
+  margin-left: 0;
+  padding-left: 0;
+  margin-right: clamp(0.5rem, 1.2vw, 1.75rem);
+  flex: 0 0 auto;
+}
+
+.modern-header .header-center {
+  flex: 1 1 420px;
+  padding-left: 0;
+  margin-right: clamp(1rem, 2vw, 3rem);
+}
+
+.modern-header .header-center .search-container {
+  margin-left: 0;
+  width: 100%;
+}
+
+.modern-header .header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: clamp(0.75rem, 1.5vw, 2rem);
+}
+
+.modern-header .pagination-nav {
+  margin: 0;
+}
+
+.modern-header .page-size-container {
+  margin-left: clamp(0.5rem, 1vw, 1.5rem);
+}
+
+@media (min-width: 1200px) {
+  .modern-header .header-center {
+    position: static;
+    left: auto;
+    transform: none;
+    margin-right: clamp(1rem, 2vw, 3rem);
+  }
+}

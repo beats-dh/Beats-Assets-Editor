@@ -6,11 +6,15 @@ import { isAssetSelected } from './assetSelection';
 let currentCategory = 'Objects';
 let currentSubcategory = 'All';
 let currentPage = 0;
-let currentPageSize = 50;
+let currentPageSize = 100;
 let currentSearch = '';
 let totalItems = 0;
 
-let autoAnimateGridEnabled = localStorage.getItem('autoAnimateGridEnabled') === 'true';
+const storedAnimationPreference = localStorage.getItem('autoAnimateGridEnabled');
+let autoAnimateGridEnabled = storedAnimationPreference === null ? true : storedAnimationPreference === 'true';
+if (storedAnimationPreference === null) {
+  localStorage.setItem('autoAnimateGridEnabled', 'true');
+}
 
 // DOM element references
 let assetsGrid: HTMLElement | null = null;
@@ -21,6 +25,19 @@ let prevPageBtn: HTMLButtonElement | null = null;
 let nextPageBtn: HTMLButtonElement | null = null;
 let pageSizeSelect: HTMLSelectElement | null = null;
 
+export interface LoadAssetsOptions {
+  append?: boolean;
+}
+
+export interface AssetsGridRenderedEventDetail {
+  append: boolean;
+  renderedCount: number;
+  totalItems: number;
+  category: string;
+  page: number;
+  pageSize: number;
+}
+
 export function initAssetUIElements(): void {
   assetsGrid = document.querySelector('#assets-grid');
   assetSearch = document.querySelector('#asset-search');
@@ -29,6 +46,10 @@ export function initAssetUIElements(): void {
   prevPageBtn = document.querySelector('#prev-page');
   nextPageBtn = document.querySelector('#next-page');
   pageSizeSelect = document.querySelector('#page-size');
+
+  if (pageSizeSelect) {
+    pageSizeSelect.value = String(currentPageSize);
+  }
 }
 
 export function getCurrentCategory(): string {
@@ -71,6 +92,10 @@ export function setCurrentSearch(search: string): void {
   currentSearch = search;
 }
 
+export function getTotalItemsCount(): number {
+  return totalItems;
+}
+
 export function getAutoAnimateGridEnabled(): boolean {
   return autoAnimateGridEnabled;
 }
@@ -79,11 +104,16 @@ export function setAutoAnimateGridEnabled(enabled: boolean): void {
   autoAnimateGridEnabled = enabled;
 }
 
-export async function loadAssets(): Promise<void> {
+export async function loadAssets(options: LoadAssetsOptions = {}): Promise<void> {
   if (!assetsGrid) return;
 
+  const append = options.append === true;
+  let renderedCount = 0;
+
   try {
-    showLoadingState();
+    if (!append) {
+      showLoadingState();
+    }
 
     if (currentCategory === 'Sounds') {
       // Determine subcategory
@@ -96,7 +126,9 @@ export async function loadAssets(): Promise<void> {
           page: currentPage,
           pageSize: currentPageSize
         });
-        displayAmbienceStreams(assets as any[]);
+        const ambienceStreams = assets as any[];
+        renderedCount = ambienceStreams.length;
+        displayAmbienceStreams(ambienceStreams, append);
         updatePaginationInfo();
       } else if (sub === 'Ambience Object Streams') {
         const totalCount = await invoke('get_ambience_object_stream_count');
@@ -105,7 +137,9 @@ export async function loadAssets(): Promise<void> {
           page: currentPage,
           pageSize: currentPageSize
         });
-        displayAmbienceObjectStreams(assets as any[]);
+        const ambienceObjectStreams = assets as any[];
+        renderedCount = ambienceObjectStreams.length;
+        displayAmbienceObjectStreams(ambienceObjectStreams, append);
         updatePaginationInfo();
       } else if (sub === 'Music Templates') {
         const totalCount = await invoke('get_music_template_count');
@@ -114,7 +148,9 @@ export async function loadAssets(): Promise<void> {
           page: currentPage,
           pageSize: currentPageSize
         });
-        displayMusicTemplates(assets as any[]);
+        const musicTemplates = assets as any[];
+        renderedCount = musicTemplates.length;
+        displayMusicTemplates(musicTemplates, append);
         updatePaginationInfo();
       } else {
         // Numeric sound effects (All or specific type)
@@ -128,7 +164,9 @@ export async function loadAssets(): Promise<void> {
           soundType
         });
 
-        displaySounds(assets as any[]);
+        const soundEffects = assets as any[];
+        renderedCount = soundEffects.length;
+        displaySounds(soundEffects, append);
         updatePaginationInfo();
       }
     } else {
@@ -149,12 +187,28 @@ export async function loadAssets(): Promise<void> {
         subcategory: currentCategory === 'Objects' && currentSubcategory !== 'All' ? currentSubcategory : null
       });
 
-      displayAssets(assets as any[]);
+      const appearanceAssets = assets as any[];
+      renderedCount = appearanceAssets.length;
+      displayAssets(appearanceAssets, append);
       updatePaginationInfo();
     }
+
+    const renderedEvent: AssetsGridRenderedEventDetail = {
+      append,
+      renderedCount,
+      totalItems,
+      category: currentCategory,
+      page: currentPage,
+      pageSize: currentPageSize
+    };
+    document.dispatchEvent(new CustomEvent<AssetsGridRenderedEventDetail>('assets-grid-rendered', {
+      detail: renderedEvent
+    }));
   } catch (error) {
     console.error('Error loading assets:', error);
-    showErrorState(error as string);
+    if (!append) {
+      showErrorState(error as string);
+    }
   }
 }
 
@@ -180,10 +234,10 @@ function showErrorState(error: string): void {
   }
 }
 
-async function displayAssets(assets: any[]): Promise<void> {
+async function displayAssets(assets: any[], append = false): Promise<void> {
   if (!assetsGrid) return;
 
-  if (assets.length === 0) {
+  if (!append && assets.length === 0) {
     assetsGrid.innerHTML = `
       <div class="empty-state">
         <h3>📭 No Assets Found</h3>
@@ -194,7 +248,7 @@ async function displayAssets(assets: any[]): Promise<void> {
   }
 
   // Create asset items with placeholders first
-  assetsGrid.innerHTML = assets.map(asset => {
+  const html = assets.map(asset => {
     const selected = isAssetSelected(currentCategory, asset.id);
     return `
     <div class="asset-item${selected ? ' is-selected' : ''}" data-asset-id="${asset.id}" data-category="${currentCategory}">
@@ -221,6 +275,12 @@ async function displayAssets(assets: any[]): Promise<void> {
       </div>
     </div>
   `; }).join('');
+
+  if (append) {
+    assetsGrid.insertAdjacentHTML('beforeend', html);
+  } else {
+    assetsGrid.innerHTML = html;
+  }
 
   // Load sprites asynchronously
   loadSpritesForAssets(assets);
@@ -256,10 +316,10 @@ async function loadSpritesForAssets(assets: any[]): Promise<void> {
   }
 }
 
-function displaySounds(sounds: any[]): void {
+function displaySounds(sounds: any[], append = false): void {
   if (!assetsGrid) return;
 
-  if (sounds.length === 0) {
+  if (!append && sounds.length === 0) {
     assetsGrid.innerHTML = `
       <div class="empty-state">
         <h3>📭 No Sounds Found</h3>
@@ -270,7 +330,7 @@ function displaySounds(sounds: any[]): void {
   }
 
   // Create sound items
-  assetsGrid.innerHTML = sounds.map(sound => {
+  const html = sounds.map(sound => {
     const soundType = sound.sound_type || 'Unknown';
     const hasSoundFile = sound.sound_id !== null && sound.sound_id !== undefined;
     const hasRandomSounds = sound.random_sound_ids && sound.random_sound_ids.length > 0;
@@ -299,12 +359,18 @@ function displaySounds(sounds: any[]): void {
       </div>
     `;
   }).join('');
+
+  if (append) {
+    assetsGrid.insertAdjacentHTML('beforeend', html);
+  } else {
+    assetsGrid.innerHTML = html;
+  }
 }
 
-function displayAmbienceStreams(streams: any[]): void {
+function displayAmbienceStreams(streams: any[], append = false): void {
   if (!assetsGrid) return;
 
-  if (streams.length === 0) {
+  if (!append && streams.length === 0) {
     assetsGrid.innerHTML = `
       <div class="empty-state">
         <h3>📭 No Ambience Streams Found</h3>
@@ -314,7 +380,7 @@ function displayAmbienceStreams(streams: any[]): void {
     return;
   }
 
-  assetsGrid.innerHTML = streams.map(stream => {
+  const html = streams.map(stream => {
     const hasDelayed = stream.delayed_effects && stream.delayed_effects.length > 0;
     return `
       <div class="asset-item sound-item" data-asset-id="${stream.id}" data-category="Sounds">
@@ -335,12 +401,18 @@ function displayAmbienceStreams(streams: any[]): void {
       </div>
     `;
   }).join('');
+
+  if (append) {
+    assetsGrid.insertAdjacentHTML('beforeend', html);
+  } else {
+    assetsGrid.innerHTML = html;
+  }
 }
 
-function displayAmbienceObjectStreams(streams: any[]): void {
+function displayAmbienceObjectStreams(streams: any[], append = false): void {
   if (!assetsGrid) return;
 
-  if (streams.length === 0) {
+  if (!append && streams.length === 0) {
     assetsGrid.innerHTML = `
       <div class="empty-state">
         <h3>📭 No Ambience Object Streams Found</h3>
@@ -350,7 +422,7 @@ function displayAmbienceObjectStreams(streams: any[]): void {
     return;
   }
 
-  assetsGrid.innerHTML = streams.map(stream => {
+  const html = streams.map(stream => {
     const hasEffects = stream.sound_effects && stream.sound_effects.length > 0;
     return `
       <div class="asset-item sound-item" data-asset-id="${stream.id}" data-category="Sounds">
@@ -371,12 +443,18 @@ function displayAmbienceObjectStreams(streams: any[]): void {
       </div>
     `;
   }).join('');
+
+  if (append) {
+    assetsGrid.insertAdjacentHTML('beforeend', html);
+  } else {
+    assetsGrid.innerHTML = html;
+  }
 }
 
-function displayMusicTemplates(templates: any[]): void {
+function displayMusicTemplates(templates: any[], append = false): void {
   if (!assetsGrid) return;
 
-  if (templates.length === 0) {
+  if (!append && templates.length === 0) {
     assetsGrid.innerHTML = `
       <div class="empty-state">
         <h3>📭 No Music Templates Found</h3>
@@ -386,7 +464,7 @@ function displayMusicTemplates(templates: any[]): void {
     return;
   }
 
-  assetsGrid.innerHTML = templates.map(t => {
+  const html = templates.map(t => {
     return `
       <div class="asset-item sound-item" data-asset-id="${t.id}" data-category="Sounds">
         <div class="asset-item-header">
@@ -405,30 +483,52 @@ function displayMusicTemplates(templates: any[]): void {
       </div>
     `;
   }).join('');
+
+  if (append) {
+    assetsGrid.insertAdjacentHTML('beforeend', html);
+  } else {
+    assetsGrid.innerHTML = html;
+  }
 }
 
 function updatePaginationInfo(): void {
-  const totalPages = Math.ceil(totalItems / currentPageSize);
+  const totalPages = Math.max(1, Math.ceil(totalItems / currentPageSize));
+  const currentPageIndex = Math.min(currentPage, totalPages - 1);
+  if (currentPage !== currentPageIndex) {
+    currentPage = currentPageIndex;
+  }
+  const startItem = totalItems === 0 ? 0 : currentPageIndex * currentPageSize + 1;
+  const endItem = totalItems === 0
+    ? 0
+    : Math.min(totalItems, (currentPageIndex + 1) * currentPageSize);
 
   if (itemsCount) {
-    itemsCount.textContent = `${totalItems} itens`;
+    itemsCount.textContent = totalItems === 0
+      ? '0 itens'
+      : `${startItem}-${endItem} de ${totalItems} itens`;
   }
 
   if (pageInfo) {
-    pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
+    pageInfo.textContent = totalItems === 0
+      ? 'Página 1 de 1'
+      : `Página ${currentPageIndex + 1} de ${totalPages}`;
   }
 
   if (prevPageBtn) {
-    prevPageBtn.disabled = currentPage === 0;
+    prevPageBtn.disabled = currentPageIndex <= 0;
   }
 
   if (nextPageBtn) {
-    nextPageBtn.disabled = currentPage >= totalPages - 1;
+    nextPageBtn.disabled = currentPageIndex >= totalPages - 1;
+  }
+
+  if (pageSizeSelect) {
+    pageSizeSelect.value = String(currentPageSize);
   }
 }
 
 export function changePage(newPage: number): void {
-  const totalPages = Math.ceil(totalItems / currentPageSize);
+  const totalPages = Math.max(1, Math.ceil(totalItems / currentPageSize));
   if (newPage >= 0 && newPage < totalPages) {
     currentPage = newPage;
     loadAssets();

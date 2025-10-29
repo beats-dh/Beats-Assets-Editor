@@ -9,9 +9,9 @@ import { setUserTibiaPath, debugCache } from './spriteCache';
 import {
   initAssetUIElements,
   loadAssets,
-  setupAssetsPaginationListeners,
   setupAssetsSearchListeners,
   setupAssetsCategoryListeners,
+  setupAssetsPaginationListeners,
   setCurrentCategory,
   setCurrentPage,
   setCurrentSearch,
@@ -194,10 +194,10 @@ function initializeAssetsBrowser(): void {
   initAssetDetailsElements();
   setupImportExportFeature();
 
-  // Setup pagination and search
-  setupAssetsPaginationListeners();
+  // Setup search and scrolling behaviour
   setupAssetsSearchListeners();
   setupAssetsCategoryListeners();
+  setupAssetsPaginationListeners();
 
   // Settings menu
   const settingsBtn = document.querySelector("#settings-btn") as HTMLButtonElement | null;
