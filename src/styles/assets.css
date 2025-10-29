@@ -16,9 +16,15 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
+  padding-top: calc(var(--space-md) + 40px);
   cursor: pointer;
   transition: all var(--transition-normal);
   text-align: center;
+  position: relative;
+  --asset-id-top: 24px;
+  --asset-id-left: 50%;
+  --asset-id-translate-x: -50%;
+  --asset-id-translate-y: 0;
 }
 
 .asset-item:hover {
@@ -32,11 +38,61 @@
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3), var(--shadow-lg);
 }
 
+.asset-flags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.asset-id {
+  position: absolute;
+  top: var(--asset-id-top);
+  left: var(--asset-id-left);
+  transform: translate(var(--asset-id-translate-x), var(--asset-id-translate-y));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 var(--space-sm);
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-primary);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.asset-item[data-category="Objects"] {
+  --asset-id-top: var(--objects-id-top, 24px);
+  --asset-id-left: var(--objects-id-left, 50%);
+  --asset-id-translate-x: var(--objects-id-translate-x, -50%);
+  --asset-id-translate-y: var(--objects-id-translate-y, 0);
+}
+
+.asset-item[data-category="Outfits"] {
+  --asset-id-top: var(--outfits-id-top, 24px);
+  --asset-id-left: var(--outfits-id-left, 50%);
+  --asset-id-translate-x: var(--outfits-id-translate-x, -50%);
+  --asset-id-translate-y: var(--outfits-id-translate-y, 0);
+}
+
+.asset-item[data-category="Missiles"] {
+  --asset-id-top: var(--missiles-id-top, 24px);
+  --asset-id-left: var(--missiles-id-left, 50%);
+  --asset-id-translate-x: var(--missiles-id-translate-x, -50%);
+  --asset-id-translate-y: var(--missiles-id-translate-y, 0);
+}
+
+.asset-item[data-category="Effects"] {
+  --asset-id-top: var(--effects-id-top, 24px);
+  --asset-id-left: var(--effects-id-left, 50%);
+  --asset-id-translate-x: var(--effects-id-translate-x, -50%);
+  --asset-id-translate-y: var(--effects-id-translate-y, 0);
+}
+
 .asset-visual-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-sm);
   margin-bottom: var(--space-sm);
 }
 
@@ -46,7 +102,9 @@
 }
 
 .asset-select-control {
-  position: relative;
+  position: absolute;
+  top: 8px;
+  left: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -54,9 +112,10 @@
   height: 32px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
-  background: rgba(15, 23, 42, 0.4);
+  background: rgba(15, 23, 42, 0.5);
   cursor: pointer;
   transition: all var(--transition-fast);
+  z-index: 3;
 }
 
 .asset-select-control:hover {
@@ -121,7 +180,7 @@
 
 .asset-image-container {
   width: 100%;
-  height: 100px;
+  height: 200px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -129,27 +188,38 @@
   border-radius: var(--radius-md);
   background: var(--tertiary-bg);
   overflow: hidden;
+  position: relative;
+}
+
+.asset-image-overlay {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  pointer-events: none;
+  gap: var(--space-sm);
+}
+
+.asset-image-overlay .asset-flags {
+  pointer-events: auto;
 }
 
 .sprite-image {
-  width: 54px;
-  height: 54px;
+  width: 68px;
+  height: 68px;
+  /* max-width: 200%;
+  max-height: 200%; */
   object-fit: contain;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
 }
 
-.asset-info h4 {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: var(--space-xs);
-}
-
-.asset-info p {
-  font-size: 0.8rem;
-  color: var(--text-muted);
+.asset-name {
+  margin-top: 15px;
 }
 
 /* Pagination */
@@ -284,8 +354,8 @@
 }
 
 .sprite-placeholder {
-  width: 64px;
-  height: 64px;
+  width: 68px;
+  height: 68px;
   background: linear-gradient(135deg, rgba(100, 116, 139, 0.1) 0%, rgba(100, 116, 139, 0.05) 100%);
   border: 2px dashed rgba(100, 116, 139, 0.3);
   border-radius: 8px;

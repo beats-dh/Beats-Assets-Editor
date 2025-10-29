@@ -63,4 +63,24 @@
   --transition-fast: 0.15s ease-out;
   --transition-normal: 0.25s ease-out;
   --transition-slow: 0.35s ease-out;
+
+  /* Asset card positioning */
+  --objects-id-top: 24px;
+  --objects-id-left: 50%;
+  --objects-id-translate-x: -50%;
+  --objects-id-translate-y: 0;
+  --outfits-id-top: 24px;
+  --outfits-id-left: 50%;
+  --outfits-id-translate-x: -50%;
+  --outfits-id-translate-y: 0;
+  --missiles-id-top: 24px;
+  --missiles-id-left: 50%;
+  --missiles-id-translate-x: -50%;
+  --missiles-id-translate-y: 0;
+  --effects-id-top: 24px;
+  --effects-id-left: 50%;
+  --effects-id-translate-x: -50%;
+  --effects-id-translate-y: 0;
+  --objects-info-top: 16px;
+  --objects-info-right: 16px;
 }
