@@ -248,31 +248,30 @@ async function displayAssets(assets: any[], append = false): Promise<void> {
   }
 
   // Create asset items with placeholders first
+  const categoriesWithoutNames = new Set(['Effects', 'Missiles', 'Outfits']);
+  const shouldShowName = !categoriesWithoutNames.has(currentCategory);
+
   const html = assets.map(asset => {
     const selected = isAssetSelected(currentCategory, asset.id);
+
     return `
     <div class="asset-item${selected ? ' is-selected' : ''}" data-asset-id="${asset.id}" data-category="${currentCategory}">
-      <div class="asset-item-header">
-        <span class="asset-id">#${asset.id}</span>
-        <div class="asset-flags">
-          ${asset.has_flags ? '<div class="flag-indicator" title="Has flags"></div>' : ''}
-        </div>
-      </div>
+      <label class="asset-select-control" aria-label="Select appearance #${asset.id}">
+        <input type="checkbox" class="asset-select-checkbox" data-asset-id="${asset.id}" data-category="${currentCategory}" ${selected ? 'checked' : ''} />
+        <span class="asset-select-indicator" aria-hidden="true"></span>
+      </label>
+      <div class="asset-id">#${asset.id}</div>
       <div class="asset-visual-row">
-        <label class="asset-select-control" aria-label="Select appearance #${asset.id}">
-          <input type="checkbox" class="asset-select-checkbox" data-asset-id="${asset.id}" data-category="${currentCategory}" ${selected ? 'checked' : ''} />
-          <span class="asset-select-indicator" aria-hidden="true"></span>
-        </label>
         <div class="asset-image-container" id="sprite-${asset.id}">
+          <div class="asset-image-overlay">
+            <div class="asset-flags">
+              ${asset.has_flags ? '<div class="flag-indicator" title="Has flags"></div>' : ''}
+            </div>
+          </div>
           <div class="sprite-loading">🔄</div>
         </div>
       </div>
-      <div class="asset-name">${asset.name || 'Unnamed'}</div>
-      <div class="asset-description">${asset.description || 'No description'}</div>
-      <div class="asset-meta">
-        <span>Sprites: ${asset.sprite_count}</span>
-        <span>${currentCategory.slice(0, -1)}</span>
-      </div>
+      ${shouldShowName ? `<div class="asset-name">${asset.name || 'Unnamed'}</div>` : ''}
     </div>
   `; }).join('');
 
