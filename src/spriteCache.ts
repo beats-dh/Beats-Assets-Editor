@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { clearPreviewAnimationCache } from './features/previewAnimation/assetPreviewAnimator';
 
 // Sprite cache to avoid reloading the same sprites
 const spriteCache = new Map<string, string[]>();
@@ -17,6 +18,7 @@ export function getSpritesCacheKey(category: string, appearanceId: number): stri
 
 export function clearSpritesCache(): void {
   spriteCache.clear();
+  clearPreviewAnimationCache();
 }
 
 export function getSpriteCacheStats(): { totalEntries: number; totalSprites: number } {

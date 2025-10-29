@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { CompleteAppearanceItem, CompleteSpriteInfo, SpriteDecomposition, GroupMapping } from './types';
 import { getAppearanceSprites } from './spriteCache';
+import { buildAssetPreviewAnimation } from './features/previewAnimation/assetPreviewAnimator';
 
 // Active animation players storage
 const activeAnimationPlayers = new Map<string, number>();
@@ -327,39 +328,31 @@ export function initAssetCardAutoAnimation(
       const details = await invoke('get_complete_appearance', { category, id: appearanceId }) as CompleteAppearanceItem;
       if (!autoAnimateGridEnabled) return;
 
-      const groupOffsets = computeGroupOffsetsFromDetails(details);
-      let groupIndex = -1;
-      for (let i = 0; i < details.frame_groups.length; i++) {
-        const si = details.frame_groups[i]?.sprite_info;
-        const f = si ? (si.animation ? si.animation.phases.length : (si.pattern_frames ?? 1)) : 0;
-        if (f > 1) { groupIndex = i; break; }
+      const sequence = await buildAssetPreviewAnimation(category, appearanceId, details, sprites);
+      if (!sequence || sequence.frames.length === 0) {
+        return;
       }
-      if (groupIndex < 0) return;
-      const spriteInfo = details.frame_groups[groupIndex]?.sprite_info;
-      if (!spriteInfo) return;
-      const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_frames ?? 1);
-      if (frames <= 1) return;
 
-      const baseOffset = groupOffsets[groupIndex];
-      const dims = decomposeSpriteIndex(spriteInfo, 0);
       const key = `asset:${category}:${appearanceId}`;
-      let phase = dims.phaseIndex;
+      let frameIndex = 0;
 
       const draw = () => {
-        const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, dims.layerIndex, dims.x, dims.y, dims.z, phase);
-        if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+        const frame = sequence.frames[frameIndex];
+        if (frame) {
+          imgEl.src = `data:image/png;base64,${frame}`;
         }
       };
       draw();
 
+      if (sequence.frames.length <= 1) {
+        return;
+      }
+
       const start = () => {
-        const speed = Math.max(50, Math.min(1000, spriteInfo.animation?.phases?.[0]?.duration_min ?? 250));
         const timerId = window.setInterval(() => {
-          if (frames <= 1) return;
-          phase = (phase + 1) % frames;
+          frameIndex = (frameIndex + 1) % sequence.frames.length;
           draw();
-        }, speed);
+        }, sequence.interval);
         activeAnimationPlayers.set(key, timerId);
         container.classList.add('animating');
       };

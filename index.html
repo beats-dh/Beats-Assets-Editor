@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="/src/styles/main.css" />
+    <link rel="stylesheet" href="/src/features/layout/headerSpacing.css" />
+    <link rel="stylesheet" href="/src/features/assetGrid/assetSelectionLayout.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tibia Assets Editor</title>
     <script type="module" src="/src/main.ts" defer></script>
@@ -263,34 +265,37 @@
 
           <div class="header-right">
             <div class="results-info">
-              <span id="results-count" class="results-text">0 items</span>
+              <span id="results-count" class="results-text">0 itens</span>
             </div>
-            
-            <div class="pagination-nav">
-              <button id="prev-page" class="pagination-btn" disabled>
-                <span>←</span>
+
+            <div class="pagination-nav" role="group" aria-label="Controle de paginação">
+              <button id="prev-page" class="pagination-btn" type="button" aria-label="Página anterior">
+                <span>◀</span>
               </button>
               <div class="pagination-info">
-                <span id="page-info">1/1</span>
+                <span id="page-info" class="results-text">Página 1 de 1</span>
               </div>
-              <button id="next-page" class="pagination-btn" disabled>
-                <span>→</span>
+              <button id="next-page" class="pagination-btn" type="button" aria-label="Próxima página">
+                <span>▶</span>
               </button>
             </div>
-            
+
+            <div class="page-size-container" aria-label="Itens por página">
+              <select id="page-size" class="page-size-select">
+                <option value="100" selected>100</option>
+                <option value="500">500</option>
+                <option value="1000">1000</option>
+                <option value="10000">10000</option>
+                <option value="50000">50000</option>
+              </select>
+            </div>
+
             <div id="subcategory-container" class="filter-container" style="display: none;">
               <select id="subcategory-select" class="filter-select">
                 <option value="All">All</option>
               </select>
             </div>
-            
-            <div class="page-size-container">
-              <select id="page-size" class="page-size-select">
-                <option value="20">20</option>
-                <option value="50" selected>50</option>
-                <option value="100">100</option>
-              </select>
-            </div>
+
           </div>
         </header>
 

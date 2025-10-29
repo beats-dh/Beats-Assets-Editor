@@ -1,0 +1,35 @@
+.modern-assets-grid .asset-item .asset-visual-row {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+
+.modern-assets-grid .asset-item .asset-select-control {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.55);
+  border-color: rgba(148, 163, 184, 0.6);
+  box-shadow:
+    0 2px 6px rgba(15, 23, 42, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.modern-assets-grid .asset-item .asset-select-control:hover {
+  background: rgba(15, 23, 42, 0.75);
+}
+
+.modern-assets-grid .asset-item .asset-image-container {
+  margin-bottom: 0;
+}
+
+.modern-assets-grid .asset-item .asset-image-container img,
+.modern-assets-grid .asset-item .asset-image-container canvas {
+  margin-top: 12px;
+}
