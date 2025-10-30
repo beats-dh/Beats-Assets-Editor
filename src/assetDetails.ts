@@ -5,6 +5,7 @@ import { getAppearanceSprites } from './spriteCache';
 import { stopDetailAnimationPlayers, initAnimationPlayersForDetails, initDetailSpriteCardAnimations } from './animation';
 import { renderTextureTab } from './textureTab';
 import { loadAssets, getCurrentPage, setCurrentPage, getCurrentPageSize, getTotalItemsCount, getCurrentCategory } from './assetUI';
+import { translate } from './i18n';
 
 // Current appearance being displayed
 let currentAppearanceDetails: CompleteAppearanceItem | null = null;
@@ -421,7 +422,8 @@ export async function loadDetailSprites(category: string, id: number): Promise<v
 async function displaySoundDetails(sound: any, soundId: number): Promise<void> {
   if (!detailsContent) return;
 
-  const soundType = sound.sound_type || 'Unknown';
+  const soundTypeValue = sound.sound_type || 'Unknown';
+  const soundTypeLabel = soundTypeValue === 'Unknown' ? translate('general.unknown') : soundTypeValue;
   const hasRandomSounds = sound.random_sound_ids && sound.random_sound_ids.length > 0;
   const primarySoundId: number | undefined = (sound.sound_id !== null && sound.sound_id !== undefined)
     ? sound.sound_id
@@ -434,7 +436,7 @@ async function displaySoundDetails(sound: any, soundId: number): Promise<void> {
         <div class="detail-icon">🔊</div>
         <div class="detail-title-group">
           <h2>Sound Effect #${soundId}</h2>
-          <p class="detail-subtitle">${soundType}</p>
+          <p class="detail-subtitle">${soundTypeLabel}</p>
         </div>
       </div>
     </div>
@@ -448,7 +450,7 @@ async function displaySoundDetails(sound: any, soundId: number): Promise<void> {
         </div>
         <div class="detail-item">
           <span class="detail-label">Type:</span>
-          <span class="detail-value">${soundType}</span>
+          <span class="detail-value">${soundTypeLabel}</span>
         </div>
   `;
 
@@ -584,7 +586,11 @@ function renderSoundEffectEdit(sound: any, soundId: number): void {
       <div class="form-grid">
         <label>Tipo
           <select id="se-sound-type">
-            ${typeOptions.map(t => `<option value="${t}" ${t === currentType ? 'selected' : ''}>${t}</option>`).join('')}
+            ${typeOptions.map((t) => {
+              const optionLabel = t === 'Unknown' ? translate('general.unknown') : t;
+              const isSelected = t === currentType ? 'selected' : '';
+              return `<option value="${t}" ${isSelected}>${optionLabel}</option>`;
+            }).join('')}
           </select>
         </label>
         <label>Modo
@@ -1012,6 +1018,9 @@ function renderAmbienceObjectStreamEdit(obj: any, objId: number): void {
 async function displayMusicTemplateDetails(tmpl: any, tmplId: number): Promise<void> {
   if (!detailsContent) return;
 
+  const musicTypeValue = tmpl.music_type || 'Unknown';
+  const musicTypeLabel = musicTypeValue === 'Unknown' ? translate('general.unknown') : musicTypeValue;
+
   let html = `
     <div class="asset-details-header">
       <div class="detail-header-left">
@@ -1036,7 +1045,7 @@ async function displayMusicTemplateDetails(tmpl: any, tmplId: number): Promise<v
         </div>
         <div class="detail-item">
           <span class="detail-label">Music Type:</span>
-          <span class="detail-value">${tmpl.music_type || 'Unknown'}</span>
+          <span class="detail-value">${musicTypeLabel}</span>
         </div>
       </div>
     </div>
@@ -1060,6 +1069,7 @@ async function displayMusicTemplateDetails(tmpl: any, tmplId: number): Promise<v
 function renderMusicTemplateEdit(tmpl: any, tmplId: number): void {
   const editContent = document.getElementById('edit-content');
   if (!editContent) return;
+  const currentType = tmpl.music_type || 'Unknown';
   const musicOptions = ['Unknown','Music','Music Immediate','Music Title'];
   editContent.innerHTML = `
     <div class="edit-section">
@@ -1070,7 +1080,11 @@ function renderMusicTemplateEdit(tmpl: any, tmplId: number): void {
         </label>
         <label>Music Type
           <select id="mt-music-type">
-            ${musicOptions.map(o => `<option value="${o}" ${o === (tmpl.music_type || 'Unknown') ? 'selected' : ''}>${o}</option>`).join('')}
+            ${musicOptions.map((o) => {
+              const optionLabel = o === 'Unknown' ? translate('general.unknown') : o;
+              const isSelected = o === currentType ? 'selected' : '';
+              return `<option value="${o}" ${isSelected}>${optionLabel}</option>`;
+            }).join('')}
           </select>
         </label>
       </div>

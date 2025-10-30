@@ -26,6 +26,17 @@ import {
 import { initAssetDetailsElements } from './assetDetails';
 import { setupGlobalEventListeners } from './eventListeners';
 import { setupImportExportFeature } from './importExport';
+import {
+  applyDocumentTranslations,
+  DEFAULT_LANGUAGE,
+  getLanguageOptionLabel,
+  getThemeLabel,
+  LanguageCode,
+  LANGUAGE_LOCALES,
+  LANGUAGE_STORAGE_KEY,
+  SUPPORTED_LANGUAGES,
+  translate
+} from './i18n';
 
 // Extend Window interface to include debugCache
 declare global {
@@ -36,6 +47,59 @@ declare global {
 
 // Minimal global state needed for initialization
 const LAST_TIBIA_PATH_KEY = 'lastTibiaPath';
+const THEME_STORAGE_KEY = 'appThemePreference';
+const DEFAULT_THEME = 'default' as const;
+const SUPPORTED_THEMES = ['default', 'ocean', 'aurora', 'ember', 'forest', 'dusk'] as const;
+
+type ThemeName = (typeof SUPPORTED_THEMES)[number];
+
+const THEME_CLASSES = SUPPORTED_THEMES.map(theme => `theme-${theme}`);
+
+function isLanguageCode(value: string): value is LanguageCode {
+  return (SUPPORTED_LANGUAGES as readonly string[]).includes(value);
+}
+
+function isThemeName(value: string): value is ThemeName {
+  return (SUPPORTED_THEMES as readonly string[]).includes(value);
+}
+
+function getStoredLanguage(): LanguageCode {
+  const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  return stored && isLanguageCode(stored) ? stored : DEFAULT_LANGUAGE;
+}
+
+function getStoredTheme(): ThemeName {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  return stored && isThemeName(stored) ? stored : DEFAULT_THEME;
+}
+
+function applyLanguage(language: string, persist = false): LanguageCode {
+  const normalized = isLanguageCode(language) ? language : DEFAULT_LANGUAGE;
+  const locale = LANGUAGE_LOCALES[normalized];
+  document.documentElement.setAttribute('lang', locale);
+  if (document.body) {
+    document.body.setAttribute('data-language', normalized);
+  }
+  applyDocumentTranslations(normalized);
+  if (persist) {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, normalized);
+  }
+  return normalized;
+}
+
+function applyTheme(theme: string, persist = false): ThemeName {
+  const normalized = isThemeName(theme) ? theme : DEFAULT_THEME;
+  const body = document.body;
+  if (body) {
+    THEME_CLASSES.forEach(cls => body.classList.remove(cls));
+    body.classList.add(`theme-${normalized}`);
+    body.setAttribute('data-theme', normalized);
+  }
+  if (persist) {
+    localStorage.setItem(THEME_STORAGE_KEY, normalized);
+  }
+  return normalized;
+}
 
 // DOM references for setup screen
 let tibiaPathInput: HTMLInputElement | null;
@@ -49,7 +113,7 @@ async function loadAppearances(): Promise<void> {
   const tibiaPath = tibiaPathInput.value;
 
   if (!tibiaPath) {
-    showStatus("Please enter the Tibia client path", "error");
+    showStatus(translate('status.enterPath'), "error");
     return;
   }
 
@@ -69,7 +133,7 @@ async function loadAppearances(): Promise<void> {
     const files = await invoke<string[]>("list_appearance_files", { tibiaPath });
 
     if (files.length === 0) {
-      showStatus("No appearance files found in the assets directory", "error");
+      showStatus(translate('status.noFilesFound'), "error");
       return;
     }
 
@@ -101,7 +165,8 @@ async function loadAppearances(): Promise<void> {
       if (soundsCount) {
         const stats = await invoke("get_sounds_stats");
         if (stats && typeof stats === 'object' && 'total_sounds' in stats) {
-          soundsCount.textContent = `${(stats as any).total_sounds} itens`;
+          const totalSounds = (stats as any).total_sounds as number;
+          soundsCount.textContent = translate('count.items', { count: totalSounds });
         }
       }
     } catch (soundError) {
@@ -119,7 +184,8 @@ async function loadAppearances(): Promise<void> {
 
   } catch (error) {
     console.error('Error loading appearances:', error);
-    showStatus(`Error: ${error}`, "error");
+    const message = error instanceof Error ? error.message : String(error);
+    showStatus(translate('status.loadError', { message }), "error");
   }
 }
 
@@ -138,7 +204,7 @@ function displayFilesList(files: string[]): void {
   if (!filesList) return;
 
   filesList.innerHTML = `
-    <h3>Available Appearance Files:</h3>
+    <h3>${translate('files.availableTitle')}</h3>
     <ul>
       ${files.map(file => `<li>${file}</li>`).join('')}
     </ul>
@@ -158,24 +224,24 @@ async function browseTibiaPath(): Promise<void> {
     }
   } catch (err) {
     console.error('Failed to select directory:', err);
-    showStatus('Failed to open directory selector', 'error');
+    showStatus(translate('status.directoryOpenFailed'), 'error');
   }
 }
 
 async function showLoadingScreen(): Promise<void> {
-  updateProgress(0, 'Inicializando aplicação...');
+  updateProgress(0, translate('progress.step.initialize'));
 
   await delay(500);
-  updateProgress(20, 'Verificando arquivos...');
+  updateProgress(20, translate('progress.step.verify'));
 
   await delay(800);
-  updateProgress(50, 'Carregando configurações...');
+  updateProgress(50, translate('progress.step.loadSettings'));
 
   await delay(600);
-  updateProgress(80, 'Preparando interface...');
+  updateProgress(80, translate('progress.step.prepare'));
 
   await delay(400);
-  updateProgress(100, 'Pronto!');
+  updateProgress(100, translate('progress.step.ready'));
 
   await delay(500);
   showSetupSection();
@@ -202,10 +268,20 @@ function initializeAssetsBrowser(): void {
   // Settings menu
   const settingsBtn = document.querySelector("#settings-btn") as HTMLButtonElement | null;
   const settingsMenu = document.getElementById('settings-menu') as HTMLElement | null;
+  const languageSelect = document.getElementById('language-select') as HTMLSelectElement | null;
+  const themeOptionButtons = settingsMenu
+    ? Array.from(settingsMenu.querySelectorAll<HTMLButtonElement>('.theme-option'))
+    : [];
   const autoAnimateToggle = document.getElementById('auto-animate-toggle') as HTMLInputElement | null;
   const clearCacheBtn = document.getElementById('clear-cache-btn') as HTMLButtonElement | null;
   const refreshBtn = document.getElementById('refresh-btn') as HTMLButtonElement | null;
   const homeBtn = document.getElementById('home-btn') as HTMLButtonElement | null;
+
+  const updateActiveThemeOption = (activeTheme: ThemeName) => {
+    themeOptionButtons.forEach(button => {
+      button.classList.toggle('active', button.dataset.theme === activeTheme);
+    });
+  };
 
   if (settingsBtn && settingsMenu) {
     settingsBtn.addEventListener('click', (e) => {
@@ -222,6 +298,37 @@ function initializeAssetsBrowser(): void {
     });
   }
 
+  const storedTheme = getStoredTheme();
+  if (themeOptionButtons.length > 0) {
+    updateActiveThemeOption(storedTheme);
+    themeOptionButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const desiredTheme = button.dataset.theme ?? DEFAULT_THEME;
+        const appliedTheme = applyTheme(desiredTheme, true);
+        updateActiveThemeOption(appliedTheme);
+        showStatus(
+          translate('status.themeApplied', { theme: getThemeLabel(appliedTheme) }),
+          'success'
+        );
+      });
+    });
+  }
+
+  if (languageSelect) {
+    const storedLanguage = getStoredLanguage();
+    languageSelect.value = storedLanguage;
+    languageSelect.addEventListener('change', () => {
+      const appliedLanguage = applyLanguage(languageSelect.value, true);
+      languageSelect.value = appliedLanguage;
+      showStatus(
+        translate('status.languageUpdated', {
+          language: getLanguageOptionLabel(appliedLanguage)
+        }),
+        'success'
+      );
+    });
+  }
+
   if (autoAnimateToggle) {
     autoAnimateToggle.checked = localStorage.getItem('autoAnimateGridEnabled') === 'true';
     autoAnimateToggle.addEventListener('change', () => {
@@ -234,14 +341,14 @@ function initializeAssetsBrowser(): void {
   if (clearCacheBtn) {
     clearCacheBtn.addEventListener('click', async () => {
       await debugCache.clearAllCaches();
-      showStatus('Cache cleared successfully', 'success');
+      showStatus(translate('status.cacheCleared'), 'success');
     });
   }
 
   if (refreshBtn) {
     refreshBtn.addEventListener('click', async () => {
       await loadAssets();
-      showStatus('Assets refreshed', 'success');
+      showStatus(translate('status.assetsRefreshed'), 'success');
     });
   }
 
@@ -268,6 +375,11 @@ function initializeAssetsBrowser(): void {
 
 // Main initialization
 window.addEventListener("DOMContentLoaded", async () => {
+  const initialTheme = getStoredTheme();
+  applyTheme(initialTheme);
+  const initialLanguage = getStoredLanguage();
+  applyLanguage(initialLanguage);
+
   tibiaPathInput = document.querySelector("#tibia-path");
   loadButton = document.querySelector("#load-button");
   statsContainer = document.querySelector("#header-stats");

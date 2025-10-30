@@ -8,6 +8,7 @@ import {
   getSoundCategory
 } from './soundTypes';
 import { showStatus } from './utils';
+import { translate } from './i18n';
 
 // State
 let soundsLoaded = false;
@@ -33,7 +34,7 @@ export function getSoundTypes(): string[] {
 export async function loadSoundsFile(soundsDir: string): Promise<SoundStats> {
   try {
     console.log('Loading sounds from:', soundsDir);
-    showStatus('Loading sounds file...', 'loading');
+    showStatus(translate('sounds.loading'), 'loading');
 
     const stats = await invoke<SoundStats>('load_sounds_file', { soundsDir });
 
@@ -41,12 +42,13 @@ export async function loadSoundsFile(soundsDir: string): Promise<SoundStats> {
     soundStats = stats;
 
     console.log('Sounds loaded successfully:', stats);
-    showStatus(`Loaded ${stats.total_sounds} sounds`, 'success');
+    showStatus(translate('sounds.loaded', { count: stats.total_sounds }), 'success');
 
     return stats;
   } catch (error) {
     console.error('Failed to load sounds:', error);
-    showStatus(`Failed to load sounds: ${error}`, 'error');
+    const message = error instanceof Error ? error.message : String(error);
+    showStatus(translate('sounds.loadFailed', { message }), 'error');
     throw error;
   }
 }
