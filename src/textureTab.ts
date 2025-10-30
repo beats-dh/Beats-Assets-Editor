@@ -37,6 +37,13 @@ type ImageCache = Map<number, Promise<HTMLImageElement>>;
 
 type TextureCategory = 'Outfits' | 'Objects' | 'Other';
 
+interface NormalizedBoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export async function renderTextureTab(details: CompleteAppearanceItem, category: string): Promise<void> {
   const textureContent = document.getElementById('texture-content');
   if (!textureContent) return;
@@ -282,6 +289,58 @@ function collectBoundingBoxes(): Array<{ x?: number | null; y?: number | null; w
   return boxes;
 }
 
+function parseBoxValue(value: number | null | undefined): number {
+  return typeof value === 'number' && !Number.isNaN(value) ? value : 0;
+}
+
+function getPreviewBoundingBoxes(spriteInfo?: CompleteSpriteInfo): NormalizedBoundingBox[] {
+  const body = document.getElementById('texture-bounding-box-body') as HTMLTableSectionElement | null;
+  const liveBoxes = body ? collectBoundingBoxes() : [];
+  const source = body ? liveBoxes : spriteInfo?.bounding_boxes ?? [];
+  return source.map((box) => ({
+    x: parseBoxValue(box.x),
+    y: parseBoxValue(box.y),
+    width: parseBoxValue(box.width),
+    height: parseBoxValue(box.height),
+  }));
+}
+
+function getBoundingSquareValue(): number | null {
+  const input = document.getElementById('texture-bounding-square') as HTMLInputElement | null;
+  if (!input) return null;
+  const value = Number(input.value || '');
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function computePreviewDimensions(
+  baseWidth: number,
+  baseHeight: number,
+  boxes: NormalizedBoundingBox[],
+  boundingSquare: number | null
+): { width: number; height: number } {
+  let width = baseWidth;
+  let height = baseHeight;
+  for (const box of boxes) {
+    width = Math.max(width, box.x + box.width);
+    height = Math.max(height, box.y + box.height);
+  }
+  if (boundingSquare && boundingSquare > 0) {
+    width = Math.max(width, boundingSquare);
+    height = Math.max(height, boundingSquare);
+  }
+  return { width, height };
+}
+
+function drawBoundingSquareOverlay(ctx: CanvasRenderingContext2D, boundingSquare: number | null): void {
+  if (!boundingSquare || boundingSquare <= 0) return;
+  ctx.save();
+  ctx.strokeStyle = '#4caf50';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.strokeRect(0, 0, boundingSquare, boundingSquare);
+  ctx.restore();
+}
+
 function collectAnimationSettings(): { default_start_phase?: number | null; loop_type?: number | null; loop_count?: number | null; synchronized?: boolean; random_start_phase?: boolean; phases: Array<{ duration_min?: number | null; duration_max?: number | null; }> } | null {
   const frameInput = document.getElementById('texture-animation-frame-count') as HTMLInputElement | null;
   const frameCount = frameInput ? Number(frameInput.value || '0') : 0;
@@ -504,13 +563,11 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     }
   };
 
-  const drawBoundingBoxes = (spriteInfo: CompleteSpriteInfo | undefined): void => {
-    if (!state.showBoundingBoxes || !spriteInfo) return;
-    const boxes = spriteInfo.bounding_boxes || [];
+  const drawBoundingBoxes = (boxes: NormalizedBoundingBox[]): void => {
     if (!boxes.length) return;
     const directionIndex = clamp(state.direction, 0, boxes.length - 1);
     const box = boxes[directionIndex] || boxes[0];
-    if (!box || box.width === undefined || box.height === undefined) return;
+    if (!box) return;
     ctx.save();
     ctx.strokeStyle = '#ff9800';
     ctx.lineWidth = 1;
@@ -594,6 +651,8 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
       return;
     }
     const frameCount = getFrameCount(spriteInfo);
+    const boxes = getPreviewBoundingBoxes(spriteInfo);
+    const boundingSquare = getBoundingSquareValue();
     const baseOffset = groupOffsets[state.frameGroupIndex] ?? 0;
     const directionMax = Math.max(0, ensureNumber(spriteInfo.pattern_width, 1) - 1);
     const addonMax = Math.max(0, ensureNumber(spriteInfo.pattern_height, 1) - 1);
@@ -623,15 +682,19 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     for (const addon of variants) {
       const rendered = await renderSpriteVariant(spriteInfo, baseOffset, direction, addon, mount, state.frame);
       if (!initialized) {
-        canvas.width = rendered.width;
-        canvas.height = rendered.height;
+        const { width, height } = computePreviewDimensions(rendered.width, rendered.height, boxes, boundingSquare);
+        canvas.width = width;
+        canvas.height = height;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         initialized = true;
       }
       ctx.drawImage(rendered, 0, 0);
     }
 
-    drawBoundingBoxes(spriteInfo);
+    if (state.showBoundingBoxes) {
+      drawBoundingSquareOverlay(ctx, boundingSquare);
+      drawBoundingBoxes(boxes);
+    }
   };
 
   const refreshPreviewControls = (): void => {
@@ -789,16 +852,26 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
   });
 
   const boundingBody = document.getElementById('texture-bounding-box-body');
-  boundingBody?.addEventListener('click', (event) => {
+  boundingBody?.addEventListener('click', async (event) => {
     const target = event.target as HTMLElement;
     if (target.classList.contains('texture-remove-box')) {
       const row = target.closest('tr');
       row?.remove();
+      await stopAndRedraw();
+    }
+  });
+
+  boundingBody?.addEventListener('input', async (event) => {
+    const target = event.target as HTMLElement;
+    if (!(target instanceof HTMLInputElement)) return;
+    const classes = ['texture-box-x', 'texture-box-y', 'texture-box-width', 'texture-box-height'];
+    if (classes.some((cls) => target.classList.contains(cls))) {
+      await stopAndRedraw();
     }
   });
 
   const addBoundingButton = document.getElementById('texture-add-bounding-box') as HTMLButtonElement | null;
-  addBoundingButton?.addEventListener('click', () => {
+  addBoundingButton?.addEventListener('click', async () => {
     const body = document.getElementById('texture-bounding-box-body') as HTMLTableSectionElement | null;
     if (!body) return;
     if (body.querySelector('.texture-empty-row')) {
@@ -815,6 +888,12 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
       <td><button type="button" class="texture-remove-box">✕</button></td>
     `;
     body.appendChild(row);
+    await stopAndRedraw();
+  });
+
+  const boundingSquareInput = document.getElementById('texture-bounding-square') as HTMLInputElement | null;
+  boundingSquareInput?.addEventListener('input', async () => {
+    await stopAndRedraw();
   });
 
   const saveButton = document.getElementById('texture-save-button') as HTMLButtonElement | null;
@@ -916,13 +995,16 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
     );
 
     const image = await loadImage(aggregatedIndex, sprites, imageCache);
-    canvas.width = image.width;
-    canvas.height = image.height;
+    const boxes = getPreviewBoundingBoxes(spriteInfo);
+    const boundingSquare = getBoundingSquareValue();
+    const { width, height } = computePreviewDimensions(image.width, image.height, boxes, boundingSquare);
+    canvas.width = width;
+    canvas.height = height;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(image, 0, 0);
 
     if (state.showBoundingBoxes) {
-      const boxes = spriteInfo.bounding_boxes || [];
+      drawBoundingSquareOverlay(ctx, boundingSquare);
       if (boxes.length > 0) {
         const directionIndex = clamp(state.patternX, 0, boxes.length - 1);
         const box = boxes[directionIndex] || boxes[0];
@@ -993,16 +1075,26 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
   });
 
   const boundingBody = document.getElementById('texture-bounding-box-body');
-  boundingBody?.addEventListener('click', (event) => {
+  boundingBody?.addEventListener('click', async (event) => {
     const target = event.target as HTMLElement;
     if (target.classList.contains('texture-remove-box')) {
       const row = target.closest('tr');
       row?.remove();
+      await draw();
+    }
+  });
+
+  boundingBody?.addEventListener('input', async (event) => {
+    const target = event.target as HTMLElement;
+    if (!(target instanceof HTMLInputElement)) return;
+    const classes = ['texture-box-x', 'texture-box-y', 'texture-box-width', 'texture-box-height'];
+    if (classes.some((cls) => target.classList.contains(cls))) {
+      await draw();
     }
   });
 
   const addBoundingButton = document.getElementById('texture-add-bounding-box') as HTMLButtonElement | null;
-  addBoundingButton?.addEventListener('click', () => {
+  addBoundingButton?.addEventListener('click', async () => {
     const body = document.getElementById('texture-bounding-box-body') as HTMLTableSectionElement | null;
     if (!body) return;
     if (body.querySelector('.texture-empty-row')) {
@@ -1019,6 +1111,12 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
       <td><button type="button" class="texture-remove-box">✕</button></td>
     `;
     body.appendChild(row);
+    await draw();
+  });
+
+  const boundingSquareInput = document.getElementById('texture-bounding-square') as HTMLInputElement | null;
+  boundingSquareInput?.addEventListener('input', async () => {
+    await draw();
   });
 
   const saveButton = document.getElementById('texture-save-button') as HTMLButtonElement | null;
