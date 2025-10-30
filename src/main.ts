@@ -37,6 +37,7 @@ import {
   SUPPORTED_LANGUAGES,
   translate
 } from './i18n';
+import { initializeAppLauncher, openAppLauncherHome } from './mainMenu';
 
 // Extend Window interface to include debugCache
 declare global {
@@ -414,14 +415,38 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   document.querySelector("#browse-dir")?.addEventListener("click", browseTibiaPath);
 
+  document.getElementById('setup-main-menu-btn')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    openAppLauncherHome();
+  });
+
   // Initialize assets browser elements
   initializeAssetsBrowser();
 
   // Setup global event listeners
   setupGlobalEventListeners();
 
-  // Start loading screen
-  await showLoadingScreen();
+  initializeAppLauncher({
+    onLauncherVisible: () => {
+      const loadingScreen = document.getElementById('loading-screen') as HTMLElement | null;
+      const mainApp = document.getElementById('main-app') as HTMLElement | null;
+
+      if (loadingScreen) {
+        loadingScreen.style.display = 'none';
+      }
+
+      if (mainApp) {
+        mainApp.style.display = 'none';
+      }
+    },
+    onAssetsEditorSelected: async () => {
+      const loadingScreen = document.getElementById('loading-screen') as HTMLElement | null;
+      if (loadingScreen) {
+        loadingScreen.style.display = 'flex';
+      }
+      await showLoadingScreen();
+    }
+  });
 });
 
 // Expose debugCache globally for console access

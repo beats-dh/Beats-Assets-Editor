@@ -110,6 +110,13 @@ const translationEntries = {
     es: 'Cargar recursos',
     ru: 'Загрузить ресурсы'
   },
+  'setup.returnToMenu': {
+    default: 'Main menu',
+    'pt-BR': 'Menu principal',
+    en: 'Main menu',
+    es: 'Menú principal',
+    ru: 'Главное меню'
+  },
   'select.placeholder': {
     default: 'Selecione',
     'pt-BR': 'Selecione',
