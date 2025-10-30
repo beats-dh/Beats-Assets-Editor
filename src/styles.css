@@ -480,11 +480,15 @@ body {
   gap: var(--space-lg);
   min-height: 56px;
   backdrop-filter: blur(20px);
-  box-shadow: 
+  box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.3),
     0 2px 4px -1px rgba(0, 0, 0, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  position: relative;
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
   overflow: visible;
 }
 
@@ -2722,6 +2726,11 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-x: auto;
+}
+
+.texture-bounding-section {
+  width: 100%;
 }
 
 .texture-bounding-table {

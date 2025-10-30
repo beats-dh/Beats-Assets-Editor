@@ -143,7 +143,15 @@ function buildCommonFormHTML(): string {
       </div>
       <div id="texture-animation-phases" class="texture-animation-phases"></div>
     </div>
-    <div class="texture-form-section">
+    <div class="texture-form-actions">
+      <button type="button" id="texture-save-button" class="btn-primary">Save Texture</button>
+    </div>
+  `;
+}
+
+function buildBoundingBoxSectionHTML(): string {
+  return `
+    <div class="texture-form-section texture-bounding-section">
       <h4>Bounding Boxes</h4>
       <div class="texture-bounding-boxes">
         <table class="texture-bounding-table">
@@ -161,9 +169,6 @@ function buildCommonFormHTML(): string {
         </table>
         <button type="button" id="texture-add-bounding-box" class="btn-secondary">Add Bounding Box</button>
       </div>
-    </div>
-    <div class="texture-form-actions">
-      <button type="button" id="texture-save-button" class="btn-primary">Save Texture</button>
     </div>
   `;
 }
@@ -505,11 +510,12 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
             <label id="outfit-mount-wrapper" style="display:none"><input type="checkbox" id="outfit-mount-toggle" /> Mount</label>
           </div>
         </div>
-      </div>
-      <div class="texture-settings-column">
-        ${buildCommonFormHTML()}
-      </div>
+      ${buildBoundingBoxSectionHTML()}
     </div>
+    <div class="texture-settings-column">
+      ${buildCommonFormHTML()}
+    </div>
+  </div>
   `;
 
   const canvas = document.getElementById('outfit-preview-canvas') as HTMLCanvasElement | null;
@@ -937,6 +943,7 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
             <label class="texture-checkbox"><input type="checkbox" id="object-preview-show-bboxes" checked /> Show bounding boxes</label>
           </div>
         </div>
+        ${buildBoundingBoxSectionHTML()}
       </div>
       <div class="texture-settings-column">
         ${buildCommonFormHTML()}

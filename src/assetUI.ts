@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getAppearanceSprites, createSpriteImage, createPlaceholderImage } from './spriteCache';
 import { stopAllAnimationPlayers, initAssetCardAutoAnimation } from './animation';
 import { isAssetSelected } from './assetSelection';
+import { showStatus } from './utils';
 
 let currentCategory = 'Objects';
 let currentSubcategory = 'All';
@@ -9,6 +10,7 @@ let currentPage = 0;
 let currentPageSize = 100;
 let currentSearch = '';
 let totalItems = 0;
+let pendingScrollToId: number | null = null;
 
 const storedAnimationPreference = localStorage.getItem('autoAnimateGridEnabled');
 let autoAnimateGridEnabled = storedAnimationPreference === null ? true : storedAnimationPreference === 'true';
@@ -204,12 +206,29 @@ export async function loadAssets(options: LoadAssetsOptions = {}): Promise<void>
     document.dispatchEvent(new CustomEvent<AssetsGridRenderedEventDetail>('assets-grid-rendered', {
       detail: renderedEvent
     }));
+
+    if (!append && pendingScrollToId !== null) {
+      const targetId = pendingScrollToId;
+      pendingScrollToId = null;
+      requestAnimationFrame(() => {
+        focusAssetInView(targetId);
+      });
+    }
   } catch (error) {
     console.error('Error loading assets:', error);
     if (!append) {
       showErrorState(error as string);
     }
+    pendingScrollToId = null;
   }
+}
+
+function focusAssetInView(assetId: number): void {
+  if (!assetsGrid) return;
+  const assetElement = assetsGrid.querySelector<HTMLElement>(`.asset-item[data-asset-id="${assetId}"]`);
+  if (!assetElement) return;
+
+  assetElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
 }
 
 function showLoadingState(): void {
@@ -534,21 +553,67 @@ export function changePage(newPage: number): void {
   }
 }
 
-export function performSearch(): void {
-  if (assetSearch) {
-    currentSearch = assetSearch.value.trim();
+export async function performSearch(): Promise<void> {
+  if (!assetSearch) return;
+
+  const rawInput = assetSearch.value.trim();
+  if (!rawInput) {
+    currentSearch = '';
+    pendingScrollToId = null;
     currentPage = 0;
-    loadAssets();
+    await loadAssets();
+    return;
+  }
+
+  const numericMatch = rawInput.match(/\d+/);
+  if (!numericMatch) {
+    showStatus('Please enter a valid numeric appearance ID.', 'error');
+    return;
+  }
+
+  const targetId = Number.parseInt(numericMatch[0], 10);
+  if (Number.isNaN(targetId)) {
+    showStatus('Please enter a valid numeric appearance ID.', 'error');
+    return;
+  }
+
+  try {
+    assetSearch.value = String(targetId);
+    const subcategory = currentCategory === 'Objects' && currentSubcategory !== 'All'
+      ? currentSubcategory
+      : null;
+
+    const position = await invoke<number | null>('find_appearance_position', {
+      category: currentCategory,
+      id: targetId,
+      subcategory
+    });
+
+    if (position === null) {
+      showStatus(`Appearance ${targetId} was not found in the current view.`, 'error');
+      return;
+    }
+
+    currentSearch = '';
+    const pageSize = currentPageSize || 1;
+    currentPage = Math.floor(position / pageSize);
+    pendingScrollToId = targetId;
+    await loadAssets();
+  } catch (error) {
+    console.error('Failed to locate appearance by ID:', error);
+    pendingScrollToId = null;
+    showStatus('Unable to locate the requested appearance.', 'error');
   }
 }
 
-export function clearSearch(): void {
-  if (assetSearch) {
-    assetSearch.value = '';
-    currentSearch = '';
-    currentPage = 0;
-    loadAssets();
-  }
+export async function clearSearch(): Promise<void> {
+  if (!assetSearch) return;
+
+  assetSearch.value = '';
+  currentSearch = '';
+  pendingScrollToId = null;
+  currentPage = 0;
+  await loadAssets();
 }
 
 export function switchCategory(category: string): void {
@@ -556,6 +621,7 @@ export function switchCategory(category: string): void {
   currentPage = 0;
   currentSearch = '';
   currentSubcategory = 'All';
+  pendingScrollToId = null;
 
   if (assetSearch) {
     assetSearch.value = '';
@@ -606,6 +672,7 @@ export async function loadSubcategories(): Promise<void> {
 export function switchSubcategory(subcategory: string): void {
   currentSubcategory = subcategory;
   currentPage = 0;
+  pendingScrollToId = null;
   loadAssets();
 }
 
@@ -621,13 +688,26 @@ export function setupAssetsPaginationListeners(): void {
 }
 
 export function setupAssetsSearchListeners(): void {
-  document.querySelector('#search-btn')?.addEventListener('click', performSearch);
-  document.querySelector('#clear-search')?.addEventListener('click', clearSearch);
-  assetSearch?.addEventListener('keypress', (e) => {
+  const clearButton = document.querySelector('#clear-search') as HTMLButtonElement | null;
+  const searchButton = document.querySelector('#search-btn');
+
+  const updateClearButtonVisibility = (): void => {
+    if (!assetSearch || !clearButton) return;
+    clearButton.style.display = assetSearch.value.trim() ? 'flex' : 'none';
+  };
+
+  searchButton?.addEventListener('click', () => { void performSearch(); });
+  clearButton?.addEventListener('click', () => { void clearSearch(); updateClearButtonVisibility(); });
+
+  assetSearch?.addEventListener('input', updateClearButtonVisibility);
+  assetSearch?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-      performSearch();
+      e.preventDefault();
+      void performSearch();
     }
   });
+
+  updateClearButtonVisibility();
 }
 
 export function setupAssetsCategoryListeners(): void {

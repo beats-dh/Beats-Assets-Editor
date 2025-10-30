@@ -99,6 +99,64 @@ pub async fn list_appearances_by_category(
     Ok(filtered_items[start..end].to_vec())
 }
 
+/// Find the zero-based position of an appearance ID within the current filters
+#[tauri::command]
+pub async fn find_appearance_position(
+    category: AppearanceCategory,
+    id: u32,
+    subcategory: Option<ItemSubcategory>,
+    state: State<'_, AppState>,
+) -> Result<Option<usize>, String> {
+    let appearances_lock = state.appearances.lock().unwrap();
+
+    let appearances = match &*appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = match category {
+        AppearanceCategory::Objects => &appearances.object,
+        AppearanceCategory::Outfits => &appearances.outfit,
+        AppearanceCategory::Effects => &appearances.effect,
+        AppearanceCategory::Missiles => &appearances.missile,
+    };
+
+    let mut filtered_ids: Vec<u32> = items
+        .iter()
+        .filter_map(|appearance| {
+            let appearance_id = appearance.id.unwrap_or(0);
+
+            if category == AppearanceCategory::Objects {
+                if let Some(ref filter_subcategory) = subcategory {
+                    if *filter_subcategory != ItemSubcategory::All {
+                        let item_category: Option<i32> = appearance
+                            .flags
+                            .as_ref()
+                            .and_then(|flags| flags.market.as_ref())
+                            .and_then(|market| market.category);
+
+                        let expected_category = filter_subcategory.to_protobuf_value();
+
+                        if item_category != expected_category {
+                            return None;
+                        }
+                    }
+                }
+            }
+
+            Some(appearance_id)
+        })
+        .collect();
+
+    if filtered_ids.is_empty() {
+        return Ok(None);
+    }
+
+    filtered_ids.sort_unstable();
+
+    Ok(filtered_ids.iter().position(|&value| value == id))
+}
+
 /// Get detailed information about a specific appearance
 #[tauri::command]
 pub async fn get_appearance_details(
