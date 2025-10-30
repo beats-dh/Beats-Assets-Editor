@@ -102,6 +102,9 @@
   top: 48px;
   right: 0;
   min-width: 240px;
+  display: none;
+  flex-direction: column;
+  gap: var(--space-md);
   background: var(--control-bg);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
@@ -110,12 +113,57 @@
   z-index: 100;
 }
 
+.settings-menu.show {
+  display: flex;
+}
+
 .settings-item {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   color: var(--text-primary);
   font-size: 0.9rem;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.settings-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.settings-description {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.settings-select {
+  width: 100%;
+  height: var(--control-height);
+  background: var(--surface-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-sm);
+  font-size: 0.9rem;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.settings-select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
 }
 
 .settings-item label {

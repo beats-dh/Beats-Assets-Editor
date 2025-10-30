@@ -4,6 +4,7 @@ import { getCategoryInfo } from './utils';
 import { loadAssets, setCurrentCategory, setCurrentSubcategory, setCurrentPage, setCurrentSearch } from './assetUI';
 import { stopAllAnimationPlayers } from './animation';
 import { clearAssetSelection } from './assetSelection';
+import { translate, type TranslationKey } from './i18n';
 
 let currentView = 'main';
 let currentStats: AppearanceStats | null = null;
@@ -47,16 +48,16 @@ export function updateHeaderStats(): void {
   const soundsCount = document.getElementById('sounds-count');
 
   if (objectsCount && currentStats) {
-    objectsCount.textContent = `${currentStats.object_count} itens`;
+    objectsCount.textContent = translate('count.items', { count: currentStats.object_count });
   }
   if (outfitsCount && currentStats) {
-    outfitsCount.textContent = `${currentStats.outfit_count} itens`;
+    outfitsCount.textContent = translate('count.items', { count: currentStats.outfit_count });
   }
   if (effectsCount && currentStats) {
-    effectsCount.textContent = `${currentStats.effect_count} itens`;
+    effectsCount.textContent = translate('count.items', { count: currentStats.effect_count });
   }
   if (missilesCount && currentStats) {
-    missilesCount.textContent = `${currentStats.missile_count} itens`;
+    missilesCount.textContent = translate('count.items', { count: currentStats.missile_count });
   }
   // Sounds count will be loaded separately
   if (soundsCount) {
@@ -214,7 +215,7 @@ function renderSubcategoryOptions(category: string): void {
         console.error('Erro ao carregar subcategorias:', err);
         const option = document.createElement('option');
         option.value = 'All';
-        option.textContent = 'Todas as subcategorias';
+        option.textContent = translate('subcategory.option.allObjects');
         subcategorySelect.appendChild(option);
       });
   } else if (category === 'Sounds') {
@@ -224,52 +225,64 @@ function renderSubcategoryOptions(category: string): void {
         // Add "All" option first
         const allOption = document.createElement('option');
         allOption.value = 'All';
-        allOption.textContent = 'Todos os tipos';
+        allOption.textContent = translate('subcategory.option.allSounds');
         subcategorySelect.appendChild(allOption);
 
         // Add each sound type as a subcategory
         soundTypes.forEach((soundType) => {
           const option = document.createElement('option');
           option.value = soundType;
-          option.textContent = soundType;
+          const soundTypeKeys: Record<string, TranslationKey> = {
+            'Ambience Streams': 'subcategory.ambienceStreams',
+            'Ambience Object Streams': 'subcategory.ambienceObjectStreams',
+            'Music Templates': 'subcategory.musicTemplates'
+          };
+          option.textContent = soundTypeKeys[soundType]
+            ? translate(soundTypeKeys[soundType])
+            : soundType;
           subcategorySelect.appendChild(option);
         });
 
         // Add special groups for streams/templates
         const ambienceOption = document.createElement('option');
         ambienceOption.value = 'Ambience Streams';
-        ambienceOption.textContent = 'Ambience Streams';
+        ambienceOption.textContent = translate('subcategory.ambienceStreams');
         subcategorySelect.appendChild(ambienceOption);
 
         const ambienceObjOption = document.createElement('option');
         ambienceObjOption.value = 'Ambience Object Streams';
-        ambienceObjOption.textContent = 'Ambience Object Streams';
+        ambienceObjOption.textContent = translate('subcategory.ambienceObjectStreams');
         subcategorySelect.appendChild(ambienceObjOption);
 
         const musicTemplateOption = document.createElement('option');
         musicTemplateOption.value = 'Music Templates';
-        musicTemplateOption.textContent = 'Music Templates';
+        musicTemplateOption.textContent = translate('subcategory.musicTemplates');
         subcategorySelect.appendChild(musicTemplateOption);
       })
       .catch((err) => {
         console.error('Erro ao carregar tipos de sons:', err);
         const option = document.createElement('option');
         option.value = 'All';
-        option.textContent = 'Todos os tipos';
+        option.textContent = translate('subcategory.option.allSounds');
         subcategorySelect.appendChild(option);
 
         // Fallback: still add special groups
         ['Ambience Streams', 'Ambience Object Streams', 'Music Templates'].forEach((label) => {
           const opt = document.createElement('option');
           opt.value = label;
-          opt.textContent = label;
+          const labelMap: Record<string, TranslationKey> = {
+            'Ambience Streams': 'subcategory.ambienceStreams',
+            'Ambience Object Streams': 'subcategory.ambienceObjectStreams',
+            'Music Templates': 'subcategory.musicTemplates'
+          };
+          opt.textContent = labelMap[label] ? translate(labelMap[label]) : label;
           subcategorySelect.appendChild(opt);
         });
       });
   } else {
     const option = document.createElement('option');
     option.value = 'All';
-    option.textContent = 'Todas as subcategorias';
+    option.textContent = translate('subcategory.option.allObjects');
     subcategorySelect.appendChild(option);
   }
 }

@@ -33,3 +33,7 @@
 
 /* 7. Texture Styles */
 @import './texture.css';
+
+/* 8. Theme Styles (overrides) */
+@import './theme.css';
+

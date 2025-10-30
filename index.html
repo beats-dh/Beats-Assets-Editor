@@ -16,35 +16,36 @@
       <div class="loading-container">
         <div class="loading-logo">
           <div class="tibia-logo">⚔️</div>
-          <h1>Tibia Assets Editor</h1>
-          <p class="loading-subtitle">Professional Asset Management Tool</p>
+          <h1 data-i18n="app.title">Tibia Assets Editor</h1>
+          <p class="loading-subtitle" data-i18n="loading.subtitle">Professional Asset Management Tool</p>
         </div>
         
         <div class="loading-progress">
           <div class="progress-bar">
             <div id="progress-fill" class="progress-fill"></div>
           </div>
-          <p id="loading-text" class="loading-text">Initializing...</p>
+          <p id="loading-text" class="loading-text" data-i18n="loading.text.initial">Initializing...</p>
         </div>
 
         <div class="setup-section" id="setup-section">
           <div class="setup-card">
-            <h2>🎯 Setup Your Tibia Client</h2>
+            <h2 data-i18n="setup.heading">🎯 Setup Your Tibia Client</h2>
             <div class="input-group">
-              <label for="tibia-path">Tibia Client Path:</label>
+              <label for="tibia-path" data-i18n="setup.tibiaPathLabel">Tibia Client Path:</label>
               <div class="input-row">
                 <input
                   type="text"
                   id="tibia-path"
                   placeholder="C:\Path\To\Tibia"
                   class="modern-input"
+                  data-i18n-placeholder="setup.tibiaPathPlaceholder"
                 />
-                <button id="browse-dir" class="btn-secondary">Selecionar diretório</button>
+                <button id="browse-dir" class="btn-secondary" data-i18n="setup.browseButton">Selecionar diretório</button>
               </div>
             </div>
             <button id="load-button" class="btn-primary">
               <span class="btn-icon">🚀</span>
-              Load Assets
+              <span data-i18n="setup.loadButton">Load Assets</span>
             </button>
           </div>
         </div>
@@ -59,8 +60,8 @@
           <div class="logo-section">
             <div class="app-logo">⚔️</div>
             <div class="app-title">
-              <h1>Tibia Assets Editor</h1>
-              <p class="app-subtitle">Professional Asset Management</p>
+              <h1 data-i18n="app.title">Tibia Assets Editor</h1>
+              <p class="app-subtitle" data-i18n="app.subtitle">Professional Asset Management</p>
             </div>
           </div>
           
@@ -69,19 +70,96 @@
           </div>
 
           <div class="header-actions">
-            <button id="settings-btn" class="icon-btn" title="Configurações">⚙️</button>
-            <div id="settings-menu" class="settings-menu" style="display: none;">
-              <div class="settings-item">
-                <label>
-                  <input type="checkbox" id="auto-animate-toggle" />
-                  Animação automática na grade
-                </label>
+            <button id="settings-btn" class="icon-btn" title="Configurações" data-i18n-title="header.settings.tooltip">⚙️</button>
+            <div id="settings-menu" class="settings-menu">
+              <div class="settings-section">
+                <div class="settings-section-header">
+                  <h4 class="settings-title" data-i18n="settings.language.title">Linguagem</h4>
+                  <p class="settings-description" data-i18n="settings.language.description">Selecione o idioma da interface.</p>
+                </div>
+                <select id="language-select" class="settings-select">
+                  <option value="default" data-i18n="language.option.default">Default (multilíngue)</option>
+                  <option value="pt-BR" data-i18n="language.option.pt">Português</option>
+                  <option value="en" data-i18n="language.option.en">English</option>
+                  <option value="es" data-i18n="language.option.es">Español</option>
+                  <option value="ru" data-i18n="language.option.ru">Русский</option>
+                </select>
               </div>
+
               <div class="menu-divider"></div>
-              <button id="clear-cache-btn" class="menu-btn">Limpar cache de sprites</button>
+
+              <div class="settings-section">
+                <div class="settings-section-header">
+                  <h4 class="settings-title" data-i18n="settings.theme.title">Cores</h4>
+                  <p class="settings-description" data-i18n="settings.theme.description">Escolha um tema que combine com você.</p>
+                </div>
+                <div class="theme-grid" role="list">
+                  <button class="theme-option" type="button" data-theme="default" role="listitem">
+                    <span class="theme-name" data-i18n="theme.default">Padrão</span>
+                    <span class="theme-preview">
+                      <span class="color-swatch" style="background: #4f46e5;"></span>
+                      <span class="color-swatch" style="background: #7c3aed;"></span>
+                      <span class="color-swatch" style="background: #10b981;"></span>
+                    </span>
+                  </button>
+                  <button class="theme-option" type="button" data-theme="ocean" role="listitem">
+                    <span class="theme-name" data-i18n="theme.ocean">Oceanic</span>
+                    <span class="theme-preview">
+                      <span class="color-swatch" style="background: #0ea5e9;"></span>
+                      <span class="color-swatch" style="background: #22d3ee;"></span>
+                      <span class="color-swatch" style="background: #1abc9c;"></span>
+                    </span>
+                  </button>
+                  <button class="theme-option" type="button" data-theme="aurora" role="listitem">
+                    <span class="theme-name" data-i18n="theme.aurora">Aurora</span>
+                    <span class="theme-preview">
+                      <span class="color-swatch" style="background: #8b5cf6;"></span>
+                      <span class="color-swatch" style="background: #ec4899;"></span>
+                      <span class="color-swatch" style="background: #2c2555;"></span>
+                    </span>
+                  </button>
+                  <button class="theme-option" type="button" data-theme="ember" role="listitem">
+                    <span class="theme-name" data-i18n="theme.ember">Ember</span>
+                    <span class="theme-preview">
+                      <span class="color-swatch" style="background: #f97316;"></span>
+                      <span class="color-swatch" style="background: #f43f5e;"></span>
+                      <span class="color-swatch" style="background: #3a2218;"></span>
+                    </span>
+                  </button>
+                  <button class="theme-option" type="button" data-theme="forest" role="listitem">
+                    <span class="theme-name" data-i18n="theme.forest">Floresta</span>
+                    <span class="theme-preview">
+                      <span class="color-swatch" style="background: #22c55e;"></span>
+                      <span class="color-swatch" style="background: #14b8a6;"></span>
+                      <span class="color-swatch" style="background: #1d3f27;"></span>
+                    </span>
+                  </button>
+                  <button class="theme-option" type="button" data-theme="dusk" role="listitem">
+                    <span class="theme-name" data-i18n="theme.dusk">Crepúsculo</span>
+                    <span class="theme-preview">
+                      <span class="color-swatch" style="background: #f59e0b;"></span>
+                      <span class="color-swatch" style="background: #38bdf8;"></span>
+                      <span class="color-swatch" style="background: #2b3045;"></span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="menu-divider"></div>
+
+              <div class="settings-section">
+                <h4 class="settings-title" data-i18n="settings.preferences.title">Preferências</h4>
+                <div class="settings-item">
+                  <label>
+                    <input type="checkbox" id="auto-animate-toggle" />
+                    <span data-i18n="settings.preferences.autoAnimate">Animação automática na grade</span>
+                  </label>
+                </div>
+                <button id="clear-cache-btn" class="menu-btn" data-i18n="settings.preferences.clearCache">Limpar cache de sprites</button>
+              </div>
             </div>
-            <button id="home-btn" class="icon-btn" title="Tela inicial">🏠</button>
-            <button id="refresh-btn" class="icon-btn" title="Refresh">🔄</button>
+            <button id="home-btn" class="icon-btn" title="Tela inicial" data-i18n-title="header.home.tooltip">🏠</button>
+            <button id="refresh-btn" class="icon-btn" title="Refresh" data-i18n-title="header.refresh.tooltip">🔄</button>
           </div>
         </div>
       </header>
@@ -94,7 +172,7 @@
             <div class="category-card" data-category="Objects">
               <div class="card-icon">📦</div>
               <div class="card-content">
-                <h3>Objects</h3>
+                <h3 data-i18n="category.objects">Objects</h3>
                 <p id="objects-count">0 items</p>
               </div>
               <div class="card-arrow">→</div>
@@ -103,7 +181,7 @@
             <div class="category-card" data-category="Outfits">
               <div class="card-icon">👕</div>
               <div class="card-content">
-                <h3>Outfits</h3>
+                <h3 data-i18n="category.outfits">Outfits</h3>
                 <p id="outfits-count">0 items</p>
               </div>
               <div class="card-arrow">→</div>
@@ -112,7 +190,7 @@
             <div class="category-card" data-category="Effects">
               <div class="card-icon">✨</div>
               <div class="card-content">
-                <h3>Effects</h3>
+                <h3 data-i18n="category.effects">Effects</h3>
                 <p id="effects-count">0 items</p>
               </div>
               <div class="card-arrow">→</div>
@@ -121,7 +199,7 @@
             <div class="category-card" data-category="Missiles">
               <div class="card-icon">🏹</div>
               <div class="card-content">
-                <h3>Missiles</h3>
+                <h3 data-i18n="category.missiles">Missiles</h3>
                 <p id="missiles-count">0 items</p>
               </div>
               <div class="card-arrow">→</div>
@@ -130,7 +208,7 @@
             <div class="category-card" data-category="Sounds">
               <div class="card-icon">🔊</div>
               <div class="card-content">
-                <h3>Sounds</h3>
+                <h3 data-i18n="category.sounds">Sounds</h3>
                 <p id="sounds-count">0 items</p>
               </div>
               <div class="card-arrow">→</div>
@@ -139,83 +217,83 @@
 
           <!-- Subcategories Section -->
           <div class="subcategories-section">
-            <h3 class="subcategories-title">Object Subcategories</h3>
+            <h3 class="subcategories-title" data-i18n="subcategories.title">Object Subcategories</h3>
             <div class="subcategories-grid">
               <div class="subcategory-card" data-category="Objects" data-subcategory="Armors">
                 <span class="subcat-icon">🛡️</span>
-                <span class="subcat-name">Armors</span>
+                <span class="subcat-name" data-i18n="subcategory.armors">Armors</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Amulets">
                 <span class="subcat-icon">📿</span>
-                <span class="subcat-name">Amulets</span>
+                <span class="subcat-name" data-i18n="subcategory.amulets">Amulets</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Boots">
                 <span class="subcat-icon">👢</span>
-                <span class="subcat-name">Boots</span>
+                <span class="subcat-name" data-i18n="subcategory.boots">Boots</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Containers">
                 <span class="subcat-icon">🎒</span>
-                <span class="subcat-name">Containers</span>
+                <span class="subcat-name" data-i18n="subcategory.containers">Containers</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Decoration">
                 <span class="subcat-icon">🎨</span>
-                <span class="subcat-name">Decoration</span>
+                <span class="subcat-name" data-i18n="subcategory.decoration">Decoration</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Food">
                 <span class="subcat-icon">🍖</span>
-                <span class="subcat-name">Food</span>
+                <span class="subcat-name" data-i18n="subcategory.food">Food</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="HelmetsHats">
                 <span class="subcat-icon">⛑️</span>
-                <span class="subcat-name">Helmets & Hats</span>
+                <span class="subcat-name" data-i18n="subcategory.helmetsHats">Helmets & Hats</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Legs">
                 <span class="subcat-icon">👖</span>
-                <span class="subcat-name">Legs</span>
+                <span class="subcat-name" data-i18n="subcategory.legs">Legs</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Potions">
                 <span class="subcat-icon">🧪</span>
-                <span class="subcat-name">Potions</span>
+                <span class="subcat-name" data-i18n="subcategory.potions">Potions</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Rings">
                 <span class="subcat-icon">💍</span>
-                <span class="subcat-name">Rings</span>
+                <span class="subcat-name" data-i18n="subcategory.rings">Rings</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Runes">
                 <span class="subcat-icon">🔮</span>
-                <span class="subcat-name">Runes</span>
+                <span class="subcat-name" data-i18n="subcategory.runes">Runes</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Shields">
                 <span class="subcat-icon">🛡️</span>
-                <span class="subcat-name">Shields</span>
+                <span class="subcat-name" data-i18n="subcategory.shields">Shields</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Tools">
                 <span class="subcat-icon">🔧</span>
-                <span class="subcat-name">Tools</span>
+                <span class="subcat-name" data-i18n="subcategory.tools">Tools</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Valuables">
                 <span class="subcat-icon">💎</span>
-                <span class="subcat-name">Valuables</span>
+                <span class="subcat-name" data-i18n="subcategory.valuables">Valuables</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Axes">
                 <span class="subcat-icon">🪓</span>
-                <span class="subcat-name">Axes</span>
+                <span class="subcat-name" data-i18n="subcategory.axes">Axes</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Clubs">
                 <span class="subcat-icon">🏏</span>
-                <span class="subcat-name">Clubs</span>
+                <span class="subcat-name" data-i18n="subcategory.clubs">Clubs</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="DistanceWeapons">
                 <span class="subcat-icon">🏹</span>
-                <span class="subcat-name">Distance</span>
+                <span class="subcat-name" data-i18n="subcategory.distance">Distance</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="Swords">
                 <span class="subcat-icon">⚔️</span>
-                <span class="subcat-name">Swords</span>
+                <span class="subcat-name" data-i18n="subcategory.swords">Swords</span>
               </div>
               <div class="subcategory-card" data-category="Objects" data-subcategory="WandsRods">
                 <span class="subcat-icon">🪄</span>
-                <span class="subcat-name">Wands & Rods</span>
+                <span class="subcat-name" data-i18n="subcategory.wandsRods">Wands & Rods</span>
               </div>
             </div>
           </div>
@@ -231,7 +309,7 @@
               <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path d="M19 12H5M12 19l-7-7 7-7"/>
               </svg>
-              <span>Back</span>
+              <span data-i18n="categoryView.back">Back</span>
             </button>
 
             <div class="header-divider"></div>
@@ -247,11 +325,12 @@
                   <circle cx="11" cy="11" r="8"/>
                   <path d="M21 21l-4.35-4.35"/>
                 </svg>
-                <input 
-                  type="text" 
-                  id="asset-search" 
-                  placeholder="Search assets..." 
+                <input
+                  type="text"
+                  id="asset-search"
+                  placeholder="Search assets..."
                   class="search-input"
+                  data-i18n-placeholder="search.placeholder"
                 />
                 <button id="clear-search" class="clear-search-btn" style="display: none;">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -268,19 +347,19 @@
               <span id="results-count" class="results-text">0 itens</span>
             </div>
 
-            <div class="pagination-nav" role="group" aria-label="Controle de paginação">
-              <button id="prev-page" class="pagination-btn" type="button" aria-label="Página anterior">
+            <div class="pagination-nav" role="group" aria-label="Controle de paginação" data-i18n-aria-label="pagination.aria">
+              <button id="prev-page" class="pagination-btn" type="button" aria-label="Página anterior" data-i18n-aria-label="pagination.previous">
                 <span>◀</span>
               </button>
               <div class="pagination-info">
                 <span id="page-info" class="results-text">Página 1 de 1</span>
               </div>
-              <button id="next-page" class="pagination-btn" type="button" aria-label="Próxima página">
+              <button id="next-page" class="pagination-btn" type="button" aria-label="Próxima página" data-i18n-aria-label="pagination.next">
                 <span>▶</span>
               </button>
             </div>
 
-            <div class="page-size-container" aria-label="Itens por página">
+            <div class="page-size-container" aria-label="Itens por página" data-i18n-aria-label="pageSize.aria">
               <select id="page-size" class="page-size-select">
                 <option value="100" selected>100</option>
                 <option value="500">500</option>
@@ -292,7 +371,7 @@
 
             <div id="subcategory-container" class="filter-container" style="display: none;">
               <select id="subcategory-select" class="filter-select">
-                <option value="All">All</option>
+                <option value="All" data-i18n="subcategory.option.all">All</option>
               </select>
             </div>
 
@@ -312,16 +391,32 @@
         <div class="modal-content">
           <div class="modal-header">
             <div class="modal-tabs">
-              <button id="tab-details" class="tab-btn active" data-tab="details">Asset Details</button>
-              <button id="tab-edit" class="tab-btn" data-tab="edit">Edit</button>
-              <button id="tab-texture" class="tab-btn" data-tab="texture">Texture</button>
+              <button id="tab-details" class="tab-btn active" data-tab="details" data-i18n="modal.detailsTab">Asset Details</button>
+              <button id="tab-edit" class="tab-btn" data-tab="edit" data-i18n="modal.editTab">Edit</button>
+              <button id="tab-texture" class="tab-btn" data-tab="texture" data-i18n="modal.textureTab">Texture</button>
             </div>
             <div class="modal-actions">
-              <div class="modal-nav-controls" role="group" aria-label="Navigate assets">
-                <button id="prev-asset" class="detail-nav-btn" type="button" aria-label="Previous asset" title="Previous asset">
+              <div class="modal-nav-controls" role="group" aria-label="Navigate assets" data-i18n-aria-label="modal.nav.aria">
+                <button
+                  id="prev-asset"
+                  class="detail-nav-btn"
+                  type="button"
+                  aria-label="Previous asset"
+                  title="Previous asset"
+                  data-i18n-aria-label="modal.prevTooltip"
+                  data-i18n-title="modal.prevTooltip"
+                >
                   <span aria-hidden="true">◀</span>
                 </button>
-                <button id="next-asset" class="detail-nav-btn" type="button" aria-label="Next asset" title="Next asset">
+                <button
+                  id="next-asset"
+                  class="detail-nav-btn"
+                  type="button"
+                  aria-label="Next asset"
+                  title="Next asset"
+                  data-i18n-aria-label="modal.nextTooltip"
+                  data-i18n-title="modal.nextTooltip"
+                >
                   <span aria-hidden="true">▶</span>
                 </button>
               </div>

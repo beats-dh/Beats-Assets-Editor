@@ -1,5 +1,6 @@
 // TypeScript types for Sounds API
 // Matching Rust structures from src-tauri/src/core/parsers/sounds.rs
+import { translate } from './i18n';
 
 export interface SoundInfo {
   id: number;
@@ -73,7 +74,7 @@ export type SoundType = typeof SOUND_TYPES[number];
 
 // Helper function to get sound type display name
 export function getSoundTypeDisplayName(soundType: string): string {
-  return soundType || 'Unknown';
+  return soundType || translate('general.unknown');
 }
 
 // Helper function to determine sound category from type

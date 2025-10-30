@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getAppearanceSprites } from './spriteCache';
 import { computeSpriteIndex, computeGroupOffsetsFromDetails } from './animation';
 import { showStatus } from './utils';
+import { translate, applyDocumentTranslations, getActiveLanguage } from './i18n';
 import type { CompleteAppearanceItem, CompleteSpriteInfo, SpriteAnimation } from './types';
 
 interface OutfitPreviewState {
@@ -44,18 +45,34 @@ interface NormalizedBoundingBox {
   height: number;
 }
 
+const LANGUAGE_CHANGE_EVENT = 'app-language-changed';
+
+let outfitLanguageListener: EventListener | null = null;
+let objectLanguageListener: EventListener | null = null;
+
 export async function renderTextureTab(details: CompleteAppearanceItem, category: string): Promise<void> {
   const textureContent = document.getElementById('texture-content');
   if (!textureContent) return;
+
+  if (outfitLanguageListener) {
+    document.removeEventListener(LANGUAGE_CHANGE_EVENT, outfitLanguageListener);
+    outfitLanguageListener = null;
+  }
+
+  if (objectLanguageListener) {
+    document.removeEventListener(LANGUAGE_CHANGE_EVENT, objectLanguageListener);
+    objectLanguageListener = null;
+  }
 
   const normalizedCategory = (category === 'Outfits' || category === 'Objects') ? category as TextureCategory : 'Other';
 
   if (normalizedCategory === 'Other') {
     textureContent.innerHTML = `
       <div class="texture-empty-state">
-        <p>Texture tools are only available for Objects and Outfits.</p>
+        <p data-i18n="texture.emptyState.unsupported">${translate('texture.emptyState.unsupported')}</p>
       </div>
     `;
+    applyDocumentTranslations(getActiveLanguage());
     return;
   }
 
@@ -119,32 +136,74 @@ function clamp(value: number, min: number, max: number): number {
 function buildCommonFormHTML(): string {
   return `
     <div class="texture-form-section">
-      <h4>Sprite Settings</h4>
+      <h4 data-i18n="texture.section.spriteSettings">${translate('texture.section.spriteSettings')}</h4>
       <div class="texture-form-grid">
-        <label>Pattern Width<input type="number" id="texture-pattern-width" min="0" /></label>
-        <label>Pattern Height<input type="number" id="texture-pattern-height" min="0" /></label>
-        <label>Pattern Depth<input type="number" id="texture-pattern-depth" min="0" /></label>
-        <label>Layers<input type="number" id="texture-pattern-layers" min="0" /></label>
-        <label>Pattern Frames<input type="number" id="texture-pattern-frames" min="0" /></label>
-        <label>Bounding Square<input type="number" id="texture-bounding-square" min="0" /></label>
-        <label class="texture-checkbox"><input type="checkbox" id="texture-is-opaque" /> Is Opaque</label>
-        <label class="texture-checkbox"><input type="checkbox" id="texture-is-animation" /> Mark as Animation</label>
+        <label>
+          <span data-i18n="texture.form.patternWidth">${translate('texture.form.patternWidth')}</span>
+          <input type="number" id="texture-pattern-width" min="0" />
+        </label>
+        <label>
+          <span data-i18n="texture.form.patternHeight">${translate('texture.form.patternHeight')}</span>
+          <input type="number" id="texture-pattern-height" min="0" />
+        </label>
+        <label>
+          <span data-i18n="texture.form.patternDepth">${translate('texture.form.patternDepth')}</span>
+          <input type="number" id="texture-pattern-depth" min="0" />
+        </label>
+        <label>
+          <span data-i18n="texture.form.layers">${translate('texture.form.layers')}</span>
+          <input type="number" id="texture-pattern-layers" min="0" />
+        </label>
+        <label>
+          <span data-i18n="texture.form.patternFrames">${translate('texture.form.patternFrames')}</span>
+          <input type="number" id="texture-pattern-frames" min="0" />
+        </label>
+        <label>
+          <span data-i18n="texture.form.boundingSquare">${translate('texture.form.boundingSquare')}</span>
+          <input type="number" id="texture-bounding-square" min="0" />
+        </label>
+        <label class="texture-checkbox">
+          <input type="checkbox" id="texture-is-opaque" />
+          <span data-i18n="texture.form.isOpaque">${translate('texture.form.isOpaque')}</span>
+        </label>
+        <label class="texture-checkbox">
+          <input type="checkbox" id="texture-is-animation" />
+          <span data-i18n="texture.form.isAnimation">${translate('texture.form.isAnimation')}</span>
+        </label>
       </div>
     </div>
     <div class="texture-form-section">
-      <h4>Animation</h4>
+      <h4 data-i18n="texture.section.animation">${translate('texture.section.animation')}</h4>
       <div class="texture-form-grid texture-animation-grid">
-        <label>Frame Count<input type="number" id="texture-animation-frame-count" min="0" /></label>
-        <label>Default Start Phase<input type="number" id="texture-animation-default-phase" min="0" /></label>
-        <label>Loop Type<input type="number" id="texture-animation-loop-type" /></label>
-        <label>Loop Count<input type="number" id="texture-animation-loop-count" min="0" /></label>
-        <label class="texture-checkbox"><input type="checkbox" id="texture-animation-synchronized" /> Synchronized</label>
-        <label class="texture-checkbox"><input type="checkbox" id="texture-animation-random-start" /> Random Start Phase</label>
+        <label>
+          <span data-i18n="texture.form.frameCount">${translate('texture.form.frameCount')}</span>
+          <input type="number" id="texture-animation-frame-count" min="0" />
+        </label>
+        <label>
+          <span data-i18n="texture.form.defaultStartPhase">${translate('texture.form.defaultStartPhase')}</span>
+          <input type="number" id="texture-animation-default-phase" min="0" />
+        </label>
+        <label>
+          <span data-i18n="texture.form.loopType">${translate('texture.form.loopType')}</span>
+          <input type="number" id="texture-animation-loop-type" />
+        </label>
+        <label>
+          <span data-i18n="texture.form.loopCount">${translate('texture.form.loopCount')}</span>
+          <input type="number" id="texture-animation-loop-count" min="0" />
+        </label>
+        <label class="texture-checkbox">
+          <input type="checkbox" id="texture-animation-synchronized" />
+          <span data-i18n="texture.form.synchronized">${translate('texture.form.synchronized')}</span>
+        </label>
+        <label class="texture-checkbox">
+          <input type="checkbox" id="texture-animation-random-start" />
+          <span data-i18n="texture.form.randomStart">${translate('texture.form.randomStart')}</span>
+        </label>
       </div>
       <div id="texture-animation-phases" class="texture-animation-phases"></div>
     </div>
     <div class="texture-form-actions">
-      <button type="button" id="texture-save-button" class="btn-primary">Save Texture</button>
+      <button type="button" id="texture-save-button" class="btn-primary" data-i18n="texture.button.save">${translate('texture.button.save')}</button>
     </div>
   `;
 }
@@ -152,22 +211,22 @@ function buildCommonFormHTML(): string {
 function buildBoundingBoxSectionHTML(): string {
   return `
     <div class="texture-form-section texture-bounding-section">
-      <h4>Bounding Boxes</h4>
+      <h4 data-i18n="texture.section.boundingBoxes">${translate('texture.section.boundingBoxes')}</h4>
       <div class="texture-bounding-boxes">
         <table class="texture-bounding-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>X</th>
-              <th>Y</th>
-              <th>Width</th>
-              <th>Height</th>
-              <th></th>
+              <th data-i18n="texture.bounding.header.index">${translate('texture.bounding.header.index')}</th>
+              <th data-i18n="texture.bounding.header.x">${translate('texture.bounding.header.x')}</th>
+              <th data-i18n="texture.bounding.header.y">${translate('texture.bounding.header.y')}</th>
+              <th data-i18n="texture.bounding.header.width">${translate('texture.bounding.header.width')}</th>
+              <th data-i18n="texture.bounding.header.height">${translate('texture.bounding.header.height')}</th>
+              <th data-i18n="texture.bounding.header.actions">${translate('texture.bounding.header.actions')}</th>
             </tr>
           </thead>
           <tbody id="texture-bounding-box-body"></tbody>
         </table>
-        <button type="button" id="texture-add-bounding-box" class="btn-secondary">Add Bounding Box</button>
+        <button type="button" id="texture-add-bounding-box" class="btn-secondary" data-i18n="texture.bounding.button.add">${translate('texture.bounding.button.add')}</button>
       </div>
     </div>
   `;
@@ -221,7 +280,7 @@ function updateAnimationPhaseRows(count: number, animation?: SpriteAnimation): v
   if (!container) return;
   container.innerHTML = '';
   if (count <= 0) {
-    container.innerHTML = '<p class="texture-empty">No animation phases defined.</p>';
+    container.innerHTML = `<p class="texture-empty" data-i18n="texture.animation.empty">${translate('texture.animation.empty')}</p>`;
     return;
   }
   for (let i = 0; i < count; i++) {
@@ -232,11 +291,32 @@ function updateAnimationPhaseRows(count: number, animation?: SpriteAnimation): v
     row.className = 'texture-phase-row';
     row.dataset.phaseIndex = String(i);
     row.innerHTML = `
-      <label>Phase ${i + 1} Min<input type="number" class="texture-phase-min" min="0" value="${min === '' ? '' : min}"></label>
-      <label>Max<input type="number" class="texture-phase-max" min="0" value="${max === '' ? '' : max}"></label>
+      <label>
+        <span class="texture-phase-label" data-phase-key="texture.animation.phaseMin" data-phase-index="${i}">${translate('texture.animation.phaseMin', { index: i + 1 })}</span>
+        <input type="number" class="texture-phase-min" min="0" value="${min === '' ? '' : min}">
+      </label>
+      <label>
+        <span class="texture-phase-label" data-phase-key="texture.animation.phaseMax">${translate('texture.animation.phaseMax')}</span>
+        <input type="number" class="texture-phase-max" min="0" value="${max === '' ? '' : max}">
+      </label>
     `;
     container.appendChild(row);
   }
+}
+
+function refreshAnimationPhaseLabels(): void {
+  const labels = document.querySelectorAll<HTMLElement>('.texture-phase-label');
+  labels.forEach((label) => {
+    const key = label.dataset.phaseKey;
+    if (key === 'texture.animation.phaseMin') {
+      const indexAttr = label.dataset.phaseIndex;
+      const index = Number(indexAttr ?? '0');
+      const displayIndex = Number.isNaN(index) ? 1 : index + 1;
+      label.textContent = translate('texture.animation.phaseMin', { index: displayIndex });
+    } else if (key === 'texture.animation.phaseMax') {
+      label.textContent = translate('texture.animation.phaseMax');
+    }
+  });
 }
 
 function populateBoundingBoxes(spriteInfo: CompleteSpriteInfo | undefined): void {
@@ -247,7 +327,7 @@ function populateBoundingBoxes(spriteInfo: CompleteSpriteInfo | undefined): void
   if (boxes.length === 0) {
     const emptyRow = document.createElement('tr');
     emptyRow.className = 'texture-empty-row';
-    emptyRow.innerHTML = '<td colspan="6">No bounding boxes defined.</td>';
+    emptyRow.innerHTML = `<td colspan="6" data-i18n="texture.bounding.empty">${translate('texture.bounding.empty')}</td>`;
     body.appendChild(emptyRow);
     return;
   }
@@ -440,7 +520,7 @@ async function saveTextureSettings(category: string, id: number, update: Record<
   if (saveButton) {
     saveButton.disabled = true;
     saveButton.dataset.originalText = saveButton.textContent || '';
-    saveButton.textContent = 'Saving...';
+    saveButton.textContent = translate('status.saving');
   }
   try {
     await invoke('update_appearance_texture_settings', {
@@ -449,17 +529,17 @@ async function saveTextureSettings(category: string, id: number, update: Record<
       update,
     });
     await invoke('save_appearances_file');
-    showStatus('Texture settings saved successfully.', 'success');
+    showStatus(translate('status.textureSaved'), 'success');
     document.dispatchEvent(new CustomEvent('texture-settings-saved', {
       detail: { category, id },
     }));
   } catch (error) {
     console.error('Failed to save texture settings', error);
-    showStatus('Failed to save texture settings.', 'error');
+    showStatus(translate('status.textureSaveFailed'), 'error');
   } finally {
     if (saveButton) {
       saveButton.disabled = false;
-      const original = saveButton.dataset.originalText || 'Save Texture';
+      const original = saveButton.dataset.originalText || translate('texture.button.save');
       saveButton.textContent = original;
     }
   }
@@ -474,40 +554,43 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
         </div>
         <div class="texture-preview-controls">
           <div class="texture-control-row">
-            <label>Frame Group
+            <label>
+              <span data-i18n="texture.preview.frameGroup">${translate('texture.preview.frameGroup')}</span>
               <select id="texture-frame-group-select">
-                ${details.frame_groups.map((_, index) => `<option value="${index}">Group ${index + 1}</option>`).join('')}
+                ${details.frame_groups.map((_, index) => `<option value="${index}" data-frame-index="${index}">${translate('texture.preview.frameGroupOption', { index: index + 1 })}</option>`).join('')}
               </select>
             </label>
           </div>
           <div class="texture-control-row" id="outfit-direction-controls"></div>
           <div class="texture-control-row">
-            <label>Addon
+            <label>
+              <span data-i18n="texture.preview.addon">${translate('texture.preview.addon')}</span>
               <input type="range" id="outfit-addon-slider" min="0" max="0" value="0" />
             </label>
-            <span id="outfit-addon-label" class="texture-control-label">Addon 0</span>
+            <span id="outfit-addon-label" class="texture-control-label">${translate('texture.preview.addonLabel', { value: 0 })}</span>
           </div>
           <div class="texture-control-row">
-            <label>Frame
+            <label>
+              <span data-i18n="texture.preview.frame">${translate('texture.preview.frame')}</span>
               <input type="range" id="outfit-frame-slider" min="0" max="0" value="0" />
             </label>
-            <span id="outfit-frame-label" class="texture-control-label">Frame 1</span>
+            <span id="outfit-frame-label" class="texture-control-label">${translate('texture.preview.frameLabel', { value: 1 })}</span>
           </div>
           <div class="texture-control-row texture-color-row">
-            <label>Head<input type="color" id="outfit-color-head" value="#ffc107" /></label>
-            <label>Body<input type="color" id="outfit-color-body" value="#ff5722" /></label>
-            <label>Legs<input type="color" id="outfit-color-legs" value="#4caf50" /></label>
-            <label>Feet<input type="color" id="outfit-color-feet" value="#2196f3" /></label>
+            <label><span data-i18n="texture.preview.colors.head">${translate('texture.preview.colors.head')}</span><input type="color" id="outfit-color-head" value="#ffc107" /></label>
+            <label><span data-i18n="texture.preview.colors.body">${translate('texture.preview.colors.body')}</span><input type="color" id="outfit-color-body" value="#ff5722" /></label>
+            <label><span data-i18n="texture.preview.colors.legs">${translate('texture.preview.colors.legs')}</span><input type="color" id="outfit-color-legs" value="#4caf50" /></label>
+            <label><span data-i18n="texture.preview.colors.feet">${translate('texture.preview.colors.feet')}</span><input type="color" id="outfit-color-feet" value="#2196f3" /></label>
           </div>
           <div class="texture-control-row">
-            <label>Background<input type="color" id="outfit-background-color" value="#262626" /></label>
+            <label><span data-i18n="texture.preview.background">${translate('texture.preview.background')}</span><input type="color" id="outfit-background-color" value="#262626" /></label>
           </div>
           <div class="texture-control-row texture-checkbox-row">
-            <label><input type="checkbox" id="outfit-blend-layers" checked /> Blend layers</label>
-            <label><input type="checkbox" id="outfit-full-addons" checked /> Show full addons</label>
-            <label><input type="checkbox" id="outfit-show-bboxes" checked /> Show bounding boxes</label>
-            <label><input type="checkbox" id="outfit-auto-animate" /> Animate preview</label>
-            <label id="outfit-mount-wrapper" style="display:none"><input type="checkbox" id="outfit-mount-toggle" /> Mount</label>
+            <label><input type="checkbox" id="outfit-blend-layers" checked /> <span data-i18n="texture.preview.blendLayers">${translate('texture.preview.blendLayers')}</span></label>
+            <label><input type="checkbox" id="outfit-full-addons" checked /> <span data-i18n="texture.preview.showFullAddons">${translate('texture.preview.showFullAddons')}</span></label>
+            <label><input type="checkbox" id="outfit-show-bboxes" checked /> <span data-i18n="texture.preview.showBoundingBoxes">${translate('texture.preview.showBoundingBoxes')}</span></label>
+            <label><input type="checkbox" id="outfit-auto-animate" /> <span data-i18n="texture.preview.animatePreview">${translate('texture.preview.animatePreview')}</span></label>
+            <label id="outfit-mount-wrapper" style="display:none"><input type="checkbox" id="outfit-mount-toggle" /> <span data-i18n="texture.preview.mount">${translate('texture.preview.mount')}</span></label>
           </div>
         </div>
       ${buildBoundingBoxSectionHTML()}
@@ -517,6 +600,8 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     </div>
   </div>
   `;
+
+  applyDocumentTranslations(getActiveLanguage());
 
   const canvas = document.getElementById('outfit-preview-canvas') as HTMLCanvasElement | null;
   if (!canvas) return;
@@ -554,7 +639,12 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     if (!container) return;
     const spriteInfo = getCurrentSpriteInfo();
     const directionCount = Math.max(1, ensureNumber(spriteInfo?.pattern_width, 1));
-    const labels = ['N', 'E', 'S', 'W'];
+    const labels = [
+      translate('texture.preview.direction.short.north'),
+      translate('texture.preview.direction.short.east'),
+      translate('texture.preview.direction.short.south'),
+      translate('texture.preview.direction.short.west')
+    ];
     container.innerHTML = Array.from({ length: directionCount }).map((_, index) => {
       const label = labels[index] || String(index + 1);
       const active = state.direction === index ? 'active' : '';
@@ -717,7 +807,7 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
       addonSlider.max = String(addonMax);
       addonSlider.value = String(clamp(state.addon, 0, addonMax));
       addonSlider.disabled = state.showFullAddons || addonMax === 0;
-      if (addonLabel) addonLabel.textContent = `Addon ${addonSlider.value}`;
+      if (addonLabel) addonLabel.textContent = translate('texture.preview.addonLabel', { value: Number(addonSlider.value) });
     }
 
     if (spriteInfo && frameSlider) {
@@ -725,7 +815,7 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
       frameSlider.max = String(Math.max(0, frameCount - 1));
       frameSlider.value = String(clamp(state.frame, 0, Math.max(0, frameCount - 1)));
       frameSlider.disabled = frameCount <= 1;
-      if (frameLabel) frameLabel.textContent = `Frame ${Number(frameSlider.value) + 1}`;
+      if (frameLabel) frameLabel.textContent = translate('texture.preview.frameLabel', { value: Number(frameSlider.value) + 1 });
     }
 
     if (spriteInfo && mountWrapper && mountToggle) {
@@ -762,6 +852,30 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     await stopAndRedraw();
   });
 
+  const updateFrameGroupOptionLabels = (): void => {
+    if (!frameGroupSelect) return;
+    Array.from(frameGroupSelect.options).forEach((option) => {
+      const optionIndex = Number(option.dataset.frameIndex ?? option.value);
+      if (!Number.isNaN(optionIndex)) {
+        option.textContent = translate('texture.preview.frameGroupOption', { index: optionIndex + 1 });
+      }
+    });
+  };
+
+  updateFrameGroupOptionLabels();
+
+  if (outfitLanguageListener) {
+    document.removeEventListener(LANGUAGE_CHANGE_EVENT, outfitLanguageListener);
+  }
+
+  outfitLanguageListener = () => {
+    updateFrameGroupOptionLabels();
+    refreshPreviewControls();
+    refreshAnimationPhaseLabels();
+  };
+
+  document.addEventListener(LANGUAGE_CHANGE_EVENT, outfitLanguageListener);
+
   document.getElementById('outfit-direction-controls')?.addEventListener('click', async (event) => {
     const target = event.target as HTMLElement;
     if (!target.classList.contains('texture-direction-btn')) return;
@@ -775,7 +889,7 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
   addonSlider?.addEventListener('input', async () => {
     state.addon = Number(addonSlider.value || '0');
     const addonLabel = document.getElementById('outfit-addon-label');
-    if (addonLabel) addonLabel.textContent = `Addon ${state.addon}`;
+    if (addonLabel) addonLabel.textContent = translate('texture.preview.addonLabel', { value: state.addon });
     await stopAndRedraw();
   });
 
@@ -783,7 +897,7 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
   frameSlider?.addEventListener('input', async () => {
     state.frame = Number(frameSlider.value || '0');
     const frameLabel = document.getElementById('outfit-frame-label');
-    if (frameLabel) frameLabel.textContent = `Frame ${state.frame + 1}`;
+    if (frameLabel) frameLabel.textContent = translate('texture.preview.frameLabel', { value: state.frame + 1 });
     await stopAndRedraw();
   });
 
@@ -841,7 +955,7 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
           if (slider) {
             slider.value = String(state.frame);
             const frameLabel = document.getElementById('outfit-frame-label');
-            if (frameLabel) frameLabel.textContent = `Frame ${state.frame + 1}`;
+            if (frameLabel) frameLabel.textContent = translate('texture.preview.frameLabel', { value: state.frame + 1 });
           }
           await draw();
         }, Math.max(50, duration));
@@ -911,6 +1025,7 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
   populateCommonForm(getCurrentSpriteInfo());
   populateAnimationForm(getCurrentSpriteInfo());
   populateBoundingBoxes(getCurrentSpriteInfo());
+  refreshAnimationPhaseLabels();
   refreshPreviewControls();
   await draw();
 }
@@ -924,23 +1039,24 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
         </div>
         <div class="texture-preview-controls">
           <div class="texture-control-row">
-            <label>Frame Group
+            <label>
+              <span data-i18n="texture.preview.frameGroup">${translate('texture.preview.frameGroup')}</span>
               <select id="texture-frame-group-select">
-                ${details.frame_groups.map((_, index) => `<option value="${index}">Group ${index + 1}</option>`).join('')}
+                ${details.frame_groups.map((_, index) => `<option value="${index}" data-frame-index="${index}">${translate('texture.preview.frameGroupOption', { index: index + 1 })}</option>`).join('')}
               </select>
             </label>
           </div>
           <div class="texture-control-row">
-            <label>Pattern X<input type="number" id="object-preview-pattern-x" min="0" value="0" /></label>
-            <label>Pattern Y<input type="number" id="object-preview-pattern-y" min="0" value="0" /></label>
+            <label><span data-i18n="texture.preview.patternX">${translate('texture.preview.patternX')}</span><input type="number" id="object-preview-pattern-x" min="0" value="0" /></label>
+            <label><span data-i18n="texture.preview.patternY">${translate('texture.preview.patternY')}</span><input type="number" id="object-preview-pattern-y" min="0" value="0" /></label>
           </div>
           <div class="texture-control-row">
-            <label>Pattern Z<input type="number" id="object-preview-pattern-z" min="0" value="0" /></label>
-            <label>Layer<input type="number" id="object-preview-layer" min="0" value="0" /></label>
+            <label><span data-i18n="texture.preview.patternZ">${translate('texture.preview.patternZ')}</span><input type="number" id="object-preview-pattern-z" min="0" value="0" /></label>
+            <label><span data-i18n="texture.preview.layer">${translate('texture.preview.layer')}</span><input type="number" id="object-preview-layer" min="0" value="0" /></label>
           </div>
           <div class="texture-control-row">
-            <label>Frame<input type="number" id="object-preview-frame" min="0" value="0" /></label>
-            <label class="texture-checkbox"><input type="checkbox" id="object-preview-show-bboxes" checked /> Show bounding boxes</label>
+            <label><span data-i18n="texture.preview.frame">${translate('texture.preview.frame')}</span><input type="number" id="object-preview-frame" min="0" value="0" /></label>
+            <label class="texture-checkbox"><input type="checkbox" id="object-preview-show-bboxes" checked /> <span data-i18n="texture.preview.showBoundingBoxes">${translate('texture.preview.showBoundingBoxes')}</span></label>
           </div>
         </div>
         ${buildBoundingBoxSectionHTML()}
@@ -950,6 +1066,8 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
       </div>
     </div>
   `;
+
+  applyDocumentTranslations(getActiveLanguage());
 
   const canvas = document.getElementById('object-preview-canvas') as HTMLCanvasElement | null;
   if (!canvas) return;
@@ -1055,6 +1173,29 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
     await draw();
   });
 
+  const updateFrameGroupOptionLabels = (): void => {
+    if (!frameGroupSelect) return;
+    Array.from(frameGroupSelect.options).forEach((option) => {
+      const optionIndex = Number(option.dataset.frameIndex ?? option.value);
+      if (!Number.isNaN(optionIndex)) {
+        option.textContent = translate('texture.preview.frameGroupOption', { index: optionIndex + 1 });
+      }
+    });
+  };
+
+  updateFrameGroupOptionLabels();
+
+  if (objectLanguageListener) {
+    document.removeEventListener(LANGUAGE_CHANGE_EVENT, objectLanguageListener);
+  }
+
+  objectLanguageListener = () => {
+    updateFrameGroupOptionLabels();
+    refreshAnimationPhaseLabels();
+  };
+
+  document.addEventListener(LANGUAGE_CHANGE_EVENT, objectLanguageListener);
+
   const bindPreviewInput = (id: string, setter: (value: number) => void, maxResolver: () => number): void => {
     const input = document.getElementById(id) as HTMLInputElement | null;
     input?.addEventListener('change', async () => {
@@ -1135,6 +1276,7 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
   populateCommonForm(getCurrentSpriteInfo());
   populateAnimationForm(getCurrentSpriteInfo());
   populateBoundingBoxes(getCurrentSpriteInfo());
+  refreshAnimationPhaseLabels();
   await draw();
 }
 

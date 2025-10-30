@@ -1,20 +1,28 @@
 import type { CompleteFlags, VocationOption } from './types';
+import { translate, type TranslationKey } from './i18n';
 
 // VOCATION enum helpers para UI
-export const VOCATION_OPTIONS: VocationOption[] = [
-  { value: -1, label: 'Any' },
-  { value: 0, label: 'None' },
-  { value: 1, label: 'Knight' },
-  { value: 2, label: 'Paladin' },
-  { value: 3, label: 'Sorcerer' },
-  { value: 4, label: 'Druid' },
-  { value: 5, label: 'Monk' },
-  { value: 10, label: 'Promoted' },
+const VOCATION_OPTION_KEYS: ReadonlyArray<{ value: number; key: TranslationKey }> = [
+  { value: -1, key: 'vocation.any' },
+  { value: 0, key: 'vocation.none' },
+  { value: 1, key: 'vocation.knight' },
+  { value: 2, key: 'vocation.paladin' },
+  { value: 3, key: 'vocation.sorcerer' },
+  { value: 4, key: 'vocation.druid' },
+  { value: 5, key: 'vocation.monk' },
+  { value: 10, key: 'vocation.promoted' }
 ];
+
+export function getVocationOptions(): VocationOption[] {
+  return VOCATION_OPTION_KEYS.map(({ value, key }) => ({
+    value,
+    label: translate(key)
+  }));
+}
 
 export function getVocationName(value?: number | null): string {
   if (value === null || value === undefined) return '';
-  const opt = VOCATION_OPTIONS.find(o => o.value === value);
+  const opt = getVocationOptions().find(o => o.value === value);
   return opt ? opt.label : String(value);
 }
 
@@ -23,8 +31,9 @@ export function getVocationOptionsHTML(
   includeEmpty = true,
   includeAny = true
 ): string {
-  const opts = includeAny ? VOCATION_OPTIONS : VOCATION_OPTIONS.filter(o => o.value !== -1);
-  const emptyOpt = includeEmpty ? `<option value="">-- Selecione --</option>` : '';
+  const options = getVocationOptions();
+  const opts = includeAny ? options : options.filter(o => o.value !== -1);
+  const emptyOpt = includeEmpty ? `<option value="">-- ${translate('select.placeholder')} --</option>` : '';
   const optionsHTML = opts
     .map(o => `<option value="${o.value}" ${selected === o.value ? 'selected' : ''}>${o.label}</option>`)
     .join('');
@@ -35,7 +44,8 @@ export function getVocationMultiOptionsHTML(
   selectedValues?: number[] | null,
   includeAny = true
 ): string {
-  const opts = includeAny ? VOCATION_OPTIONS : VOCATION_OPTIONS.filter(o => o.value !== -1);
+  const options = getVocationOptions();
+  const opts = includeAny ? options : options.filter(o => o.value !== -1);
   const selectedSet = new Set(selectedValues || []);
   return opts
     .map(o => `<option value="${o.value}" ${selectedSet.has(o.value) ? 'selected' : ''}>${o.label}</option>`)
@@ -100,35 +110,48 @@ export interface CategoryInfo {
 }
 
 export function getCategoryInfo(category: string): CategoryInfo {
-  const categories: Record<string, CategoryInfo> = {
-    'Objects': {
+  const categories: Record<string, { icon: string; titleKey: TranslationKey; descriptionKey: TranslationKey }> = {
+    Objects: {
       icon: '🎯',
-      title: 'Objects',
-      description: 'Items, decorações e objetos do jogo'
+      titleKey: 'category.objects',
+      descriptionKey: 'category.description.objects'
     },
-    'Outfits': {
+    Outfits: {
       icon: '👤',
-      title: 'Outfits',
-      description: 'Roupas e aparências de personagens'
+      titleKey: 'category.outfits',
+      descriptionKey: 'category.description.outfits'
     },
-    'Effects': {
+    Effects: {
       icon: '✨',
-      title: 'Effects',
-      description: 'Efeitos visuais e animações'
+      titleKey: 'category.effects',
+      descriptionKey: 'category.description.effects'
     },
-    'Missiles': {
+    Missiles: {
       icon: '🏹',
-      title: 'Missiles',
-      description: 'Projéteis e mísseis'
+      titleKey: 'category.missiles',
+      descriptionKey: 'category.description.missiles'
     },
-    'Sounds': {
+    Sounds: {
       icon: '🔊',
-      title: 'Sounds',
-      description: 'Sons e efeitos sonoros'
+      titleKey: 'category.sounds',
+      descriptionKey: 'category.description.sounds'
     }
   };
 
-  return categories[category] || { icon: '📦', title: 'Unknown', description: 'Categoria desconhecida' };
+  const entry = categories[category];
+  if (entry) {
+    return {
+      icon: entry.icon,
+      title: translate(entry.titleKey),
+      description: translate(entry.descriptionKey)
+    };
+  }
+
+  return {
+    icon: '📦',
+    title: translate('category.unknown'),
+    description: translate('category.description.unknown')
+  };
 }
 
 // Progress update helper

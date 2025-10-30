@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { showStatus } from "./utils";
+import { translate, type TranslationKey } from "./i18n";
 import { closeAssetDetails, refreshAssetDetails } from "./assetDetails";
 import { getCurrentCategory, loadAssets } from "./assetUI";
 import type { CompleteAppearanceItem } from "./types";
@@ -17,6 +18,24 @@ const ACTION_BUTTON_IDS = {
   delete: "action-delete-appearance",
   create: "action-create-new"
 } as const;
+type ActionMessageKey = "import" | "export" | "duplicate" | "copyFlagsFrom" | "pasteFlagsInto" | "delete";
+const ACTION_VERB_KEYS: Record<ActionMessageKey, TranslationKey> = {
+  import: "action.verb.import",
+  export: "action.verb.export",
+  duplicate: "action.verb.duplicate",
+  copyFlagsFrom: "action.verb.copyFlagsFrom",
+  pasteFlagsInto: "action.verb.pasteFlagsInto",
+  delete: "action.verb.delete"
+};
+const ACTION_BUTTON_LABEL_KEYS: Record<keyof typeof ACTION_BUTTON_IDS, TranslationKey> = {
+  export: "action.button.export",
+  import: "action.button.import",
+  duplicate: "action.button.duplicate",
+  copy: "action.button.copyFlags",
+  paste: "action.button.pasteFlags",
+  delete: "action.button.delete",
+  create: "action.button.new"
+};
 const SUPPORTED_CATEGORIES = new Set(["Objects", "Outfits", "Effects", "Missiles"]);
 
 let initialized = false;
@@ -30,6 +49,8 @@ interface AssetTarget {
   category: string;
   id: number;
 }
+
+const translateActionVerb = (action: ActionMessageKey): string => translate(ACTION_VERB_KEYS[action]);
 
 let selectedTargets: AssetTarget[] = [];
 let primarySelection: AssetTarget | null = null;
@@ -123,19 +144,29 @@ function updateSelectionState(detail: AssetSelectionChangeDetail): void {
   applyActiveState();
 }
 
-function getSingleTargetOrNotify(actionName: string): AssetTarget | null {
+function getSingleTargetOrNotify(action: ActionMessageKey): AssetTarget | null {
   const targets = getActionTargets(false);
   if (targets.length === 0) {
-    showStatus(`Select an appearance to ${actionName}.`, "error");
+    showStatus(
+      translate('status.selectAppearanceAction', {
+        action: translateActionVerb(action)
+      }),
+      "error"
+    );
     return null;
   }
   return targets[0];
 }
 
-function getBatchTargetsOrNotify(actionName: string): AssetTarget[] | null {
+function getBatchTargetsOrNotify(action: ActionMessageKey): AssetTarget[] | null {
   const targets = getActionTargets(true);
   if (targets.length === 0) {
-    showStatus(`Select at least one appearance to ${actionName}.`, "error");
+    showStatus(
+      translate('status.selectMultipleAppearances', {
+        action: translateActionVerb(action)
+      }),
+      "error"
+    );
     return null;
   }
   return targets;
@@ -154,10 +185,10 @@ async function handleExport(category: string, id: number): Promise<void> {
     }
 
     await invoke("export_appearance_to_json", { category, id, path: destination });
-    showStatus(`Appearance #${id} exported successfully`, "success");
+    showStatus(translate('status.appearanceExported', { id }), "success");
   } catch (error) {
     console.error("Failed to export appearance", error);
-    showStatus("Failed to export appearance", "error");
+    showStatus(translate('status.appearanceExportFailed'), "error");
   }
 }
 
@@ -173,19 +204,19 @@ async function handleImport(category: string, _currentId: number): Promise<void>
     }
 
     let mode: ImportMode = "replace";
-    if (!window.confirm("Import will replace the current appearance. Click Cancel to import as new object.")) {
+    if (!window.confirm(translate('prompt.importReplaceWarning'))) {
       mode = "new";
     }
 
     let newId: number | null = null;
     if (mode === "new") {
-      const userValue = window.prompt("Enter a new object ID (leave blank to auto assign)", "");
+      const userValue = window.prompt(translate('prompt.enterNewObjectId'), "");
       if (userValue && userValue.trim().length > 0) {
         const parsed = Number(userValue);
         if (!Number.isNaN(parsed) && parsed >= 0) {
           newId = parsed;
         } else {
-          showStatus("Invalid ID provided. Using automatic assignment.", "error");
+          showStatus(translate('status.invalidIdAuto'), "error");
         }
       }
     }
@@ -201,23 +232,23 @@ async function handleImport(category: string, _currentId: number): Promise<void>
     await invoke("save_appearances_file");
     await loadAssets();
     await refreshAssetDetails(category, imported.id);
-    showStatus(`Appearance imported as #${imported.id}`, "success");
+    showStatus(translate('status.appearanceImported', { id: imported.id }), "success");
   } catch (error) {
     console.error("Failed to import appearance", error);
-    showStatus("Failed to import appearance", "error");
+    showStatus(translate('status.appearanceImportFailed'), "error");
   }
 }
 
 async function handleDuplicate(category: string, id: number): Promise<void> {
   try {
-    const desiredIdInput = window.prompt("Enter the new ID for the duplicated appearance (leave blank to auto assign)", "");
+    const desiredIdInput = window.prompt(translate('prompt.enterDuplicateId'), "");
     let desiredId: number | null = null;
     if (desiredIdInput && desiredIdInput.trim().length > 0) {
       const parsed = Number(desiredIdInput);
       if (!Number.isNaN(parsed) && parsed >= 0) {
         desiredId = parsed;
       } else {
-        showStatus("Invalid ID provided. Using automatic assignment.", "error");
+        showStatus(translate('status.invalidIdAuto'), "error");
       }
     }
 
@@ -231,28 +262,28 @@ async function handleDuplicate(category: string, id: number): Promise<void> {
     await invoke("save_appearances_file");
     await loadAssets();
     await refreshAssetDetails(category, duplicated.id);
-    showStatus(`Appearance duplicated as #${duplicated.id}`, "success");
+    showStatus(translate('status.appearanceDuplicated', { id: duplicated.id }), "success");
   } catch (error) {
     console.error("Failed to duplicate appearance", error);
-    showStatus("Failed to duplicate appearance", "error");
+    showStatus(translate('status.appearanceDuplicateFailed'), "error");
   }
 }
 
 async function handleCreateNew(category: string): Promise<void> {
   try {
-    const idValue = window.prompt("Enter the ID for the new appearance (leave blank to auto assign)", "");
+    const idValue = window.prompt(translate('prompt.enterNewId'), "");
     let desiredId: number | null = null;
     if (idValue && idValue.trim().length > 0) {
       const parsed = Number(idValue);
       if (!Number.isNaN(parsed) && parsed >= 0) {
         desiredId = parsed;
       } else {
-        showStatus("Invalid ID provided. Using automatic assignment.", "error");
+        showStatus(translate('status.invalidIdAuto'), "error");
       }
     }
 
-    const name = window.prompt("Enter a name for the new appearance (optional)", "");
-    const description = window.prompt("Enter a description for the new appearance (optional)", "");
+    const name = window.prompt(translate('prompt.enterName'), "");
+    const description = window.prompt(translate('prompt.enterDescription'), "");
 
     const result = await invoke<CompleteAppearanceItem>("create_empty_appearance", {
       category,
@@ -265,10 +296,10 @@ async function handleCreateNew(category: string): Promise<void> {
     await invoke("save_appearances_file");
     await loadAssets();
     await refreshAssetDetails(category, created.id);
-    showStatus(`Created new appearance #${created.id}`, "success");
+    showStatus(translate('status.appearanceCreated', { id: created.id }), "success");
   } catch (error) {
     console.error("Failed to create appearance", error);
-    showStatus("Failed to create appearance", "error");
+    showStatus(translate('status.appearanceCreateFailed'), "error");
   }
 }
 
@@ -277,7 +308,7 @@ async function handleCopyFlags(category: string, id: number): Promise<void> {
     await invoke("copy_appearance_flags", { category, id });
     hasClipboard = true;
     updateActionButtonStates();
-    showStatus(`Flags copied from #${id}`, "success");
+    showStatus(translate('status.flagsCopied', { id }), "success");
   } catch (error) {
     console.error("Failed to copy flags", error);
     const message = error instanceof Error ? error.message : String(error);
@@ -285,7 +316,7 @@ async function handleCopyFlags(category: string, id: number): Promise<void> {
       hasClipboard = false;
       updateActionButtonStates();
     }
-    showStatus("Failed to copy flags", "error");
+    showStatus(translate('status.flagsCopyFailed'), "error");
   }
 }
 
@@ -314,8 +345,8 @@ async function handlePasteFlagsBatch(targets: AssetTarget[]): Promise<void> {
     hasClipboard = true;
     const message =
       targets.length === 1
-        ? `Flags applied to #${targets[0].id}`
-        : `Flags applied to ${targets.length} appearances`;
+        ? translate('status.flagsAppliedSingle', { id: targets[0].id })
+        : translate('status.flagsAppliedMultiple', { count: targets.length });
     showStatus(message, "success");
   } catch (error) {
     console.error("Failed to paste flags", error);
@@ -323,7 +354,7 @@ async function handlePasteFlagsBatch(targets: AssetTarget[]): Promise<void> {
     if (message.toLowerCase().includes("clipboard")) {
       hasClipboard = false;
     }
-    showStatus("Failed to paste flags", "error");
+    showStatus(translate('status.flagsPasteFailed'), "error");
   } finally {
     updateActionButtonStates();
   }
@@ -340,12 +371,12 @@ async function handleDeleteAppearances(targets: AssetTarget[]): Promise<void> {
 
   if (uniqueTargets.length === 1) {
     const target = uniqueTargets[0];
-    if (!window.confirm(`Delete appearance #${target.id}? This action cannot be undone.`)) {
+    if (!window.confirm(translate('confirm.deleteSingle', { id: target.id }))) {
       return;
     }
   } else {
     const ids = uniqueTargets.map((target) => `#${target.id}`).join(", ");
-    if (!window.confirm(`Delete ${uniqueTargets.length} appearances (${ids})? This action cannot be undone.`)) {
+    if (!window.confirm(translate('confirm.deleteMultiple', { count: uniqueTargets.length, ids }))) {
       return;
     }
   }
@@ -362,12 +393,12 @@ async function handleDeleteAppearances(targets: AssetTarget[]): Promise<void> {
     setActionSelection(resolveCategory(null), null);
     const message =
       uniqueTargets.length === 1
-        ? `Appearance #${uniqueTargets[0].id} deleted`
-        : `Deleted ${uniqueTargets.length} appearances`;
+        ? translate('status.appearanceDeletedSingle', { id: uniqueTargets[0].id })
+        : translate('status.appearanceDeletedMultiple', { count: uniqueTargets.length });
     showStatus(message, "success");
   } catch (error) {
     console.error("Failed to delete appearance", error);
-    showStatus("Failed to delete appearance", "error");
+    showStatus(translate('status.appearanceDeleteFailed'), "error");
   } finally {
     updateActionButtonStates();
   }
@@ -390,13 +421,27 @@ function ensureActionBar(): HTMLDivElement | null {
   if (!actionBarBuilt) {
     container.innerHTML = `
       <div class="appearance-action-group">
-        <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.import}">Import</button>
-        <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.export}">Export</button>
-        <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.duplicate}">Duplicate</button>
-        <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.copy}">Copy Flags</button>
-        <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.paste}">Paste Flags</button>
-        <button type="button" class="appearance-action-button destructive" id="${ACTION_BUTTON_IDS.delete}">Delete</button>
-        <button type="button" class="appearance-action-button primary" id="${ACTION_BUTTON_IDS.create}">New</button>
+        <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.import}" data-i18n="${ACTION_BUTTON_LABEL_KEYS.import}">
+          ${translate(ACTION_BUTTON_LABEL_KEYS.import)}
+        </button>
+        <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.export}" data-i18n="${ACTION_BUTTON_LABEL_KEYS.export}">
+          ${translate(ACTION_BUTTON_LABEL_KEYS.export)}
+        </button>
+        <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.duplicate}" data-i18n="${ACTION_BUTTON_LABEL_KEYS.duplicate}">
+          ${translate(ACTION_BUTTON_LABEL_KEYS.duplicate)}
+        </button>
+        <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.copy}" data-i18n="${ACTION_BUTTON_LABEL_KEYS.copy}">
+          ${translate(ACTION_BUTTON_LABEL_KEYS.copy)}
+        </button>
+        <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.paste}" data-i18n="${ACTION_BUTTON_LABEL_KEYS.paste}">
+          ${translate(ACTION_BUTTON_LABEL_KEYS.paste)}
+        </button>
+        <button type="button" class="appearance-action-button destructive" id="${ACTION_BUTTON_IDS.delete}" data-i18n="${ACTION_BUTTON_LABEL_KEYS.delete}">
+          ${translate(ACTION_BUTTON_LABEL_KEYS.delete)}
+        </button>
+        <button type="button" class="appearance-action-button primary" id="${ACTION_BUTTON_IDS.create}" data-i18n="${ACTION_BUTTON_LABEL_KEYS.create}">
+          ${translate(ACTION_BUTTON_LABEL_KEYS.create)}
+        </button>
       </div>
     `;
 
@@ -426,7 +471,7 @@ function ensureActionBar(): HTMLDivElement | null {
 
     const copyBtn = getActionButton("copy");
     copyBtn?.addEventListener("click", () => {
-      const target = getSingleTargetOrNotify("copy flags from");
+      const target = getSingleTargetOrNotify("copyFlagsFrom");
       if (target) {
         void handleCopyFlags(target.category, target.id);
       }
@@ -435,10 +480,10 @@ function ensureActionBar(): HTMLDivElement | null {
     const pasteBtn = getActionButton("paste");
     pasteBtn?.addEventListener("click", () => {
       if (!hasClipboard) {
-        showStatus("Copy flags before pasting.", "error");
+        showStatus(translate('status.copyFlagsBeforePasting'), "error");
         return;
       }
-      const targets = getBatchTargetsOrNotify("paste flags into");
+      const targets = getBatchTargetsOrNotify("pasteFlagsInto");
       if (targets) {
         void handlePasteFlagsBatch(targets);
       }

@@ -3,6 +3,7 @@ import { getAppearanceSprites, createSpriteImage, createPlaceholderImage } from 
 import { stopAllAnimationPlayers, initAssetCardAutoAnimation } from './animation';
 import { isAssetSelected } from './assetSelection';
 import { showStatus } from './utils';
+import { translate } from './i18n';
 
 let currentCategory = 'Objects';
 let currentSubcategory = 'All';
@@ -349,7 +350,7 @@ function displaySounds(sounds: any[], append = false): void {
 
   // Create sound items
   const html = sounds.map(sound => {
-    const soundType = sound.sound_type || 'Unknown';
+    const soundType = sound.sound_type || translate('general.unknown');
     const hasSoundFile = sound.sound_id !== null && sound.sound_id !== undefined;
     const hasRandomSounds = sound.random_sound_ids && sound.random_sound_ids.length > 0;
 
@@ -496,7 +497,7 @@ function displayMusicTemplates(templates: any[], append = false): void {
         </div>
         <div class="asset-name">Music Template</div>
         <div class="asset-description">
-          Type: ${t.music_type || 'Unknown'}
+          Type: ${t.music_type || translate('general.unknown')}
         </div>
       </div>
     `;
@@ -522,14 +523,15 @@ function updatePaginationInfo(): void {
 
   if (itemsCount) {
     itemsCount.textContent = totalItems === 0
-      ? '0 itens'
-      : `${startItem}-${endItem} de ${totalItems} itens`;
+      ? translate('count.items', { count: 0 })
+      : translate('results.range', { start: startItem, end: endItem, total: totalItems });
   }
 
   if (pageInfo) {
-    pageInfo.textContent = totalItems === 0
-      ? 'Página 1 de 1'
-      : `Página ${currentPageIndex + 1} de ${totalPages}`;
+    pageInfo.textContent = translate('pagination.pageInfo', {
+      current: totalItems === 0 ? 1 : currentPageIndex + 1,
+      total: totalItems === 0 ? 1 : totalPages
+    });
   }
 
   if (prevPageBtn) {
@@ -567,13 +569,13 @@ export async function performSearch(): Promise<void> {
 
   const numericMatch = rawInput.match(/\d+/);
   if (!numericMatch) {
-    showStatus('Please enter a valid numeric appearance ID.', 'error');
+    showStatus(translate('status.invalidNumericId'), 'error');
     return;
   }
 
   const targetId = Number.parseInt(numericMatch[0], 10);
   if (Number.isNaN(targetId)) {
-    showStatus('Please enter a valid numeric appearance ID.', 'error');
+    showStatus(translate('status.invalidNumericId'), 'error');
     return;
   }
 
@@ -590,7 +592,7 @@ export async function performSearch(): Promise<void> {
     });
 
     if (position === null) {
-      showStatus(`Appearance ${targetId} was not found in the current view.`, 'error');
+      showStatus(translate('status.appearanceNotFoundCurrentView', { id: targetId }), 'error');
       return;
     }
 
@@ -602,7 +604,7 @@ export async function performSearch(): Promise<void> {
   } catch (error) {
     console.error('Failed to locate appearance by ID:', error);
     pendingScrollToId = null;
-    showStatus('Unable to locate the requested appearance.', 'error');
+    showStatus(translate('status.appearanceNotFound'), 'error');
   }
 }
 
