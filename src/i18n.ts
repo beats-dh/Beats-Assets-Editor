@@ -82,13 +82,6 @@ const translationEntries = {
     es: '🎯 Configura tu cliente de Tibia',
     ru: '🎯 Настройте клиент Tibia'
   },
-  'setup.tibiaPathLabel': {
-    default: 'Tibia Client Path:',
-    'pt-BR': 'Caminho do cliente Tibia:',
-    en: 'Tibia Client Path:',
-    es: 'Ruta del cliente de Tibia:',
-    ru: 'Путь к клиенту Tibia:'
-  },
   'setup.tibiaPathPlaceholder': {
     default: 'C:\\Path\\To\\Tibia',
     'pt-BR': 'C:\\Caminho\\Para\\Tibia',
@@ -109,6 +102,13 @@ const translationEntries = {
     en: 'Load assets',
     es: 'Cargar recursos',
     ru: 'Загрузить ресурсы'
+  },
+  'setup.returnToMenu': {
+    default: 'Main menu',
+    'pt-BR': 'Menu principal',
+    en: 'Main menu',
+    es: 'Menú principal',
+    ru: 'Главное меню'
   },
   'select.placeholder': {
     default: 'Selecione',
