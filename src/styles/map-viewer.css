@@ -1,0 +1,160 @@
+/* Map Viewer Styles */
+
+.map-section {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: #1a1a2e;
+  z-index: 100;
+  display: none;
+}
+
+.map-viewer-container {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  grid-template-columns: 1fr 300px;
+  height: 100vh;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.map-controls {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  background: #16213e;
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.map-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: #e0e0e0;
+  font-size: 0.875rem;
+}
+
+.map-navigation {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-left: auto;
+}
+
+.map-navigation label {
+  color: #e0e0e0;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.map-navigation input[type="number"] {
+  width: 60px;
+  padding: 0.25rem 0.5rem;
+  background: #1a1a2e;
+  border: 1px solid #4f46e5;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 0.875rem;
+}
+
+.map-canvas-container {
+  position: relative;
+  background: #0a0a0a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+#map-canvas {
+  width: 100%;
+  height: 100%;
+  cursor: move;
+}
+
+.map-coords {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  background: rgba(0, 0, 0, 0.8);
+  color: #e0e0e0;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.875rem;
+  pointer-events: none;
+}
+
+.map-sidebar {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.map-sidebar h3 {
+  color: #e0e0e0;
+  font-size: 1rem;
+  margin: 0 0 0.5rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #4f46e5;
+}
+
+.list-container {
+  margin-bottom: 1.5rem;
+}
+
+.list-item {
+  padding: 0.5rem;
+  margin-bottom: 0.25rem;
+  background: #1a1a2e;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.list-item:hover {
+  background: #4f46e5;
+  transform: translateX(4px);
+}
+
+/* Buttons */
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: #4f46e5;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #5f56f5;
+}
+
+.btn-secondary {
+  background: #16213e;
+  color: #e0e0e0;
+  border: 1px solid #4f46e5;
+}
+
+.btn-secondary:hover {
+  background: #1a1a2e;
+  border-color: #5f56f5;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}

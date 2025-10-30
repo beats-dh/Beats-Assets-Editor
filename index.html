@@ -5,6 +5,7 @@
     <link rel="stylesheet" href="/src/styles/main.css" />
     <link rel="stylesheet" href="/src/features/layout/headerSpacing.css" />
     <link rel="stylesheet" href="/src/features/assetGrid/assetSelectionLayout.css" />
+    <link rel="stylesheet" href="/src/styles/map-viewer.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tibia Assets Editor</title>
     <script type="module" src="/src/main.ts" defer></script>
@@ -213,6 +214,15 @@
               </div>
               <div class="card-arrow">→</div>
             </div>
+
+            <div class="category-card" data-category="Maps">
+              <div class="card-icon">🗺️</div>
+              <div class="card-content">
+                <h3 data-i18n="category.maps">Maps</h3>
+                <p>OTBM Viewer</p>
+              </div>
+              <div class="card-arrow">→</div>
+            </div>
           </div>
 
           <!-- Subcategories Section -->
@@ -384,6 +394,11 @@
           </div>
         </div>
       </main>
+
+      <!-- Map Viewer Section -->
+      <section id="map-section" class="map-section" style="display: none;">
+        <!-- Map viewer will be initialized here by mapViewer.ts -->
+      </section>
 
       <!-- Asset Details Modal -->
       <div id="asset-details" class="asset-details-modal">

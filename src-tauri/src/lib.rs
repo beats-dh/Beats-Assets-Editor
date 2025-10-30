@@ -2,6 +2,7 @@ mod commands;
 pub mod core;
 
 use commands::sounds_api::SoundsState;
+use commands::map_api::MapState;
 use commands::AppState;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -24,6 +25,7 @@ pub fn run() {
             flags_clipboard: Mutex::new(None),
         })
         .manage(SoundsState::new())
+        .manage(Mutex::new(MapState::default()))
         .invoke_handler(tauri::generate_handler![
             commands::appearances_api::load_appearances_file,
             commands::appearances_api::get_appearance_stats,
@@ -112,6 +114,14 @@ pub fn run() {
             commands::sounds_api::delete_numeric_sound_effect,
             // Import new audio file and add base sound
             commands::sounds_api::import_and_add_sound,
+            // Map API
+            commands::map_api::load_map,
+            commands::map_api::get_map_info,
+            commands::map_api::get_map_region,
+            commands::map_api::get_tile_at,
+            commands::map_api::get_towns,
+            commands::map_api::get_waypoints,
+            commands::map_api::get_item_render_flags,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

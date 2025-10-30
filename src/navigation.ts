@@ -76,10 +76,27 @@ export function openCategory(category: string): void {
   const appHeader = document.querySelector('.app-header') as HTMLElement;
   const categoryNav = document.querySelector('.category-nav') as HTMLElement;
   const categoryView = document.querySelector('#category-view') as HTMLElement;
+  const mapSection = document.querySelector('#map-section') as HTMLElement;
 
   if (appHeader) appHeader.style.display = 'none';
   if (categoryNav) categoryNav.style.display = 'none';
+
+  // Special handling for Maps category
+  if (category === 'Maps') {
+    if (categoryView) categoryView.style.display = 'none';
+    if (mapSection) {
+      mapSection.style.display = 'block';
+      // Initialize map viewer
+      import('./mapViewer').then(({ initMapViewer }) => {
+        initMapViewer();
+      });
+    }
+    return;
+  }
+
+  // Normal category view
   if (categoryView) categoryView.style.display = 'block';
+  if (mapSection) mapSection.style.display = 'none';
 
   // Show/hide subcategory selector based on category
   const subcategoryContainer = document.getElementById('subcategory-container') as HTMLElement | null;
@@ -144,10 +161,12 @@ export function goBack(): void {
     clearAssetSelection();
 
     const categoryView = document.querySelector('#category-view') as HTMLElement;
+    const mapSection = document.querySelector('#map-section') as HTMLElement;
     const appHeader = document.querySelector('.app-header') as HTMLElement;
     const categoryNav = document.querySelector('.category-nav') as HTMLElement;
 
     if (categoryView) categoryView.style.display = 'none';
+    if (mapSection) mapSection.style.display = 'none';
     if (appHeader) appHeader.style.display = 'block';
     if (categoryNav) categoryNav.style.display = 'block';
   }
