@@ -316,7 +316,17 @@
               <button id="tab-edit" class="tab-btn" data-tab="edit">Edit</button>
               <button id="tab-texture" class="tab-btn" data-tab="texture">Texture</button>
             </div>
-            <button id="close-details" class="close-btn">✕</button>
+            <div class="modal-actions">
+              <div class="modal-nav-controls" role="group" aria-label="Navigate assets">
+                <button id="prev-asset" class="detail-nav-btn" type="button" aria-label="Previous asset" title="Previous asset">
+                  <span aria-hidden="true">◀</span>
+                </button>
+                <button id="next-asset" class="detail-nav-btn" type="button" aria-label="Next asset" title="Next asset">
+                  <span aria-hidden="true">▶</span>
+                </button>
+              </div>
+              <button id="close-details" class="close-btn" type="button">✕</button>
+            </div>
           </div>
           <div class="modal-body">
             <div id="details-content" class="tab-content">

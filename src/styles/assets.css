@@ -38,6 +38,15 @@
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3), var(--shadow-lg);
 }
 
+.asset-item.is-active {
+  border-color: rgba(59, 130, 246, 0.75);
+  box-shadow:
+    0 0 0 2px rgba(59, 130, 246, 0.35),
+    0 16px 30px rgba(15, 23, 42, 0.35);
+  transform: translateY(-4px);
+}
+
+
 .asset-flags {
   display: flex;
   align-items: center;

@@ -5,17 +5,39 @@ import { getVocationOptionsHTML, getFlagBool } from './utils';
 import { getAppearanceSprites } from './spriteCache';
 import { stopDetailAnimationPlayers, initAnimationPlayersForDetails, initDetailSpriteCardAnimations } from './animation';
 import { renderTextureTab } from './textureTab';
+import { loadAssets, getCurrentPage, setCurrentPage, getCurrentPageSize, getTotalItemsCount, getCurrentCategory } from './assetUI';
 
 // Current appearance being displayed
 let currentAppearanceDetails: CompleteAppearanceItem | null = null;
 
+let currentDetailCategory: string | null = null;
+let currentDetailId: number | null = null;
+let highlightedAssetItem: HTMLElement | null = null;
+let navigationListenersInitialized = false;
+let isNavigatingBetweenAssets = false;
+
 // DOM references
 let assetDetails: HTMLElement | null = null;
 let detailsContent: HTMLElement | null = null;
+let prevAssetButton: HTMLButtonElement | null = null;
+let nextAssetButton: HTMLButtonElement | null = null;
+
+type NavigationDirection = 'previous' | 'next';
 
 export function initAssetDetailsElements(): void {
   assetDetails = document.querySelector('#asset-details');
   detailsContent = document.querySelector('#details-content');
+  prevAssetButton = document.querySelector('#prev-asset') as HTMLButtonElement | null;
+  nextAssetButton = document.querySelector('#next-asset') as HTMLButtonElement | null;
+
+  if (!navigationListenersInitialized) {
+    prevAssetButton?.addEventListener('click', () => { void navigateToAdjacentAsset('previous'); });
+    nextAssetButton?.addEventListener('click', () => { void navigateToAdjacentAsset('next'); });
+    navigationListenersInitialized = true;
+  }
+
+  setNavButtonState(prevAssetButton, false);
+  setNavButtonState(nextAssetButton, false);
 }
 
 export function getCurrentAppearanceDetails(): CompleteAppearanceItem | null {
@@ -25,6 +47,189 @@ export function getCurrentAppearanceDetails(): CompleteAppearanceItem | null {
 export function setCurrentAppearanceDetails(details: CompleteAppearanceItem | null): void {
   currentAppearanceDetails = details;
 }
+
+function setNavButtonState(button: HTMLButtonElement | null, enabled: boolean): void {
+  if (!button) return;
+  button.disabled = !enabled;
+  button.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+}
+
+function getAssetItemsForCategory(category: string): HTMLElement[] {
+  const grid = document.querySelector('#assets-grid');
+  if (!grid) return [];
+  return Array.from(grid.querySelectorAll<HTMLElement>(`.asset-item[data-category="${category}"]`));
+}
+
+function highlightAssetItem(element: HTMLElement | null): void {
+  if (highlightedAssetItem === element) {
+    if (element && element.isConnected) {
+      requestAnimationFrame(() => {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      });
+    }
+    return;
+  }
+
+  if (highlightedAssetItem) {
+    highlightedAssetItem.classList.remove('is-active');
+  }
+
+  highlightedAssetItem = element ?? null;
+
+  if (element) {
+    element.classList.add('is-active');
+    if (element.isConnected) {
+      requestAnimationFrame(() => {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      });
+    }
+  }
+}
+
+function updateNavigationButtons(category: string, id: number): void {
+  currentDetailCategory = category;
+  currentDetailId = id;
+
+  const assetItems = getAssetItemsForCategory(category);
+  const matchesActiveCategory = category === getCurrentCategory();
+
+  if (!prevAssetButton || !nextAssetButton) {
+    if (assetItems.length === 0) {
+      highlightAssetItem(null);
+    }
+    return;
+  }
+
+  if (assetItems.length === 0) {
+    setNavButtonState(prevAssetButton, false);
+    setNavButtonState(nextAssetButton, false);
+    highlightAssetItem(null);
+    return;
+  }
+
+  const currentIndex = assetItems.findIndex((item) => {
+    const assetIdAttr = item.dataset.assetId;
+    return assetIdAttr ? Number.parseInt(assetIdAttr, 10) === id : false;
+  });
+
+  const safePageSize = Math.max(1, matchesActiveCategory ? getCurrentPageSize() : assetItems.length);
+  const totalItems = matchesActiveCategory ? getTotalItemsCount() : assetItems.length;
+  const currentPageIndex = matchesActiveCategory ? getCurrentPage() : 0;
+  const totalPages = Math.max(1, Math.ceil(totalItems / safePageSize));
+
+  const hasPrev = (currentIndex > 0)
+    || (matchesActiveCategory && currentIndex <= 0 && currentPageIndex > 0);
+
+  const hasNext = (currentIndex >= 0 && currentIndex < assetItems.length - 1)
+    || (matchesActiveCategory && assetItems.length > 0 && currentIndex >= assetItems.length - 1 && currentPageIndex < totalPages - 1);
+
+  setNavButtonState(prevAssetButton, hasPrev);
+  setNavButtonState(nextAssetButton, hasNext);
+
+  if (currentIndex >= 0 && assetItems[currentIndex]) {
+    highlightAssetItem(assetItems[currentIndex]);
+  } else {
+    highlightAssetItem(null);
+  }
+}
+
+async function navigateToAdjacentAsset(direction: NavigationDirection): Promise<void> {
+  if (!currentDetailCategory || currentDetailId === null) {
+    return;
+  }
+
+  if (isNavigatingBetweenAssets) {
+    return;
+  }
+
+  if (direction === 'previous' && prevAssetButton?.disabled) {
+    return;
+  }
+
+  if (direction === 'next' && nextAssetButton?.disabled) {
+    return;
+  }
+
+  isNavigatingBetweenAssets = true;
+
+  let navigated = false;
+
+  try {
+    const matchesActiveCategory = currentDetailCategory === getCurrentCategory();
+    let assetItems = getAssetItemsForCategory(currentDetailCategory);
+
+    if (assetItems.length === 0) {
+      return;
+    }
+
+    let currentIndex = assetItems.findIndex((item) => {
+      const assetIdAttr = item.dataset.assetId;
+      return assetIdAttr ? Number.parseInt(assetIdAttr, 10) === currentDetailId : false;
+    });
+
+    const totalItems = matchesActiveCategory ? getTotalItemsCount() : assetItems.length;
+    const safePageSize = Math.max(1, matchesActiveCategory ? getCurrentPageSize() : assetItems.length);
+    const currentPageIndex = matchesActiveCategory ? getCurrentPage() : 0;
+    const totalPages = Math.max(1, Math.ceil(totalItems / safePageSize));
+
+    let targetIndex = -1;
+
+    if (direction === 'previous') {
+      if (currentIndex > 0) {
+        targetIndex = currentIndex - 1;
+      } else if (matchesActiveCategory && currentPageIndex > 0) {
+        setCurrentPage(currentPageIndex - 1);
+        await loadAssets();
+        assetItems = getAssetItemsForCategory(currentDetailCategory);
+        currentIndex = assetItems.length - 1;
+        targetIndex = currentIndex;
+      }
+    } else {
+      if (currentIndex >= 0 && currentIndex < assetItems.length - 1) {
+        targetIndex = currentIndex + 1;
+      } else if (matchesActiveCategory && currentPageIndex < totalPages - 1) {
+        setCurrentPage(currentPageIndex + 1);
+        await loadAssets();
+        assetItems = getAssetItemsForCategory(currentDetailCategory);
+        targetIndex = assetItems.length > 0 ? 0 : -1;
+      }
+    }
+
+    if (targetIndex >= 0 && targetIndex < assetItems.length) {
+      const targetElement = assetItems[targetIndex];
+      const assetIdAttr = targetElement.dataset.assetId;
+      if (assetIdAttr) {
+        const targetId = Number.parseInt(assetIdAttr, 10);
+        if (!Number.isNaN(targetId)) {
+          await showAssetDetails(currentDetailCategory, targetId);
+          navigated = true;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to navigate between assets:', error);
+  } finally {
+    if (!navigated && currentDetailCategory && currentDetailId !== null) {
+      updateNavigationButtons(currentDetailCategory, currentDetailId);
+    }
+    isNavigatingBetweenAssets = false;
+  }
+}
+
+function resetNavigationState(): void {
+  currentDetailCategory = null;
+  currentDetailId = null;
+  isNavigatingBetweenAssets = false;
+  highlightAssetItem(null);
+  setNavButtonState(prevAssetButton, false);
+  setNavButtonState(nextAssetButton, false);
+}
+
+document.addEventListener('assets-grid-rendered', () => {
+  if (currentDetailCategory && currentDetailId !== null) {
+    updateNavigationButtons(currentDetailCategory, currentDetailId);
+  }
+});
 
 export async function showAssetDetails(category: string, id: number): Promise<void> {
   console.log(`showAssetDetails called with category: ${category}, id: ${id}`);
@@ -44,6 +249,8 @@ export async function showAssetDetails(category: string, id: number): Promise<vo
   } else {
     await showAppearanceDetails(category, id);
   }
+
+  updateNavigationButtons(category, id);
 }
 
 document.addEventListener('texture-settings-saved', async (event: Event) => {
@@ -2419,6 +2626,7 @@ export function closeAssetDetails(): void {
     assetDetails.classList.remove('show');
     assetDetails.style.display = 'none';
   }
+  resetNavigationState();
   currentAppearanceDetails = null;
   document.dispatchEvent(new CustomEvent('appearance-details-closed'));
 }
@@ -2431,6 +2639,7 @@ export async function refreshAssetDetails(category: string, id: number): Promise
     await displayCompleteAssetDetails(updated, category);
     await initAnimationPlayersForDetails(updated, category);
     await loadDetailSprites(category, id);
+    updateNavigationButtons(category, id);
   } catch (err) {
     console.error('Falha ao atualizar detalhes do item:', err);
   }
