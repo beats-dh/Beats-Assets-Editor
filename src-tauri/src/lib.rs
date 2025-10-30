@@ -30,6 +30,7 @@ pub fn run() {
             commands::appearances_api::select_tibia_directory,
             commands::appearances_api::list_appearance_files,
             commands::appearances_api::list_appearances_by_category,
+            commands::appearances_api::find_appearance_position,
             commands::appearances_api::get_appearance_details,
             commands::appearances_api::get_appearance_count,
             commands::appearances_api::load_sprites_catalog,

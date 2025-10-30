@@ -182,6 +182,11 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-x: auto;
+}
+
+.texture-bounding-section {
+  width: 100%;
 }
 
 .texture-bounding-table {
