@@ -515,8 +515,7 @@ impl OtbmParser {
             let is_house_tile = node_type == NodeType::HouseTile;
             if node_type != NodeType::Tile && !is_house_tile {
                 log::debug!("Skipping unknown tile area child: {:?}", node_type);
-                self.skip_node()?;
-                self.expect_node_end()?;
+                self.skip_node()?; // skip_node already consumes NODE_END
                 continue;
             }
 
@@ -668,8 +667,7 @@ impl OtbmParser {
 
             if node_type != NodeType::Town {
                 log::debug!("Skipping unknown towns child: {:?}", node_type);
-                self.skip_node()?;
-                self.expect_node_end()?;
+                self.skip_node()?; // skip_node already consumes NODE_END
                 continue;
             }
 
@@ -697,8 +695,7 @@ impl OtbmParser {
 
             if node_type != NodeType::Waypoint {
                 log::debug!("Skipping unknown waypoints child: {:?}", node_type);
-                self.skip_node()?;
-                self.expect_node_end()?;
+                self.skip_node()?; // skip_node already consumes NODE_END
                 continue;
             }
 
