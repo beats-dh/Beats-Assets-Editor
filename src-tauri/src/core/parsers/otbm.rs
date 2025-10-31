@@ -473,20 +473,21 @@ impl OtbmParser {
             match node_type {
                 NodeType::TileArea => {
                     self.parse_tile_area(&mut map)?;
+                    self.expect_node_end()?; // End of TileArea
                 }
                 NodeType::Towns => {
                     self.parse_towns(&mut map)?;
+                    self.expect_node_end()?; // End of Towns
                 }
                 NodeType::Waypoints => {
                     self.parse_waypoints(&mut map)?;
+                    self.expect_node_end()?; // End of Waypoints
                 }
                 _ => {
                     log::debug!("Skipping unknown map child node: {:?}", node_type);
-                    self.skip_node()?;
+                    self.skip_node()?; // skip_node already consumes NODE_END
                 }
             }
-
-            self.expect_node_end()?;
         }
 
         self.expect_node_end()?; // End of MapData
@@ -574,12 +575,11 @@ impl OtbmParser {
                 if node_type == NodeType::Item {
                     let item = self.parse_item()?;
                     tile.add_item(item);
+                    self.expect_node_end()?; // parse_item() doesn't consume NODE_END
                 } else {
                     log::debug!("Skipping unknown tile child: {:?}", node_type);
-                    self.skip_node()?;
+                    self.skip_node()?; // skip_node() already consumes NODE_END
                 }
-
-                self.expect_node_end()?;
             }
 
             // Store tile
