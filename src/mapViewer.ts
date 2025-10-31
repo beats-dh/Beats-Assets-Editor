@@ -396,7 +396,15 @@ function setupEventListeners() {
       });
 
       if (file) {
-        const info = await loadMapFile(file.path);
+        // In Tauri v2, open() returns a string path directly (or null)
+        const filePath = typeof file === 'string' ? file : file.path;
+
+        if (!filePath) {
+          console.error("No file path selected");
+          return;
+        }
+
+        const info = await loadMapFile(filePath);
 
         // Update UI
         const mapInfoDiv = document.getElementById("map-info");
