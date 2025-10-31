@@ -530,6 +530,7 @@ impl OtbmParser {
                 z: base_z,
             };
 
+            log::debug!("Parsing tile at {}:{}:{} (is_house={})", pos.x, pos.y, pos.z, is_house_tile);
             let mut tile = Tile::new(pos.clone());
 
             // Read house ID if house tile
@@ -552,6 +553,7 @@ impl OtbmParser {
                     Some(AttributeType::Item) => {
                         // Inline item (OTBM_ATTR_ITEM)
                         let item_id = self.read_u16()?;
+                        log::debug!("  Inline item: id={}", item_id);
                         let item = Item {
                             id: item_id,
                             attributes: HashMap::new(),
@@ -569,13 +571,16 @@ impl OtbmParser {
             }
 
             // Read item child nodes
+            let mut item_count = 0;
             while self.peek_byte()? == NODE_START {
                 let node_type = self.expect_node_start()?;
 
                 if node_type == NodeType::Item {
                     let item = self.parse_item()?;
+                    log::debug!("  Item #{}: id={}", item_count, item.id);
                     tile.add_item(item);
                     self.expect_node_end()?; // parse_item() doesn't consume NODE_END
+                    item_count += 1;
                 } else {
                     log::debug!("Skipping unknown tile child: {:?}", node_type);
                     self.skip_node()?; // skip_node() already consumes NODE_END
@@ -585,6 +590,7 @@ impl OtbmParser {
             // Store tile
             map.tiles.insert((pos.x, pos.y, pos.z), tile);
 
+            log::debug!("Expecting NODE_END for tile at {}:{}:{}, next byte: 0x{:02X}", pos.x, pos.y, pos.z, self.peek_byte()?);
             self.expect_node_end()?; // End of Tile
         }
 
