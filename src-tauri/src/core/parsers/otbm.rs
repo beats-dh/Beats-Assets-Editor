@@ -381,6 +381,20 @@ impl OtbmParser {
         Ok(())
     }
 
+    /// Skip unknown attribute data until we find a node marker
+    fn skip_to_node_marker(&mut self) -> io::Result<()> {
+        loop {
+            let byte = self.peek_byte()?;
+            if byte == NODE_START || byte == NODE_END {
+                // Found a node marker, stop (don't consume it)
+                break;
+            }
+            // Consume this byte (handles escape sequences)
+            self.read_byte()?;
+        }
+        Ok(())
+    }
+
     /// Parse the OTBM file
     pub fn parse(&mut self) -> io::Result<OtbmMap> {
         // Read and verify signature
@@ -562,15 +576,14 @@ impl OtbmParser {
                     }
                     Some(_) => {
                         // Known attribute type but not handled for tiles
-                        // Can't skip safely without knowing the format
-                        log::warn!("Unhandled tile attribute: 0x{:02X} at tile {}:{}:{}", attr_type, pos.x, pos.y, pos.z);
-                        // Break to avoid corruption
+                        log::warn!("Unhandled tile attribute: 0x{:02X} at tile {}:{}:{} - attempting to skip", attr_type, pos.x, pos.y, pos.z);
+                        self.skip_to_node_marker()?;
                         break;
                     }
                     None => {
-                        // Unknown attribute - can't parse it safely
-                        log::warn!("Unknown tile attribute: 0x{:02X} at tile {}:{}:{}", attr_type, pos.x, pos.y, pos.z);
-                        // Break out of attribute loop
+                        // Unknown attribute
+                        log::warn!("Unknown tile attribute: 0x{:02X} at tile {}:{}:{} - attempting to skip", attr_type, pos.x, pos.y, pos.z);
+                        self.skip_to_node_marker()?;
                         break;
                     }
                 }
@@ -662,9 +675,14 @@ impl OtbmParser {
 
                 item.attributes.insert(attr_type, value);
             } else {
-                // Unknown attribute type - can't parse safely
-                log::warn!("Unknown item attribute: 0x{:02X} for item id {}", attr_type_byte, item.id);
-                // Break to avoid corruption - don't try to guess the format
+                // Unknown attribute type
+                log::warn!("Unknown item attribute: 0x{:02X} for item id {} - attempting to skip", attr_type_byte, item.id);
+
+                // Try to skip this unknown attribute by scanning to next node marker
+                // This is safe because node markers (0xFE, 0xFF) are escaped in attribute data
+                self.skip_to_node_marker()?;
+
+                // Exit attribute loop - next should be NODE_END or NODE_START
                 break;
             }
         }
