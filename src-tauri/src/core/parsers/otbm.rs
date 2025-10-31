@@ -687,6 +687,23 @@ impl OtbmParser {
             }
         }
 
+        // Read child items (for containers like bags, backpacks, etc)
+        while self.peek_byte()? == NODE_START {
+            let node_type = self.expect_node_start()?;
+
+            if node_type == NodeType::Item {
+                // Recursively parse child item
+                let _child_item = self.parse_item()?;
+                self.expect_node_end()?;
+                // Note: We're not storing child items in the Item struct yet
+                // The Item struct would need a Vec<Item> field for that
+                // For now we just skip them to maintain file structure
+            } else {
+                log::debug!("Skipping unknown item child node: {:?} for item id {}", node_type, item.id);
+                self.skip_node()?;
+            }
+        }
+
         Ok(item)
     }
 
