@@ -3,7 +3,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { getItemSpriteVariant } from "./spriteCache";
+import { getAppearanceSprites } from "./spriteCache";
 import type {
   MapInfo,
   TileData,
@@ -174,13 +174,8 @@ async function renderTile(tile: TileData, screenX: number, screenY: number) {
 
   for (const { item, flags } of sortedItems) {
     try {
-      const sprites = await getItemSpriteVariant(item.id, {
-        animationFrame: 0,
-        xDiv: 0,
-        yDiv: 0,
-        zDiv: 0,
-        layer: 0,
-      });
+      // Get sprites from appearances.dat
+      const sprites = await getAppearanceSprites("Objects", item.id);
 
       if (sprites && sprites.length > 0) {
         const img = new Image();
