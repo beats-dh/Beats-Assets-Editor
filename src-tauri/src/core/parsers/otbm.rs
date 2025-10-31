@@ -381,20 +381,6 @@ impl OtbmParser {
         Ok(())
     }
 
-    /// Skip unknown attribute data until we find a node marker
-    fn skip_to_node_marker(&mut self) -> io::Result<()> {
-        loop {
-            let byte = self.peek_byte()?;
-            if byte == NODE_START || byte == NODE_END {
-                // Found a node marker, stop (don't consume it)
-                break;
-            }
-            // Consume this byte (handles escape sequences)
-            self.read_byte()?;
-        }
-        Ok(())
-    }
-
     /// Parse the OTBM file
     pub fn parse(&mut self) -> io::Result<OtbmMap> {
         // Read and verify signature
@@ -580,14 +566,24 @@ impl OtbmParser {
                     }
                     Some(_) => {
                         // Known attribute type but not handled for tiles
-                        log::warn!("Unhandled tile attribute: 0x{:02X} at tile {}:{}:{} - attempting to skip", attr_type, pos.x, pos.y, pos.z);
-                        self.skip_to_node_marker()?;
+                        log::warn!("Unhandled tile attribute: 0x{:02X} at tile {}:{}:{} - stopping attribute reading", attr_type, pos.x, pos.y, pos.z);
+
+                        // Put the byte back
+                        self.pos -= 1;
+                        if self.pos > 0 && self.data[self.pos - 1] == ESCAPE_CHAR {
+                            self.pos -= 1;
+                        }
                         break;
                     }
                     None => {
                         // Unknown attribute
-                        log::warn!("Unknown tile attribute: 0x{:02X} at tile {}:{}:{} - attempting to skip", attr_type, pos.x, pos.y, pos.z);
-                        self.skip_to_node_marker()?;
+                        log::warn!("Unknown tile attribute: 0x{:02X} at tile {}:{}:{} - stopping attribute reading", attr_type, pos.x, pos.y, pos.z);
+
+                        // Put the byte back
+                        self.pos -= 1;
+                        if self.pos > 0 && self.data[self.pos - 1] == ESCAPE_CHAR {
+                            self.pos -= 1;
+                        }
                         break;
                     }
                 }
@@ -673,14 +669,17 @@ impl OtbmParser {
 
                 item.attributes.insert(attr_type, value);
             } else {
-                // Unknown attribute type
-                log::warn!("Unknown item attribute: 0x{:02X} for item id {} - attempting to skip", attr_type_byte, item.id);
+                // Unknown attribute type - this might be corrupt data or new attribute format
+                // Don't try to read it - just stop reading attributes
+                log::warn!("Unknown item attribute: 0x{:02X} for item id {} - stopping attribute reading", attr_type_byte, item.id);
 
-                // Try to skip this unknown attribute by scanning to next node marker
-                // This is safe because node markers (0xFE, 0xFF) are escaped in attribute data
-                self.skip_to_node_marker()?;
+                // Put the byte back by rewinding position
+                self.pos -= 1;
+                if self.pos > 0 && self.data[self.pos - 1] == ESCAPE_CHAR {
+                    self.pos -= 1; // Also rewind the escape char
+                }
 
-                // Exit attribute loop - next should be NODE_END or NODE_START
+                // Exit attribute loop
                 break;
             }
         }
