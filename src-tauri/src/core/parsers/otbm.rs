@@ -481,6 +481,8 @@ impl OtbmParser {
         }
 
         // Read child nodes (tile areas, towns, waypoints)
+        let mut tiles_processed = 0;
+        let mut last_log = 0;
         while self.peek_byte()? == NODE_START {
             let node_type = self.expect_node_start()?;
 
@@ -488,6 +490,12 @@ impl OtbmParser {
                 NodeType::TileArea => {
                     self.parse_tile_area(&mut map)?;
                     self.expect_node_end()?; // End of TileArea
+
+                    tiles_processed = map.tiles.len();
+                    if tiles_processed - last_log >= 10000 {
+                        log::info!("Processed {} tiles...", tiles_processed);
+                        last_log = tiles_processed;
+                    }
                 }
                 NodeType::Towns => {
                     self.parse_towns(&mut map)?;
@@ -498,7 +506,6 @@ impl OtbmParser {
                     self.expect_node_end()?; // End of Waypoints
                 }
                 _ => {
-                    log::debug!("Skipping unknown map child node: {:?}", node_type);
                     self.skip_node()?; // skip_node already consumes NODE_END
                 }
             }
@@ -508,7 +515,7 @@ impl OtbmParser {
         self.expect_node_end()?; // End of Root
 
         log::info!(
-            "Map loaded: {} tiles, {} towns, {} waypoints",
+            "Map loaded successfully: {} tiles, {} towns, {} waypoints",
             map.tiles.len(),
             map.towns.len(),
             map.waypoints.len()
@@ -529,7 +536,6 @@ impl OtbmParser {
 
             let is_house_tile = node_type == NodeType::HouseTile;
             if node_type != NodeType::Tile && !is_house_tile {
-                log::debug!("Skipping unknown tile area child: {:?}", node_type);
                 self.skip_node()?; // skip_node already consumes NODE_END
                 continue;
             }
@@ -544,7 +550,6 @@ impl OtbmParser {
                 z: base_z,
             };
 
-            log::debug!("Parsing tile at {}:{}:{} (is_house={})", pos.x, pos.y, pos.z, is_house_tile);
             let mut tile = Tile::new(pos.clone());
 
             // Read house ID if house tile
@@ -567,7 +572,6 @@ impl OtbmParser {
                     Some(AttributeType::Item) => {
                         // Inline item (OTBM_ATTR_ITEM)
                         let item_id = self.read_u16()?;
-                        log::debug!("  Inline item: id={}", item_id);
                         let item = Item {
                             id: item_id,
                             attributes: HashMap::new(),
@@ -590,26 +594,20 @@ impl OtbmParser {
             }
 
             // Read item child nodes
-            let mut item_count = 0;
             while self.peek_byte()? == NODE_START {
                 let node_type = self.expect_node_start()?;
 
                 if node_type == NodeType::Item {
                     let item = self.parse_item()?;
-                    log::debug!("  Item #{}: id={}", item_count, item.id);
                     tile.add_item(item);
                     self.expect_node_end()?; // parse_item() doesn't consume NODE_END
-                    item_count += 1;
                 } else {
-                    log::debug!("Skipping unknown tile child: {:?}", node_type);
                     self.skip_node()?; // skip_node() already consumes NODE_END
                 }
             }
 
             // Store tile
             map.tiles.insert((pos.x, pos.y, pos.z), tile);
-
-            log::debug!("Expecting NODE_END for tile at {}:{}:{}, next byte: 0x{:02X}", pos.x, pos.y, pos.z, self.peek_byte()?);
             self.expect_node_end()?; // End of Tile
         }
 
@@ -699,7 +697,6 @@ impl OtbmParser {
                 // The Item struct would need a Vec<Item> field for that
                 // For now we just skip them to maintain file structure
             } else {
-                log::debug!("Skipping unknown item child node: {:?} for item id {}", node_type, item.id);
                 self.skip_node()?;
             }
         }
@@ -712,7 +709,6 @@ impl OtbmParser {
             let node_type = self.expect_node_start()?;
 
             if node_type != NodeType::Town {
-                log::debug!("Skipping unknown towns child: {:?}", node_type);
                 self.skip_node()?; // skip_node already consumes NODE_END
                 continue;
             }
