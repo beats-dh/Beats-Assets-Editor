@@ -560,12 +560,18 @@ impl OtbmParser {
                         };
                         tile.add_item(item);
                     }
-                    _ => {
-                        // Skip unknown attributes
-                        let len = self.read_u16()? as usize;
-                        for _ in 0..len {
-                            self.read_byte()?;
-                        }
+                    Some(_) => {
+                        // Known attribute type but not handled for tiles
+                        // Can't skip safely without knowing the format
+                        log::warn!("Unhandled tile attribute: 0x{:02X} at tile {}:{}:{}", attr_type, pos.x, pos.y, pos.z);
+                        // Break to avoid corruption
+                        break;
+                    }
+                    None => {
+                        // Unknown attribute - can't parse it safely
+                        log::warn!("Unknown tile attribute: 0x{:02X} at tile {}:{}:{}", attr_type, pos.x, pos.y, pos.z);
+                        // Break out of attribute loop
+                        break;
                     }
                 }
             }
@@ -656,11 +662,10 @@ impl OtbmParser {
 
                 item.attributes.insert(attr_type, value);
             } else {
-                // Unknown attribute type - skip it
-                let len = self.read_u16()? as usize;
-                for _ in 0..len {
-                    self.read_byte()?;
-                }
+                // Unknown attribute type - can't parse safely
+                log::warn!("Unknown item attribute: 0x{:02X} for item id {}", attr_type_byte, item.id);
+                // Break to avoid corruption - don't try to guess the format
+                break;
             }
         }
 
