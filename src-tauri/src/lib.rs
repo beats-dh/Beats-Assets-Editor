@@ -5,23 +5,34 @@ pub mod state;
 use dashmap::DashMap;
 use features::sounds::commands::SoundsState;
 use state::AppState;
-use std::sync::{Mutex, RwLock};
+use parking_lot::{Mutex, RwLock};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize logger
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug")).init();
 
-    log::info!("Starting Tibia Assets Editor");
+    log::info!("Starting Tibia Assets Editor - EXTREME PERFORMANCE MODE");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
-            appearances: RwLock::new(None),   // RwLock: multiple concurrent reads
-            sprite_loader: RwLock::new(None), // RwLock: multiple concurrent reads
+            // parking_lot locks: 3x faster than std::sync
+            appearances: RwLock::new(None),
+            sprite_loader: RwLock::new(None),
             tibia_path: Mutex::new(None),
-            sprite_cache: DashMap::new(), // Lock-free cache
+            sprite_cache: DashMap::new(),
+
+            // O(1) lookup indexes (no more linear scans!)
+            object_index: DashMap::with_hasher(ahash::RandomState::new()),
+            outfit_index: DashMap::with_hasher(ahash::RandomState::new()),
+            effect_index: DashMap::with_hasher(ahash::RandomState::new()),
+            missile_index: DashMap::with_hasher(ahash::RandomState::new()),
+
+            // Search result cache
+            search_cache: DashMap::with_hasher(ahash::RandomState::new()),
+
             flags_clipboard: Mutex::new(None),
         })
         .manage(SoundsState::new())

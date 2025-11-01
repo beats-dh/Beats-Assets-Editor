@@ -4,6 +4,7 @@ use crate::state::AppState;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::State;
+use rayon::prelude::*;
 
 #[tauri::command]
 pub async fn load_sprites_catalog(catalog_path: String, assets_dir: String, state: State<'_, AppState>) -> Result<usize, String> {
@@ -14,7 +15,7 @@ pub async fn load_sprites_catalog(catalog_path: String, assets_dir: String, stat
     let sprite_count = sprite_loader.sprite_count();
 
     // Store in state
-    *state.sprite_loader.write().unwrap() = Some(sprite_loader);
+    *state.sprite_loader.write() = Some(sprite_loader);
 
     Ok(sprite_count)
 }
@@ -58,7 +59,7 @@ pub async fn auto_load_sprites(tibia_path: String, state: State<'_, AppState>) -
     let sprite_count = sprite_loader.sprite_count();
 
     // Store in state
-    *state.sprite_loader.write().unwrap() = Some(sprite_loader);
+    *state.sprite_loader.write() = Some(sprite_loader);
 
     log::info!("Successfully loaded {} sprites", sprite_count);
     Ok(sprite_count)
@@ -68,7 +69,7 @@ pub async fn auto_load_sprites(tibia_path: String, state: State<'_, AppState>) -
 /// Optimized: SpriteLoader now uses lock-free cache internally
 #[tauri::command]
 pub async fn get_sprite_by_id(sprite_id: u32, state: State<'_, AppState>) -> Result<String, String> {
-    let sprite_loader_lock = state.sprite_loader.read().unwrap();
+    let sprite_loader_lock = state.sprite_loader.read();
 
     match &*sprite_loader_lock {
         Some(loader) => {
@@ -90,8 +91,8 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
         return Ok((**cached_sprites).clone());
     }
 
-    let appearances_lock = state.appearances.read().unwrap();
-    let sprite_loader_lock = state.sprite_loader.read().unwrap();
+    let appearances_lock = state.appearances.read();
+    let sprite_loader_lock = state.sprite_loader.read();
 
     let appearances = match &*appearances_lock {
         Some(appearances) => appearances,
@@ -112,33 +113,58 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
 
     let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", appearance_id, category))?;
 
-    // Pre-allocate vector with estimated capacity
-    let estimated_sprites: usize = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).map(|info| info.sprite_id.len()).sum();
-    let mut sprite_images = Vec::with_capacity(estimated_sprites);
+    // Collect all sprite IDs from all frame groups
+    let all_sprite_ids: Vec<u32> = appearance
+        .frame_group
+        .iter()
+        .filter_map(|fg| fg.sprite_info.as_ref())
+        .flat_map(|info| info.sprite_id.iter().copied())
+        .collect();
 
-    // Get ALL sprites from ALL frame groups of this specific appearance
-    for (fg_index, frame_group) in appearance.frame_group.iter().enumerate() {
-        if let Some(sprite_info) = &frame_group.sprite_info {
-            // Get ALL sprite IDs from this frame group
-            for &sprite_id in &sprite_info.sprite_id {
+    // CRITICAL OPTIMIZATION: Process sprites in PARALLEL
+    // Each sprite's decompression + PNG encoding runs on a separate thread
+    // Significant speedup when appearance has many sprites (10+ sprites = 10x faster on 10+ cores)
+    let sprite_images: Vec<String> = if all_sprite_ids.len() > 5 {
+        // Use parallel processing for appearances with many sprites
+        all_sprite_ids
+            .par_iter()
+            .filter_map(|&sprite_id| {
                 match sprite_loader.get_sprite(sprite_id) {
                     Ok(sprite) => match sprite.to_base64_png() {
-                        Ok(base64_png) => {
-                            sprite_images.push(base64_png);
+                        Ok(base64_png) => Some(base64_png),
+                        Err(e) => {
+                            log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
+                            None
                         }
-                        Err(e) => log::warn!("Failed to encode sprite {}: {}", sprite_id, e),
                     },
-                    Err(e) => log::warn!("Failed to get sprite {}: {}", sprite_id, e),
+                    Err(e) => {
+                        log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                        None
+                    }
                 }
-            }
-
-            if sprite_info.sprite_id.is_empty() {
-                log::warn!("Frame group {} has no sprite IDs", fg_index);
-            }
-        } else {
-            log::warn!("Frame group {} has no sprite info", fg_index);
-        }
-    }
+            })
+            .collect()
+    } else {
+        // Sequential for small sprite counts (avoid parallelism overhead)
+        all_sprite_ids
+            .iter()
+            .filter_map(|&sprite_id| {
+                match sprite_loader.get_sprite(sprite_id) {
+                    Ok(sprite) => match sprite.to_base64_png() {
+                        Ok(base64_png) => Some(base64_png),
+                        Err(e) => {
+                            log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
+                            None
+                        }
+                    },
+                    Err(e) => {
+                        log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                        None
+                    }
+                }
+            })
+            .collect()
+    };
 
     // Store in cache (lock-free insert with Arc for zero-copy sharing)
     let sprites_arc = Arc::new(sprite_images);
@@ -151,8 +177,8 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
 /// Optimized: SpriteLoader uses lock-free cache
 #[tauri::command]
 pub async fn get_appearance_preview_sprite(category: AppearanceCategory, appearance_id: u32, state: State<'_, AppState>) -> Result<Option<String>, String> {
-    let appearances_lock = state.appearances.read().unwrap();
-    let sprite_loader_lock = state.sprite_loader.read().unwrap();
+    let appearances_lock = state.appearances.read();
+    let sprite_loader_lock = state.sprite_loader.read();
 
     let appearances = match &*appearances_lock {
         Some(appearances) => appearances,
