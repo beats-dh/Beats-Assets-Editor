@@ -9,6 +9,9 @@ on:
       - "tests/**"
       - "Cargo.toml"
       - "Cargo.lock"
+      - "src-tauri/**"
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/Cargo.lock"
   push:
     branches-ignore:
       - main
@@ -17,6 +20,9 @@ on:
       - "tests/**"
       - "Cargo.toml"
       - "Cargo.lock"
+      - "src-tauri/**"
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/Cargo.lock"
   workflow_dispatch:
     inputs:
       ref:
