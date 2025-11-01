@@ -1,8 +1,8 @@
-use std::fs;
-use std::path::Path;
+use crate::core::protobuf::Appearances;
 use anyhow::{Context, Result};
 use prost::Message;
-use crate::core::protobuf::Appearances;
+use std::fs;
+use std::path::Path;
 
 /// Load and parse an appearances.dat file
 pub fn load_appearances<P: AsRef<Path>>(path: P) -> Result<Appearances> {
@@ -11,8 +11,7 @@ pub fn load_appearances<P: AsRef<Path>>(path: P) -> Result<Appearances> {
     log::info!("Loading appearances file: {:?}", path);
 
     // Read the file
-    let data = fs::read(path)
-        .context(format!("Failed to read appearances file: {:?}", path))?;
+    let data = fs::read(path).context(format!("Failed to read appearances file: {:?}", path))?;
 
     log::info!("Read {} bytes from appearances file", data.len());
 
@@ -23,7 +22,10 @@ pub fn load_appearances<P: AsRef<Path>>(path: P) -> Result<Appearances> {
             return Ok(appearances);
         }
         Err(e) => {
-            log::warn!("Direct protobuf decode failed: {}. Trying LZMA/XZ decompress fallback...", e);
+            log::warn!(
+                "Direct protobuf decode failed: {}. Trying LZMA/XZ decompress fallback...",
+                e
+            );
         }
     }
 
@@ -36,11 +38,27 @@ pub fn load_appearances<P: AsRef<Path>>(path: P) -> Result<Appearances> {
         .context("Failed to decode appearances protobuf data after decompression")?;
 
     // Log like Assets Editor (showing last IDs)
-    let object_count = appearances.object.last().and_then(|obj| obj.id).unwrap_or(0);
-    let outfit_count = appearances.outfit.last().and_then(|obj| obj.id).unwrap_or(0);
-    let effect_count = appearances.effect.last().and_then(|obj| obj.id).unwrap_or(0);
-    let missile_count = appearances.missile.last().and_then(|obj| obj.id).unwrap_or(0);
-    
+    let object_count = appearances
+        .object
+        .last()
+        .and_then(|obj| obj.id)
+        .unwrap_or(0);
+    let outfit_count = appearances
+        .outfit
+        .last()
+        .and_then(|obj| obj.id)
+        .unwrap_or(0);
+    let effect_count = appearances
+        .effect
+        .last()
+        .and_then(|obj| obj.id)
+        .unwrap_or(0);
+    let missile_count = appearances
+        .missile
+        .last()
+        .and_then(|obj| obj.id)
+        .unwrap_or(0);
+
     log::info!(
         "Successfully parsed appearances: {} objects, {} outfits, {} effects, {} missiles",
         object_count,
@@ -56,10 +74,26 @@ pub fn load_appearances<P: AsRef<Path>>(path: P) -> Result<Appearances> {
 pub fn get_statistics(appearances: &Appearances) -> AppearanceStats {
     AppearanceStats {
         // Primary values (like Assets Editor) - last IDs
-        object_count: appearances.object.last().and_then(|obj| obj.id).unwrap_or(0),
-        outfit_count: appearances.outfit.last().and_then(|obj| obj.id).unwrap_or(0),
-        effect_count: appearances.effect.last().and_then(|obj| obj.id).unwrap_or(0),
-        missile_count: appearances.missile.last().and_then(|obj| obj.id).unwrap_or(0),
+        object_count: appearances
+            .object
+            .last()
+            .and_then(|obj| obj.id)
+            .unwrap_or(0),
+        outfit_count: appearances
+            .outfit
+            .last()
+            .and_then(|obj| obj.id)
+            .unwrap_or(0),
+        effect_count: appearances
+            .effect
+            .last()
+            .and_then(|obj| obj.id)
+            .unwrap_or(0),
+        missile_count: appearances
+            .missile
+            .last()
+            .and_then(|obj| obj.id)
+            .unwrap_or(0),
         // Additional info - actual item counts
         actual_objects: appearances.object.len(),
         actual_outfits: appearances.outfit.len(),
@@ -90,19 +124,19 @@ mod tests {
     #[ignore]
     fn test_load_appearances() {
         let dat_path = r"C:\Users\danie\Documentos\Tibia15Igla\assets\appearances-feee1f9feba00a63606228c8bc46fa003c90dff144fb1b60a3759f97aad6e3c8.dat";
-        
+
         match load_appearances(dat_path) {
             Ok(appearances) => {
                 let stats = get_statistics(&appearances);
                 println!("{:#?}", stats);
-                
+
                 // Show comparison with Assets Editor format
                 println!("\n=== Assets Editor Format (Last IDs) ===");
                 println!("Objects: {}", stats.object_count);
                 println!("Outfits: {}", stats.outfit_count);
                 println!("Effects: {}", stats.effect_count);
                 println!("Missiles: {}", stats.missile_count);
-                
+
                 println!("\n=== Actual Item Counts ===");
                 println!("Objects: {}", stats.actual_objects);
                 println!("Outfits: {}", stats.actual_outfits);

@@ -22,33 +22,33 @@ pub enum AppearanceCategory {
 /// Subcategory for Objects (based on ITEM_CATEGORY from protobuf)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ItemSubcategory {
-    All,                    // Show all items
-    Armors,                 // 1
-    Amulets,                // 2
-    Boots,                  // 3
-    Containers,             // 4
-    Decoration,             // 5
-    Food,                   // 6
-    HelmetsHats,            // 7
-    Legs,                   // 8
-    Others,                 // 9
-    Potions,                // 10
-    Rings,                  // 11
-    Runes,                  // 12
-    Shields,                // 13
-    Tools,                  // 14
-    Valuables,              // 15
-    Ammunition,             // 16
-    Axes,                   // 17
-    Clubs,                  // 18
-    DistanceWeapons,        // 19
-    Swords,                 // 20
-    WandsRods,              // 21
-    PremiumScrolls,         // 22
-    TibiaCoins,             // 23
-    CreatureProducts,       // 24
-    Quiver,                 // 25
-    Soulcores,              // 26
+    All,              // Show all items
+    Armors,           // 1
+    Amulets,          // 2
+    Boots,            // 3
+    Containers,       // 4
+    Decoration,       // 5
+    Food,             // 6
+    HelmetsHats,      // 7
+    Legs,             // 8
+    Others,           // 9
+    Potions,          // 10
+    Rings,            // 11
+    Runes,            // 12
+    Shields,          // 13
+    Tools,            // 14
+    Valuables,        // 15
+    Ammunition,       // 16
+    Axes,             // 17
+    Clubs,            // 18
+    DistanceWeapons,  // 19
+    Swords,           // 20
+    WandsRods,        // 21
+    PremiumScrolls,   // 22
+    TibiaCoins,       // 23
+    CreatureProducts, // 24
+    Quiver,           // 25
+    Soulcores,        // 26
 }
 
 impl ItemSubcategory {
@@ -125,6 +125,8 @@ pub struct AppearanceDetails {
     pub id: u32,
     pub name: Option<String>,
     pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub appearance_type: Option<i32>,
     pub category: AppearanceCategory,
     pub frame_groups: Vec<FrameGroupInfo>,
     pub flags: Option<AppearanceFlagsInfo>,

@@ -50,6 +50,19 @@ const LANGUAGE_CHANGE_EVENT = 'app-language-changed';
 let outfitLanguageListener: EventListener | null = null;
 let objectLanguageListener: EventListener | null = null;
 
+function resolveTextureCategory(details: CompleteAppearanceItem, category: string): TextureCategory {
+  if (details.appearance_type === 2) {
+    return 'Outfits';
+  }
+  if (details.appearance_type === 1) {
+    return 'Objects';
+  }
+  if (category === 'Outfits' || category === 'Objects') {
+    return category as TextureCategory;
+  }
+  return 'Other';
+}
+
 export async function renderTextureTab(details: CompleteAppearanceItem, category: string): Promise<void> {
   const textureContent = document.getElementById('texture-content');
   if (!textureContent) return;
@@ -64,9 +77,9 @@ export async function renderTextureTab(details: CompleteAppearanceItem, category
     objectLanguageListener = null;
   }
 
-  const normalizedCategory = (category === 'Outfits' || category === 'Objects') ? category as TextureCategory : 'Other';
+  const textureCategory = resolveTextureCategory(details, category);
 
-  if (normalizedCategory === 'Other') {
+  if (textureCategory === 'Other') {
     textureContent.innerHTML = `
       <div class="texture-empty-state">
         <p data-i18n="texture.emptyState.unsupported">${translate('texture.emptyState.unsupported')}</p>
@@ -76,10 +89,10 @@ export async function renderTextureTab(details: CompleteAppearanceItem, category
     return;
   }
 
-  if (normalizedCategory === 'Outfits') {
-    await renderOutfitTextureTab(textureContent, details, category);
-  } else if (normalizedCategory === 'Objects') {
-    await renderObjectTextureTab(textureContent, details, category);
+  if (textureCategory === 'Outfits') {
+    await renderOutfitTextureTab(textureContent, details, 'Outfits');
+  } else if (textureCategory === 'Objects') {
+    await renderObjectTextureTab(textureContent, details, 'Objects');
   }
 }
 
