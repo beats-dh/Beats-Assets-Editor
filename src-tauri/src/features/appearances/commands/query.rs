@@ -21,11 +21,7 @@ pub async fn list_appearances_by_category(
     state: State<'_, AppState>,
 ) -> Result<Vec<AppearanceItem>, String> {
     // Build cache key for this exact query
-    let cache_key = format!("{:?}:{}:{:?}",
-        category,
-        search.as_deref().unwrap_or(""),
-        subcategory.as_ref().unwrap_or(&ItemSubcategory::All)
-    );
+    let cache_key = format!("{:?}:{}:{:?}", category, search.as_deref().unwrap_or(""), subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
 
     // Check cache first (lock-free DashMap)
     if let Some(cached_ids) = state.search_cache.get(&cache_key) {
@@ -47,21 +43,17 @@ pub async fn list_appearances_by_category(
         let result: Vec<AppearanceItem> = cached_ids[start..end]
             .iter()
             .filter_map(|&id| {
-                items.iter()
-                    .find(|app| app.id.unwrap_or(0) == id)
-                    .map(|appearance| {
-                        let sprite_count = appearance.frame_group.iter()
-                            .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
-                            .sum();
+                items.iter().find(|app| app.id.unwrap_or(0) == id).map(|appearance| {
+                    let sprite_count = appearance.frame_group.iter().map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32)).sum();
 
-                        AppearanceItem {
-                            id,
-                            name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-                            description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-                            has_flags: appearance.flags.is_some(),
-                            sprite_count,
-                        }
-                    })
+                    AppearanceItem {
+                        id,
+                        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+                        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+                        has_flags: appearance.flags.is_some(),
+                        sprite_count,
+                    }
+                })
             })
             .collect();
 
@@ -86,7 +78,7 @@ pub async fn list_appearances_by_category(
 
     let mut filtered_ids: Vec<u32> = if use_parallel {
         items
-            .par_iter()  // PARALLEL iterator via rayon
+            .par_iter() // PARALLEL iterator via rayon
             .filter_map(|appearance| {
                 let id = appearance.id.unwrap_or(0);
 
@@ -108,9 +100,7 @@ pub async fn list_appearances_by_category(
                 if category == AppearanceCategory::Objects {
                     if let Some(ref filter_subcategory) = subcategory {
                         if *filter_subcategory != ItemSubcategory::All {
-                            let item_category: Option<i32> = appearance.flags.as_ref()
-                                .and_then(|flags| flags.market.as_ref())
-                                .and_then(|market| market.category);
+                            let item_category: Option<i32> = appearance.flags.as_ref().and_then(|flags| flags.market.as_ref()).and_then(|market| market.category);
 
                             let expected_category = filter_subcategory.to_protobuf_value();
 
@@ -129,48 +119,46 @@ pub async fn list_appearances_by_category(
         items
             .iter()
             .filter_map(|appearance| {
-            let id = appearance.id.unwrap_or(0);
+                let id = appearance.id.unwrap_or(0);
 
-            // Apply search filter if provided
-            if let Some(ref search_term_lower) = search_lower {
-                // OPTIMIZATION: Convert to string only if we need to search
-                let name = appearance.name.as_ref().map(|b| String::from_utf8_lossy(b));
-                let description = appearance.description.as_ref().map(|b| String::from_utf8_lossy(b));
+                // Apply search filter if provided
+                if let Some(ref search_term_lower) = search_lower {
+                    // OPTIMIZATION: Convert to string only if we need to search
+                    let name = appearance.name.as_ref().map(|b| String::from_utf8_lossy(b));
+                    let description = appearance.description.as_ref().map(|b| String::from_utf8_lossy(b));
 
-                let matches = name.as_ref().map_or(false, |n| n.to_lowercase().contains(search_term_lower))
-                    || description.as_ref().map_or(false, |d| d.to_lowercase().contains(search_term_lower))
-                    || id.to_string().contains(search_term_lower);
+                    let matches = name.as_ref().map_or(false, |n| n.to_lowercase().contains(search_term_lower))
+                        || description.as_ref().map_or(false, |d| d.to_lowercase().contains(search_term_lower))
+                        || id.to_string().contains(search_term_lower);
 
-                if !matches {
-                    return None;
+                    if !matches {
+                        return None;
+                    }
                 }
-            }
 
-            // Apply subcategory filter for Objects category
-            if category == AppearanceCategory::Objects {
-                if let Some(ref filter_subcategory) = subcategory {
-                    if *filter_subcategory != ItemSubcategory::All {
-                        let item_category: Option<i32> = appearance.flags.as_ref()
-                            .and_then(|flags| flags.market.as_ref())
-                            .and_then(|market| market.category);
+                // Apply subcategory filter for Objects category
+                if category == AppearanceCategory::Objects {
+                    if let Some(ref filter_subcategory) = subcategory {
+                        if *filter_subcategory != ItemSubcategory::All {
+                            let item_category: Option<i32> = appearance.flags.as_ref().and_then(|flags| flags.market.as_ref()).and_then(|market| market.category);
 
-                        let expected_category = filter_subcategory.to_protobuf_value();
+                            let expected_category = filter_subcategory.to_protobuf_value();
 
-                        if item_category != expected_category {
-                            return None;
+                            if item_category != expected_category {
+                                return None;
+                            }
                         }
                     }
                 }
-            }
 
-            Some(id)
-        })
-        .collect()
+                Some(id)
+            })
+            .collect()
     };
 
     // Sort by ID - use parallel sort for large datasets
     if use_parallel && filtered_ids.len() > 1000 {
-        filtered_ids.par_sort_unstable();  // Parallel sort via rayon
+        filtered_ids.par_sort_unstable(); // Parallel sort via rayon
     } else {
         filtered_ids.sort_unstable();
     }
@@ -189,21 +177,17 @@ pub async fn list_appearances_by_category(
     let result: Vec<AppearanceItem> = filtered_ids[start..end]
         .iter()
         .filter_map(|&id| {
-            items.iter()
-                .find(|app| app.id.unwrap_or(0) == id)
-                .map(|appearance| {
-                    let sprite_count = appearance.frame_group.iter()
-                        .map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32))
-                        .sum();
+            items.iter().find(|app| app.id.unwrap_or(0) == id).map(|appearance| {
+                let sprite_count = appearance.frame_group.iter().map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32)).sum();
 
-                    AppearanceItem {
-                        id,
-                        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-                        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-                        has_flags: appearance.flags.is_some(),
-                        sprite_count,
-                    }
-                })
+                AppearanceItem {
+                    id,
+                    name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+                    description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+                    has_flags: appearance.flags.is_some(),
+                    sprite_count,
+                }
+            })
         })
         .collect();
 
@@ -243,9 +227,7 @@ pub async fn find_appearance_position(category: AppearanceCategory, id: u32, sub
             if category == AppearanceCategory::Objects {
                 if let Some(ref filter_subcategory) = subcategory {
                     if *filter_subcategory != ItemSubcategory::All {
-                        let item_category: Option<i32> = appearance.flags.as_ref()
-                            .and_then(|flags| flags.market.as_ref())
-                            .and_then(|market| market.category);
+                        let item_category: Option<i32> = appearance.flags.as_ref().and_then(|flags| flags.market.as_ref()).and_then(|market| market.category);
 
                         let expected_category = filter_subcategory.to_protobuf_value();
 
@@ -294,8 +276,7 @@ pub async fn get_appearance_details(category: AppearanceCategory, id: u32, state
         items.get(idx).ok_or_else(|| format!("Index {} out of bounds for category {:?}", idx, category))?
     } else {
         // Fallback to linear search if index not found (shouldn't happen after rebuild_indexes)
-        items.iter().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?
+        items.iter().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?
     };
 
     let frame_groups: Vec<FrameGroupInfo> = appearance
@@ -338,11 +319,7 @@ pub async fn get_appearance_details(category: AppearanceCategory, id: u32, state
 #[tauri::command]
 pub async fn get_appearance_count(category: AppearanceCategory, search: Option<String>, subcategory: Option<ItemSubcategory>, state: State<'_, AppState>) -> Result<usize, String> {
     // Build cache key
-    let cache_key = format!("{:?}:{}:{:?}",
-        category,
-        search.as_deref().unwrap_or(""),
-        subcategory.as_ref().unwrap_or(&ItemSubcategory::All)
-    );
+    let cache_key = format!("{:?}:{}:{:?}", category, search.as_deref().unwrap_or(""), subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
 
     // Check cache first
     if let Some(cached_ids) = state.search_cache.get(&cache_key) {
@@ -458,8 +435,7 @@ pub async fn get_complete_appearance(category: AppearanceCategory, id: u32, stat
         items.get(idx).ok_or_else(|| format!("Index {} out of bounds for category {:?}", idx, category))?
     } else {
         // Fallback to linear search if index not found
-        items.iter().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?
+        items.iter().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?
     };
 
     Ok(CompleteAppearanceItem::from_protobuf(appearance))

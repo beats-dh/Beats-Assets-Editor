@@ -11,7 +11,10 @@ struct HeaderPatcher<'a> {
 impl<'a> HeaderPatcher<'a> {
     #[inline]
     fn new(data: &'a [u8]) -> Self {
-        Self { data, pos: 0 }
+        Self {
+            data,
+            pos: 0,
+        }
     }
 }
 
@@ -77,10 +80,7 @@ pub fn decompress(data: &[u8]) -> Result<Vec<u8>> {
         Ok(_) => Ok(decompressed),
         Err(err) => {
             errors.push(format!("xz2 fallback: {}", err));
-            Err(anyhow::anyhow!(
-                "Failed to decompress LZMA data ({})",
-                errors.join("; ")
-            ))
+            Err(anyhow::anyhow!("Failed to decompress LZMA data ({})", errors.join("; ")))
         }
     }
 }

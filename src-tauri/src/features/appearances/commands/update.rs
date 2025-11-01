@@ -71,8 +71,7 @@ pub async fn update_appearance_texture_settings(category: AppearanceCategory, id
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds for category {:?}", idx, category))?
     } else {
         // Fallback to linear search if index not found
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?
     };
 
     if update.frame_group_index >= appearance.frame_group.len() {
@@ -194,8 +193,7 @@ pub async fn update_appearance_name(category: AppearanceCategory, id: u32, new_n
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     appearance.name = if new_name.trim().is_empty() {
@@ -234,8 +232,7 @@ pub async fn update_appearance_automap(category: AppearanceCategory, id: u32, co
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -271,8 +268,7 @@ pub async fn update_appearance_hook(category: AppearanceCategory, id: u32, direc
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -308,8 +304,7 @@ pub async fn update_appearance_lenshelp(category: AppearanceCategory, id: u32, l
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -345,8 +340,7 @@ pub async fn update_appearance_clothes(category: AppearanceCategory, id: u32, sl
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -382,8 +376,7 @@ pub async fn update_appearance_default_action(category: AppearanceCategory, id: 
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -430,8 +423,7 @@ pub async fn update_appearance_market(
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -482,8 +474,7 @@ pub async fn update_appearance_bank(category: AppearanceCategory, id: u32, waypo
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -519,8 +510,7 @@ pub async fn update_appearance_changed_to_expire(category: AppearanceCategory, i
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -556,8 +546,7 @@ pub async fn update_appearance_cyclopedia_item(category: AppearanceCategory, id:
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -593,8 +582,7 @@ pub async fn update_appearance_upgrade_classification(category: AppearanceCatego
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -636,8 +624,7 @@ pub async fn update_appearance_skillwheel_gem(
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -674,8 +661,7 @@ pub async fn update_appearance_imbueable(category: AppearanceCategory, id: u32, 
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -711,8 +697,7 @@ pub async fn update_appearance_proficiency(category: AppearanceCategory, id: u32
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -748,8 +733,7 @@ pub async fn update_appearance_transparency_level(category: AppearanceCategory, 
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -785,8 +769,7 @@ pub async fn update_appearance_weapon_type(category: AppearanceCategory, id: u32
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -817,8 +800,7 @@ pub async fn update_appearance_description(category: AppearanceCategory, id: u32
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     appearance.description = if new_description.trim().is_empty() {
@@ -990,8 +972,7 @@ pub async fn update_appearance_flag_bool(category: AppearanceCategory, id: u32, 
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -1021,8 +1002,7 @@ pub async fn update_appearance_light(category: AppearanceCategory, id: u32, brig
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -1059,8 +1039,7 @@ pub async fn update_appearance_shift(category: AppearanceCategory, id: u32, x: O
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -1097,8 +1076,7 @@ pub async fn update_appearance_height(category: AppearanceCategory, id: u32, ele
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -1134,8 +1112,7 @@ pub async fn update_appearance_write(category: AppearanceCategory, id: u32, max_
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
@@ -1171,8 +1148,7 @@ pub async fn update_appearance_write_once(category: AppearanceCategory, id: u32,
         let idx = *idx_ref;
         items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
     } else {
-        items.iter_mut().find(|app| app.id.unwrap_or(0) == id)
-            .ok_or_else(|| format!("Appearance {} not found", id))?
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
     let flags = ensure_flags(appearance);
