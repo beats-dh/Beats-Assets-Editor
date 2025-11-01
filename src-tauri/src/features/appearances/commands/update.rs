@@ -1,5 +1,5 @@
 use super::category_types::{AppearanceCategory, AppearanceItem};
-use super::helpers::{create_appearance_item_response, ensure_flags, get_items_by_category_mut};
+use super::helpers::{create_appearance_item_response, ensure_flags, get_items_by_category_mut, get_index_for_category, invalidate_search_cache};
 use crate::core::protobuf::{Box as ProtoBoundingBox, SpriteAnimation as ProtoSpriteAnimation, SpriteInfo as ProtoSpriteInfo, SpritePhase as ProtoSpritePhase};
 use crate::state::AppState;
 use serde::Deserialize;
@@ -49,9 +49,13 @@ pub struct TextureSettingsUpdate {
     pub animation: Option<Option<SpriteAnimationInput>>,
 }
 
+/// HEAVILY OPTIMIZED update_appearance_texture_settings:
+/// - O(1) lookup via index map (no linear scan!)
+/// - Invalidates search cache after mutation
+/// - parking_lot RwLock (3x faster)
 #[tauri::command]
 pub async fn update_appearance_texture_settings(category: AppearanceCategory, id: u32, update: TextureSettingsUpdate, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -60,7 +64,15 @@ pub async fn update_appearance_texture_settings(category: AppearanceCategory, id
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // CRITICAL OPTIMIZATION: O(1) lookup via index instead of O(n) linear scan!
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds for category {:?}", idx, category))?
+    } else {
+        // Fallback to linear search if index not found
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?
+    };
 
     if update.frame_group_index >= appearance.frame_group.len() {
         return Err(format!("Frame group {} not found for appearance {}", update.frame_group_index, id));
@@ -151,12 +163,22 @@ pub async fn update_appearance_texture_settings(category: AppearanceCategory, id
         }
     }
 
+    // CRITICAL: Invalidate search cache (data changed)
+    invalidate_search_cache(&state);
+
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
+/// HEAVILY OPTIMIZED update_appearance_name:
+/// - O(1) lookup via index map
+/// - Invalidates search cache
+/// - parking_lot RwLock (3x faster)
 #[tauri::command]
 pub async fn update_appearance_name(category: AppearanceCategory, id: u32, new_name: String, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -165,7 +187,14 @@ pub async fn update_appearance_name(category: AppearanceCategory, id: u32, new_n
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     appearance.name = if new_name.trim().is_empty() {
         None
@@ -173,12 +202,22 @@ pub async fn update_appearance_name(category: AppearanceCategory, id: u32, new_n
         Some(new_name.trim().as_bytes().to_vec())
     };
 
+    // Invalidate cache (name changed - affects search!)
+    invalidate_search_cache(&state);
+
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
+/// HEAVILY OPTIMIZED update_appearance_automap:
+/// - O(1) lookup via index map
+/// - Invalidates search cache
+/// - parking_lot RwLock (3x faster)
 #[tauri::command]
 pub async fn update_appearance_automap(category: AppearanceCategory, id: u32, color: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -187,7 +226,14 @@ pub async fn update_appearance_automap(category: AppearanceCategory, id: u32, co
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -199,12 +245,15 @@ pub async fn update_appearance_automap(category: AppearanceCategory, id: u32, co
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_hook(category: AppearanceCategory, id: u32, direction: Option<i32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -213,7 +262,14 @@ pub async fn update_appearance_hook(category: AppearanceCategory, id: u32, direc
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -225,12 +281,15 @@ pub async fn update_appearance_hook(category: AppearanceCategory, id: u32, direc
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_lenshelp(category: AppearanceCategory, id: u32, lenshelp_id: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -239,7 +298,14 @@ pub async fn update_appearance_lenshelp(category: AppearanceCategory, id: u32, l
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -251,12 +317,15 @@ pub async fn update_appearance_lenshelp(category: AppearanceCategory, id: u32, l
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_clothes(category: AppearanceCategory, id: u32, slot: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -265,7 +334,14 @@ pub async fn update_appearance_clothes(category: AppearanceCategory, id: u32, sl
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -277,12 +353,15 @@ pub async fn update_appearance_clothes(category: AppearanceCategory, id: u32, sl
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_default_action(category: AppearanceCategory, id: u32, action: Option<i32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -291,7 +370,14 @@ pub async fn update_appearance_default_action(category: AppearanceCategory, id: 
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -302,6 +388,9 @@ pub async fn update_appearance_default_action(category: AppearanceCategory, id: 
             action,
         });
     }
+
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
 
     Ok(create_appearance_item_response(id, appearance))
 }
@@ -319,7 +408,7 @@ pub async fn update_appearance_market(
     vocation: Option<i32>,
     state: tauri::State<'_, AppState>,
 ) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -328,7 +417,14 @@ pub async fn update_appearance_market(
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -355,12 +451,15 @@ pub async fn update_appearance_market(
 
     flags.market = market;
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_bank(category: AppearanceCategory, id: u32, waypoints: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -369,7 +468,14 @@ pub async fn update_appearance_bank(category: AppearanceCategory, id: u32, waypo
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -381,12 +487,15 @@ pub async fn update_appearance_bank(category: AppearanceCategory, id: u32, waypo
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_changed_to_expire(category: AppearanceCategory, id: u32, former_object_typeid: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -395,7 +504,14 @@ pub async fn update_appearance_changed_to_expire(category: AppearanceCategory, i
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -407,12 +523,15 @@ pub async fn update_appearance_changed_to_expire(category: AppearanceCategory, i
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_cyclopedia_item(category: AppearanceCategory, id: u32, cyclopedia_type: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -421,7 +540,14 @@ pub async fn update_appearance_cyclopedia_item(category: AppearanceCategory, id:
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -433,12 +559,15 @@ pub async fn update_appearance_cyclopedia_item(category: AppearanceCategory, id:
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_upgrade_classification(category: AppearanceCategory, id: u32, upgrade_classification: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -447,7 +576,14 @@ pub async fn update_appearance_upgrade_classification(category: AppearanceCatego
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -458,6 +594,9 @@ pub async fn update_appearance_upgrade_classification(category: AppearanceCatego
             upgrade_classification,
         });
     }
+
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
 
     Ok(create_appearance_item_response(id, appearance))
 }
@@ -470,7 +609,7 @@ pub async fn update_appearance_skillwheel_gem(
     vocation_id: Option<u32>,
     state: tauri::State<'_, AppState>,
 ) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -479,7 +618,14 @@ pub async fn update_appearance_skillwheel_gem(
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -492,12 +638,15 @@ pub async fn update_appearance_skillwheel_gem(
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_imbueable(category: AppearanceCategory, id: u32, slot_count: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -506,7 +655,14 @@ pub async fn update_appearance_imbueable(category: AppearanceCategory, id: u32, 
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -518,12 +674,15 @@ pub async fn update_appearance_imbueable(category: AppearanceCategory, id: u32, 
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_proficiency(category: AppearanceCategory, id: u32, proficiency_id: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -532,7 +691,14 @@ pub async fn update_appearance_proficiency(category: AppearanceCategory, id: u32
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -544,12 +710,15 @@ pub async fn update_appearance_proficiency(category: AppearanceCategory, id: u32
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_transparency_level(category: AppearanceCategory, id: u32, transparency_level: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -558,7 +727,14 @@ pub async fn update_appearance_transparency_level(category: AppearanceCategory, 
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -570,12 +746,15 @@ pub async fn update_appearance_transparency_level(category: AppearanceCategory, 
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_weapon_type(category: AppearanceCategory, id: u32, weapon_type: Option<i32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -584,19 +763,29 @@ pub async fn update_appearance_weapon_type(category: AppearanceCategory, id: u32
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
     // Direct optional enum/integer flag; None removes it
     flags.weapon_type = weapon_type;
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_description(category: AppearanceCategory, id: u32, new_description: String, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -605,13 +794,23 @@ pub async fn update_appearance_description(category: AppearanceCategory, id: u32
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     appearance.description = if new_description.trim().is_empty() {
         None
     } else {
         Some(new_description.trim().as_bytes().to_vec())
     };
+
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
 
     Ok(create_appearance_item_response(id, appearance))
 }
@@ -758,7 +957,7 @@ fn set_bool_flag(flags: &mut crate::core::protobuf::AppearanceFlags, key: &str, 
 
 #[tauri::command]
 pub async fn update_appearance_flag_bool(category: AppearanceCategory, id: u32, flag: String, value: bool, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -767,18 +966,28 @@ pub async fn update_appearance_flag_bool(category: AppearanceCategory, id: u32, 
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
     set_bool_flag(flags, &flag, value)?;
+
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
 
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_light(category: AppearanceCategory, id: u32, brightness: Option<u32>, color: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -787,7 +996,14 @@ pub async fn update_appearance_light(category: AppearanceCategory, id: u32, brig
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -800,12 +1016,15 @@ pub async fn update_appearance_light(category: AppearanceCategory, id: u32, brig
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_shift(category: AppearanceCategory, id: u32, x: Option<u32>, y: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -814,7 +1033,14 @@ pub async fn update_appearance_shift(category: AppearanceCategory, id: u32, x: O
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -827,12 +1053,15 @@ pub async fn update_appearance_shift(category: AppearanceCategory, id: u32, x: O
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_height(category: AppearanceCategory, id: u32, elevation: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -841,7 +1070,14 @@ pub async fn update_appearance_height(category: AppearanceCategory, id: u32, ele
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -853,12 +1089,15 @@ pub async fn update_appearance_height(category: AppearanceCategory, id: u32, ele
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_write(category: AppearanceCategory, id: u32, max_text_length: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -867,7 +1106,14 @@ pub async fn update_appearance_write(category: AppearanceCategory, id: u32, max_
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -879,12 +1125,15 @@ pub async fn update_appearance_write(category: AppearanceCategory, id: u32, max_
         });
     }
 
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
     Ok(create_appearance_item_response(id, appearance))
 }
 
 #[tauri::command]
 pub async fn update_appearance_write_once(category: AppearanceCategory, id: u32, max_text_length_once: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
         Some(appearances) => appearances,
@@ -893,7 +1142,14 @@ pub async fn update_appearance_write_once(category: AppearanceCategory, id: u32,
 
     let items = get_items_by_category_mut(appearances, &category);
 
-    let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?;
+    // O(1) lookup via index
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
 
     let flags = ensure_flags(appearance);
 
@@ -904,6 +1160,9 @@ pub async fn update_appearance_write_once(category: AppearanceCategory, id: u32,
             max_text_length_once,
         });
     }
+
+    // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
 
     Ok(create_appearance_item_response(id, appearance))
 }

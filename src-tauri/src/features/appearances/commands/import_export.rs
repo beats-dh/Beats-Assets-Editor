@@ -24,8 +24,11 @@ impl Default for ImportMode {
 
 #[tauri::command]
 pub async fn export_appearance_to_json(category: AppearanceCategory, id: u32, path: String, state: State<'_, AppState>) -> Result<String, String> {
-    let appearances_lock = state.appearances.read().unwrap();
-    let appearances = appearances_lock.as_ref().ok_or_else(|| "No appearances loaded".to_string())?;
+    let appearances_lock = state.appearances.read();
+    let appearances = match &*appearances_lock {
+        Some(a) => a,
+        None => return Err("No appearances loaded".to_string()),
+    };
 
     let items = get_items_by_category(appearances, &category);
 
@@ -53,7 +56,7 @@ pub async fn import_appearance_from_json(
     new_id: Option<u32>,
     state: State<'_, AppState>,
 ) -> Result<CompleteAppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
     let appearances = appearances_lock.as_mut().ok_or_else(|| "No appearances loaded".to_string())?;
 
     let content = fs::read_to_string(&path).map_err(|e| format!("Failed to read file {}: {}", path, e))?;
@@ -104,7 +107,7 @@ pub async fn import_appearance_from_json(
 
 #[tauri::command]
 pub async fn duplicate_appearance(category: AppearanceCategory, source_id: u32, target_id: Option<u32>, state: State<'_, AppState>) -> Result<CompleteAppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
     let appearances = appearances_lock.as_mut().ok_or_else(|| "No appearances loaded".to_string())?;
 
     let items = get_items_by_category_mut(appearances, &category);
@@ -133,7 +136,7 @@ pub async fn create_empty_appearance(
     description: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<CompleteAppearanceItem, String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
     let appearances = appearances_lock.as_mut().ok_or_else(|| "No appearances loaded".to_string())?;
 
     let items = get_items_by_category_mut(appearances, &category);
@@ -159,8 +162,11 @@ pub async fn create_empty_appearance(
 #[tauri::command]
 pub async fn copy_appearance_flags(category: AppearanceCategory, id: u32, state: State<'_, AppState>) -> Result<CompleteFlags, String> {
     let copied_flags = {
-        let appearances_lock = state.appearances.read().unwrap();
-        let appearances = appearances_lock.as_ref().ok_or_else(|| "No appearances loaded".to_string())?;
+        let appearances_lock = state.appearances.read();
+        let appearances = match &*appearances_lock {
+            Some(a) => a,
+            None => return Err("No appearances loaded".to_string()),
+        };
 
         let items = get_items_by_category(appearances, &category);
         let appearance = items.iter().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found", id))?;
@@ -171,7 +177,7 @@ pub async fn copy_appearance_flags(category: AppearanceCategory, id: u32, state:
     };
 
     {
-        let mut clipboard = state.flags_clipboard.lock().unwrap();
+        let mut clipboard = state.flags_clipboard.lock();
         *clipboard = Some(copied_flags.clone());
     }
 
@@ -181,12 +187,12 @@ pub async fn copy_appearance_flags(category: AppearanceCategory, id: u32, state:
 #[tauri::command]
 pub async fn paste_appearance_flags(category: AppearanceCategory, id: u32, state: State<'_, AppState>) -> Result<CompleteFlags, String> {
     let flags_to_apply = {
-        let clipboard = state.flags_clipboard.lock().unwrap();
+        let clipboard = state.flags_clipboard.lock();
         clipboard.clone().ok_or_else(|| "Flag clipboard is empty".to_string())?
     };
 
     {
-        let mut appearances_lock = state.appearances.write().unwrap();
+        let mut appearances_lock = state.appearances.write();
         let appearances = appearances_lock.as_mut().ok_or_else(|| "No appearances loaded".to_string())?;
 
         let items = get_items_by_category_mut(appearances, &category);
@@ -200,7 +206,7 @@ pub async fn paste_appearance_flags(category: AppearanceCategory, id: u32, state
 
 #[tauri::command]
 pub async fn delete_appearance(category: AppearanceCategory, id: u32, state: State<'_, AppState>) -> Result<(), String> {
-    let mut appearances_lock = state.appearances.write().unwrap();
+    let mut appearances_lock = state.appearances.write();
     let appearances = appearances_lock.as_mut().ok_or_else(|| "No appearances loaded".to_string())?;
 
     let items = get_items_by_category_mut(appearances, &category);
@@ -212,10 +218,12 @@ pub async fn delete_appearance(category: AppearanceCategory, id: u32, state: Sta
     }
 }
 
+#[inline]
 fn find_next_available_id(items: &[Appearance]) -> u32 {
     items.iter().map(|app| app.id.unwrap_or(0)).max().unwrap_or(0).saturating_add(1)
 }
 
+#[inline]
 fn sort_by_id(items: &mut Vec<Appearance>) {
     items.sort_by_key(|app| app.id.unwrap_or(u32::MAX));
 }
