@@ -1,7 +1,7 @@
 name: Rustfmt Auto
 
 permissions:
-  contents: write   # necessário para commit via GITHUB_TOKEN
+  contents: write
 on:
   pull_request:
     paths:
@@ -11,7 +11,7 @@ on:
       - "Cargo.lock"
   push:
     branches-ignore:
-      - main           # não roda automaticamente na main
+      - main
     paths:
       - "src/**"
       - "tests/**"
@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Branch ou tag para formatar (ex.: main). Vazio = ref padrão do workflow."
+        description: "Branch ou tag para formatar (ex.: main)."
         required: false
       dry_run:
         description: "Se true, roda --check (sem commit)."
@@ -28,15 +28,6 @@ on:
         default: "false"
 
 jobs:
-  cancel-runs:
-    if: github.event_name == 'pull_request' && github.ref != 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.1
-        with:
-          access_token: ${{ github.token }}
-
   rustfmt-auto:
     runs-on: ubuntu-latest
 
@@ -49,7 +40,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # Permite escolher a ref manualmente quando invocado via workflow_dispatch
           ref: ${{ github.event.inputs.ref || github.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -60,18 +50,19 @@ jobs:
 
       - name: Cache cargo/target
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
 
-      # Se dry_run == true, só verifica (sem commit)
       - name: rustfmt --check (dry-run)
         if: ${{ github.event.inputs.dry_run == 'true' }}
+        working-directory: src-tauri
         run: cargo fmt --all -- --check
 
-      # Caso contrário, aplica formatação
       - name: rustfmt (auto fix)
         if: ${{ github.event.inputs.dry_run != 'true' }}
+        working-directory: src-tauri
         run: cargo fmt --all
 
-      # Evita tentar commitar em PRs de forks (sem permissão de push)
       - name: Commit formatted code
         if: ${{ github.event.inputs.dry_run != 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
         uses: EndBug/add-and-commit@v9.1.4
