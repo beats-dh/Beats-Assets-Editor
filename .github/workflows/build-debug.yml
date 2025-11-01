@@ -1,4 +1,4 @@
-name: Build Debug
+name: Tauri Build Debug (Linux)
 
 on:
   push:
@@ -10,6 +10,8 @@ on:
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/Cargo.lock"
   pull_request:
     paths:
       - "src/**"
@@ -17,17 +19,19 @@ on:
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/Cargo.lock"
   workflow_dispatch:
 
 jobs:
-  build-debug:
+  tauri-build-debug-linux:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
-          repository: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
+          repository: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo_full_name || github.repository }}
           fetch-depth: 0
 
       - name: Setup Node
@@ -36,11 +40,21 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: Install deps
+      - name: Install frontend deps
         run: npm ci
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux system deps for Tauri bundler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
 
       - name: Cache cargo/target
         uses: Swatinem/rust-cache@v2
@@ -53,5 +67,5 @@ jobs:
       - name: Upload debug bundle
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-debug-bundle
+          name: tauri-debug-bundle-linux
           path: src-tauri/target/debug/bundle
