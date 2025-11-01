@@ -6,10 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 // Import the protobuf definitions
-use crate::core::protobuf::sound::{
-    AmbienceObjectStream, AmbienceStream, EMusicType, ENumericSoundType, MusicTemplate,
-    NumericSoundEffect, Sound, Sounds,
-};
+use crate::core::protobuf::sound::{AmbienceObjectStream, AmbienceStream, EMusicType, ENumericSoundType, MusicTemplate, NumericSoundEffect, Sound, Sounds};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SoundCatalog {
@@ -107,15 +104,13 @@ impl SoundsParser {
     pub fn load_from_directory(&mut self, sounds_dir: &Path) -> Result<SoundStats> {
         // Read catalog-sound.json
         let catalog_path = sounds_dir.join("catalog-sound.json");
-        let catalog_content =
-            fs::read_to_string(&catalog_path).context("Failed to read catalog-sound.json")?;
+        let catalog_content = fs::read_to_string(&catalog_path).context("Failed to read catalog-sound.json")?;
 
         // Parse catalog as array first, fallback to single object
         let catalog_entries: Vec<SoundCatalog> = match serde_json::from_str(&catalog_content) {
             Ok(v) => v,
             Err(_) => {
-                let single: SoundCatalog = serde_json::from_str(&catalog_content)
-                    .context("Failed to parse catalog-sound.json")?;
+                let single: SoundCatalog = serde_json::from_str(&catalog_content).context("Failed to parse catalog-sound.json")?;
                 vec![single]
             }
         };
@@ -125,22 +120,13 @@ impl SoundsParser {
         }
 
         // Prefer the entry with type == "sounds"
-        let selected = catalog_entries
-            .iter()
-            .find(|e| e.catalog_type == "sounds")
-            .cloned()
-            .unwrap_or_else(|| catalog_entries[0].clone());
+        let selected = catalog_entries.iter().find(|e| e.catalog_type == "sounds").cloned().unwrap_or_else(|| catalog_entries[0].clone());
 
-        log::info!(
-            "catalog-sound.json: found {} entries; using file: {}",
-            catalog_entries.len(),
-            selected.file
-        );
+        log::info!("catalog-sound.json: found {} entries; using file: {}", catalog_entries.len(), selected.file);
 
         // Read the .dat file
         let dat_path = sounds_dir.join(&selected.file);
-        let dat_content =
-            fs::read(&dat_path).context(format!("Failed to read {}", selected.file))?;
+        let dat_content = fs::read(&dat_path).context(format!("Failed to read {}", selected.file))?;
 
         // Parse protobuf: try direct decode, then LZMA/XZ decompress fallback
         let sounds = match Sounds::decode(dat_content.as_slice()) {
@@ -149,14 +135,9 @@ impl SoundsParser {
                 s
             }
             Err(e) => {
-                log::warn!(
-                    "Direct sounds decode failed: {}. Trying LZMA/XZ decompress...",
-                    e
-                );
-                let decompressed = crate::core::lzma::decompress(&dat_content)
-                    .context("Failed to decompress sounds data (LZMA/XZ)")?;
-                let decoded = Sounds::decode(decompressed.as_slice())
-                    .context("Failed to decode sounds protobuf after decompression")?;
+                log::warn!("Direct sounds decode failed: {}. Trying LZMA/XZ decompress...", e);
+                let decompressed = crate::core::lzma::decompress(&dat_content).context("Failed to decompress sounds data (LZMA/XZ)")?;
+                let decoded = Sounds::decode(decompressed.as_slice()).context("Failed to decode sounds protobuf after decompression")?;
                 decoded
             }
         };
@@ -194,9 +175,7 @@ impl SoundsParser {
             .numeric_sound_effect
             .iter()
             .map(|e| {
-                let sound_type_enum =
-                    ENumericSoundType::try_from(e.numeric_sound_type.unwrap_or_default())
-                        .unwrap_or(ENumericSoundType::NumericSoundTypeUnknown);
+                let sound_type_enum = ENumericSoundType::try_from(e.numeric_sound_type.unwrap_or_default()).unwrap_or(ENumericSoundType::NumericSoundTypeUnknown);
                 let sound_type = match sound_type_enum {
                     ENumericSoundType::NumericSoundTypeUnknown => "Unknown",
                     ENumericSoundType::NumericSoundTypeSpellAttack => "Spell Attack",
@@ -292,8 +271,7 @@ impl SoundsParser {
             .music_template
             .iter()
             .map(|m| {
-                let music_type_enum = EMusicType::try_from(m.music_type.unwrap_or_default())
-                    .unwrap_or(EMusicType::MusicTypeUnknown);
+                let music_type_enum = EMusicType::try_from(m.music_type.unwrap_or_default()).unwrap_or(EMusicType::MusicTypeUnknown);
                 let music_type = match music_type_enum {
                     EMusicType::MusicTypeUnknown => "Unknown",
                     EMusicType::MusicTypeMusic => "Music",
@@ -323,11 +301,7 @@ impl SoundsParser {
     }
 
     pub fn get_sound_by_id(&self, id: u32) -> Option<&SoundInfo> {
-        self.sounds_data
-            .as_ref()?
-            .sounds
-            .iter()
-            .find(|s| s.id == id)
+        self.sounds_data.as_ref()?.sounds.iter().find(|s| s.id == id)
     }
 
     /// Get currently loaded sounds directory
@@ -337,10 +311,7 @@ impl SoundsParser {
 
     pub fn get_sounds_by_type(&self, sound_type: &str) -> Vec<&NumericSoundEffectInfo> {
         if let Some(data) = &self.sounds_data {
-            data.numeric_sound_effects
-                .iter()
-                .filter(|e| e.sound_type == sound_type)
-                .collect()
+            data.numeric_sound_effects.iter().filter(|e| e.sound_type == sound_type).collect()
         } else {
             Vec::new()
         }
@@ -348,11 +319,7 @@ impl SoundsParser {
 
     pub fn list_sound_types(&self) -> Vec<String> {
         if let Some(data) = &self.sounds_data {
-            let mut types: Vec<String> = data
-                .numeric_sound_effects
-                .iter()
-                .map(|e| e.sound_type.clone())
-                .collect();
+            let mut types: Vec<String> = data.numeric_sound_effects.iter().map(|e| e.sound_type.clone()).collect();
             types.sort();
             types.dedup();
             types
@@ -370,20 +337,14 @@ impl SoundsParser {
 
     /// Read audio file data (OGG format)
     pub fn read_sound_file(&self, sound_id: u32) -> Result<Vec<u8>> {
-        let file_path = self
-            .get_sound_file_path(sound_id)
-            .context("Sound file not found")?;
+        let file_path = self.get_sound_file_path(sound_id).context("Sound file not found")?;
 
         fs::read(&file_path).context(format!("Failed to read sound file: {:?}", file_path))
     }
 
     // NEW: Get NumericSoundEffect by its numeric ID
     pub fn get_numeric_sound_effect_by_id(&self, id: u32) -> Option<&NumericSoundEffectInfo> {
-        self.sounds_data
-            .as_ref()?
-            .numeric_sound_effects
-            .iter()
-            .find(|e| e.id == id)
+        self.sounds_data.as_ref()?.numeric_sound_effects.iter().find(|e| e.id == id)
     }
 
     // NEW: Update helpers for runtime edits
@@ -399,11 +360,7 @@ impl SoundsParser {
 
     pub fn update_numeric_sound_effect(&mut self, updated: NumericSoundEffectInfo) -> Result<()> {
         let data = self.sounds_data.as_mut().context("Sounds not loaded")?;
-        if let Some(eff) = data
-            .numeric_sound_effects
-            .iter_mut()
-            .find(|e| e.id == updated.id)
-        {
+        if let Some(eff) = data.numeric_sound_effects.iter_mut().find(|e| e.id == updated.id) {
             *eff = updated;
             Ok(())
         } else {
@@ -413,11 +370,7 @@ impl SoundsParser {
 
     pub fn update_ambience_stream(&mut self, updated: AmbienceStreamInfo) -> Result<()> {
         let data = self.sounds_data.as_mut().context("Sounds not loaded")?;
-        if let Some(s) = data
-            .ambience_streams
-            .iter_mut()
-            .find(|s| s.id == updated.id)
-        {
+        if let Some(s) = data.ambience_streams.iter_mut().find(|s| s.id == updated.id) {
             *s = updated;
             Ok(())
         } else {
@@ -425,16 +378,9 @@ impl SoundsParser {
         }
     }
 
-    pub fn update_ambience_object_stream(
-        &mut self,
-        updated: AmbienceObjectStreamInfo,
-    ) -> Result<()> {
+    pub fn update_ambience_object_stream(&mut self, updated: AmbienceObjectStreamInfo) -> Result<()> {
         let data = self.sounds_data.as_mut().context("Sounds not loaded")?;
-        if let Some(s) = data
-            .ambience_object_streams
-            .iter_mut()
-            .find(|s| s.id == updated.id)
-        {
+        if let Some(s) = data.ambience_object_streams.iter_mut().find(|s| s.id == updated.id) {
             *s = updated;
             Ok(())
         } else {
@@ -483,26 +429,17 @@ impl SoundsParser {
         let data = self.sounds_data.as_mut().context("Sounds not loaded")?;
 
         // Check references
-        let referenced_by_effect = data
-            .numeric_sound_effects
-            .iter()
-            .any(|e| e.sound_id == Some(id) || e.random_sound_ids.iter().any(|rid| *rid == id));
+        let referenced_by_effect = data.numeric_sound_effects.iter().any(|e| e.sound_id == Some(id) || e.random_sound_ids.iter().any(|rid| *rid == id));
         if referenced_by_effect {
             anyhow::bail!("Sound {} is referenced by a NumericSoundEffect", id);
         }
 
-        let referenced_by_stream = data
-            .ambience_streams
-            .iter()
-            .any(|a| a.looping_sound_id == id);
+        let referenced_by_stream = data.ambience_streams.iter().any(|a| a.looping_sound_id == id);
         if referenced_by_stream {
             anyhow::bail!("Sound {} is referenced by an AmbienceStream", id);
         }
 
-        let referenced_by_object_stream = data
-            .ambience_object_streams
-            .iter()
-            .any(|a| a.sound_effects.iter().any(|s| s.looping_sound_id == id));
+        let referenced_by_object_stream = data.ambience_object_streams.iter().any(|a| a.sound_effects.iter().any(|s| s.looping_sound_id == id));
         if referenced_by_object_stream {
             anyhow::bail!("Sound {} is referenced by an AmbienceObjectStream", id);
         }
@@ -545,16 +482,9 @@ impl SoundsParser {
     pub fn delete_numeric_sound_effect(&mut self, id: u32) -> Result<()> {
         let data = self.sounds_data.as_mut().context("Sounds not loaded")?;
 
-        let referenced_by_delayed = data.ambience_streams.iter().any(|a| {
-            a.delayed_effects
-                .iter()
-                .any(|d| d.numeric_sound_effect_id == id)
-        });
+        let referenced_by_delayed = data.ambience_streams.iter().any(|a| a.delayed_effects.iter().any(|d| d.numeric_sound_effect_id == id));
         if referenced_by_delayed {
-            anyhow::bail!(
-                "NumericSoundEffect {} is referenced by an AmbienceStream delayed effect",
-                id
-            );
+            anyhow::bail!("NumericSoundEffect {} is referenced by an AmbienceStream delayed effect", id);
         }
 
         let before_len = data.numeric_sound_effects.len();
@@ -601,10 +531,7 @@ impl SoundsParser {
     }
 
     fn rebuild_protobuf(&self) -> Result<Sounds> {
-        use crate::core::protobuf::sound::{
-            AppearanceTypesCountSoundEffect, DelayedSoundEffect, MinMaxFloat, RandomSoundEffect,
-            SimpleSoundEffect,
-        };
+        use crate::core::protobuf::sound::{AppearanceTypesCountSoundEffect, DelayedSoundEffect, MinMaxFloat, RandomSoundEffect, SimpleSoundEffect};
 
         let data = self.sounds_data.as_ref().context("Sounds not loaded")?;
 
@@ -742,31 +669,22 @@ impl SoundsParser {
 
     /// Save current sounds data back to the original .dat from catalog-sound.json
     pub fn save_to_directory(&self) -> Result<PathBuf> {
-        let dir = self
-            .sounds_dir
-            .as_ref()
-            .context("Sounds directory not set")?;
+        let dir = self.sounds_dir.as_ref().context("Sounds directory not set")?;
         // Read catalog-sound.json again to get target file
         let catalog_path = dir.join("catalog-sound.json");
-        let catalog_content =
-            fs::read_to_string(&catalog_path).context("Failed to read catalog-sound.json")?;
+        let catalog_content = fs::read_to_string(&catalog_path).context("Failed to read catalog-sound.json")?;
 
         let entries: Vec<SoundCatalog> = match serde_json::from_str(&catalog_content) {
             Ok(v) => v,
             Err(_) => {
-                let single: SoundCatalog = serde_json::from_str(&catalog_content)
-                    .context("Failed to parse catalog-sound.json")?;
+                let single: SoundCatalog = serde_json::from_str(&catalog_content).context("Failed to parse catalog-sound.json")?;
                 vec![single]
             }
         };
         if entries.is_empty() {
             anyhow::bail!("catalog-sound.json has no entries");
         }
-        let selected = entries
-            .iter()
-            .find(|e| e.catalog_type == "sounds")
-            .cloned()
-            .unwrap_or_else(|| entries[0].clone());
+        let selected = entries.iter().find(|e| e.catalog_type == "sounds").cloned().unwrap_or_else(|| entries[0].clone());
 
         let dat_path = dir.join(&selected.file);
         let existing = fs::read(&dat_path).context("Failed to read existing sounds dat")?;

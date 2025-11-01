@@ -22,50 +22,23 @@ pub fn load_appearances<P: AsRef<Path>>(path: P) -> Result<Appearances> {
             return Ok(appearances);
         }
         Err(e) => {
-            log::warn!(
-                "Direct protobuf decode failed: {}. Trying LZMA/XZ decompress fallback...",
-                e
-            );
+            log::warn!("Direct protobuf decode failed: {}. Trying LZMA/XZ decompress fallback...", e);
         }
     }
 
     // Fallback: attempt to decompress (Tibia assets often use custom LZMA/XZ wrapping)
-    let decompressed = crate::core::lzma::decompress(&data)
-        .context("Failed to decompress appearances data (LZMA/XZ)")?;
+    let decompressed = crate::core::lzma::decompress(&data).context("Failed to decompress appearances data (LZMA/XZ)")?;
 
     // Try decoding again from decompressed bytes
-    let appearances = Appearances::decode(&decompressed[..])
-        .context("Failed to decode appearances protobuf data after decompression")?;
+    let appearances = Appearances::decode(&decompressed[..]).context("Failed to decode appearances protobuf data after decompression")?;
 
     // Log like Assets Editor (showing last IDs)
-    let object_count = appearances
-        .object
-        .last()
-        .and_then(|obj| obj.id)
-        .unwrap_or(0);
-    let outfit_count = appearances
-        .outfit
-        .last()
-        .and_then(|obj| obj.id)
-        .unwrap_or(0);
-    let effect_count = appearances
-        .effect
-        .last()
-        .and_then(|obj| obj.id)
-        .unwrap_or(0);
-    let missile_count = appearances
-        .missile
-        .last()
-        .and_then(|obj| obj.id)
-        .unwrap_or(0);
+    let object_count = appearances.object.last().and_then(|obj| obj.id).unwrap_or(0);
+    let outfit_count = appearances.outfit.last().and_then(|obj| obj.id).unwrap_or(0);
+    let effect_count = appearances.effect.last().and_then(|obj| obj.id).unwrap_or(0);
+    let missile_count = appearances.missile.last().and_then(|obj| obj.id).unwrap_or(0);
 
-    log::info!(
-        "Successfully parsed appearances: {} objects, {} outfits, {} effects, {} missiles",
-        object_count,
-        outfit_count,
-        effect_count,
-        missile_count
-    );
+    log::info!("Successfully parsed appearances: {} objects, {} outfits, {} effects, {} missiles", object_count, outfit_count, effect_count, missile_count);
 
     Ok(appearances)
 }
@@ -74,26 +47,10 @@ pub fn load_appearances<P: AsRef<Path>>(path: P) -> Result<Appearances> {
 pub fn get_statistics(appearances: &Appearances) -> AppearanceStats {
     AppearanceStats {
         // Primary values (like Assets Editor) - last IDs
-        object_count: appearances
-            .object
-            .last()
-            .and_then(|obj| obj.id)
-            .unwrap_or(0),
-        outfit_count: appearances
-            .outfit
-            .last()
-            .and_then(|obj| obj.id)
-            .unwrap_or(0),
-        effect_count: appearances
-            .effect
-            .last()
-            .and_then(|obj| obj.id)
-            .unwrap_or(0),
-        missile_count: appearances
-            .missile
-            .last()
-            .and_then(|obj| obj.id)
-            .unwrap_or(0),
+        object_count: appearances.object.last().and_then(|obj| obj.id).unwrap_or(0),
+        outfit_count: appearances.outfit.last().and_then(|obj| obj.id).unwrap_or(0),
+        effect_count: appearances.effect.last().and_then(|obj| obj.id).unwrap_or(0),
+        missile_count: appearances.missile.last().and_then(|obj| obj.id).unwrap_or(0),
         // Additional info - actual item counts
         actual_objects: appearances.object.len(),
         actual_outfits: appearances.outfit.len(),

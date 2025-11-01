@@ -292,30 +292,16 @@ impl SpecialMeaningAppearanceIds {
 impl CompleteAppearanceItem {
     pub fn from_protobuf(appearance: &Appearance) -> Self {
         // Convert optional bytes to Strings lossily to avoid UTF-8 errors
-        let name = appearance
-            .name
-            .as_ref()
-            .map(|b| String::from_utf8_lossy(b).to_string());
-        let description = appearance
-            .description
-            .as_ref()
-            .map(|b| String::from_utf8_lossy(b).to_string());
+        let name = appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string());
+        let description = appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string());
 
         Self {
             id: appearance.id.unwrap_or(0),
             name,
             description,
             appearance_type: appearance.appearance_type,
-            sprite_data: appearance
-                .sprite_data
-                .iter()
-                .map(|bytes| STANDARD.encode(bytes))
-                .collect(),
-            frame_groups: appearance
-                .frame_group
-                .iter()
-                .map(CompleteFrameGroup::from_protobuf)
-                .collect(),
+            sprite_data: appearance.sprite_data.iter().map(|bytes| STANDARD.encode(bytes)).collect(),
+            frame_groups: appearance.frame_group.iter().map(CompleteFrameGroup::from_protobuf).collect(),
             flags: appearance.flags.as_ref().map(CompleteFlags::from_protobuf),
         }
     }
@@ -326,10 +312,7 @@ impl CompleteFrameGroup {
         Self {
             fixed_frame_group: fg.fixed_frame_group,
             id: fg.id,
-            sprite_info: fg
-                .sprite_info
-                .as_ref()
-                .map(CompleteSpriteInfo::from_protobuf),
+            sprite_info: fg.sprite_info.as_ref().map(CompleteSpriteInfo::from_protobuf),
         }
     }
 }
@@ -445,51 +428,44 @@ impl CompleteFlags {
                 brightness: l.brightness,
                 color: l.color,
             }),
-            shift: flags.shift.as_ref().map(|s| FlagShift { x: s.x, y: s.y }),
+            shift: flags.shift.as_ref().map(|s| FlagShift {
+                x: s.x,
+                y: s.y,
+            }),
             height: flags.height.as_ref().map(|h| FlagHeight {
                 elevation: h.elevation,
             }),
-            automap: flags
-                .automap
-                .as_ref()
-                .map(|a| FlagAutomap { color: a.color }),
-            lenshelp: flags.lenshelp.as_ref().map(|l| FlagLenshelp { id: l.id }),
-            clothes: flags.clothes.as_ref().map(|c| FlagClothes { slot: c.slot }),
-            default_action: flags
-                .default_action
-                .as_ref()
-                .map(|d| FlagDefaultAction { action: d.action }),
+            automap: flags.automap.as_ref().map(|a| FlagAutomap {
+                color: a.color,
+            }),
+            lenshelp: flags.lenshelp.as_ref().map(|l| FlagLenshelp {
+                id: l.id,
+            }),
+            clothes: flags.clothes.as_ref().map(|c| FlagClothes {
+                slot: c.slot,
+            }),
+            default_action: flags.default_action.as_ref().map(|d| FlagDefaultAction {
+                action: d.action,
+            }),
             market: flags.market.as_ref().map(|m| FlagMarket {
                 category: m.category,
                 trade_as_object_id: m.trade_as_object_id,
                 show_as_object_id: m.show_as_object_id,
                 restrict_to_vocation: m.restrict_to_vocation.clone(),
                 minimum_level: m.minimum_level,
-                name: m
-                    .name
-                    .as_ref()
-                    .map(|b| String::from_utf8_lossy(b).to_string()),
+                name: m.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
                 vocation: m.vocation,
             }),
             npc_sale_data: flags
                 .npcsaledata
                 .iter()
                 .map(|npc| FlagNPC {
-                    name: npc
-                        .name
-                        .as_ref()
-                        .map(|b| String::from_utf8_lossy(b).to_string()),
-                    location: npc
-                        .location
-                        .as_ref()
-                        .map(|b| String::from_utf8_lossy(b).to_string()),
+                    name: npc.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+                    location: npc.location.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
                     sale_price: npc.sale_price,
                     buy_price: npc.buy_price,
                     currency_object_type_id: npc.currency_object_type_id,
-                    currency_quest_flag_display_name: npc
-                        .currency_quest_flag_display_name
-                        .as_ref()
-                        .map(|b| String::from_utf8_lossy(b).to_string()),
+                    currency_quest_flag_display_name: npc.currency_quest_flag_display_name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
                 })
                 .collect(),
             changed_to_expire: flags.changedtoexpire.as_ref().map(|c| FlagChangedToExpire {
@@ -498,10 +474,8 @@ impl CompleteFlags {
             cyclopedia_item: flags.cyclopediaitem.as_ref().map(|c| FlagCyclopedia {
                 cyclopedia_type: c.cyclopedia_type,
             }),
-            upgrade_classification: flags.upgradeclassification.as_ref().map(|u| {
-                FlagUpgradeClassification {
-                    upgrade_classification: u.upgrade_classification,
-                }
+            upgrade_classification: flags.upgradeclassification.as_ref().map(|u| FlagUpgradeClassification {
+                upgrade_classification: u.upgrade_classification,
             }),
             skillwheel_gem: flags.skillwheel_gem.as_ref().map(|s| FlagSkillWheelGem {
                 gem_quality_id: s.gem_quality_id,

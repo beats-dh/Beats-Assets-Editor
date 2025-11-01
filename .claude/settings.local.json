@@ -10,7 +10,20 @@
       "Bash(npm run dev:*)",
       "Bash(Get-Content \"c:\\Users\\danie\\tibia-assets-editor\\src-tauri\\target\\debug\\build\\tibia-assets-editor-48894c73f2839aae\\out\\tibia.protobuf.appearances.rs\" -Head 100)",
       "Bash(dir \"C:\\Users\\danie\\tibia-assets-editor\\Assets Editor\")",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(find:*)",
+      "Bash(cargo check:*)",
+      "Bash(git checkout:*)",
+      "Bash(tree:*)",
+      "Bash(python3:*)",
+      "Bash(cat:*)",
+      "Bash(powershell -Command \"(Get-Content query.rs -Raw) -replace ''    let items = match category \\{\\r?\\n        AppearanceCategory::Objects => &appearances\\.object,\\r?\\n        AppearanceCategory::Outfits => &appearances\\.outfit,\\r?\\n        AppearanceCategory::Effects => &appearances\\.effect,\\r?\\n        AppearanceCategory::Missiles => &appearances\\.missile,\\r?\\n    \\};'', ''    let items = get_items_by_category(appearances, &category);'' | Set-Content query.rs -NoNewline\")",
+      "Bash(powershell -Command:*)",
+      "Bash(perl -i -pe:*)",
+      "Bash(src-tauri/src/features/appearances/commands/query.rs.backup)",
+      "Bash(src-tauri/src/features/appearances/commands/import_export.rs)",
+      "Bash(src-tauri/src/features/appearances/commands/conversion.rs)",
+      "Bash(src-tauri/src/features/appearances/commands/io.rs)"
     ],
     "deny": [],
     "ask": []
