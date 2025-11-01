@@ -1,4 +1,4 @@
-use tibia_assets_editor_lib::core::{load_appearances, get_statistics};
+use tibia_assets_editor_lib::core::{get_statistics, load_appearances};
 
 #[test]
 #[ignore] // Run with: cargo test -- --ignored --nocapture

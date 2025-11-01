@@ -1,6 +1,6 @@
-pub mod protobuf;
-pub mod parsers;
 pub mod lzma;
+pub mod parsers;
+pub mod protobuf;
 pub mod sprites;
 
-pub use parsers::{load_appearances, get_statistics, AppearanceStats};
+pub use parsers::{get_statistics, load_appearances, AppearanceStats};

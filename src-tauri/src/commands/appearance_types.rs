@@ -1,4 +1,5 @@
 use crate::core::protobuf::{Appearance, AppearanceFlags, FrameGroup, SpriteInfo};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{Deserialize, Serialize};
 
 /// Complete appearance data with ALL information
@@ -7,6 +8,10 @@ pub struct CompleteAppearanceItem {
     pub id: u32,
     pub name: Option<String>,
     pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub appearance_type: Option<i32>,
+    #[serde(default)]
+    pub sprite_data: Vec<String>,
     pub frame_groups: Vec<CompleteFrameGroup>,
     pub flags: Option<CompleteFlags>,
 }
@@ -300,6 +305,12 @@ impl CompleteAppearanceItem {
             id: appearance.id.unwrap_or(0),
             name,
             description,
+            appearance_type: appearance.appearance_type,
+            sprite_data: appearance
+                .sprite_data
+                .iter()
+                .map(|bytes| STANDARD.encode(bytes))
+                .collect(),
             frame_groups: appearance
                 .frame_group
                 .iter()

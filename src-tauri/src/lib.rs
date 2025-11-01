@@ -37,6 +37,7 @@ pub fn run() {
             commands::appearances_api::auto_load_sprites,
             commands::appearances_api::get_sprite_by_id,
             commands::appearances_api::get_appearance_sprites,
+            commands::appearances_api::get_appearance_preview_sprite,
             commands::appearances_api::clear_sprite_cache,
             commands::appearances_api::get_sprite_cache_stats,
             commands::appearances_api::get_item_subcategories,

@@ -6,7 +6,7 @@ fn main() {
         .out_dir(&out_dir)
         .compile_protos(
             &["protobuf/appearances.proto", "protobuf/sounds.proto"],
-            &["protobuf"]
+            &["protobuf"],
         )
         .expect("Failed to compile protobuf files");
 

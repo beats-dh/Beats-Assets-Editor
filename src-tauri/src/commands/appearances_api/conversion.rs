@@ -15,6 +15,7 @@ use crate::core::protobuf::{
     AppearanceFlags, FrameGroup, SpriteAnimation as ProtoSpriteAnimation,
     SpriteInfo as ProtoSpriteInfo, SpritePhase as ProtoSpritePhase,
 };
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 
 /// Convert a [`CompleteAppearanceItem`] back into the protobuf [`Appearance`]
 /// representation used by the Tibia client files.
@@ -23,6 +24,28 @@ pub fn complete_to_protobuf(item: &CompleteAppearanceItem) -> Appearance {
     appearance.id = Some(item.id);
     appearance.name = item.name.as_ref().map(|s| s.clone().into_bytes());
     appearance.description = item.description.as_ref().map(|s| s.clone().into_bytes());
+    appearance.appearance_type = item.appearance_type;
+    appearance.sprite_data = item
+        .sprite_data
+        .iter()
+        .map(|encoded| {
+            if encoded.is_empty() {
+                Vec::new()
+            } else {
+                match STANDARD.decode(encoded) {
+                    Ok(bytes) => bytes,
+                    Err(err) => {
+                        log::warn!(
+                            "Failed to decode sprite data for appearance {}: {}",
+                            item.id,
+                            err
+                        );
+                        Vec::new()
+                    }
+                }
+            }
+        })
+        .collect();
 
     appearance.frame_group = item
         .frame_groups

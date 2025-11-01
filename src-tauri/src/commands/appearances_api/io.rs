@@ -1,7 +1,7 @@
+use crate::commands::AppState;
+use crate::core::{get_statistics, load_appearances, AppearanceStats};
 use std::path::PathBuf;
 use tauri::State;
-use crate::commands::AppState;
-use crate::core::{load_appearances, get_statistics, AppearanceStats};
 
 #[tauri::command]
 pub async fn load_appearances_file(
@@ -10,8 +10,8 @@ pub async fn load_appearances_file(
 ) -> Result<AppearanceStats, String> {
     log::info!("Loading appearances from: {}", path);
 
-    let appearances = load_appearances(&path)
-        .map_err(|e| format!("Failed to load appearances: {}", e))?;
+    let appearances =
+        load_appearances(&path).map_err(|e| format!("Failed to load appearances: {}", e))?;
 
     let stats = get_statistics(&appearances);
 
@@ -24,9 +24,7 @@ pub async fn load_appearances_file(
 
 /// Get current statistics
 #[tauri::command]
-pub async fn get_appearance_stats(
-    state: State<'_, AppState>,
-) -> Result<AppearanceStats, String> {
+pub async fn get_appearance_stats(state: State<'_, AppState>) -> Result<AppearanceStats, String> {
     let appearances_lock = state.appearances.lock().unwrap();
 
     match &*appearances_lock {
@@ -58,9 +56,7 @@ pub async fn select_tibia_directory() -> Result<String, String> {
 
 /// List available appearance files in Tibia directory
 #[tauri::command]
-pub async fn list_appearance_files(
-    tibia_path: String,
-) -> Result<Vec<String>, String> {
+pub async fn list_appearance_files(tibia_path: String) -> Result<Vec<String>, String> {
     use std::fs;
 
     let assets_path = PathBuf::from(tibia_path).join("assets");
@@ -77,8 +73,10 @@ pub async fn list_appearance_files(
         if let Some(file_name) = path.file_name() {
             let file_name_str = file_name.to_string_lossy().to_string();
 
-            if (file_name_str.starts_with("appearances-") || file_name_str == "appearances_latest.dat") 
-                && file_name_str.ends_with(".dat") {
+            if (file_name_str.starts_with("appearances-")
+                || file_name_str == "appearances_latest.dat")
+                && file_name_str.ends_with(".dat")
+            {
                 let size = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
                 files_data.push((file_name_str, size));
             }
@@ -87,9 +85,13 @@ pub async fn list_appearance_files(
 
     // Sort files, prioritizing the working file first, then by size (desc)
     files_data.sort_by(|(a_name, a_size), (b_name, b_size)| {
-        if a_name == "appearances-feee1f9feba00a63606228c8bc46fa003c90dff144fb1b60a3759f97aad6e3c8.dat" {
+        if a_name
+            == "appearances-feee1f9feba00a63606228c8bc46fa003c90dff144fb1b60a3759f97aad6e3c8.dat"
+        {
             std::cmp::Ordering::Less
-        } else if b_name == "appearances-feee1f9feba00a63606228c8bc46fa003c90dff144fb1b60a3759f97aad6e3c8.dat" {
+        } else if b_name
+            == "appearances-feee1f9feba00a63606228c8bc46fa003c90dff144fb1b60a3759f97aad6e3c8.dat"
+        {
             std::cmp::Ordering::Greater
         } else if a_name == "appearances_latest.dat" {
             std::cmp::Ordering::Less
@@ -100,7 +102,10 @@ pub async fn list_appearance_files(
         }
     });
 
-    let files = files_data.into_iter().map(|(name, _)| name).collect::<Vec<String>>();
+    let files = files_data
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect::<Vec<String>>();
 
     Ok(files)
 }

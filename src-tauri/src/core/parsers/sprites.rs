@@ -1,12 +1,12 @@
+use anyhow::{anyhow, Context, Result};
+use image::{DynamicImage, ImageBuffer, Rgba};
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
 use std::io::Cursor;
-use anyhow::{Context, Result, anyhow};
-use image::{DynamicImage, ImageBuffer, Rgba};
+use std::path::Path;
 
+use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
-use base64::{Engine as _, engine::general_purpose};
 
 /// Represents a sprite from Tibia
 #[derive(Debug, Clone)]
@@ -20,12 +20,9 @@ pub struct TibiaSprite {
 impl TibiaSprite {
     /// Convert sprite data to an image
     pub fn to_image(&self) -> Result<DynamicImage> {
-        let img: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::from_raw(
-            self.width,
-            self.height,
-            self.data.clone(),
-        )
-        .ok_or_else(|| anyhow!("Failed to create image from sprite data"))?;
+        let img: ImageBuffer<Rgba<u8>, Vec<u8>> =
+            ImageBuffer::from_raw(self.width, self.height, self.data.clone())
+                .ok_or_else(|| anyhow!("Failed to create image from sprite data"))?;
 
         Ok(DynamicImage::ImageRgba8(img))
     }
@@ -35,10 +32,10 @@ impl TibiaSprite {
         let img = self.to_image()?;
         let mut buffer = Vec::new();
         let mut cursor = Cursor::new(&mut buffer);
-        
+
         img.write_to(&mut cursor, image::ImageFormat::Png)
             .context("Failed to encode sprite as PNG")?;
-        
+
         Ok(general_purpose::STANDARD.encode(buffer))
     }
 }
@@ -74,8 +71,8 @@ impl SpriteCatalog {
         let catalog_data = fs::read_to_string(catalog_path)
             .context(format!("Failed to read catalog file: {:?}", catalog_path))?;
 
-        let entries: Vec<SpriteCatalogEntry> = serde_json::from_str(&catalog_data)
-            .context("Failed to parse catalog JSON")?;
+        let entries: Vec<SpriteCatalogEntry> =
+            serde_json::from_str(&catalog_data).context("Failed to parse catalog JSON")?;
 
         // Filter only sprite entries and build sprite map
         let sprite_entries: Vec<SpriteCatalogEntry> = entries
@@ -92,7 +89,6 @@ impl SpriteCatalog {
             }
         }
 
-
         Ok(SpriteCatalog {
             entries: sprite_entries,
             sprite_map,
@@ -101,7 +97,8 @@ impl SpriteCatalog {
 
     /// Get the catalog entry for a specific sprite ID
     pub fn get_entry_for_sprite(&self, sprite_id: u32) -> Option<&SpriteCatalogEntry> {
-        self.sprite_map.get(&sprite_id)
+        self.sprite_map
+            .get(&sprite_id)
             .and_then(|&index| self.entries.get(index))
     }
 
@@ -131,7 +128,6 @@ impl SpriteLoader {
         let catalog = SpriteCatalog::load(catalog_path)?;
         let assets_dir = assets_dir.as_ref().to_path_buf();
 
-
         Ok(SpriteLoader {
             catalog,
             assets_dir,
@@ -141,7 +137,9 @@ impl SpriteLoader {
 
     /// Get sprite by ID
     pub fn get_sprite(&mut self, sprite_id: u32) -> Result<TibiaSprite> {
-        let entry = self.catalog.get_entry_for_sprite(sprite_id)
+        let entry = self
+            .catalog
+            .get_entry_for_sprite(sprite_id)
             .ok_or_else(|| anyhow!("Sprite ID {} not found in catalog", sprite_id))?;
 
         // Load sprite sheet if not cached
@@ -155,7 +153,8 @@ impl SpriteLoader {
         let first_id = entry.first_sprite_id.unwrap_or(0);
         let sprite_index = (sprite_id - first_id) as usize;
 
-        sprites.get(sprite_index)
+        sprites
+            .get(sprite_index)
             .cloned()
             .ok_or_else(|| anyhow!("Sprite {} not found in sheet {}", sprite_id, entry.file))
     }
@@ -164,8 +163,8 @@ impl SpriteLoader {
     fn load_sprite_sheet_for_entry(&self, entry: &SpriteCatalogEntry) -> Result<Vec<TibiaSprite>> {
         let file_path = self.assets_dir.join(&entry.file);
 
-        let compressed_data = fs::read(&file_path)
-            .context(format!("Failed to read sprite file: {:?}", file_path))?;
+        let compressed_data =
+            fs::read(&file_path).context(format!("Failed to read sprite file: {:?}", file_path))?;
 
         // Decompress LZMA data
         let bitmap_data = self.decompress_lzma(&compressed_data)?;
@@ -182,7 +181,10 @@ impl SpriteLoader {
         let last_id = entry.last_sprite_id.unwrap_or(first_id);
         let total_count = (last_id - first_id + 1) as u32;
         if total_count == 0 {
-            return Err(anyhow!("Catálogo inválido: contagem de sprites é zero para {}", entry.file));
+            return Err(anyhow!(
+                "Catálogo inválido: contagem de sprites é zero para {}",
+                entry.file
+            ));
         }
         // Definir dimensões do tile com base no spritetype (quando disponível) ou inferência pelo área
         let (tile_width, tile_height) = if let Some(t) = entry.sprite_type {
@@ -215,7 +217,6 @@ impl SpriteLoader {
         };
 
         self.parse_sprite_sheet_from_rgba(&sheet_data, width, height, tile_width, tile_height)
-
     }
 
     /// Decompress LZMA data with CipSoft's custom header
@@ -244,7 +245,9 @@ impl SpriteLoader {
             let b = data[offset];
             offset += 1;
             // MSB=1 means more bytes
-            if (b & 0x80) == 0 { break; }
+            if (b & 0x80) == 0 {
+                break;
+            }
         }
         if offset >= data.len() {
             return Err(anyhow!("Cabeçalho CIP incompleto (tamanho 7-bit)"));
@@ -260,7 +263,11 @@ impl SpriteLoader {
         match crate::core::lzma::decompress(lzma_data) {
             Ok(decompressed) => Ok(decompressed),
             Err(e) => {
-                log::error!("Falha na descompressão LZMA após cabeçalho CIP (offset {}): {}", offset, e);
+                log::error!(
+                    "Falha na descompressão LZMA após cabeçalho CIP (offset {}): {}",
+                    offset,
+                    e
+                );
                 // Fallback: try original data (some files may have no CIP header/padding)
                 crate::core::lzma::decompress(data)
                     .map_err(|e2| anyhow!("Falha ao descomprimir LZMA: {}", e2))
@@ -269,7 +276,14 @@ impl SpriteLoader {
     }
 
     /// Parse sprite sheet from RGBA buffer and extract individual sprites
-    fn parse_sprite_sheet_from_rgba(&self, sheet_data: &[u8], width: u32, height: u32, tile_width: u32, tile_height: u32) -> Result<Vec<TibiaSprite>> {
+    fn parse_sprite_sheet_from_rgba(
+        &self,
+        sheet_data: &[u8],
+        width: u32,
+        height: u32,
+        tile_width: u32,
+        tile_height: u32,
+    ) -> Result<Vec<TibiaSprite>> {
         let bytes_per_pixel = 4usize; // RGBA
         let stride = (width * 4) as usize;
 
@@ -299,7 +313,6 @@ impl SpriteLoader {
 
         Ok(sprites)
     }
-
 
     /// Extract a single sprite from the sprite sheet
     fn extract_sprite_from_sheet_rgba(
@@ -335,7 +348,6 @@ impl SpriteLoader {
             data: sprite_data,
         })
     }
-
 
     /// Get the total number of sprites available
     pub fn sprite_count(&self) -> usize {

@@ -1,8 +1,8 @@
+use super::types::AppearanceCategory;
+use crate::commands::AppState;
+use crate::core::parsers::SpriteLoader;
 use std::path::PathBuf;
 use tauri::State;
-use crate::core::parsers::SpriteLoader;
-use crate::commands::AppState;
-use super::types::AppearanceCategory;
 
 #[tauri::command]
 pub async fn load_sprites_catalog(
@@ -10,7 +10,11 @@ pub async fn load_sprites_catalog(
     assets_dir: String,
     state: State<'_, AppState>,
 ) -> Result<usize, String> {
-    log::info!("Loading sprites from catalog: {} with assets dir: {}", catalog_path, assets_dir);
+    log::info!(
+        "Loading sprites from catalog: {} with assets dir: {}",
+        catalog_path,
+        assets_dir
+    );
 
     let sprite_loader = SpriteLoader::new(&catalog_path, &assets_dir)
         .map_err(|e| format!("Failed to load sprite catalog: {}", e))?;
@@ -32,11 +36,15 @@ pub async fn auto_load_sprites(
     log::info!("Auto-loading sprites from Tibia directory: {}", tibia_path);
 
     // Force recompilation - First, try to find catalog-content.json in the project root
-    let project_root = std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
+    let project_root =
+        std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
     let project_catalog_path = project_root.join("catalog-content.json");
-    
+
     let (catalog_path, assets_dir) = if project_catalog_path.exists() {
-        log::info!("Found catalog-content.json in project root: {:?}", project_catalog_path);
+        log::info!(
+            "Found catalog-content.json in project root: {:?}",
+            project_catalog_path
+        );
         // Use project root for both catalog and assets
         (project_catalog_path, project_root)
     } else {
@@ -44,24 +52,31 @@ pub async fn auto_load_sprites(
         let tibia_dir = PathBuf::from(&tibia_path);
         let tibia_assets_dir = tibia_dir.join("assets");
         let tibia_catalog_path = tibia_assets_dir.join("catalog-content.json");
-        log::info!("Looking for catalog in Tibia assets directory: {:?}", tibia_catalog_path);
-        
+        log::info!(
+            "Looking for catalog in Tibia assets directory: {:?}",
+            tibia_catalog_path
+        );
+
         if !tibia_catalog_path.exists() {
-            log::error!("catalog-content.json not found at: {:?}", tibia_catalog_path);
-            return Err(format!("catalog-content.json not found in project root or Tibia assets directory"));
+            log::error!(
+                "catalog-content.json not found at: {:?}",
+                tibia_catalog_path
+            );
+            return Err(format!(
+                "catalog-content.json not found in project root or Tibia assets directory"
+            ));
         }
-        
+
         (tibia_catalog_path, tibia_assets_dir)
     };
-    
+
     log::info!("Using catalog: {:?}", catalog_path);
     log::info!("Using assets directory: {:?}", assets_dir);
 
-    let sprite_loader = SpriteLoader::new(&catalog_path, &assets_dir)
-        .map_err(|e| {
-            log::error!("Failed to create SpriteLoader: {}", e);
-            format!("Failed to auto-load sprites: {}", e)
-        })?;
+    let sprite_loader = SpriteLoader::new(&catalog_path, &assets_dir).map_err(|e| {
+        log::error!("Failed to create SpriteLoader: {}", e);
+        format!("Failed to auto-load sprites: {}", e)
+    })?;
 
     let sprite_count = sprite_loader.sprite_count();
 
@@ -82,10 +97,12 @@ pub async fn get_sprite_by_id(
 
     match &mut *sprite_loader_lock {
         Some(loader) => {
-            let sprite = loader.get_sprite(sprite_id)
+            let sprite = loader
+                .get_sprite(sprite_id)
                 .map_err(|e| format!("Failed to get sprite {}: {}", sprite_id, e))?;
 
-            sprite.to_base64_png()
+            sprite
+                .to_base64_png()
                 .map_err(|e| format!("Failed to convert sprite to PNG: {}", e))
         }
         None => Err("No sprites loaded".to_string()),
@@ -99,7 +116,6 @@ pub async fn get_appearance_sprites(
     appearance_id: u32,
     state: State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
-    
     // Check cache first
     let cache_key = format!("{:?}:{}", category, appearance_id);
     {
@@ -108,8 +124,7 @@ pub async fn get_appearance_sprites(
             return Ok(cached_sprites.clone());
         }
     }
-    
-    
+
     let appearances_lock = state.appearances.lock().unwrap();
     let mut sprite_loader_lock = state.sprite_loader.lock().unwrap();
 
@@ -133,26 +148,27 @@ pub async fn get_appearance_sprites(
     let appearance = items
         .iter()
         .find(|app| app.id.unwrap_or(0) == appearance_id)
-        .ok_or_else(|| format!("Appearance with ID {} not found in {:?}", appearance_id, category))?;
-
+        .ok_or_else(|| {
+            format!(
+                "Appearance with ID {} not found in {:?}",
+                appearance_id, category
+            )
+        })?;
 
     let mut sprite_images = Vec::new();
 
     // Get ALL sprites from ALL frame groups of this specific appearance
     for (fg_index, frame_group) in appearance.frame_group.iter().enumerate() {
         if let Some(sprite_info) = &frame_group.sprite_info {
-
             // Get ALL sprite IDs from this frame group
             for &sprite_id in &sprite_info.sprite_id {
                 match sprite_loader.get_sprite(sprite_id) {
-                    Ok(sprite) => {
-                        match sprite.to_base64_png() {
-                            Ok(base64_png) => {
-                                sprite_images.push(base64_png);
-                            },
-                            Err(e) => log::warn!("Failed to encode sprite {}: {}", sprite_id, e),
+                    Ok(sprite) => match sprite.to_base64_png() {
+                        Ok(base64_png) => {
+                            sprite_images.push(base64_png);
                         }
-                    }
+                        Err(e) => log::warn!("Failed to encode sprite {}: {}", sprite_id, e),
+                    },
                     Err(e) => log::warn!("Failed to get sprite {}: {}", sprite_id, e),
                 }
             }
@@ -165,14 +181,74 @@ pub async fn get_appearance_sprites(
         }
     }
 
-    
     // Store in cache
     {
         let mut sprite_cache_lock = state.sprite_cache.lock().unwrap();
         sprite_cache_lock.insert(cache_key, sprite_images.clone());
     }
-    
+
     Ok(sprite_images)
+}
+
+/// Get a single preview sprite (first available sprite) for an appearance
+#[tauri::command]
+pub async fn get_appearance_preview_sprite(
+    category: AppearanceCategory,
+    appearance_id: u32,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    let appearances_lock = state.appearances.lock().unwrap();
+    let mut sprite_loader_lock = state.sprite_loader.lock().unwrap();
+
+    let appearances = match &*appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let sprite_loader = match &mut *sprite_loader_lock {
+        Some(loader) => loader,
+        None => return Err("No sprites loaded".to_string()),
+    };
+
+    let items = match category {
+        AppearanceCategory::Objects => &appearances.object,
+        AppearanceCategory::Outfits => &appearances.outfit,
+        AppearanceCategory::Effects => &appearances.effect,
+        AppearanceCategory::Missiles => &appearances.missile,
+    };
+
+    let appearance = items
+        .iter()
+        .find(|app| app.id.unwrap_or(0) == appearance_id)
+        .ok_or_else(|| {
+            format!(
+                "Appearance with ID {} not found in {:?}",
+                appearance_id, category
+            )
+        })?;
+
+    let first_sprite_id = appearance
+        .frame_group
+        .iter()
+        .filter_map(|fg| fg.sprite_info.as_ref())
+        .flat_map(|info| info.sprite_id.iter())
+        .copied()
+        .next();
+
+    let sprite_id = match first_sprite_id {
+        Some(id) => id,
+        None => return Ok(None),
+    };
+
+    let sprite = sprite_loader
+        .get_sprite(sprite_id)
+        .map_err(|e| format!("Failed to get sprite {}: {}", sprite_id, e))?;
+
+    let preview = sprite
+        .to_base64_png()
+        .map_err(|e| format!("Failed to convert sprite to PNG: {}", e))?;
+
+    Ok(Some(preview))
 }
 
 /// Clear the sprite cache

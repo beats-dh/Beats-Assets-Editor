@@ -27,13 +27,16 @@ fn read_settings(app: &AppHandle) -> Result<AppSettings, String> {
     if !path.exists() {
         return Ok(AppSettings::default());
     }
-    let content = fs::read_to_string(&path).map_err(|e| format!("Failed to read settings: {}", e))?;
-    serde_json::from_str::<AppSettings>(&content).map_err(|e| format!("Failed to parse settings: {}", e))
+    let content =
+        fs::read_to_string(&path).map_err(|e| format!("Failed to read settings: {}", e))?;
+    serde_json::from_str::<AppSettings>(&content)
+        .map_err(|e| format!("Failed to parse settings: {}", e))
 }
 
 fn write_settings(app: &AppHandle, settings: &AppSettings) -> Result<(), String> {
     let path = settings_file_path(app)?;
-    let json = serde_json::to_string_pretty(settings).map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    let json = serde_json::to_string_pretty(settings)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
     fs::write(&path, json).map_err(|e| format!("Failed to write settings: {}", e))?;
     Ok(())
 }

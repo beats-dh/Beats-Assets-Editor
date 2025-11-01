@@ -16,12 +16,9 @@ pub struct TibiaSprite {
 impl TibiaSprite {
     /// Convert sprite data to an image
     pub fn to_image(&self) -> Result<DynamicImage> {
-        let img: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::from_raw(
-            self.width,
-            self.height,
-            self.data.clone(),
-        )
-        .ok_or_else(|| anyhow::anyhow!("Failed to create image from sprite data"))?;
+        let img: ImageBuffer<Rgba<u8>, Vec<u8>> =
+            ImageBuffer::from_raw(self.width, self.height, self.data.clone())
+                .ok_or_else(|| anyhow::anyhow!("Failed to create image from sprite data"))?;
 
         Ok(DynamicImage::ImageRgba8(img))
     }

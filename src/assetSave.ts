@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+﻿import { invoke } from '@tauri-apps/api/core';
 
 // Generic save helper to reduce repetition
 async function saveWithFeedback(
@@ -25,19 +25,6 @@ async function saveWithFeedback(
   }
 }
 
-// Refresh asset details after save
-export async function refreshAssetDetails(
-  category: string,
-  id: number,
-  displayFunction: (details: any, category: string) => Promise<void>
-): Promise<void> {
-  try {
-    const updated = await invoke('get_complete_appearance', { category, id });
-    await displayFunction(updated, category);
-  } catch (err) {
-    console.error('Falha ao atualizar detalhes do item:', err);
-  }
-}
 
 // Save basic info (name + description)
 export async function saveAssetBasicInfo(category: string, id: number, onRefresh: () => Promise<void>): Promise<void> {
@@ -48,7 +35,7 @@ export async function saveAssetBasicInfo(category: string, id: number, onRefresh
 
     const newName = inputName.value?.trim() || '';
     if (!newName) {
-      alert('O nome não pode ser vazio.');
+      alert('O nome nÃ£o pode ser vazio.');
       throw new Error('Empty name');
     }
     const newDescription = inputDesc.value?.trim() || '';

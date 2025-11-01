@@ -1322,11 +1322,17 @@ function generateBasicInfoHTML(details: CompleteAppearanceItem, category: string
 }
 
 function generateSpritePreviewHTML(details: CompleteAppearanceItem): string {
+  const rawSpriteBlocks = Array.isArray(details.sprite_data) ? details.sprite_data.length : 0;
+  const rawSpriteInfo = rawSpriteBlocks > 0
+    ? `<p class="sprite-preview-meta">Blocos de dados brutos: ${rawSpriteBlocks}</p>`
+    : `<p class="sprite-preview-meta sprite-preview-meta--empty">Nenhum bloco de dados bruto embutido para este asset.</p>`;
+
   return `
     <div class="detail-section">
       <h4>Sprite Preview</h4>
+      ${rawSpriteInfo}
       <div class="detail-sprites" id="detail-sprites-${details.id}">
-        <div class="sprite-loading">🔄 Loading sprites...</div>
+        <div class="sprite-loading">?? Loading sprites...</div>
       </div>
     </div>
   `;
