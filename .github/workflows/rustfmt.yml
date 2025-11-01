@@ -2,6 +2,7 @@ name: Rustfmt Auto
 
 permissions:
   contents: write
+
 on:
   pull_request:
     paths:
@@ -43,10 +44,12 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "GitHub Actions"
 
-      - name: Checkout
+      - name: Checkout (pull_request → head ref; outros → ref padrão)
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.ref || github.ref }}
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.event.inputs.ref || github.ref }}
+          repository: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
+          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust (stable + rustfmt)
