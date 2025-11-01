@@ -115,12 +115,7 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
     let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", appearance_id, category))?;
 
     // Collect all sprite IDs from all frame groups
-    let all_sprite_ids: Vec<u32> = appearance
-        .frame_group
-        .iter()
-        .filter_map(|fg| fg.sprite_info.as_ref())
-        .flat_map(|info| info.sprite_id.iter().copied())
-        .collect();
+    let all_sprite_ids: Vec<u32> = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()).collect();
 
     // CRITICAL OPTIMIZATION: Process sprites in PARALLEL
     // Each sprite's decompression + PNG encoding runs on a separate thread
@@ -129,19 +124,17 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
         // Use parallel processing for appearances with many sprites
         all_sprite_ids
             .par_iter()
-            .filter_map(|&sprite_id| {
-                match sprite_loader.get_sprite(sprite_id) {
-                    Ok(sprite) => match sprite.to_base64_png() {
-                        Ok(base64_png) => Some(base64_png),
-                        Err(e) => {
-                            log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
-                            None
-                        }
-                    },
+            .filter_map(|&sprite_id| match sprite_loader.get_sprite(sprite_id) {
+                Ok(sprite) => match sprite.to_base64_png() {
+                    Ok(base64_png) => Some(base64_png),
                     Err(e) => {
-                        log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                        log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
                         None
                     }
+                },
+                Err(e) => {
+                    log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                    None
                 }
             })
             .collect()
@@ -149,19 +142,17 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
         // Sequential for small sprite counts (avoid parallelism overhead)
         all_sprite_ids
             .iter()
-            .filter_map(|&sprite_id| {
-                match sprite_loader.get_sprite(sprite_id) {
-                    Ok(sprite) => match sprite.to_base64_png() {
-                        Ok(base64_png) => Some(base64_png),
-                        Err(e) => {
-                            log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
-                            None
-                        }
-                    },
+            .filter_map(|&sprite_id| match sprite_loader.get_sprite(sprite_id) {
+                Ok(sprite) => match sprite.to_base64_png() {
+                    Ok(base64_png) => Some(base64_png),
                     Err(e) => {
-                        log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                        log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
                         None
                     }
+                },
+                Err(e) => {
+                    log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                    None
                 }
             })
             .collect()
@@ -248,11 +239,7 @@ pub async fn get_sprite_cache_stats(state: State<'_, AppState>) -> Result<(usize
 ///
 /// USAGE: Frontend calls this with all visible appearance IDs at once
 #[tauri::command]
-pub async fn get_appearance_sprites_batch(
-    category: AppearanceCategory,
-    appearance_ids: Vec<u32>,
-    state: State<'_, AppState>,
-) -> Result<HashMap<u32, Vec<String>>, String> {
+pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearance_ids: Vec<u32>, state: State<'_, AppState>) -> Result<HashMap<u32, Vec<String>>, String> {
     log::info!("BATCH SPRITE LOAD: Loading sprites for {} appearances in {:?}", appearance_ids.len(), category);
 
     // Early return if no IDs requested
@@ -303,8 +290,7 @@ pub async fn get_appearance_sprites_batch(
         return Ok(result);
     }
 
-    log::info!("BATCH SPRITE LOAD: Cache hits: {}, Need to load: {}",
-               result.len(), ids_to_load.len());
+    log::info!("BATCH SPRITE LOAD: Cache hits: {}, Need to load: {}", result.len(), ids_to_load.len());
 
     // OPTIMIZATION 2: Load all non-cached appearances in PARALLEL
     // Each appearance processes its sprites in parallel too (nested parallelism)
@@ -312,16 +298,10 @@ pub async fn get_appearance_sprites_batch(
         .par_iter()
         .filter_map(|&appearance_id| {
             // Find appearance
-            let appearance = items.iter()
-                .find(|app| app.id.unwrap_or(0) == appearance_id)?;
+            let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id)?;
 
             // Collect all sprite IDs from all frame groups
-            let all_sprite_ids: Vec<u32> = appearance
-                .frame_group
-                .iter()
-                .filter_map(|fg| fg.sprite_info.as_ref())
-                .flat_map(|info| info.sprite_id.iter().copied())
-                .collect();
+            let all_sprite_ids: Vec<u32> = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()).collect();
 
             // Skip if no sprites
             if all_sprite_ids.is_empty() {
@@ -332,19 +312,17 @@ pub async fn get_appearance_sprites_batch(
             // Always use parallel for batch loading (already in parallel context)
             let sprite_images: Vec<String> = all_sprite_ids
                 .par_iter()
-                .filter_map(|&sprite_id| {
-                    match sprite_loader.get_sprite(sprite_id) {
-                        Ok(sprite) => match sprite.to_base64_png() {
-                            Ok(base64_png) => Some(base64_png),
-                            Err(e) => {
-                                log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
-                                None
-                            }
-                        },
+                .filter_map(|&sprite_id| match sprite_loader.get_sprite(sprite_id) {
+                    Ok(sprite) => match sprite.to_base64_png() {
+                        Ok(base64_png) => Some(base64_png),
                         Err(e) => {
-                            log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                            log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
                             None
                         }
+                    },
+                    Err(e) => {
+                        log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                        None
                     }
                 })
                 .collect();
@@ -380,13 +358,8 @@ pub async fn get_appearance_sprites_batch(
 ///
 /// USAGE: Frontend calls this for list/grid views
 #[tauri::command]
-pub async fn get_appearance_preview_sprites_batch(
-    category: AppearanceCategory,
-    appearance_ids: Vec<u32>,
-    state: State<'_, AppState>,
-) -> Result<HashMap<u32, String>, String> {
-    log::info!("BATCH PREVIEW LOAD: Loading preview sprites for {} appearances in {:?}",
-               appearance_ids.len(), category);
+pub async fn get_appearance_preview_sprites_batch(category: AppearanceCategory, appearance_ids: Vec<u32>, state: State<'_, AppState>) -> Result<HashMap<u32, String>, String> {
+    log::info!("BATCH PREVIEW LOAD: Loading preview sprites for {} appearances in {:?}", appearance_ids.len(), category);
 
     // Early return if no IDs requested
     if appearance_ids.is_empty() {
@@ -419,17 +392,10 @@ pub async fn get_appearance_preview_sprites_batch(
         .par_iter()
         .filter_map(|&appearance_id| {
             // Find appearance
-            let appearance = items.iter()
-                .find(|app| app.id.unwrap_or(0) == appearance_id)?;
+            let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id)?;
 
             // Get first sprite ID
-            let first_sprite_id = appearance
-                .frame_group
-                .iter()
-                .filter_map(|fg| fg.sprite_info.as_ref())
-                .flat_map(|info| info.sprite_id.iter())
-                .copied()
-                .next()?;
+            let first_sprite_id = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter()).copied().next()?;
 
             // Load and encode sprite
             let sprite = sprite_loader.get_sprite(first_sprite_id).ok()?;

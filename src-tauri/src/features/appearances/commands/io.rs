@@ -16,21 +16,12 @@ pub async fn load_appearances_file(path: String, state: State<'_, AppState>) -> 
     // CRITICAL OPTIMIZATION: Move blocking I/O to thread pool
     // This prevents UI freeze during large file loads (10-100+ MB)
     let path_clone = path.clone();
-    let appearances = tokio::task::spawn_blocking(move || {
-        load_appearances(&path_clone)
-    })
-    .await
-    .map_err(|e| format!("Task join error: {}", e))?
-    .map_err(|e| format!("Failed to load appearances: {}", e))?;
+    let appearances =
+        tokio::task::spawn_blocking(move || load_appearances(&path_clone)).await.map_err(|e| format!("Task join error: {}", e))?.map_err(|e| format!("Failed to load appearances: {}", e))?;
 
     let stats = get_statistics(&appearances);
 
-    log::info!("Building O(1) ID indexes for {} objects, {} outfits, {} effects, {} missiles",
-        appearances.object.len(),
-        appearances.outfit.len(),
-        appearances.effect.len(),
-        appearances.missile.len()
-    );
+    log::info!("Building O(1) ID indexes for {} objects, {} outfits, {} effects, {} missiles", appearances.object.len(), appearances.outfit.len(), appearances.effect.len(), appearances.missile.len());
 
     // Build indexes BEFORE storing (so they're ready immediately)
     rebuild_indexes(&state, &appearances);
@@ -151,11 +142,9 @@ pub async fn save_appearances_file(state: tauri::State<'_, AppState>) -> Result<
     // Encoding protobuf + writing 10-100+ MB files would freeze UI
     let size = tokio::task::spawn_blocking(move || {
         let mut buf = Vec::new();
-        appearances_clone.encode(&mut buf)
-            .map_err(|e| format!("Failed to encode appearances: {}", e))?;
+        appearances_clone.encode(&mut buf).map_err(|e| format!("Failed to encode appearances: {}", e))?;
 
-        std::fs::write(&path_clone, &buf)
-            .map_err(|e| format!("Failed to write appearances to {:?}: {}", path_clone, e))?;
+        std::fs::write(&path_clone, &buf).map_err(|e| format!("Failed to write appearances to {:?}: {}", path_clone, e))?;
 
         Ok::<usize, String>(buf.len())
     })
