@@ -28,10 +28,7 @@ pub fn decompress(data: &[u8]) -> Result<Vec<u8>> {
             return Ok(decompressed);
         }
         Err(e) => {
-            println!(
-                "lzma-rs with corrected header failed: {}, trying original data...",
-                e
-            );
+            println!("lzma-rs with corrected header failed: {}, trying original data...", e);
             decompressed.clear();
         }
     }
@@ -61,8 +58,7 @@ pub fn decompress(data: &[u8]) -> Result<Vec<u8>> {
 pub fn compress(data: &[u8]) -> Result<Vec<u8>> {
     let mut compressed = Vec::new();
 
-    lzma_rs::lzma_compress(&mut Cursor::new(data), &mut compressed)
-        .context("Failed to compress data to LZMA")?;
+    lzma_rs::lzma_compress(&mut Cursor::new(data), &mut compressed).context("Failed to compress data to LZMA")?;
 
     Ok(compressed)
 }

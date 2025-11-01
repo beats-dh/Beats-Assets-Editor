@@ -1,3 +1,6 @@
+// Settings feature module
+// Contains all settings-related functionality
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -10,14 +13,10 @@ pub struct AppSettings {
 
 fn settings_file_path(app: &AppHandle) -> Result<PathBuf, String> {
     // Use OS-specific app data directory to avoid touching watched source files
-    let base_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to resolve app data directory: {}", e))?;
+    let base_dir = app.path().app_data_dir().map_err(|e| format!("Failed to resolve app data directory: {}", e))?;
 
     // Ensure directory exists
-    fs::create_dir_all(&base_dir)
-        .map_err(|e| format!("Failed to create app data directory {:?}: {}", base_dir, e))?;
+    fs::create_dir_all(&base_dir).map_err(|e| format!("Failed to create app data directory {:?}: {}", base_dir, e))?;
 
     Ok(base_dir.join("settings.json"))
 }
@@ -27,16 +26,13 @@ fn read_settings(app: &AppHandle) -> Result<AppSettings, String> {
     if !path.exists() {
         return Ok(AppSettings::default());
     }
-    let content =
-        fs::read_to_string(&path).map_err(|e| format!("Failed to read settings: {}", e))?;
-    serde_json::from_str::<AppSettings>(&content)
-        .map_err(|e| format!("Failed to parse settings: {}", e))
+    let content = fs::read_to_string(&path).map_err(|e| format!("Failed to read settings: {}", e))?;
+    serde_json::from_str::<AppSettings>(&content).map_err(|e| format!("Failed to parse settings: {}", e))
 }
 
 fn write_settings(app: &AppHandle, settings: &AppSettings) -> Result<(), String> {
     let path = settings_file_path(app)?;
-    let json = serde_json::to_string_pretty(settings)
-        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    let json = serde_json::to_string_pretty(settings).map_err(|e| format!("Failed to serialize settings: {}", e))?;
     fs::write(&path, json).map_err(|e| format!("Failed to write settings: {}", e))?;
     Ok(())
 }
