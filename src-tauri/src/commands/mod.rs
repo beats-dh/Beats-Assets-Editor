@@ -13,6 +13,7 @@ pub use appearance_types::*;
 pub mod appearances_api;
 pub mod settings;
 pub mod sounds_api;
+pub mod monsters_npc;
 
 /// Application state to hold loaded appearances and sprites
 pub struct AppState {

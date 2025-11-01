@@ -15,6 +15,30 @@ export interface FolderSelectionViewOptions {
   browseButtonLabel?: string;
   scanningText?: string;
   readyText?: string;
+  onFolderLoaded?: (context: FolderLoadContext) => Promise<void>;
+  shouldEnableLoadButton?: (value: string) => boolean;
+  onViewReady?: (elements: FolderSelectionViewElements) => void;
+}
+
+export interface FolderLoadContext {
+  path: string;
+  status: HTMLParagraphElement;
+  resultsContainer: HTMLElement;
+  loadButton: HTMLButtonElement;
+  setLoading: (loading: boolean, message?: string) => void;
+}
+
+export interface FolderSelectionViewElements {
+  container: HTMLElement;
+  card: HTMLElement;
+  helper: HTMLParagraphElement;
+  fieldset: HTMLElement;
+  input: HTMLInputElement;
+  browseButton: HTMLButtonElement;
+  loadButton: HTMLButtonElement;
+  status: HTMLParagraphElement;
+  results: HTMLElement;
+  updateLoadButtonState: () => void;
 }
 
 function createHeader(title: string, description: string, onBack: () => void): HTMLElement {
@@ -91,7 +115,6 @@ function createFolderInput(
   loadButton.type = "button";
   loadButton.className = "btn-primary launcher-folder-load";
   loadButton.innerHTML = '<span class="btn-icon">📁</span><span>Load scripts</span>';
-  loadButton.disabled = !input.value.trim();
 
   const status = document.createElement("p");
   status.className = "launcher-secondary-text";
@@ -104,23 +127,12 @@ function createFolderInput(
 
   fieldset.append(title, inputGroup, loadButton, status, results);
 
-  input.addEventListener("input", () => {
-    const value = input.value.trim();
-    loadButton.disabled = !value;
-    if (value) {
-      localStorage.setItem(storageKey, value);
-    } else {
-      localStorage.removeItem(storageKey);
-    }
-  });
-
   browseButton.addEventListener("click", async () => {
     try {
       const selection = await open({ directory: true, multiple: false });
       if (typeof selection === "string" && selection) {
         input.value = selection;
-        localStorage.setItem(storageKey, selection);
-        loadButton.disabled = false;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
       }
     } catch (error) {
       console.error("Failed to open directory chooser:", error);
@@ -145,10 +157,16 @@ export function createFolderSelectionView(options: FolderSelectionViewOptions): 
   helper.className = "launcher-secondary-text";
   helper.textContent = options.helpText;
 
-  const { fieldset, input, loadButton, status, results } = createFolderInput(options.storageKey, options);
+  const { fieldset, input, loadButton, browseButton, status, results } = createFolderInput(options.storageKey, options);
 
   const loadLabel = options.loadButtonLabel || "Load scripts";
   loadButton.innerHTML = `<span class="btn-icon">📁</span><span>${loadLabel}</span>`;
+
+  const updateLoadButtonState = () => {
+    const value = input.value.trim();
+    const allow = options.shouldEnableLoadButton ? options.shouldEnableLoadButton(value) : true;
+    loadButton.disabled = !value || !allow;
+  };
 
   card.append(helper, fieldset);
 
@@ -162,11 +180,46 @@ export function createFolderSelectionView(options: FolderSelectionViewOptions): 
       return;
     }
 
-    loadButton.disabled = true;
-    loadButton.dataset.loading = "true";
-    status.hidden = false;
-    status.textContent = options.scanningText ?? "Scanning directory for scripts...";
+    const setLoading = (loading: boolean, message?: string) => {
+      if (loading) {
+        loadButton.disabled = true;
+        loadButton.dataset.loading = "true";
+        status.hidden = false;
+        status.textContent = message ?? options.scanningText ?? "Scanning directory for scripts...";
+      } else {
+        updateLoadButtonState();
+        delete loadButton.dataset.loading;
+        if (message) {
+          status.hidden = false;
+          status.textContent = message;
+        }
+      }
+    };
+
     results.innerHTML = "";
+
+    if (options.onFolderLoaded) {
+      results.hidden = false;
+      try {
+        setLoading(true);
+        await options.onFolderLoaded({
+          path,
+          status,
+          resultsContainer: results,
+          loadButton,
+          setLoading,
+        });
+      } catch (error) {
+        console.error("Failed to load scripts:", error);
+        status.hidden = false;
+        status.textContent = "Failed to load scripts. Check the console for details.";
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    setLoading(true);
 
     const heading = document.createElement("h4");
     heading.textContent = options.resultHeading;
@@ -178,11 +231,35 @@ export function createFolderSelectionView(options: FolderSelectionViewOptions): 
     results.hidden = false;
     status.textContent = `Loaded scripts from ${path}`;
 
-    loadButton.disabled = false;
-    delete loadButton.dataset.loading;
+    setLoading(false);
   });
 
   container.append(card);
+
+  input.addEventListener("input", () => {
+    const value = input.value.trim();
+    if (value) {
+      localStorage.setItem(options.storageKey, value);
+    } else {
+      localStorage.removeItem(options.storageKey);
+    }
+    updateLoadButtonState();
+  });
+
+  updateLoadButtonState();
+
+  options.onViewReady?.({
+    container,
+    card,
+    helper,
+    fieldset,
+    input,
+    browseButton,
+    loadButton,
+    status,
+    results,
+    updateLoadButtonState,
+  });
 
   return container;
 }

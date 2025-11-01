@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { join } from "@tauri-apps/api/path";
 
 // Import all modules
 import type { AppearanceStats } from './types';
@@ -38,6 +37,7 @@ import {
   translate
 } from './i18n';
 import { initializeAppLauncher, openAppLauncherHome } from './mainMenu';
+import { loadTibiaAssets } from './features/tibiaAssets/loader';
 
 // Extend Window interface to include debugCache
 declare global {
@@ -111,78 +111,48 @@ let filesList: HTMLElement | null;
 async function loadAppearances(): Promise<void> {
   if (!tibiaPathInput) return;
 
-  const tibiaPath = tibiaPathInput.value;
+  const tibiaPath = tibiaPathInput.value.trim();
 
   if (!tibiaPath) {
     showStatus(translate('status.enterPath'), "error");
     return;
   }
 
-  // Store the user's Tibia path for later use
   setUserTibiaPath(tibiaPath);
   localStorage.setItem(LAST_TIBIA_PATH_KEY, tibiaPath);
 
-  // Persist path to backend for use between sessions
-  try {
-    await invoke("set_tibia_base_path", { tibiaPath });
-  } catch (_) {
-    // Ignore errors
-  }
+  showStatus('Loading Tibia assets...', 'loading');
 
   try {
-    // List available appearance files
-    const files = await invoke<string[]>("list_appearance_files", { tibiaPath });
-
-    if (files.length === 0) {
-      showStatus(translate('status.noFilesFound'), "error");
-      return;
-    }
-
-    displayFilesList(files);
-
-    // Build paths using Tauri's path.join for cross-platform compatibility
-    const assetsDir = await join(tibiaPath, "assets");
-
-    // Try to load appearances_latest.dat first (our working copy)
-    let appearancePath = await join(assetsDir, "appearances_latest.dat");
-
-    // If that doesn't exist, fall back to the first file
-    if (!files.includes("appearances_latest.dat")) {
-      appearancePath = await join(assetsDir, files[0]);
-    }
-
-    const result = await invoke<AppearanceStats>("load_appearances_file", {
-      path: appearancePath
+    const result = await loadTibiaAssets(tibiaPath, {
+      loadSounds: true,
+      onProgress: message => showStatus(message, 'loading'),
     });
 
-    // Load sounds from the sounds directory
-    try {
-      const soundsDir = await join(tibiaPath, "sounds");
-      await invoke("load_sounds_file", { soundsDir });
-      console.log("Sounds loaded successfully");
+    displayFilesList(result.files);
 
-      // Update sounds count in header
-      const soundsCount = document.getElementById('sounds-count');
-      if (soundsCount) {
-        const stats = await invoke("get_sounds_stats");
-        if (stats && typeof stats === 'object' && 'total_sounds' in stats) {
-          const totalSounds = (stats as any).total_sounds as number;
-          soundsCount.textContent = translate('count.items', { count: totalSounds });
+    if (result.soundsLoaded) {
+      try {
+        const soundsCount = document.getElementById('sounds-count');
+        if (soundsCount) {
+          const stats = await invoke("get_sounds_stats");
+          if (stats && typeof stats === 'object' && 'total_sounds' in stats) {
+            const totalSounds = (stats as any).total_sounds as number;
+            soundsCount.textContent = translate('count.items', { count: totalSounds });
+          }
         }
+      } catch (error) {
+        console.warn('Failed to update sounds statistics:', error);
       }
-    } catch (soundError) {
-      console.warn("Failed to load sounds (this is optional):", soundError);
-      // Don't fail the entire app if sounds fail to load
     }
 
-    // Show main UI immediately after successfully loading appearances
-    displayStats(result);
+    displayStats(result.stats);
     showMainApp();
 
-    // Then load grid content
     showAssetsBrowser();
     await loadAssets();
 
+    showStatus('Tibia assets ready.', 'success');
   } catch (error) {
     console.error('Error loading appearances:', error);
     const message = error instanceof Error ? error.message : String(error);

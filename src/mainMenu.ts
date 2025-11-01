@@ -1,6 +1,5 @@
 import './mainMenu.css';
-import { createMonsterEditorView } from './monsterEditor';
-import { createNpcEditorView } from './npcEditor';
+import { createMonsterEditorView, createNpcEditorView } from './monsters-npc';
 import {
   applyDocumentTranslations,
   DEFAULT_LANGUAGE,

@@ -104,6 +104,7 @@ pub fn run() {
             commands::sounds_api::update_ambience_object_stream,
             commands::sounds_api::update_music_template,
             commands::sounds_api::save_sounds_file,
+            commands::monsters_npc::load_lua_scripts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -12,6 +12,25 @@ export function setUserTibiaPath(path: string): void {
   userTibiaPath = path;
 }
 
+export function resetSpriteLoaderState(): void {
+  spritesLoaded = false;
+  spritesLoadAttempted = false;
+}
+
+export async function forceLoadSprites(tibiaPath: string): Promise<number> {
+  setUserTibiaPath(tibiaPath);
+  try {
+    const spriteCount = await invoke('auto_load_sprites', { tibiaPath }) as number;
+    spritesLoaded = true;
+    spritesLoadAttempted = true;
+    return spriteCount;
+  } catch (error) {
+    spritesLoaded = false;
+    spritesLoadAttempted = false;
+    throw error;
+  }
+}
+
 export function getSpritesCacheKey(category: string, appearanceId: number): string {
   return `${category}:${appearanceId}`;
 }
@@ -56,28 +75,22 @@ export async function clearAllCaches(): Promise<void> {
 }
 
 export async function loadSprites(): Promise<void> {
-  if (spritesLoadAttempted) {
+  if (spritesLoaded || spritesLoadAttempted) {
     return;
   }
-  spritesLoadAttempted = true;
-  if (spritesLoaded) return;
 
   try {
-    // Use the user-provided Tibia path instead of calling select_tibia_directory
-    const tibiaPath = userTibiaPath || await invoke('select_tibia_directory') as string;
-    if (!tibiaPath) return;
-
-    // Try to auto-load sprites from Tibia 12+ format
-    try {
-      const spriteCount = await invoke('auto_load_sprites', { tibiaPath }) as number;
-      console.log(`Auto-loaded ${spriteCount} sprites from Tibia 12+ format`);
-      spritesLoaded = true;
+    const tibiaPath = userTibiaPath || (await invoke('select_tibia_directory')) as string;
+    if (!tibiaPath) {
       return;
-    } catch (error) {
-      console.warn('Failed to auto-load Tibia 12+ sprites:', error);
     }
 
-    console.warn('No compatible sprite format found in Tibia directory');
+    try {
+      const spriteCount = await forceLoadSprites(tibiaPath);
+      console.log(`Auto-loaded ${spriteCount} sprites from Tibia assets at ${tibiaPath}`);
+    } catch (error) {
+      console.warn('Failed to auto-load sprites from provided directory:', error);
+    }
   } catch (error) {
     console.error('Error loading sprites:', error);
   }
