@@ -114,12 +114,7 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
     let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", appearance_id, category))?;
 
     // Collect all sprite IDs from all frame groups
-    let all_sprite_ids: Vec<u32> = appearance
-        .frame_group
-        .iter()
-        .filter_map(|fg| fg.sprite_info.as_ref())
-        .flat_map(|info| info.sprite_id.iter().copied())
-        .collect();
+    let all_sprite_ids: Vec<u32> = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()).collect();
 
     // CRITICAL OPTIMIZATION: Process sprites in PARALLEL
     // Each sprite's decompression + PNG encoding runs on a separate thread
@@ -128,19 +123,17 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
         // Use parallel processing for appearances with many sprites
         all_sprite_ids
             .par_iter()
-            .filter_map(|&sprite_id| {
-                match sprite_loader.get_sprite(sprite_id) {
-                    Ok(sprite) => match sprite.to_base64_png() {
-                        Ok(base64_png) => Some(base64_png),
-                        Err(e) => {
-                            log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
-                            None
-                        }
-                    },
+            .filter_map(|&sprite_id| match sprite_loader.get_sprite(sprite_id) {
+                Ok(sprite) => match sprite.to_base64_png() {
+                    Ok(base64_png) => Some(base64_png),
                     Err(e) => {
-                        log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                        log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
                         None
                     }
+                },
+                Err(e) => {
+                    log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                    None
                 }
             })
             .collect()
@@ -148,19 +141,17 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
         // Sequential for small sprite counts (avoid parallelism overhead)
         all_sprite_ids
             .iter()
-            .filter_map(|&sprite_id| {
-                match sprite_loader.get_sprite(sprite_id) {
-                    Ok(sprite) => match sprite.to_base64_png() {
-                        Ok(base64_png) => Some(base64_png),
-                        Err(e) => {
-                            log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
-                            None
-                        }
-                    },
+            .filter_map(|&sprite_id| match sprite_loader.get_sprite(sprite_id) {
+                Ok(sprite) => match sprite.to_base64_png() {
+                    Ok(base64_png) => Some(base64_png),
                     Err(e) => {
-                        log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                        log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
                         None
                     }
+                },
+                Err(e) => {
+                    log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                    None
                 }
             })
             .collect()
