@@ -1,0 +1,83 @@
+name: Rustfmt Auto
+
+permissions:
+  contents: write
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "src-tauri/**"
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/Cargo.lock"
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "src-tauri/**"
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/Cargo.lock"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch ou tag para formatar (ex.: main)."
+        required: false
+      dry_run:
+        description: "Se true, roda --check (sem commit)."
+        required: false
+        default: "false"
+
+jobs:
+  rustfmt-auto:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Git identity
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "GitHub Actions"
+
+      - name: Checkout (pull_request → head ref; outros → ref padrão)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.event.inputs.ref || github.ref }}
+          repository: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust (stable + rustfmt)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Cache cargo/target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: rustfmt --check (dry-run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        working-directory: src-tauri
+        run: cargo fmt --all -- --check
+
+      - name: rustfmt (auto fix)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        working-directory: src-tauri
+        run: cargo fmt --all
+
+      - name: Commit formatted code
+        if: ${{ github.event.inputs.dry_run != 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        uses: EndBug/add-and-commit@v9.1.4
+        with:
+          author_name: GitHub Actions
+          author_email: github-actions[bot]@users.noreply.github.com
+          message: "Code format - (rustfmt)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
