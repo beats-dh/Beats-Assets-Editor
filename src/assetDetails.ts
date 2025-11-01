@@ -342,8 +342,6 @@ async function showSoundDetails(id: number): Promise<void> {
     }
 
     // Ensure tabs visible for Sounds; default to Details active
-    const editContainer = document.getElementById('edit-content');
-    const detailsContainer = document.getElementById('details-content');
     const tabEdit = document.getElementById('tab-edit');
     const tabDetails = document.getElementById('tab-details');
     const tabTexture = document.getElementById('tab-texture');
@@ -395,8 +393,6 @@ async function showAppearanceDetails(category: string, id: number): Promise<void
     await displayCompleteAssetDetails(completeData, category);
 
     // Ensure tabs are correct for Objects (Edit visible)
-    const editContainer = document.getElementById('edit-content');
-    const detailsContainer = document.getElementById('details-content');
     const tabEdit = document.getElementById('tab-edit');
     const tabDetails = document.getElementById('tab-details');
     const tabTexture = document.getElementById('tab-texture');

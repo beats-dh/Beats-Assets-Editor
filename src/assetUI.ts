@@ -2,7 +2,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { getAppearanceSprites, createSpriteImage, createPlaceholderImage } from './spriteCache';
 import { stopAllAnimationPlayers, initAssetCardAutoAnimation } from './animation';
 import { isAssetSelected } from './assetSelection';
-import { showStatus } from './utils';
 import { translate } from './i18n';
 import { updateActionButtonStates } from './importExport';
 
