@@ -88,7 +88,8 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
     // Check cache first (lock-free read)
     let cache_key = format!("{:?}:{}", category, appearance_id);
     if let Some(cached_sprites) = state.sprite_cache.get(&cache_key) {
-        return Ok((**cached_sprites).clone());
+        // Dereference Arc<Vec<String>> to get Vec<String>
+        return Ok((**cached_sprites.value()).clone());
     }
 
     let appearances_lock = state.appearances.read();

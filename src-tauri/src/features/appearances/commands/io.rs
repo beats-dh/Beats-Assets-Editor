@@ -23,14 +23,20 @@ pub async fn load_appearances_file(path: String, state: State<'_, AppState>) -> 
 
     log::info!("Building O(1) ID indexes for {} objects, {} outfits, {} effects, {} missiles", appearances.object.len(), appearances.outfit.len(), appearances.effect.len(), appearances.missile.len());
 
-    // Build indexes BEFORE storing (so they're ready immediately)
-    rebuild_indexes(&state, &appearances);
+    // CRITICAL: Acquire write lock first, then store appearances AND rebuild indexes atomically
+    // This prevents race condition where readers see new indexes with old data
+    {
+        let mut appearances_lock = state.appearances.write();
+        *appearances_lock = Some(appearances);
 
-    // Clear search cache (data changed)
-    invalidate_search_cache(&state);
+        // Build indexes AFTER storing while holding write lock (readers blocked until both complete)
+        // This ensures indexes always match the stored data
+        rebuild_indexes(&state, appearances_lock.as_ref().unwrap());
 
-    // Store in state (parking_lot locks - 3x faster)
-    *state.appearances.write() = Some(appearances);
+        // Clear search cache (data changed)
+        invalidate_search_cache(&state);
+    } // Write lock released here
+
     *state.tibia_path.lock() = Some(PathBuf::from(path));
 
     log::info!("Load complete with indexes built");
