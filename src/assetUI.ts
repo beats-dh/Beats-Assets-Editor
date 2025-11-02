@@ -385,8 +385,8 @@ async function loadSpritesForAssets(assets: any[]): Promise<void> {
       }
     }
 
-    // Step 5: Initialize animations for previews that have full sprites cached
-    for (const asset of assets) {
+    // Step 5: Initialize animations ONLY for newly loaded assets (cached already initialized in Step 1)
+    for (const asset of needsLoading) {
       // Check again if load is still valid
       if (thisLoadId !== currentLoadId) return;
 

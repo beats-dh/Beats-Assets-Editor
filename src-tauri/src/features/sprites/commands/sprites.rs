@@ -282,7 +282,8 @@ pub async fn get_appearance_sprites_batch(
 
         // Cache hit - use cached sprites
         if let Some(cached_sprites) = state.sprite_cache.get(&cache_key) {
-            result.insert(appearance_id, (**cached_sprites).clone());
+            // Clone the Vec<String> from Arc without moving out of DashMap guard
+            result.insert(appearance_id, cached_sprites.value().as_ref().clone());
         } else {
             // Cache miss - need to load
             ids_to_load.push(appearance_id);
