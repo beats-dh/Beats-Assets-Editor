@@ -1,4 +1,9 @@
 fn main() {
+    // Usa o protoc vendorizado (não depende de protobuf-compiler do SO)
+    let protoc = protoc_bin_vendored::protoc_bin_path()
+        .expect("vendored protoc not found");
+    std::env::set_var("PROTOC", protoc);
+
     // Compile protobuf files
     let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR not set");
 
