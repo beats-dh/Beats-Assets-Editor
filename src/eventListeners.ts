@@ -30,7 +30,6 @@ export function setupGlobalEventListeners(): void {
   // Global click listener for category navigation and all save buttons
   document.addEventListener('click', async (e) => {
     const target = e.target as HTMLElement;
-    console.log('Global click detected on:', target);
 
     if (target.closest('.asset-select-control')) {
       return;
@@ -38,7 +37,6 @@ export function setupGlobalEventListeners(): void {
 
     // Handle category card clicks
     if (target.closest('.category-card')) {
-      console.log('Category card clicked');
       const categoryCard = target.closest('.category-card') as HTMLElement;
       const category = categoryCard.dataset.category;
       if (category) {
@@ -48,7 +46,6 @@ export function setupGlobalEventListeners(): void {
 
     // Handle subcategory card clicks
     if (target.closest('.subcategory-card')) {
-      console.log('Subcategory card clicked');
       const subcatCard = target.closest('.subcategory-card') as HTMLElement;
       const category = subcatCard.dataset.category;
       const subcategory = subcatCard.dataset.subcategory;
@@ -60,10 +57,8 @@ export function setupGlobalEventListeners(): void {
     // Handle asset item clicks
     const assetItem = target.closest('.asset-item');
     if (assetItem) {
-      console.log('Asset item clicked!', assetItem);
       const assetId = (assetItem as HTMLElement).dataset.assetId;
       const category = (assetItem as HTMLElement).dataset.category;
-      console.log('Asset ID:', assetId, 'Category:', category);
       if (assetId && category) {
         await showAssetDetails(category, parseInt(assetId));
       } else {

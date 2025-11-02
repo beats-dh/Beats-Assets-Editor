@@ -5,6 +5,7 @@ import { loadAssets, setCurrentCategory, setCurrentSubcategory, setCurrentPage, 
 import { stopAllAnimationPlayers } from './animation';
 import { clearAssetSelection } from './assetSelection';
 import { translate, type TranslationKey } from './i18n';
+import { updateActionButtonStates } from './importExport';
 
 let currentView = 'main';
 let currentStats: AppearanceStats | null = null;
@@ -94,6 +95,10 @@ export function openCategory(category: string): void {
   updateCategoryHeader(category);
   updateSoundsHeaderActions(category);
   renderSubcategoryOptions(category);
+
+  // Update action bar visibility based on category
+  updateActionButtonStates();
+
   loadAssets();
 }
 
@@ -133,6 +138,9 @@ export function openCategoryWithSubcategory(category: string, subcategory: strin
   if (subcategorySelect) {
     subcategorySelect.value = subcategory;
   }
+
+  // Update action bar visibility based on category
+  updateActionButtonStates();
 
   loadAssets();
 }

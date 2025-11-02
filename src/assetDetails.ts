@@ -16,6 +16,7 @@ let currentDetailId: number | null = null;
 let highlightedAssetItem: HTMLElement | null = null;
 let navigationListenersInitialized = false;
 let isNavigatingBetweenAssets = false;
+let currentActiveTab: 'details' | 'edit' | 'texture' = 'details';
 
 // DOM references
 let assetDetails: HTMLElement | null = null;
@@ -34,6 +35,18 @@ export function initAssetDetailsElements(): void {
   if (!navigationListenersInitialized) {
     prevAssetButton?.addEventListener('click', () => { void navigateToAdjacentAsset('previous'); });
     nextAssetButton?.addEventListener('click', () => { void navigateToAdjacentAsset('next'); });
+
+    // Track tab changes
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const target = e.currentTarget as HTMLElement;
+        const tab = target.dataset.tab as 'details' | 'edit' | 'texture' | undefined;
+        if (tab) {
+          currentActiveTab = tab;
+        }
+      });
+    });
+
     navigationListenersInitialized = true;
   }
 
@@ -53,6 +66,39 @@ function setNavButtonState(button: HTMLButtonElement | null, enabled: boolean): 
   if (!button) return;
   button.disabled = !enabled;
   button.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+}
+
+function restoreActiveTab(category: string): void {
+  const editContainer = document.getElementById('edit-content');
+  const detailsContainer = document.getElementById('details-content');
+  const textureContainer = document.getElementById('texture-content');
+  const tabEdit = document.getElementById('tab-edit');
+  const tabDetails = document.getElementById('tab-details');
+  const tabTexture = document.getElementById('tab-texture');
+
+  // Hide all containers first
+  if (editContainer) editContainer.style.display = 'none';
+  if (detailsContainer) detailsContainer.style.display = 'none';
+  if (textureContainer) textureContainer.style.display = 'none';
+
+  // Remove all active classes
+  tabEdit?.classList.remove('active');
+  tabDetails?.classList.remove('active');
+  tabTexture?.classList.remove('active');
+
+  // Restore the previously active tab
+  if (currentActiveTab === 'edit') {
+    if (editContainer) editContainer.style.display = 'block';
+    tabEdit?.classList.add('active');
+  } else if (currentActiveTab === 'texture' && (category === 'Objects' || category === 'Outfits')) {
+    if (textureContainer) textureContainer.style.display = 'block';
+    tabTexture?.classList.add('active');
+  } else {
+    // Default to details
+    if (detailsContainer) detailsContainer.style.display = 'block';
+    tabDetails?.classList.add('active');
+    currentActiveTab = 'details';
+  }
 }
 
 function getAssetItemsForCategory(category: string): HTMLElement[] {
@@ -300,20 +346,26 @@ async function showSoundDetails(id: number): Promise<void> {
     const detailsContainer = document.getElementById('details-content');
     const tabEdit = document.getElementById('tab-edit');
     const tabDetails = document.getElementById('tab-details');
+    const tabTexture = document.getElementById('tab-texture');
 
     if (tabEdit) {
       tabEdit.style.display = '';
-      tabEdit.classList.remove('active');
       tabEdit.textContent = 'Edit';
     }
     if (tabDetails) {
-      tabDetails.classList.add('active');
       tabDetails.textContent = 'Sound Details';
     }
-    if (editContainer && detailsContainer) {
-      editContainer.style.display = 'none';
-      detailsContainer.style.display = 'block';
+    if (tabTexture) {
+      tabTexture.style.display = 'none';
     }
+
+    // Sounds don't have texture tab, ensure we're not on it
+    if (currentActiveTab === 'texture') {
+      currentActiveTab = 'details';
+    }
+
+    // Restore the active tab (details or edit)
+    restoreActiveTab('Sounds');
 
     // Force display the modal
     const modal = assetDetails as HTMLElement;
@@ -347,20 +399,30 @@ async function showAppearanceDetails(category: string, id: number): Promise<void
     const detailsContainer = document.getElementById('details-content');
     const tabEdit = document.getElementById('tab-edit');
     const tabDetails = document.getElementById('tab-details');
+    const tabTexture = document.getElementById('tab-texture');
 
     if (tabEdit) {
       tabEdit.style.display = '';
-      tabEdit.classList.remove('active');
       tabEdit.textContent = 'Edit';
     }
     if (tabDetails) {
-      tabDetails.classList.add('active');
       tabDetails.textContent = 'Asset Details';
     }
-    if (editContainer && detailsContainer) {
-      editContainer.style.display = 'none';
-      detailsContainer.style.display = 'block';
+    if (tabTexture) {
+      // Only show Texture tab for Objects and Outfits
+      if (category === 'Objects' || category === 'Outfits') {
+        tabTexture.style.display = '';
+      } else {
+        tabTexture.style.display = 'none';
+        // If we were on texture tab but this category doesn't support it, switch to details
+        if (currentActiveTab === 'texture') {
+          currentActiveTab = 'details';
+        }
+      }
     }
+
+    // Restore the previously active tab
+    restoreActiveTab(category);
 
     // Force display the modal
     const modal = assetDetails as HTMLElement;

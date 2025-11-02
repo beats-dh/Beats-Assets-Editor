@@ -53,6 +53,43 @@
   color: var(--text-secondary);
 }
 
+.texture-control-row input[type="number"] {
+  margin-top: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  min-width: 80px;
+}
+
+.texture-control-row input[type="number"]:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(47, 128, 237, 0.15);
+}
+
+.texture-control-row select {
+  margin-top: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.texture-control-row select option {
+  background: var(--secondary-bg);
+  color: var(--text-primary);
+}
+
+.texture-control-row select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(47, 128, 237, 0.15);
+}
+
 .texture-control-row input[type="range"] {
   width: 180px;
 }
@@ -86,17 +123,25 @@
   border: 1px solid var(--border-color);
   background: var(--surface-muted);
   color: var(--text-primary);
-  padding: 6px 12px;
+  padding: 8px 16px;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
-.texture-direction-btn.active,
 .texture-direction-btn:hover {
-  background: var(--primary-color);
+  background: var(--tertiary-bg);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+.texture-direction-btn.active {
+  background: var(--primary-accent);
   color: #fff;
-  border-color: var(--primary-color);
+  border-color: var(--primary-accent);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
 }
 
 .texture-settings-column {
@@ -178,6 +223,22 @@
   color: var(--text-secondary);
 }
 
+.texture-phase-row input[type="number"] {
+  margin-top: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  min-width: 80px;
+}
+
+.texture-phase-row input[type="number"]:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(47, 128, 237, 0.15);
+}
+
 .texture-bounding-boxes {
   display: flex;
   flex-direction: column;
@@ -203,6 +264,20 @@
   padding: 8px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
+  min-width: 70px;
+}
+
+.texture-bounding-table th:first-child,
+.texture-bounding-table td:first-child {
+  min-width: 50px;
+  width: 50px;
+}
+
+.texture-bounding-table th:last-child,
+.texture-bounding-table td:last-child {
+  min-width: 50px;
+  width: 60px;
+  text-align: center;
 }
 
 .texture-bounding-table tbody tr:last-child td {
@@ -218,21 +293,70 @@
   color: var(--text-primary);
 }
 
+.texture-bounding-table input[type="number"]:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(47, 128, 237, 0.15);
+}
+
 .texture-remove-box {
   border: none;
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 1.1rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  line-height: 1;
 }
 
 .texture-remove-box:hover {
-  color: var(--danger-color);
+  color: var(--error-color);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.texture-remove-box:active {
+  transform: scale(0.95);
 }
 
 .texture-form-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+/* Texture tab specific button improvements */
+.texture-form-section .btn-secondary {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.texture-form-section .btn-secondary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.texture-form-section .btn-primary {
+  padding: 10px 24px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.texture-form-section .btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.texture-form-section .btn-primary:active,
+.texture-form-section .btn-secondary:active {
+  transform: translateY(0);
 }
 
 .texture-empty-state {
