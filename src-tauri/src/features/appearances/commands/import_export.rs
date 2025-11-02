@@ -1,6 +1,6 @@
 use super::category_types::AppearanceCategory;
 use super::conversion::{clone_with_new_id, complete_flags_to_proto, complete_to_protobuf};
-use super::helpers::{get_items_by_category, get_items_by_category_mut};
+use super::helpers::{get_items_by_category, get_items_by_category_mut, rebuild_indexes, invalidate_search_cache};
 use crate::core::protobuf::Appearance;
 use crate::features::appearances::{CompleteAppearanceItem, CompleteFlags};
 use crate::state::AppState;
@@ -88,19 +88,28 @@ pub async fn import_appearance_from_json(
 
     let proto = complete_to_protobuf(&imported);
 
+    let result_id = imported.id;
     match mode {
         ImportMode::Replace => {
             if let Some(pos) = items.iter().position(|app| app.id.unwrap_or(0) == assigned_id) {
                 items[pos] = proto;
             }
+            // Replace mode doesn't change indexes, only content
+            invalidate_search_cache(&state);
         }
         ImportMode::New => {
             items.push(proto);
             sort_by_id(items);
+            // CRITICAL: Rebuild indexes after inserting and sorting (indexes changed)
+            // Must clone stored result before rebuild to avoid borrow conflicts
+            let stored = items.iter().find(|app| app.id.unwrap_or(0) == result_id).cloned().ok_or_else(|| "Failed to store imported appearance".to_string())?;
+            rebuild_indexes(&state, appearances);
+            invalidate_search_cache(&state);
+            return Ok(CompleteAppearanceItem::from_protobuf(&stored));
         }
     }
 
-    let stored = items.iter().find(|app| app.id.unwrap_or(0) == imported.id).cloned().ok_or_else(|| "Failed to store imported appearance".to_string())?;
+    let stored = items.iter().find(|app| app.id.unwrap_or(0) == result_id).cloned().ok_or_else(|| "Failed to store imported appearance".to_string())?;
 
     Ok(CompleteAppearanceItem::from_protobuf(&stored))
 }
@@ -123,7 +132,11 @@ pub async fn duplicate_appearance(category: AppearanceCategory, source_id: u32, 
     items.push(duplicate);
     sort_by_id(items);
 
+    // CRITICAL: Rebuild indexes after inserting and sorting (indexes changed)
+    // Clone stored result before rebuild to avoid borrow conflicts
     let stored = items.iter().find(|app| app.id.unwrap_or(0) == candidate).cloned().ok_or_else(|| "Failed to duplicate appearance".to_string())?;
+    rebuild_indexes(&state, appearances);
+    invalidate_search_cache(&state);
 
     Ok(CompleteAppearanceItem::from_protobuf(&stored))
 }
@@ -154,7 +167,11 @@ pub async fn create_empty_appearance(
     items.push(appearance);
     sort_by_id(items);
 
+    // CRITICAL: Rebuild indexes after inserting and sorting (indexes changed)
+    // Clone stored result before rebuild to avoid borrow conflicts
     let stored = items.iter().find(|app| app.id.unwrap_or(0) == candidate).cloned().ok_or_else(|| "Failed to create appearance".to_string())?;
+    rebuild_indexes(&state, appearances);
+    invalidate_search_cache(&state);
 
     Ok(CompleteAppearanceItem::from_protobuf(&stored))
 }
@@ -212,6 +229,11 @@ pub async fn delete_appearance(category: AppearanceCategory, id: u32, state: Sta
     let items = get_items_by_category_mut(appearances, &category);
     if let Some(pos) = items.iter().position(|app| app.id.unwrap_or(0) == id) {
         items.remove(pos);
+
+        // CRITICAL: Rebuild indexes after deletion (all subsequent indexes are stale)
+        rebuild_indexes(&state, appearances);
+        invalidate_search_cache(&state);
+
         Ok(())
     } else {
         Err(format!("Appearance {} not found in {:?}", id, category))
