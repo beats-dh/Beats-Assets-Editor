@@ -545,11 +545,11 @@ const translationEntries = {
     ru: 'Следующая страница'
   },
   'pagination.pageInfo': {
-    default: 'Página {{current}} de {{total}}',
-    'pt-BR': 'Página {{current}} de {{total}}',
-    en: 'Page {{current}} of {{total}}',
-    es: 'Página {{current}} de {{total}}',
-    ru: 'Страница {{current}} из {{total}}'
+    default: '{{current}} de {{total}}',
+    'pt-BR': '{{current}} de {{total}}',
+    en: '{{current}} of {{total}}',
+    es: '{{current}} de {{total}}',
+    ru: '{{current}} из {{total}}'
   },
   'pageSize.aria': {
     default: 'Itens por página',
@@ -760,6 +760,20 @@ const translationEntries = {
     en: 'Assets refreshed',
     es: 'Recursos actualizados',
     ru: 'Ресурсы обновлены'
+  },
+  'status.autoAnimateEnabled': {
+    default: 'Auto-animation enabled',
+    'pt-BR': 'Animação automática ativada',
+    en: 'Auto-animation enabled',
+    es: 'Animación automática activada',
+    ru: 'Автоматическая анимация включена'
+  },
+  'status.autoAnimateDisabled': {
+    default: 'Auto-animation disabled',
+    'pt-BR': 'Animação automática desativada',
+    en: 'Auto-animation disabled',
+    es: 'Animación automática desactivada',
+    ru: 'Автоматическая анимация отключена'
   },
   'sounds.loading': {
     default: 'Loading sounds file...',

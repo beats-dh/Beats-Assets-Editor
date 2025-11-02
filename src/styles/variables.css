@@ -7,6 +7,11 @@
   --surface-bg: #2d3548;
   --elevated-bg: #3a4259;
 
+  /* Semantic surface tokens */
+  --surface-base: #2d3548;
+  --surface-muted: #252b3d;
+  --surface-elevated: linear-gradient(135deg, #1a1f2e 0%, #252b3d 100%);
+
   --primary-accent: #4f46e5;
   --secondary-accent: #7c3aed;
   --success-color: #10b981;

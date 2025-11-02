@@ -4,6 +4,7 @@ import { stopAllAnimationPlayers, initAssetCardAutoAnimation } from './animation
 import { isAssetSelected } from './assetSelection';
 import { showStatus } from './utils';
 import { translate } from './i18n';
+import { updateActionButtonStates } from './importExport';
 
 let currentCategory = 'Objects';
 let currentSubcategory = 'All';
@@ -567,45 +568,12 @@ export async function performSearch(): Promise<void> {
     return;
   }
 
-  const numericMatch = rawInput.match(/\d+/);
-  if (!numericMatch) {
-    showStatus(translate('status.invalidNumericId'), 'error');
-    return;
-  }
-
-  const targetId = Number.parseInt(numericMatch[0], 10);
-  if (Number.isNaN(targetId)) {
-    showStatus(translate('status.invalidNumericId'), 'error');
-    return;
-  }
-
-  try {
-    assetSearch.value = String(targetId);
-    const subcategory = currentCategory === 'Objects' && currentSubcategory !== 'All'
-      ? currentSubcategory
-      : null;
-
-    const position = await invoke<number | null>('find_appearance_position', {
-      category: currentCategory,
-      id: targetId,
-      subcategory
-    });
-
-    if (position === null) {
-      showStatus(translate('status.appearanceNotFoundCurrentView', { id: targetId }), 'error');
-      return;
-    }
-
-    currentSearch = '';
-    const pageSize = currentPageSize || 1;
-    currentPage = Math.floor(position / pageSize);
-    pendingScrollToId = targetId;
-    await loadAssets();
-  } catch (error) {
-    console.error('Failed to locate appearance by ID:', error);
-    pendingScrollToId = null;
-    showStatus(translate('status.appearanceNotFound'), 'error');
-  }
+  // Set search term and filter results
+  // Works for both numeric (ID) and text (name) searches
+  currentSearch = rawInput;
+  currentPage = 0;
+  pendingScrollToId = null;
+  await loadAssets();
 }
 
 export async function clearSearch(): Promise<void> {
@@ -645,6 +613,9 @@ export function switchCategory(category: string): void {
       subcategoryContainer.style.display = 'none';
     }
   }
+
+  // Update action bar visibility based on category
+  updateActionButtonStates();
 
   loadAssets();
 }

@@ -76,8 +76,8 @@
 .clear-search-btn {
   position: absolute;
   right: var(--space-sm);
-  width: var(--control-height);
-  height: var(--control-height);
+  width: 28px;
+  height: 28px;
   background: var(--tertiary-bg);
   border: none;
   border-radius: var(--radius-md);
@@ -95,9 +95,9 @@
 }
 
 .clear-search-btn svg {
-  width: 14px;
-  height: 14px;
-  stroke-width: 2;
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.5;
 }
 
 .modern-search {

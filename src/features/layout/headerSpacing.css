@@ -32,9 +32,9 @@
   margin: 0;
 }
 
-.modern-header .page-size-container {
+/* .modern-header .page-size-container {
   margin-left: clamp(0.5rem, 1vw, 1.5rem);
-}
+} */
 
 @media (min-width: 1200px) {
   .modern-header .header-center {

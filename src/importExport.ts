@@ -519,11 +519,27 @@ function getActionButton(key: keyof typeof ACTION_BUTTON_IDS): HTMLButtonElement
   return container.querySelector<HTMLButtonElement>(`#${ACTION_BUTTON_IDS[key]}`);
 }
 
-function updateActionButtonStates(): void {
-  const container = ensureActionBar();
+export function updateActionButtonStates(): void {
+  // First check if we should even show the action bar for this category
+  const activeCategory = getCurrentCategory();
+  const shouldShow = SUPPORTED_CATEGORIES.has(activeCategory);
+
+  // Get the action bar container directly (don't build it if not already built)
+  const container = document.getElementById(ACTION_CONTAINER_ID) as HTMLDivElement | null;
   if (!container) {
     return;
   }
+
+  // Show or hide based on category support
+  if (!shouldShow) {
+    container.style.display = 'none';
+    return;
+  } else {
+    container.style.display = 'flex';
+  }
+
+  // Now ensure buttons are built
+  ensureActionBar();
 
   const hasSingleTarget = getActionTargets(false).length > 0;
   const hasBatchTargets = getActionTargets(true).length > 0;
