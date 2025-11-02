@@ -5,7 +5,7 @@ use tauri::State;
 use super::helpers::{rebuild_indexes, invalidate_search_cache};
 
 /// HEAVILY OPTIMIZED load_appearances_file:
-/// - TRUE async I/O with tokio::task::spawn_blocking (no UI freeze!)
+/// - TRUE async I/O with tauri::async_runtime::spawn_blocking (no UI freeze!)
 /// - Builds O(1) ID indexes immediately after load
 /// - Clears search cache to prevent stale results
 /// - Uses parking_lot locks (3x faster than std)
@@ -15,9 +15,10 @@ pub async fn load_appearances_file(path: String, state: State<'_, AppState>) -> 
 
     // CRITICAL OPTIMIZATION: Move blocking I/O to thread pool
     // This prevents UI freeze during large file loads (10-100+ MB)
+    // Uses Tauri's runtime instead of raw tokio (Tauri doesn't create a tokio runtime by default)
     let path_clone = path.clone();
     let appearances =
-        tokio::task::spawn_blocking(move || load_appearances(&path_clone)).await.map_err(|e| format!("Task join error: {}", e))?.map_err(|e| format!("Failed to load appearances: {}", e))?;
+        tauri::async_runtime::spawn_blocking(move || load_appearances(&path_clone)).await.map_err(|e| format!("Task join error: {}", e))?.map_err(|e| format!("Failed to load appearances: {}", e))?;
 
     let stats = get_statistics(&appearances);
 
@@ -120,7 +121,7 @@ pub async fn list_appearance_files(tibia_path: String) -> Result<Vec<String>, St
 
 /// HEAVILY OPTIMIZED save_appearances_file:
 /// - Clone data while holding lock (minimal lock time)
-/// - TRUE async I/O with tokio::task::spawn_blocking
+/// - TRUE async I/O with tauri::async_runtime::spawn_blocking
 /// - Encoding and file write don't block UI thread
 /// - Uses parking_lot locks (3x faster)
 #[tauri::command]
@@ -146,7 +147,8 @@ pub async fn save_appearances_file(state: tauri::State<'_, AppState>) -> Result<
 
     // CRITICAL OPTIMIZATION: Move blocking encode + write to thread pool
     // Encoding protobuf + writing 10-100+ MB files would freeze UI
-    let size = tokio::task::spawn_blocking(move || {
+    // Uses Tauri's runtime instead of raw tokio (Tauri doesn't create a tokio runtime by default)
+    let size = tauri::async_runtime::spawn_blocking(move || {
         let mut buf = Vec::new();
         appearances_clone.encode(&mut buf).map_err(|e| format!("Failed to encode appearances: {}", e))?;
 
