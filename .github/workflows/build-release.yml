@@ -1,4 +1,6 @@
 name: Tauri Build Release (Linux)
+permissions:
+  contents: read
 
 on:
   push:
