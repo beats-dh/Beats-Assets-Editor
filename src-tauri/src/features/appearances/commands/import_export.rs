@@ -218,6 +218,10 @@ pub async fn paste_appearance_flags(category: AppearanceCategory, id: u32, state
         appearance.flags = Some(complete_flags_to_proto(&flags_to_apply));
     }
 
+    // CRITICAL: Invalidate search cache after mutating flags
+    // Subcategory filtering relies on flags.market.category, so cache can be stale
+    invalidate_search_cache(&state);
+
     Ok(flags_to_apply)
 }
 
