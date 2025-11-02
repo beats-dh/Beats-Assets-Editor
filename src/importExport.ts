@@ -7,10 +7,12 @@ import { getCurrentCategory, loadAssets } from "./assetUI";
 import type { CompleteAppearanceItem } from "./types";
 import { clearAssetSelection, removeAssetSelection } from "./assetSelection";
 import type { AssetSelectionChangeDetail } from "./assetSelection";
+import { openExportImagesDialog } from "./export-images";
 
 const ACTION_CONTAINER_ID = "appearance-action-bar";
 const ACTION_BUTTON_IDS = {
   export: "action-export-json",
+  exportImages: "action-export-images",
   import: "action-import-json",
   duplicate: "action-duplicate",
   copy: "action-copy-flags",
@@ -18,10 +20,18 @@ const ACTION_BUTTON_IDS = {
   delete: "action-delete-appearance",
   create: "action-create-new"
 } as const;
-type ActionMessageKey = "import" | "export" | "duplicate" | "copyFlagsFrom" | "pasteFlagsInto" | "delete";
+type ActionMessageKey =
+  | "import"
+  | "export"
+  | "exportImages"
+  | "duplicate"
+  | "copyFlagsFrom"
+  | "pasteFlagsInto"
+  | "delete";
 const ACTION_VERB_KEYS: Record<ActionMessageKey, TranslationKey> = {
   import: "action.verb.import",
   export: "action.verb.export",
+  exportImages: "action.verb.exportImages",
   duplicate: "action.verb.duplicate",
   copyFlagsFrom: "action.verb.copyFlagsFrom",
   pasteFlagsInto: "action.verb.pasteFlagsInto",
@@ -29,6 +39,7 @@ const ACTION_VERB_KEYS: Record<ActionMessageKey, TranslationKey> = {
 };
 const ACTION_BUTTON_LABEL_KEYS: Record<keyof typeof ACTION_BUTTON_IDS, TranslationKey> = {
   export: "action.button.export",
+  exportImages: "action.button.exportImages",
   import: "action.button.import",
   duplicate: "action.button.duplicate",
   copy: "action.button.copyFlags",
@@ -427,6 +438,9 @@ function ensureActionBar(): HTMLDivElement | null {
         <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.export}" data-i18n="${ACTION_BUTTON_LABEL_KEYS.export}">
           ${translate(ACTION_BUTTON_LABEL_KEYS.export)}
         </button>
+        <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.exportImages}" data-i18n="${ACTION_BUTTON_LABEL_KEYS.exportImages}">
+          ${translate(ACTION_BUTTON_LABEL_KEYS.exportImages)}
+        </button>
         <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.duplicate}" data-i18n="${ACTION_BUTTON_LABEL_KEYS.duplicate}">
           ${translate(ACTION_BUTTON_LABEL_KEYS.duplicate)}
         </button>
@@ -458,6 +472,14 @@ function ensureActionBar(): HTMLDivElement | null {
       const target = getSingleTargetOrNotify("export");
       if (target) {
         void handleExport(target.category, target.id);
+      }
+    });
+
+    const exportImagesBtn = getActionButton("exportImages");
+    exportImagesBtn?.addEventListener("click", () => {
+      const targets = getBatchTargetsOrNotify("exportImages");
+      if (targets) {
+        openExportImagesDialog(targets.map((target) => ({ category: target.category, id: target.id })));
       }
     });
 
@@ -537,6 +559,11 @@ function updateActionButtonStates(): void {
   const exportBtn = getActionButton("export");
   if (exportBtn) {
     exportBtn.disabled = !hasSingleTarget;
+  }
+
+  const exportImagesBtn = getActionButton("exportImages");
+  if (exportImagesBtn) {
+    exportImagesBtn.disabled = !hasBatchTargets && !hasSingleTarget;
   }
 
   const duplicateBtn = getActionButton("duplicate");

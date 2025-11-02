@@ -67,6 +67,7 @@ pub fn run() {
             commands::appearances_api::update_appearance_texture_settings,
             commands::appearances_api::save_appearances_file,
             commands::appearances_api::export_appearance_to_json,
+            commands::appearances_api::export_appearances_images,
             commands::appearances_api::import_appearance_from_json,
             commands::appearances_api::duplicate_appearance,
             commands::appearances_api::create_empty_appearance,

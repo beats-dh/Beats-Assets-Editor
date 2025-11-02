@@ -1,22 +1,198 @@
-   1.145896200s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia_assets_editor_lib"}: cargo::core::compiler::fingerprint: stale: changed "C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\commands\\monsters_npc.rs"
-   1.145937400s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia_assets_editor_lib"}: cargo::core::compiler::fingerprint:           (vs) "C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\target\\debug\\.fingerprint\\tibia-assets-editor-a2ce88b2fc2643c2\\dep-lib-tibia_assets_editor_lib"
-   1.145948200s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia_assets_editor_lib"}: cargo::core::compiler::fingerprint:                FileTime { seconds: 13406480952, nanos: 581306700 } < FileTime { seconds: 13406481022, nanos: 965672700 }
-   1.147479100s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia_assets_editor_lib"}: cargo::core::compiler::fingerprint: fingerprint dirty for tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)/Check { test: false }/TargetInner { ..: lib_target("tibia_assets_editor_lib", ["staticlib", "cdylib", "rlib"], "C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\lib.rs", Edition2021) }
-   1.148164500s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia_assets_editor_lib"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleItem(ChangedFile { reference: "C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\target\\debug\\.fingerprint\\tibia-assets-editor-a2ce88b2fc2643c2\\dep-lib-tibia_assets_editor_lib", reference_mtime: FileTime { seconds: 13406480952, nanos: 581306700 }, stale: "C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\commands\\monsters_npc.rs", stale_mtime: FileTime { seconds: 13406481022, nanos: 965672700 } }))
-   1.315065600s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia_assets_editor_lib"}: cargo::core::compiler::fingerprint: stale: changed "C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\lib.rs"
-   1.315099100s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia_assets_editor_lib"}: cargo::core::compiler::fingerprint:           (vs) "C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\target\\debug\\.fingerprint\\tibia-assets-editor-bca22e4f25dcb610\\dep-test-lib-tibia_assets_editor_lib"
-   1.315106300s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia_assets_editor_lib"}: cargo::core::compiler::fingerprint:                FileTime { seconds: 13406480952, nanos: 582307600 } < FileTime { seconds: 13406481022, nanos: 967722600 }
-   1.317801300s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia_assets_editor_lib"}: cargo::core::compiler::fingerprint: fingerprint dirty for tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)/Check { test: true }/TargetInner { ..: lib_target("tibia_assets_editor_lib", ["staticlib", "cdylib", "rlib"], "C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\lib.rs", Edition2021) }
-   1.317842400s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia_assets_editor_lib"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleItem(ChangedFile { reference: "C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\target\\debug\\.fingerprint\\tibia-assets-editor-bca22e4f25dcb610\\dep-test-lib-tibia_assets_editor_lib", reference_mtime: FileTime { seconds: 13406480952, nanos: 582307600 }, stale: "C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\lib.rs", stale_mtime: FileTime { seconds: 13406481022, nanos: 967722600 } }))
-   1.321856000s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="load_appearances_cli"}: cargo::core::compiler::fingerprint: fingerprint dirty for tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)/Check { test: false }/TargetInner { name: "load_appearances_cli", doc: true, ..: with_path("C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\bin\\load_appearances_cli.rs", Edition2021) }
-   1.321892800s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="load_appearances_cli"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleDepFingerprint { name: "tibia_assets_editor_lib" })
-   1.325308700s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="load_appearances_cli"}: cargo::core::compiler::fingerprint: fingerprint dirty for tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)/Check { test: true }/TargetInner { name: "load_appearances_cli", doc: true, ..: with_path("C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\bin\\load_appearances_cli.rs", Edition2021) }
-   1.325357400s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="load_appearances_cli"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleDepFingerprint { name: "tibia_assets_editor_lib" })
-   1.329164600s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia-assets-editor"}: cargo::core::compiler::fingerprint: fingerprint dirty for tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)/Check { test: false }/TargetInner { name: "tibia-assets-editor", doc: true, ..: with_path("C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\main.rs", Edition2021) }
-   1.329200700s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia-assets-editor"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleDepFingerprint { name: "tibia_assets_editor_lib" })
-   1.333048700s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia-assets-editor"}: cargo::core::compiler::fingerprint: fingerprint dirty for tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)/Check { test: true }/TargetInner { name: "tibia-assets-editor", doc: true, ..: with_path("C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\main.rs", Edition2021) }
-   1.333111200s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia-assets-editor"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleDepFingerprint { name: "tibia_assets_editor_lib" })
-   1.336628300s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="test_appearances"}: cargo::core::compiler::fingerprint: fingerprint dirty for tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)/Check { test: true }/TargetInner { kind: "test", name: "test_appearances", benched: false, ..: with_path("C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\tests\\test_appearances.rs", Edition2021) }
-   1.336670900s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="test_appearances"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleDepFingerprint { name: "tibia_assets_editor_lib" })
+   0.843327500s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia_assets_editor_lib"}: cargo::core::compiler::fingerprint: fingerprint error for tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)/Check { test: false }/TargetInner { ..: lib_target("tibia_assets_editor_lib", ["staticlib", "cdylib", "rlib"], "C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\lib.rs", Edition2021) }
+   0.843393200s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia_assets_editor_lib"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri\target\debug\.fingerprint\tibia-assets-editor-ddea7a881a871f8d\lib-tibia_assets_editor_lib`
+
+Caused by:
+    O sistema não pode encontrar o arquivo especificado. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_path
+   6: git_filter_source_path
+   7: git_filter_source_path
+   8: git_filter_source_path
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.083693300s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia_assets_editor_lib"}: cargo::core::compiler::fingerprint: fingerprint error for tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)/Check { test: true }/TargetInner { ..: lib_target("tibia_assets_editor_lib", ["staticlib", "cdylib", "rlib"], "C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\lib.rs", Edition2021) }
+   1.083754300s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia_assets_editor_lib"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri\target\debug\.fingerprint\tibia-assets-editor-34bb498ecf0c4798\test-lib-tibia_assets_editor_lib`
+
+Caused by:
+    O sistema não pode encontrar o arquivo especificado. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_path
+   6: git_filter_source_path
+   7: git_filter_source_path
+   8: git_filter_source_path
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.086902400s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="load_appearances_cli"}: cargo::core::compiler::fingerprint: fingerprint error for tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)/Check { test: false }/TargetInner { name: "load_appearances_cli", doc: true, ..: with_path("C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\bin\\load_appearances_cli.rs", Edition2021) }
+   1.086935600s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="load_appearances_cli"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri\target\debug\.fingerprint\tibia-assets-editor-41e3e0e1f28cc225\bin-load_appearances_cli`
+
+Caused by:
+    O sistema não pode encontrar o arquivo especificado. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_path
+   6: git_filter_source_path
+   7: git_filter_source_path
+   8: git_filter_source_path
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.089437400s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="load_appearances_cli"}: cargo::core::compiler::fingerprint: fingerprint error for tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)/Check { test: true }/TargetInner { name: "load_appearances_cli", doc: true, ..: with_path("C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\bin\\load_appearances_cli.rs", Edition2021) }
+   1.089490600s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="load_appearances_cli"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri\target\debug\.fingerprint\tibia-assets-editor-f21cf0c8583bbec6\test-bin-load_appearances_cli`
+
+Caused by:
+    O sistema não pode encontrar o arquivo especificado. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_path
+   6: git_filter_source_path
+   7: git_filter_source_path
+   8: git_filter_source_path
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.092468700s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia-assets-editor"}: cargo::core::compiler::fingerprint: fingerprint error for tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)/Check { test: false }/TargetInner { name: "tibia-assets-editor", doc: true, ..: with_path("C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\main.rs", Edition2021) }
+   1.092504200s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia-assets-editor"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri\target\debug\.fingerprint\tibia-assets-editor-b6f0cc41fb71be06\bin-tibia-assets-editor`
+
+Caused by:
+    O sistema não pode encontrar o arquivo especificado. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_path
+   6: git_filter_source_path
+   7: git_filter_source_path
+   8: git_filter_source_path
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.094861900s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia-assets-editor"}: cargo::core::compiler::fingerprint: fingerprint error for tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)/Check { test: true }/TargetInner { name: "tibia-assets-editor", doc: true, ..: with_path("C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\src\\main.rs", Edition2021) }
+   1.094892200s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="tibia-assets-editor"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri\target\debug\.fingerprint\tibia-assets-editor-c7a790f254e80748\test-bin-tibia-assets-editor`
+
+Caused by:
+    O sistema não pode encontrar o arquivo especificado. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_path
+   6: git_filter_source_path
+   7: git_filter_source_path
+   8: git_filter_source_path
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.098518000s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="test_appearances"}: cargo::core::compiler::fingerprint: fingerprint error for tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)/Check { test: true }/TargetInner { kind: "test", name: "test_appearances", benched: false, ..: with_path("C:\\Users\\Waldir\\Documents\\GitHub\\Beats-Assets-Editor\\src-tauri\\tests\\test_appearances.rs", Edition2021) }
+   1.098551400s  INFO prepare_target{force=false package_id=tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri) target="test_appearances"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri\target\debug\.fingerprint\tibia-assets-editor-7459d6bead4e9d0f\test-integration-test-test_appearances`
+
+Caused by:
+    O sistema não pode encontrar o arquivo especificado. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_path
+   6: git_filter_source_path
+   7: git_filter_source_path
+   8: git_filter_source_path
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
     Checking tibia-assets-editor v0.1.0 (C:\Users\Waldir\Documents\GitHub\Beats-Assets-Editor\src-tauri)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.62s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.71s

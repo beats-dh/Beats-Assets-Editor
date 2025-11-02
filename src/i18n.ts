@@ -838,6 +838,48 @@ const translationEntries = {
     es: 'Error al exportar la apariencia',
     ru: 'Не удалось экспортировать внешность'
   },
+  'status.exportImagesNoOptions': {
+    default: 'Selecione pelo menos um formato para exportar.',
+    'pt-BR': 'Selecione pelo menos um formato para exportar.',
+    en: 'Select at least one format to export.',
+    es: 'Selecciona al menos un formato para exportar.',
+    ru: 'Выберите хотя бы один формат для экспорта.'
+  },
+  'status.exportImagesChooseDirectory': {
+    default: 'Escolha uma pasta de destino antes de exportar.',
+    'pt-BR': 'Escolha uma pasta de destino antes de exportar.',
+    en: 'Choose a destination folder before exporting.',
+    es: 'Elige una carpeta de destino antes de exportar.',
+    ru: 'Выберите папку назначения перед экспортом.'
+  },
+  'status.exportImagesChooseDirectoryError': {
+    default: 'Não foi possível abrir o seletor de pastas.',
+    'pt-BR': 'Não foi possível abrir o seletor de pastas.',
+    en: 'Unable to open the folder picker.',
+    es: 'No se pudo abrir el selector de carpetas.',
+    ru: 'Не удалось открыть выбор папки.'
+  },
+  'status.exportImagesInProgress': {
+    default: 'Exportando imagens selecionadas...',
+    'pt-BR': 'Exportando imagens selecionadas...',
+    en: 'Exporting selected images...',
+    es: 'Exportando imágenes seleccionadas...',
+    ru: 'Экспорт выбранных изображений...'
+  },
+  'status.exportImagesSuccess': {
+    default: '{{exported}} arquivos exportados para {{count}} aparências.',
+    'pt-BR': '{{exported}} arquivos exportados para {{count}} aparências.',
+    en: '{{exported}} files exported for {{count}} appearances.',
+    es: '{{exported}} archivos exportados para {{count}} apariencias.',
+    ru: 'Экспортировано {{exported}} файлов для {{count}} внешностей.'
+  },
+  'status.exportImagesFailed': {
+    default: 'Falha ao exportar imagens.',
+    'pt-BR': 'Falha ao exportar imagens.',
+    en: 'Failed to export images.',
+    es: 'Error al exportar imágenes.',
+    ru: 'Не удалось экспортировать изображения.'
+  },
   'prompt.importReplaceWarning': {
     default: 'A importação substituirá a aparência atual. Clique em Cancelar para importar como novo objeto.',
     'pt-BR': 'A importação substituirá a aparência atual. Clique em Cancelar para importar como novo objeto.',
@@ -1419,6 +1461,13 @@ const translationEntries = {
     es: 'Exportar',
     ru: 'Экспорт'
   },
+  'action.button.exportImages': {
+    default: 'Exportar imagens',
+    'pt-BR': 'Exportar imagens',
+    en: 'Export images',
+    es: 'Exportar imágenes',
+    ru: 'Экспорт изображений'
+  },
   'action.button.duplicate': {
     default: 'Duplicar',
     'pt-BR': 'Duplicar',
@@ -1468,6 +1517,13 @@ const translationEntries = {
     es: 'exportar',
     ru: 'экспортировать'
   },
+  'action.verb.exportImages': {
+    default: 'exportar imagens',
+    'pt-BR': 'exportar imagens',
+    en: 'export images',
+    es: 'exportar imágenes',
+    ru: 'экспортировать изображения'
+  },
   'action.verb.duplicate': {
     default: 'duplicar',
     'pt-BR': 'duplicar',
@@ -1495,6 +1551,111 @@ const translationEntries = {
     en: 'delete',
     es: 'eliminar',
     ru: 'удалить'
+  },
+  'exportImages.dialog.title': {
+    default: 'Exportar imagens avançado',
+    'pt-BR': 'Exportar imagens avançado',
+    en: 'Advanced image export',
+    es: 'Exportación avanzada de imágenes',
+    ru: 'Расширенный экспорт изображений'
+  },
+  'exportImages.dialog.description': {
+    default: 'Escolha o diretório de destino e os formatos desejados. Apenas as opções marcadas serão processadas.',
+    'pt-BR': 'Escolha o diretório de destino e os formatos desejados. Apenas as opções marcadas serão processadas.',
+    en: 'Choose the destination directory and the desired formats. Only the selected options will be processed.',
+    es: 'Elige la carpeta de destino y los formatos deseados. Solo se procesarán las opciones seleccionadas.',
+    ru: 'Выберите папку назначения и нужные форматы. Будут обработаны только выбранные параметры.'
+  },
+  'exportImages.field.outputDirectory': {
+    default: 'Diretório de exportação',
+    'pt-BR': 'Diretório de exportação',
+    en: 'Export directory',
+    es: 'Directorio de exportación',
+    ru: 'Каталог экспорта'
+  },
+  'exportImages.button.chooseDirectory': {
+    default: 'Escolher pasta',
+    'pt-BR': 'Escolher pasta',
+    en: 'Choose folder',
+    es: 'Elegir carpeta',
+    ru: 'Выбрать папку'
+  },
+  'exportImages.section.outputs': {
+    default: 'Formatos de saída',
+    'pt-BR': 'Formatos de saída',
+    en: 'Output formats',
+    es: 'Formatos de salida',
+    ru: 'Форматы вывода'
+  },
+  'exportImages.section.outfitOptions': {
+    default: 'Opções especiais para outfits',
+    'pt-BR': 'Opções especiais para outfits',
+    en: 'Special outfit options',
+    es: 'Opciones especiales para outfits',
+    ru: 'Особые параметры для нарядов'
+  },
+  'exportImages.option.exportGif': {
+    default: 'Exportar como GIF animado',
+    'pt-BR': 'Exportar como GIF animado',
+    en: 'Export as animated GIF',
+    es: 'Exportar como GIF animado',
+    ru: 'Экспортировать как анимированный GIF'
+  },
+  'exportImages.option.gifOnly': {
+    default: 'Somente GIF (ignorar PNG)',
+    'pt-BR': 'Somente GIF (ignorar PNG)',
+    en: 'GIF only (skip PNG)',
+    es: 'Solo GIF (omitir PNG)',
+    ru: 'Только GIF (без PNG)'
+  },
+  'exportImages.option.exportOnlyPng': {
+    default: 'Exportar apenas a primeira imagem em PNG',
+    'pt-BR': 'Exportar apenas a primeira imagem em PNG',
+    en: 'Export only the first image as PNG',
+    es: 'Exportar solo la primera imagen en PNG',
+    ru: 'Экспортировать только первое изображение в PNG'
+  },
+  'exportImages.option.exportAllPng': {
+    default: 'Exportar todas as imagens em PNG',
+    'pt-BR': 'Exportar todas as imagens em PNG',
+    en: 'Export all images as PNG',
+    es: 'Exportar todas las imágenes en PNG',
+    ru: 'Экспортировать все изображения в PNG'
+  },
+  'exportImages.option.exportMounted': {
+    default: 'Incluir versões montadas (quando disponíveis)',
+    'pt-BR': 'Incluir versões montadas (quando disponíveis)',
+    en: 'Include mounted versions (when available)',
+    es: 'Incluir versiones montadas (cuando estén disponibles)',
+    ru: 'Включить версии на маунте (если доступны)'
+  },
+  'exportImages.option.exportFullAddons': {
+    default: 'Incluir outfits com todos os addons',
+    'pt-BR': 'Incluir outfits com todos os addons',
+    en: 'Include outfits with full addons',
+    es: 'Incluir outfits con todos los addons',
+    ru: 'Включить наряды со всеми аддонами'
+  },
+  'exportImages.button.cancel': {
+    default: 'Cancelar',
+    'pt-BR': 'Cancelar',
+    en: 'Cancel',
+    es: 'Cancelar',
+    ru: 'Отмена'
+  },
+  'exportImages.button.confirm': {
+    default: 'Exportar selecionados',
+    'pt-BR': 'Exportar selecionados',
+    en: 'Export selected',
+    es: 'Exportar seleccionados',
+    ru: 'Экспортировать выбранные'
+  },
+  'exportImages.summary.targets': {
+    default: '{{count}} aparências selecionadas para exportar',
+    'pt-BR': '{{count}} aparências selecionadas para exportar',
+    en: '{{count}} appearances selected for export',
+    es: '{{count}} apariencias seleccionadas para exportar',
+    ru: '{{count}} выбранных внешностей для экспорта'
   },
   'files.table.empty': {
     default: 'No data available',

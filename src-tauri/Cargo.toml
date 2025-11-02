@@ -45,7 +45,8 @@ lzma-rs = "0.3"
 xz2 = "0.1"
 
 # Image manipulation
-image = { version = "0.25", features = ["png", "jpeg", "bmp"] }
+image = { version = "0.25", features = ["png", "jpeg", "bmp", "gif"] }
+gif = "0.12"
 
 # Error handling
 anyhow = "1.0"
