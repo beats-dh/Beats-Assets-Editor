@@ -334,6 +334,12 @@ export function initAssetCardAutoAnimation(
       }
 
       const key = `asset:${category}:${appearanceId}`;
+
+      // CRITICAL: Check if animation already exists to prevent duplicate timers
+      if (activeAnimationPlayers.has(key)) {
+        return; // Already animating, don't create duplicate timer
+      }
+
       let frameIndex = 0;
 
       const draw = () => {

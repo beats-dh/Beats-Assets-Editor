@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { getAppearanceSprites, createSpriteImage, createPlaceholderImage } from './spriteCache';
+import { getAppearanceSprites, getAppearancePreviewSpritesBatch, createSpriteImage, createPlaceholderImage, hasCachedSprites } from './spriteCache';
 import { stopAllAnimationPlayers, initAssetCardAutoAnimation } from './animation';
 import { isAssetSelected } from './assetSelection';
 import { translate } from './i18n';
@@ -12,6 +12,7 @@ let currentPageSize = 100;
 let currentSearch = '';
 let totalItems = 0;
 let pendingScrollToId: number | null = null;
+let currentLoadId = 0; // Track current load operation to cancel stale ones
 
 const storedAnimationPreference = localStorage.getItem('autoAnimateGridEnabled');
 let autoAnimateGridEnabled = storedAnimationPreference === null ? true : storedAnimationPreference === 'true';
@@ -305,31 +306,128 @@ async function displayAssets(assets: any[], append = false): Promise<void> {
   loadSpritesForAssets(assets);
 }
 
-async function loadSpritesForAssets(assets: any[]): Promise<void> {
-  for (const asset of assets) {
-    try {
-      const sprites = await getAppearanceSprites(currentCategory, asset.id);
-      const container = document.getElementById(`sprite-${asset.id}`);
+/**
+ * Separate assets into cached and uncached for optimized loading
+ * Cached assets can be rendered IMMEDIATELY without waiting for batch API
+ */
+function separateCachedAndUncached(assets: any[]): { cached: any[], needsLoading: any[] } {
+  const cached: any[] = [];
+  const needsLoading: any[] = [];
 
-      if (container) {
+  for (const asset of assets) {
+    if (hasCachedSprites(currentCategory, asset.id)) {
+      cached.push(asset);
+    } else {
+      needsLoading.push(asset);
+    }
+  }
+
+  console.debug(`CACHE CHECK: ${cached.length} cached, ${needsLoading.length} need loading`);
+  return { cached, needsLoading };
+}
+
+async function loadSpritesForAssets(assets: any[]): Promise<void> {
+  if (assets.length === 0) return;
+
+  // Increment load ID to invalidate previous load operations
+  const thisLoadId = ++currentLoadId;
+
+  // OPTIMIZATION: Check cache FIRST and render cached sprites immediately
+  const { cached, needsLoading } = separateCachedAndUncached(assets);
+
+  // Step 1: Render cached sprites IMMEDIATELY (no waiting!)
+  for (const asset of cached) {
+    const container = document.getElementById(`sprite-${asset.id}`);
+    if (!container) continue;
+
+    // Get from frontend cache (instant!)
+    const sprites = await getAppearanceSprites(currentCategory, asset.id);
+    if (sprites.length > 0) {
+      const img = createSpriteImage(sprites[0]);
+      container.innerHTML = '';
+      container.appendChild(img);
+      // Initialize animation for cached sprites
+      initAssetCardAutoAnimation(currentCategory, asset.id, sprites, autoAnimateGridEnabled);
+    }
+  }
+
+  // Step 2: If no items need loading, we're done!
+  if (needsLoading.length === 0) {
+    return;
+  }
+
+  // Step 3: Load uncached sprites via batch API
+  const uncachedIds = needsLoading.map(asset => asset.id);
+
+  try {
+    const previews = await getAppearancePreviewSpritesBatch(currentCategory, uncachedIds);
+
+    // BUGFIX: Check if this load was cancelled (user changed page during load)
+    if (thisLoadId !== currentLoadId) {
+      console.debug('Sprite load cancelled (stale operation)');
+      return; // Don't render stale results
+    }
+
+    // Step 4: Render newly loaded previews
+    for (const asset of needsLoading) {
+      const container = document.getElementById(`sprite-${asset.id}`);
+      if (!container) continue;
+
+      const previewSprite = previews.get(asset.id);
+      if (previewSprite) {
+        const img = createSpriteImage(previewSprite);
+        container.innerHTML = '';
+        container.appendChild(img);
+      } else {
+        const placeholder = createPlaceholderImage();
+        container.innerHTML = '';
+        container.appendChild(placeholder);
+      }
+    }
+
+    // Step 5: Initialize animations ONLY for newly loaded assets (cached already initialized in Step 1)
+    for (const asset of needsLoading) {
+      // Check again if load is still valid
+      if (thisLoadId !== currentLoadId) return;
+
+      try {
+        const sprites = await getAppearanceSprites(currentCategory, asset.id);
         if (sprites.length > 0) {
-          const img = createSpriteImage(sprites[0]);
-          container.innerHTML = '';
-          container.appendChild(img);
           initAssetCardAutoAnimation(currentCategory, asset.id, sprites, autoAnimateGridEnabled);
-        } else {
+        }
+      } catch (error) {
+        // Ignore animation errors - preview is already shown
+      }
+    }
+  } catch (error) {
+    console.error('Batch sprite loading failed, falling back to individual loads:', error);
+
+    // Fallback: load individually if batch fails
+    for (const asset of assets) {
+      try {
+        const sprites = await getAppearanceSprites(currentCategory, asset.id);
+        const container = document.getElementById(`sprite-${asset.id}`);
+
+        if (container) {
+          if (sprites.length > 0) {
+            const img = createSpriteImage(sprites[0]);
+            container.innerHTML = '';
+            container.appendChild(img);
+            initAssetCardAutoAnimation(currentCategory, asset.id, sprites, autoAnimateGridEnabled);
+          } else {
+            const placeholder = createPlaceholderImage();
+            container.innerHTML = '';
+            container.appendChild(placeholder);
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to load sprite for asset ${asset.id}:`, error);
+        const container = document.getElementById(`sprite-${asset.id}`);
+        if (container) {
           const placeholder = createPlaceholderImage();
           container.innerHTML = '';
           container.appendChild(placeholder);
         }
-      }
-    } catch (error) {
-      console.warn(`Failed to load sprite for asset ${asset.id}:`, error);
-      const container = document.getElementById(`sprite-${asset.id}`);
-      if (container) {
-        const placeholder = createPlaceholderImage();
-        container.innerHTML = '';
-        container.appendChild(placeholder);
       }
     }
   }
