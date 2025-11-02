@@ -61,3 +61,18 @@ base64 = "0.22"
 # Lock-free concurrent data structures
 dashmap = "6.1"
 
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# High-performance locks (3x faster than std)
+parking_lot = "0.12"
+
+# Data parallelism
+rayon = "1.10"
+
+# Fast hashing
+ahash = "0.8"
+
+# String interning for reduced allocations
+string-interner = "0.17"
+
