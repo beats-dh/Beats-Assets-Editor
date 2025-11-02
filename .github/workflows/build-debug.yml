@@ -23,6 +23,9 @@ on:
       - "src-tauri/Cargo.lock"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   tauri-build-debug-linux:
     runs-on: ubuntu-latest
