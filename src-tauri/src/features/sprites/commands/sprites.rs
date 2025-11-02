@@ -88,8 +88,8 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
     // Check cache first (lock-free read)
     let cache_key = format!("{:?}:{}", category, appearance_id);
     if let Some(cached_sprites) = state.sprite_cache.get(&cache_key) {
-        // Dereference Arc<Vec<String>> to get Vec<String>
-        return Ok((**cached_sprites.value()).clone());
+        // Clone the Vec<String> from Arc without moving out of DashMap guard
+        return Ok(cached_sprites.value().as_ref().clone());
     }
 
     let appearances_lock = state.appearances.read();
