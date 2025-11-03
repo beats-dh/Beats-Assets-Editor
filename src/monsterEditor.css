@@ -1,4 +1,4 @@
-/* Monster Editor - Matching app design system exactly */
+﻿/* Monster Editor - Matching app design system exactly */
 
 .monster-editor-container {
   position: fixed;
@@ -360,6 +360,7 @@
 
 /* Lists */
 .attacks-list,
+.defenses-list,
 .elements-list,
 .immunities-list,
 .summons-list,
@@ -403,6 +404,96 @@
 .loot-item strong {
   color: #8b5cf6;
   font-weight: 700;
+}
+
+.attack-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.attack-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--text-primary);
+}
+
+.attack-badge-offense {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+}
+
+.attack-badge-defense {
+  border-color: rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+}
+
+.attack-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-sm) var(--space-lg);
+  margin-top: var(--space-md);
+}
+
+.attack-meta-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.attack-meta-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.attack-meta-value {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.attack-subsection {
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid rgba(139, 92, 246, 0.12);
+}
+
+.attack-subsection-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.attack-property-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.attack-property-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.attack-property-row .attack-meta-value {
+  text-align: right;
 }
 
 /* Loot specific */
@@ -544,3 +635,5 @@
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+

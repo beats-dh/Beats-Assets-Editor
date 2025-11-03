@@ -1,7 +1,8 @@
 use crate::features::monsters::types::*;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use regex::Regex;
 use std::collections::HashSet;
+use std::fmt;
 
 pub struct LuaMonsterParser {
     content: String,
@@ -22,10 +23,7 @@ impl LuaMonsterParser {
         monster.name = self.extract_monster_name()?;
         monster.description = self.extract_string_field_with_default("description", "", &mut missing_fields)?;
         monster.experience = self.extract_number_field_with_default("experience", 0, &mut missing_fields)? as u32;
-        monster.outfit = match self.parse_outfit() {
-            Ok(value) => value,
-            Err(_) => MonsterOutfit::default(),
-        };
+        monster.outfit = self.parse_outfit().unwrap_or_default();
         monster.race_id = self.extract_number_field_with_default("raceId", 0, &mut missing_fields)? as u32;
         monster.bestiary = self.parse_bestiary().ok();
         monster.health = self.extract_number_field_with_default("health", 0, &mut missing_fields)? as u32;
@@ -34,50 +32,17 @@ impl LuaMonsterParser {
         monster.corpse = self.extract_number_field_with_default("corpse", 0, &mut missing_fields)? as u32;
         monster.speed = self.extract_number_field_with_default("speed", 0, &mut missing_fields)? as u16;
         monster.mana_cost = self.extract_number_field_with_default("manaCost", 0, &mut missing_fields)? as u16;
-        monster.change_target = match self.parse_change_target() {
-            Ok(value) => value,
-            Err(_) => ChangeTarget::default(),
-        };
-        monster.strategies_target = match self.parse_strategies_target() {
-            Ok(value) => value,
-            Err(_) => StrategiesTarget::default(),
-        };
-        monster.flags = match self.parse_flags() {
-            Ok(value) => value,
-            Err(_) => MonsterFlags::default(),
-        };
-        monster.light = match self.parse_light() {
-            Ok(value) => value,
-            Err(_) => MonsterLight::default(),
-        };
-        monster.summon = match self.parse_summon() {
-            Ok(value) => Some(value),
-            Err(_) => None,
-        };
-        monster.voices = match self.parse_voices() {
-            Ok(value) => Some(value),
-            Err(_) => None,
-        };
-        monster.loot = match self.parse_loot() {
-            Ok(value) => value,
-            Err(_) => Vec::new(),
-        };
-        monster.attacks = match self.parse_attacks() {
-            Ok(value) => value,
-            Err(_) => Vec::new(),
-        };
-        monster.defenses = match self.parse_defenses() {
-            Ok(value) => value,
-            Err(_) => MonsterDefenses::default(),
-        };
-        monster.elements = match self.parse_elements() {
-            Ok(value) => value,
-            Err(_) => Vec::new(),
-        };
-        monster.immunities = match self.parse_immunities() {
-            Ok(value) => value,
-            Err(_) => Vec::new(),
-        };
+        monster.change_target = self.parse_change_target().unwrap_or_default();
+        monster.strategies_target = self.parse_strategies_target().unwrap_or_default();
+        monster.flags = self.parse_flags().unwrap_or_default();
+        monster.light = self.parse_light().unwrap_or_default();
+        monster.summon = self.parse_summon().ok();
+        monster.voices = self.parse_voices().ok();
+        monster.loot = self.parse_loot().unwrap_or_default();
+        monster.attacks = self.parse_attacks().unwrap_or_default();
+        monster.defenses = self.parse_defenses().unwrap_or_default();
+        monster.elements = self.parse_elements().unwrap_or_default();
+        monster.immunities = self.parse_immunities().unwrap_or_default();
 
         let mut meta = MonsterMeta::default();
         if !missing_fields.is_empty() {
@@ -238,15 +203,27 @@ impl LuaMonsterParser {
         let section = self.extract_table("voices")?;
         let interval = self.extract_from_section(&section, "interval")? as u32;
         let chance = self.extract_from_section(&section, "chance")? as u8;
+        let text_re = Regex::new(r#"text\s*=\s*"([^"]+)""#)?;
+        let yell_re = Regex::new(r"yell\s*=\s*(true|false)")?;
 
-        let voices_re = Regex::new(r#"\{\s*text\s*=\s*"([^"]+)"\s*,\s*yell\s*=\s*(true|false)\s*\}"#)?;
         let mut entries = Vec::new();
+        for raw_entry in Self::split_top_level_entries(&section) {
+            if !raw_entry.contains("text") {
+                continue;
+            }
 
-        for caps in voices_re.captures_iter(&section) {
-            entries.push(VoiceEntry {
-                text: caps[1].to_string(),
-                yell: &caps[2] == "true",
-            });
+            let mut voice = VoiceEntry::default();
+            if let Some(caps) = text_re.captures(&raw_entry) {
+                voice.text = caps[1].to_string();
+            } else {
+                continue;
+            }
+
+            if let Some(caps) = yell_re.captures(&raw_entry) {
+                voice.yell = &caps[1] == "true";
+            }
+
+            entries.push(voice);
         }
 
         Ok(MonsterVoices {
@@ -258,42 +235,38 @@ impl LuaMonsterParser {
 
     fn parse_loot(&self) -> Result<Vec<LootEntry>> {
         let section = self.extract_table("loot")?;
-        let loot_re = Regex::new(r#"\{([^}]+)\}"#)?;
+        let id_re = Regex::new(r"id\s*=\s*(\d+)")?;
+        let name_re = Regex::new(r#"name\s*=\s*"([^"]+)""#)?;
+        let chance_re = Regex::new(r"chance\s*=\s*(\d+)")?;
+        let min_re = Regex::new(r"minCount\s*=\s*(\d+)")?;
+        let max_re = Regex::new(r"maxCount\s*=\s*(\d+)")?;
+
         let mut loot = Vec::new();
+        for raw_entry in Self::split_top_level_entries(&section) {
+            let mut entry = LootEntry::default();
 
-        for caps in loot_re.captures_iter(&section) {
-            let entry_str = &caps[1];
-            let mut entry = LootEntry {
-                id: None,
-                name: None,
-                chance: 0,
-                min_count: None,
-                max_count: None,
-            };
-
-            // Parse id
-            if let Some(id_caps) = Regex::new(r"id\s*=\s*(\d+)")?.captures(entry_str) {
-                entry.id = Some(id_caps[1].parse()?);
+            if let Some(caps) = id_re.captures(&raw_entry) {
+                entry.id = Some(caps[1].parse()?);
             }
 
-            // Parse name
-            if let Some(name_caps) = Regex::new(r#"name\s*=\s*"([^"]+)""#)?.captures(entry_str) {
-                entry.name = Some(name_caps[1].to_string());
+            if let Some(caps) = name_re.captures(&raw_entry) {
+                entry.name = Some(caps[1].to_string());
             }
 
-            // Parse chance
-            if let Some(chance_caps) = Regex::new(r"chance\s*=\s*(\d+)")?.captures(entry_str) {
-                entry.chance = chance_caps[1].parse()?;
+            if let Some(caps) = chance_re.captures(&raw_entry) {
+                entry.chance = caps[1].parse()?;
             }
 
-            // Parse minCount
-            if let Some(min_caps) = Regex::new(r"minCount\s*=\s*(\d+)")?.captures(entry_str) {
-                entry.min_count = Some(min_caps[1].parse()?);
+            if let Some(caps) = min_re.captures(&raw_entry) {
+                entry.min_count = Some(caps[1].parse()?);
             }
 
-            // Parse maxCount
-            if let Some(max_caps) = Regex::new(r"maxCount\s*=\s*(\d+)")?.captures(entry_str) {
-                entry.max_count = Some(max_caps[1].parse()?);
+            if let Some(caps) = max_re.captures(&raw_entry) {
+                entry.max_count = Some(caps[1].parse()?);
+            }
+
+            if entry.name.is_none() && entry.id.is_none() && entry.chance == 0 {
+                continue;
             }
 
             loot.push(entry);
@@ -327,6 +300,8 @@ impl LuaMonsterParser {
                 combat_type: attack.combat_type,
                 speed_change: attack.speed_change,
                 duration: attack.duration,
+                condition: attack.condition,
+                extra_fields: attack.extra_fields,
             })
             .collect();
 
@@ -339,108 +314,98 @@ impl LuaMonsterParser {
     }
 
     fn parse_spell_entries(&self, section: &str, _is_attack: bool) -> Result<Vec<AttackEntry>> {
-        let spell_re = Regex::new(r#"\{([^}]+)\}"#)?;
         let mut spells = Vec::new();
 
-        for caps in spell_re.captures_iter(section) {
-            let entry_str = &caps[1];
-
-            // Skip if it's just defense/armor/mitigation
-            if !entry_str.contains("name") {
+        for raw_entry in Self::split_top_level_entries(section) {
+            let mut assignments = Self::parse_assignments(&raw_entry);
+            if assignments.is_empty() {
                 continue;
             }
 
-            let mut entry = AttackEntry {
-                name: String::new(),
-                interval: 0,
-                chance: 0,
-                min_damage: None,
-                max_damage: None,
-                range: None,
-                radius: None,
-                target: None,
-                length: None,
-                spread: None,
-                effect: None,
-                shoot_effect: None,
-                combat_type: None,
-                speed_change: None,
-                duration: None,
+            let name_value = match Self::take_assignment(&mut assignments, "name") {
+                Some(value) => value,
+                None => continue,
             };
+            let mut entry = AttackEntry::default();
+            entry.name = Self::strip_quotes(&name_value);
+            let mut extras: Vec<LuaProperty> = Vec::new();
 
-            // Parse name
-            if let Some(name_caps) = Regex::new(r#"name\s*=\s*"([^"]+)""#)?.captures(entry_str) {
-                entry.name = name_caps[1].to_string();
+            if let Some(value) = Self::take_assignment(&mut assignments, "interval") {
+                entry.interval = Self::parse_numeric::<u32>(&value, "interval")?;
             }
 
-            // Parse interval
-            if let Some(interval_caps) = Regex::new(r"interval\s*=\s*(\d+)")?.captures(entry_str) {
-                entry.interval = interval_caps[1].parse()?;
+            if let Some(value) = Self::take_assignment(&mut assignments, "chance") {
+                entry.chance = Self::parse_numeric::<u8>(&value, "chance")?;
             }
 
-            // Parse chance
-            if let Some(chance_caps) = Regex::new(r"chance\s*=\s*(\d+)")?.captures(entry_str) {
-                entry.chance = chance_caps[1].parse()?;
+            if let Some(value) = Self::take_assignment(&mut assignments, "minDamage") {
+                entry.min_damage = Some(Self::parse_numeric::<i32>(&value, "minDamage")?);
             }
 
-            // Parse minDamage
-            if let Some(min_caps) = Regex::new(r"minDamage\s*=\s*(-?\d+)")?.captures(entry_str) {
-                entry.min_damage = Some(min_caps[1].parse()?);
+            if let Some(value) = Self::take_assignment(&mut assignments, "maxDamage") {
+                entry.max_damage = Some(Self::parse_numeric::<i32>(&value, "maxDamage")?);
             }
 
-            // Parse maxDamage
-            if let Some(max_caps) = Regex::new(r"maxDamage\s*=\s*(-?\d+)")?.captures(entry_str) {
-                entry.max_damage = Some(max_caps[1].parse()?);
+            if let Some(value) = Self::take_assignment(&mut assignments, "type") {
+                entry.combat_type = Some(Self::strip_quotes(&value));
             }
 
-            // Parse type
-            if let Some(type_caps) = Regex::new(r"type\s*=\s*([A-Z_]+)")?.captures(entry_str) {
-                entry.combat_type = Some(type_caps[1].to_string());
+            if let Some(value) = Self::take_assignment(&mut assignments, "range") {
+                entry.range = Some(Self::parse_numeric::<u8>(&value, "range")?);
             }
 
-            // Parse range
-            if let Some(range_caps) = Regex::new(r"range\s*=\s*(\d+)")?.captures(entry_str) {
-                entry.range = Some(range_caps[1].parse()?);
+            if let Some(value) = Self::take_assignment(&mut assignments, "radius") {
+                entry.radius = Some(Self::parse_numeric::<u8>(&value, "radius")?);
             }
 
-            // Parse radius
-            if let Some(radius_caps) = Regex::new(r"radius\s*=\s*(\d+)")?.captures(entry_str) {
-                entry.radius = Some(radius_caps[1].parse()?);
+            if let Some(value) = Self::take_assignment(&mut assignments, "target") {
+                entry.target = Self::parse_bool(&value);
             }
 
-            // Parse target
-            if let Some(target_caps) = Regex::new(r"target\s*=\s*(true|false)")?.captures(entry_str) {
-                entry.target = Some(&target_caps[1] == "true");
+            if let Some(value) = Self::take_assignment(&mut assignments, "effect") {
+                entry.effect = Some(Self::strip_quotes(&value));
             }
 
-            // Parse effect
-            if let Some(effect_caps) = Regex::new(r"effect\s*=\s*([A-Z_]+)")?.captures(entry_str) {
-                entry.effect = Some(effect_caps[1].to_string());
+            if let Some(value) = Self::take_assignment(&mut assignments, "shootEffect") {
+                entry.shoot_effect = Some(Self::strip_quotes(&value));
             }
 
-            // Parse shootEffect
-            if let Some(shoot_caps) = Regex::new(r"shootEffect\s*=\s*([A-Z_]+)")?.captures(entry_str) {
-                entry.shoot_effect = Some(shoot_caps[1].to_string());
+            if let Some(value) = Self::take_assignment(&mut assignments, "speedChange") {
+                entry.speed_change = Some(Self::parse_numeric::<i16>(&value, "speedChange")?);
             }
 
-            // Parse speedChange
-            if let Some(speed_caps) = Regex::new(r"speedChange\s*=\s*(-?\d+)")?.captures(entry_str) {
-                entry.speed_change = Some(speed_caps[1].parse()?);
+            if let Some(value) = Self::take_assignment(&mut assignments, "duration") {
+                entry.duration = Some(Self::parse_numeric::<u32>(&value, "duration")?);
             }
 
-            // Parse duration
-            if let Some(duration_caps) = Regex::new(r"duration\s*=\s*(\d+)")?.captures(entry_str) {
-                entry.duration = Some(duration_caps[1].parse()?);
+            if let Some(value) = Self::take_assignment(&mut assignments, "length") {
+                entry.length = Some(Self::parse_numeric::<u8>(&value, "length")?);
             }
 
-            // Parse length
-            if let Some(length_caps) = Regex::new(r"length\s*=\s*(\d+)")?.captures(entry_str) {
-                entry.length = Some(length_caps[1].parse()?);
+            if let Some(value) = Self::take_assignment(&mut assignments, "spread") {
+                entry.spread = Some(Self::parse_numeric::<u8>(&value, "spread")?);
             }
 
-            // Parse spread
-            if let Some(spread_caps) = Regex::new(r"spread\s*=\s*(\d+)")?.captures(entry_str) {
-                entry.spread = Some(spread_caps[1].parse()?);
+            if let Some(value) = Self::take_assignment(&mut assignments, "condition") {
+                if let Some(condition) = Self::parse_inline_table_properties(&value) {
+                    entry.condition = Some(condition);
+                } else {
+                    extras.push(LuaProperty {
+                        key: "condition".to_string(),
+                        value,
+                    });
+                }
+            }
+
+            if !assignments.is_empty() {
+                extras.extend(assignments.into_iter().map(|(key, value)| LuaProperty {
+                    key,
+                    value,
+                }));
+            }
+
+            if !extras.is_empty() {
+                entry.extra_fields = extras;
             }
 
             spells.push(entry);
@@ -451,13 +416,24 @@ impl LuaMonsterParser {
 
     fn parse_elements(&self) -> Result<Vec<ElementEntry>> {
         let section = self.extract_table("elements")?;
-        let element_re = Regex::new(r#"\{\s*type\s*=\s*([A-Z_]+)\s*,\s*percent\s*=\s*(-?\d+)\s*\}"#)?;
-        let mut elements = Vec::new();
+        let type_re = Regex::new(r"type\s*=\s*([A-Z_]+)")?;
+        let percent_re = Regex::new(r"percent\s*=\s*(-?\d+)")?;
 
-        for caps in element_re.captures_iter(&section) {
+        let mut elements = Vec::new();
+        for raw_entry in Self::split_top_level_entries(&section) {
+            let element_type = match type_re.captures(&raw_entry) {
+                Some(caps) => caps[1].to_string(),
+                None => continue,
+            };
+
+            let percent = match percent_re.captures(&raw_entry) {
+                Some(caps) => caps[1].parse()?,
+                None => continue,
+            };
+
             elements.push(ElementEntry {
-                element_type: caps[1].to_string(),
-                percent: caps[2].parse()?,
+                element_type,
+                percent,
             });
         }
 
@@ -466,13 +442,21 @@ impl LuaMonsterParser {
 
     fn parse_immunities(&self) -> Result<Vec<ImmunityEntry>> {
         let section = self.extract_table("immunities")?;
-        let immunity_re = Regex::new(r#"\{\s*type\s*=\s*"([^"]+)"\s*,\s*condition\s*=\s*(true|false)\s*\}"#)?;
-        let mut immunities = Vec::new();
+        let type_re = Regex::new(r#"type\s*=\s*"([^"]+)""#)?;
+        let condition_re = Regex::new(r"condition\s*=\s*(true|false)")?;
 
-        for caps in immunity_re.captures_iter(&section) {
+        let mut immunities = Vec::new();
+        for raw_entry in Self::split_top_level_entries(&section) {
+            let immunity_type = match type_re.captures(&raw_entry) {
+                Some(caps) => caps[1].to_string(),
+                None => continue,
+            };
+
+            let condition = condition_re.captures(&raw_entry).map(|caps| &caps[1] == "true").unwrap_or(false);
+
             immunities.push(ImmunityEntry {
-                immunity_type: caps[1].to_string(),
-                condition: &caps[2] == "true",
+                immunity_type,
+                condition,
             });
         }
 
@@ -481,10 +465,310 @@ impl LuaMonsterParser {
 
     // Helper methods
     fn extract_table(&self, table_name: &str) -> Result<String> {
-        let pattern = format!(r"monster\.{}\s*=\s*\{{([^}}]*(?:\{{[^}}]*\}}[^}}]*)*)\}}", table_name);
-        let re = Regex::new(&pattern)?;
-        let caps = re.captures(&self.content).context(format!("Failed to find table: {}", table_name))?;
-        Ok(caps[1].to_string())
+        let search = format!("monster.{}", table_name);
+        let content = &self.content;
+        let start_pos = content.find(&search).context(format!("Failed to find table: {}", table_name))?;
+
+        let bytes = content.as_bytes();
+        let len = bytes.len();
+        let mut idx = start_pos + search.len();
+
+        while idx < len && bytes[idx].is_ascii_whitespace() {
+            idx += 1;
+        }
+
+        if idx >= len || bytes[idx] != b'=' {
+            return Err(anyhow!("Failed to find '=' for table: {}", table_name));
+        }
+
+        idx += 1;
+        while idx < len && bytes[idx].is_ascii_whitespace() {
+            idx += 1;
+        }
+
+        if idx >= len || bytes[idx] != b'{' {
+            return Err(anyhow!("Failed to locate opening brace for table: {}", table_name));
+        }
+
+        let start = idx + 1;
+        let mut depth = 1;
+        let mut cursor = start;
+
+        while cursor < len {
+            match bytes[cursor] {
+                b'{' => {
+                    depth += 1;
+                    cursor += 1;
+                }
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Ok(content[start..cursor].to_string());
+                    }
+                    cursor += 1;
+                }
+                b'"' => {
+                    cursor += 1;
+                    while cursor < len {
+                        if bytes[cursor] == b'\\' {
+                            cursor += 2;
+                        } else if bytes[cursor] == b'"' {
+                            cursor += 1;
+                            break;
+                        } else {
+                            cursor += 1;
+                        }
+                    }
+                }
+                _ => {
+                    cursor += 1;
+                }
+            }
+        }
+
+        Err(anyhow!("Failed to find closing brace for table: {}", table_name))
+    }
+
+    fn split_top_level_entries(section: &str) -> Vec<String> {
+        let bytes = section.as_bytes();
+        let len = bytes.len();
+        let mut entries = Vec::new();
+        let mut i = 0;
+
+        while i < len {
+            if bytes[i] == b'{' {
+                let start = i + 1;
+                let mut depth = 1;
+                let mut j = start;
+
+                while j < len {
+                    match bytes[j] {
+                        b'{' => {
+                            depth += 1;
+                            j += 1;
+                        }
+                        b'}' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                let fragment = section[start..j].trim();
+                                if !fragment.is_empty() {
+                                    entries.push(fragment.to_string());
+                                }
+                                j += 1;
+                                i = j;
+                                break;
+                            }
+                            j += 1;
+                        }
+                        b'"' => {
+                            j += 1;
+                            while j < len {
+                                if bytes[j] == b'\\' {
+                                    j += 2;
+                                } else if bytes[j] == b'"' {
+                                    j += 1;
+                                    break;
+                                } else {
+                                    j += 1;
+                                }
+                            }
+                        }
+                        _ => {
+                            j += 1;
+                        }
+                    }
+                }
+
+                if j >= len {
+                    break;
+                }
+            } else {
+                i += 1;
+            }
+        }
+
+        entries
+    }
+
+    fn parse_assignments(entry: &str) -> Vec<(String, String)> {
+        let bytes = entry.as_bytes();
+        let len = bytes.len();
+        let mut pairs = Vec::new();
+        let mut i = 0;
+
+        while i < len {
+            while i < len && bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            if i >= len {
+                break;
+            }
+            if bytes[i] == b'-' && i + 1 < len && bytes[i + 1] == b'-' {
+                break;
+            }
+            if bytes[i] == b',' {
+                i += 1;
+                continue;
+            }
+
+            let key_start = i;
+            while i < len && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_' || bytes[i] == b'.') {
+                i += 1;
+            }
+            if key_start == i {
+                i += 1;
+                continue;
+            }
+
+            let key = entry[key_start..i].trim().to_string();
+            while i < len && bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            if i >= len || bytes[i] != b'=' {
+                while i < len && bytes[i] != b',' {
+                    if bytes[i] == b'-' && i + 1 < len && bytes[i + 1] == b'-' {
+                        i = len;
+                        break;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            i += 1;
+            while i < len && bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            let value_start = i;
+            let mut depth = 0;
+            let mut in_string = false;
+
+            while i < len {
+                let c = bytes[i];
+                if in_string {
+                    if c == b'\\' && i + 1 < len {
+                        i += 2;
+                        continue;
+                    }
+                    if c == b'"' {
+                        in_string = false;
+                    }
+                    i += 1;
+                    continue;
+                }
+
+                match c {
+                    b'"' => {
+                        in_string = true;
+                        i += 1;
+                    }
+                    b'{' => {
+                        depth += 1;
+                        i += 1;
+                    }
+                    b'}' => {
+                        if depth == 0 {
+                            break;
+                        }
+                        depth -= 1;
+                        i += 1;
+                    }
+                    b',' => {
+                        if depth == 0 {
+                            break;
+                        }
+                        i += 1;
+                    }
+                    b'-' if i + 1 < len && bytes[i + 1] == b'-' && depth == 0 => {
+                        break;
+                    }
+                    _ => i += 1,
+                }
+            }
+
+            let mut value = entry[value_start..i].trim().to_string();
+            if value.ends_with(',') {
+                value.pop();
+                value = value.trim().to_string();
+            }
+
+            pairs.push((key, value));
+
+            while i < len && bytes[i] != b',' {
+                if bytes[i] == b'-' && i + 1 < len && bytes[i + 1] == b'-' {
+                    i = len;
+                    break;
+                }
+                i += 1;
+            }
+            if i < len && bytes[i] == b',' {
+                i += 1;
+            }
+        }
+
+        pairs
+    }
+
+    fn take_assignment(assignments: &mut Vec<(String, String)>, key: &str) -> Option<String> {
+        if let Some(index) = assignments.iter().position(|(k, _)| k == key) {
+            Some(assignments.remove(index).1)
+        } else {
+            None
+        }
+    }
+
+    fn parse_inline_table_properties(value: &str) -> Option<Vec<LuaProperty>> {
+        let trimmed = value.trim();
+        if !trimmed.starts_with('{') || !trimmed.ends_with('}') {
+            return None;
+        }
+
+        let inner = trimmed.trim_start_matches('{').trim_end_matches('}').trim();
+
+        if inner.is_empty() {
+            return Some(Vec::new());
+        }
+
+        let assignments = Self::parse_assignments(inner);
+        if assignments.is_empty() {
+            return Some(Vec::new());
+        }
+
+        Some(
+            assignments
+                .into_iter()
+                .map(|(key, value)| LuaProperty {
+                    key,
+                    value,
+                })
+                .collect(),
+        )
+    }
+
+    fn parse_bool(value: &str) -> Option<bool> {
+        match value.trim() {
+            "true" => Some(true),
+            "false" => Some(false),
+            _ => None,
+        }
+    }
+
+    fn strip_quotes(value: &str) -> String {
+        let trimmed = value.trim();
+        if (trimmed.starts_with('"') && trimmed.ends_with('"')) || (trimmed.starts_with('\'') && trimmed.ends_with('\'')) {
+            trimmed[1..trimmed.len() - 1].to_string()
+        } else {
+            trimmed.to_string()
+        }
+    }
+
+    fn parse_numeric<T>(value: &str, field: &str) -> Result<T>
+    where
+        T: TryFrom<i64>,
+        <T as TryFrom<i64>>::Error: fmt::Display,
+    {
+        let trimmed = value.trim();
+        let parsed: i64 = trimmed.parse()?;
+        T::try_from(parsed).map_err(|err| anyhow!("Failed to parse {} value '{}': {}", field, trimmed, err))
     }
 
     fn extract_from_section(&self, section: &str, field: &str) -> Result<i64> {

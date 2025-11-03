@@ -11,6 +11,13 @@ pub struct MonsterMeta {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct LuaProperty {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct MonsterOutfit {
     pub look_type: u32,
     pub look_head: u8,
@@ -155,6 +162,10 @@ pub struct AttackEntry {
     pub speed_change: Option<i16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub condition: Option<Vec<LuaProperty>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub extra_fields: Vec<LuaProperty>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -177,6 +188,10 @@ pub struct DefenseEntry {
     pub speed_change: Option<i16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub condition: Option<Vec<LuaProperty>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub extra_fields: Vec<LuaProperty>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

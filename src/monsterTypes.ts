@@ -90,6 +90,11 @@ export interface LootEntry {
   maxCount?: number;
 }
 
+export interface LuaProperty {
+  key: string;
+  value: string;
+}
+
 export interface AttackEntry {
   name: string;
   interval: number;
@@ -106,6 +111,8 @@ export interface AttackEntry {
   combatType?: string;
   speedChange?: number;
   duration?: number;
+  condition?: LuaProperty[];
+  extraFields?: LuaProperty[];
 }
 
 export interface DefenseEntry {
@@ -119,6 +126,8 @@ export interface DefenseEntry {
   combatType?: string;
   speedChange?: number;
   duration?: number;
+  condition?: LuaProperty[];
+  extraFields?: LuaProperty[];
 }
 
 export interface MonsterDefenses {

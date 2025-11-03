@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
-import type { Monster, MonsterListEntry, MonsterMeta } from "./monsterTypes";
+﻿import { invoke } from "@tauri-apps/api/core";
+import type { AttackEntry, DefenseEntry, LuaProperty, Monster, MonsterListEntry, MonsterMeta } from "./monsterTypes";
 import { getAppearanceSprites } from "./spriteCache";
 
 export interface MonsterEditorOptions {
@@ -509,37 +509,422 @@ function createCombatStatsCard(): HTMLElement {
 }
 
 function createAttacksCard(): HTMLElement {
+
   if (!currentMonster) return document.createElement("div");
 
+
+
   const content = document.createElement("div");
+
   content.className = "card-content";
 
-  const attacksList = document.createElement("div");
-  attacksList.className = "attacks-list";
 
-  if (currentMonster.attacks.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "empty-state";
-    empty.textContent = "No attacks configured";
-    attacksList.appendChild(empty);
-  } else {
-    currentMonster.attacks.forEach((attack) => {
-      const attackItem = document.createElement("div");
-      attackItem.className = "attack-item";
-      attackItem.innerHTML = `
-        <strong>${attack.name}</strong> -
-        Interval: ${attack.interval}ms,
-        Chance: ${attack.chance}%,
-        Damage: ${attack.minDamage || 0}-${attack.maxDamage || 0}
-      `;
-      attacksList.appendChild(attackItem);
-    });
+
+  type SpellEntry = AttackEntry | DefenseEntry;
+
+
+
+  const formatLuaDisplayValue = (raw: string): string => {
+
+  const trimmed = raw.trim();
+
+
+
+  if ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+
+    return trimmed.slice(1, -1);
+
   }
 
-  content.appendChild(attacksList);
 
-  return createCard("⚔️ Attacks", content);
+
+  if (trimmed === "true") return "Yes";
+
+  if (trimmed === "false") return "No";
+
+  return trimmed;
+
+};
+
+
+
+const renderSpellEntry = (entry: SpellEntry, category: "attack" | "defense"): HTMLElement => {
+
+    const container = document.createElement("div");
+
+    container.className = "attack-item";
+
+
+
+    const header = document.createElement("div");
+
+    header.className = "attack-item-header";
+
+
+
+    const nameEl = document.createElement("strong");
+
+    nameEl.textContent = entry.name || "(Unnamed)";
+
+    header.appendChild(nameEl);
+
+
+
+    const badge = document.createElement("span");
+
+    badge.className = `attack-badge ${category === "attack" ? "attack-badge-offense" : "attack-badge-defense"}`;
+
+    badge.textContent = category === "attack" ? "Attack" : "Defense";
+
+    header.appendChild(badge);
+
+
+
+    container.appendChild(header);
+
+
+
+    const metaEntries: Array<{ label: string; value: string }> = [];
+
+    const addMeta = (label: string, value?: string | null) => {
+
+      if (value && value.trim().length > 0) {
+
+        metaEntries.push({ label, value });
+
+      }
+
+    };
+
+
+
+    if ("interval" in entry && entry.interval > 0) {
+
+      addMeta("Interval", `${entry.interval} ms`);
+
+    }
+
+
+
+    addMeta("Chance", `${entry.chance}%`);
+
+
+
+    const minDamage = "minDamage" in entry ? entry.minDamage : undefined;
+
+    const maxDamage = "maxDamage" in entry ? entry.maxDamage : undefined;
+
+    if (minDamage !== undefined || maxDamage !== undefined) {
+
+      if (minDamage !== undefined && maxDamage !== undefined) {
+
+        addMeta("Damage", `${minDamage} to ${maxDamage}`);
+
+      } else if (minDamage !== undefined) {
+
+        addMeta("Damage", `${minDamage}`);
+
+      } else if (maxDamage !== undefined) {
+
+        addMeta("Damage", `${maxDamage}`);
+
+      }
+
+    }
+
+
+
+    if ("range" in entry && entry.range !== undefined) {
+
+      addMeta("Range", `${entry.range} tile${entry.range === 1 ? "" : "s"}`);
+
+    }
+
+
+
+    if ("radius" in entry && entry.radius !== undefined) {
+
+      addMeta("Radius", `${entry.radius}`);
+
+    }
+
+
+
+    if ("length" in entry && entry.length !== undefined) {
+
+      addMeta("Length", `${entry.length}`);
+
+    }
+
+
+
+    if ("spread" in entry && entry.spread !== undefined) {
+
+      addMeta("Spread", `${entry.spread}`);
+
+    }
+
+
+
+    if (entry.target !== undefined) {
+
+      addMeta("Target", entry.target ? "Yes" : "No");
+
+    }
+
+
+
+    if (entry.effect) {
+
+      addMeta("Effect", formatLuaDisplayValue(entry.effect));
+
+    }
+
+
+
+    if ("shootEffect" in entry && entry.shootEffect) {
+
+      addMeta("Shoot Effect", formatLuaDisplayValue(entry.shootEffect));
+
+    }
+
+
+
+    if (entry.combatType) {
+
+      addMeta("Combat Type", formatLuaDisplayValue(entry.combatType));
+
+    }
+
+
+
+    if (entry.speedChange !== undefined) {
+
+      addMeta("Speed Change", `${entry.speedChange}`);
+
+    }
+
+
+
+    if (entry.duration !== undefined) {
+
+      addMeta("Duration", `${entry.duration} ms`);
+
+    }
+
+
+
+    if (metaEntries.length > 0) {
+
+      const metaGrid = document.createElement("div");
+
+      metaGrid.className = "attack-meta-grid";
+
+
+
+      metaEntries.forEach(({ label, value }) => {
+
+        const metaCell = document.createElement("div");
+
+        metaCell.className = "attack-meta-entry";
+
+
+
+        const labelEl = document.createElement("span");
+
+        labelEl.className = "attack-meta-label";
+
+        labelEl.textContent = label;
+
+
+
+        const valueEl = document.createElement("span");
+
+        valueEl.className = "attack-meta-value";
+
+        valueEl.textContent = value;
+
+
+
+        metaCell.append(labelEl, valueEl);
+
+        metaGrid.appendChild(metaCell);
+
+      });
+
+
+
+      container.appendChild(metaGrid);
+
+    }
+
+
+
+    const appendPropertiesSection = (title: string, properties?: LuaProperty[] | null) => {
+
+      if (!properties || properties.length === 0) return;
+
+
+
+      const section = document.createElement("div");
+
+      section.className = "attack-subsection";
+
+
+
+      const titleEl = document.createElement("div");
+
+      titleEl.className = "attack-subsection-title";
+
+      titleEl.textContent = title;
+
+      section.appendChild(titleEl);
+
+
+
+      const list = document.createElement("div");
+
+      list.className = "attack-property-list";
+
+
+
+      properties.forEach((property) => {
+
+        const row = document.createElement("div");
+
+        row.className = "attack-property-row";
+
+
+
+        const keyEl = document.createElement("span");
+
+        keyEl.className = "attack-meta-label";
+
+        keyEl.textContent = property.key;
+
+
+
+        const valueEl = document.createElement("span");
+
+        valueEl.className = "attack-meta-value";
+
+        valueEl.textContent = formatLuaDisplayValue(property.value);
+
+
+
+        row.append(keyEl, valueEl);
+
+        list.appendChild(row);
+
+      });
+
+
+
+      section.appendChild(list);
+
+      container.appendChild(section);
+
+    };
+
+
+
+    appendPropertiesSection("Condition", entry.condition);
+
+    appendPropertiesSection("Extra Fields", entry.extraFields);
+
+
+
+    return container;
+
+  };
+
+
+
+  const createSectionHeading = (title: string) => {
+
+    const heading = document.createElement("h4");
+
+    heading.textContent = title;
+
+    heading.style.marginTop = "var(--space-lg)";
+
+    heading.style.marginBottom = "var(--space-md)";
+
+    heading.style.fontSize = "0.875rem";
+
+    heading.style.fontWeight = "600";
+
+    heading.style.color = "var(--text-secondary)";
+
+    heading.style.textTransform = "uppercase";
+
+    heading.style.letterSpacing = "0.05em";
+
+    return heading;
+
+  };
+
+
+
+  const sections: Array<{ title: string; items: SpellEntry[]; category: "attack" | "defense" }> = [
+
+    { title: "Offensive Spells", items: currentMonster.attacks, category: "attack" },
+
+    { title: "Defensive Spells", items: currentMonster.defenses.entries, category: "defense" },
+
+  ];
+
+
+
+    let renderedSections = 0;
+  sections.forEach(({ title, items, category }) => {
+    if (items.length === 0) return;
+
+    const heading = createSectionHeading(title);
+    if (renderedSections === 0) {
+      heading.style.marginTop = "0";
+    }
+    content.appendChild(heading);
+    renderedSections += 1;
+
+    const list = document.createElement("div");
+
+    list.className = category === "attack" ? "attacks-list" : "defenses-list";
+
+
+
+    items.forEach((entry) => {
+
+      list.appendChild(renderSpellEntry(entry, category));
+
+    });
+
+
+
+    content.appendChild(list);
+
+  });
+
+
+
+  if (renderedSections === 0) {
+
+    const empty = document.createElement("div");
+
+    empty.className = "empty-state";
+
+    empty.textContent = "No attacks or defenses configured";
+
+    content.appendChild(empty);
+
+  }
+
+
+
+  return createCard("?? Attacks & Defenses", content);
+
 }
+
 
 function createElementsImmunitiesCard(): HTMLElement {
   if (!currentMonster) return document.createElement("div");
@@ -972,3 +1357,5 @@ async function saveMonster() {
     alert(`Failed to save monster: ${error}`);
   }
 }
+
+

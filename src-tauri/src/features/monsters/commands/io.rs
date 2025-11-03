@@ -266,6 +266,19 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
         if let Some(duration) = a.duration {
             lua.push_str(&format!(", duration = {}", duration));
         }
+        if let Some(condition) = &a.condition {
+            lua.push_str(", condition = { ");
+            for (idx, prop) in condition.iter().enumerate() {
+                if idx > 0 {
+                    lua.push_str(", ");
+                }
+                lua.push_str(&format!("{} = {}", prop.key, prop.value));
+            }
+            lua.push_str(" }");
+        }
+        for prop in &a.extra_fields {
+            lua.push_str(&format!(", {} = {}", prop.key, prop.value));
+        }
         lua.push_str(" },\n");
     }
     lua.push_str("}\n\n");
@@ -297,6 +310,19 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
         }
         if let Some(duration) = d.duration {
             lua.push_str(&format!(", duration = {}", duration));
+        }
+        if let Some(condition) = &d.condition {
+            lua.push_str(", condition = { ");
+            for (idx, prop) in condition.iter().enumerate() {
+                if idx > 0 {
+                    lua.push_str(", ");
+                }
+                lua.push_str(&format!("{} = {}", prop.key, prop.value));
+            }
+            lua.push_str(" }");
+        }
+        for prop in &d.extra_fields {
+            lua.push_str(&format!(", {} = {}", prop.key, prop.value));
         }
         lua.push_str(" },\n");
     }
