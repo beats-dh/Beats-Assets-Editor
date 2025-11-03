@@ -188,41 +188,30 @@ function renderAllSections(container: HTMLElement) {
   const cardsGrid = document.createElement("div");
   cardsGrid.className = "monster-cards-grid";
 
-  // Row 1: Outfit Preview (full width)
-  const outfitCard = createOutfitPreviewCard();
-  outfitCard.classList.add("card-full-width");
-  cardsGrid.appendChild(outfitCard);
+  const appendCard = (card: HTMLElement | null) => {
+    if (!card) return;
 
-  // Row 2: Basic Info + Combat Stats
-  cardsGrid.appendChild(createBasicInfoCard());
-  cardsGrid.appendChild(createCombatStatsCard());
+    cardsGrid.appendChild(card);
+  };
 
-  // Row 3: Attacks + Elements & Immunities
-  cardsGrid.appendChild(createAttacksCard());
-  cardsGrid.appendChild(createElementsImmunitiesCard());
+  appendCard(createOutfitPreviewCard());
+  appendCard(createBasicInfoCard());
+  appendCard(createCombatStatsCard());
+  appendCard(createAttacksCard());
+  appendCard(createElementsImmunitiesCard());
 
-  // Row 4: Loot (full width if has many items)
   const lootCard = createLootCard();
-  if (currentMonster.loot.length > 5) {
-    lootCard.classList.add("card-full-width");
-  }
-  cardsGrid.appendChild(lootCard);
+  appendCard(lootCard);
 
-  // Row 5: Summons + Voices (if exist)
   if (currentMonster.summon) {
-    cardsGrid.appendChild(createSummonsCard());
+    appendCard(createSummonsCard());
   }
   if (currentMonster.voices) {
-    cardsGrid.appendChild(createVoicesCard());
+    appendCard(createVoicesCard());
   }
 
-  // Row 6: Flags (full width)
-  const flagsCard = createFlagsCard();
-  flagsCard.classList.add("card-full-width");
-  cardsGrid.appendChild(flagsCard);
-
-  // Row 7: Advanced Settings
-  cardsGrid.appendChild(createAdvancedSettingsCard());
+  appendCard(createFlagsCard());
+  appendCard(createAdvancedSettingsCard());
 
   container.appendChild(cardsGrid);
 }
@@ -328,8 +317,8 @@ function createOutfitPreviewCard(): HTMLElement {
   const spriteImg = document.createElement("img");
   spriteImg.className = "outfit-sprite-image";
   spriteImg.style.imageRendering = "pixelated";
-  spriteImg.style.width = "100%";
-  spriteImg.style.height = "100%";
+  spriteImg.style.width = "80%";
+  spriteImg.style.height = "80%";
   spriteImg.style.objectFit = "contain";
 
   // Function to load and display outfit sprite

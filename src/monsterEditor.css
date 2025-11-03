@@ -231,9 +231,9 @@
 /* Cards Grid */
 .monster-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-lg);
-  max-width: 1400px;
+  width: 100%;
 }
 
 /* Card Styles */
@@ -244,6 +244,9 @@
   overflow: hidden;
   transition: var(--transition-normal);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .monster-card:hover {
@@ -266,12 +269,16 @@
 
 .monster-card-body {
   padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .card-content {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  flex: 1;
 }
 
 /* Forms */
@@ -520,7 +527,9 @@
 
   .monster-cards-grid {
     grid-template-columns: 1fr;
+    gap: var(--space-md);
   }
+
 
   .form-row {
     grid-template-columns: 1fr;
