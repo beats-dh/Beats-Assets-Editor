@@ -4914,6 +4914,7 @@ dependencies = [
  "prost-types",
  "protoc-bin-vendored",
  "rayon",
+ "regex",
  "serde",
  "serde_json",
  "string-interner",

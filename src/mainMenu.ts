@@ -341,9 +341,18 @@ export function initializeAppLauncher(callbacks: LauncherCallbacks = {}): void {
       'Monster editor',
       'Select a monster scripts folder to load encounter data just like assets.',
       '🐲',
-      () => {
-        view.innerHTML = '';
-        view.append(createMonsterEditorView({ onBack: renderHome }));
+      async () => {
+        try {
+          const { open } = await import('@tauri-apps/plugin-dialog');
+          const selection = await open({ directory: true, multiple: false });
+          if (typeof selection === 'string' && selection) {
+            view.innerHTML = '';
+            view.append(createMonsterEditorView({ onBack: renderHome, monstersPath: selection }));
+          }
+        } catch (error) {
+          console.error('Failed to open directory chooser:', error);
+          alert('Failed to select monster scripts folder');
+        }
       }
     );
 

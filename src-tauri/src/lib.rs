@@ -124,6 +124,10 @@ pub fn run() {
             features::sounds::commands::add_numeric_sound_effect,
             features::sounds::commands::delete_numeric_sound_effect,
             features::sounds::commands::import_and_add_sound,
+            // Monsters API
+            features::monsters::commands::list_monster_files,
+            features::monsters::commands::load_monster_file,
+            features::monsters::commands::save_monster_file,
             // Settings API
             features::settings::set_tibia_base_path,
             features::settings::get_tibia_base_path,
