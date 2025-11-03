@@ -17,7 +17,7 @@ export interface FolderSelectionViewOptions {
   readyText?: string;
 }
 
-function createHeader(title: string, description: string): HTMLElement {
+function createHeader(title: string, description: string, onBack: () => void): HTMLElement {
   const header = document.createElement("div");
   header.className = "editor-header";
 
@@ -29,7 +29,13 @@ function createHeader(title: string, description: string): HTMLElement {
   subtitle.textContent = description;
   body.append(heading, subtitle);
 
-  header.append(body);
+  const backButton = document.createElement("button");
+  backButton.type = "button";
+  backButton.className = "editor-back-button";
+  backButton.innerHTML = '<span class="btn-icon">🏠</span><span>Back to Home</span>';
+  backButton.addEventListener("click", onBack);
+
+  header.append(body, backButton);
   return header;
 }
 
@@ -129,7 +135,7 @@ export function createFolderSelectionView(options: FolderSelectionViewOptions): 
   container.className = "editor-view launcher-folder-view";
 
   container.append(
-    createHeader(options.title, options.description)
+    createHeader(options.title, options.description, options.onBack)
   );
 
   const card = document.createElement("div");
