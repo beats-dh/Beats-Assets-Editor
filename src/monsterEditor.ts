@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Monster, MonsterListEntry } from "./monsterTypes";
+import type { Monster, MonsterListEntry, MonsterMeta } from "./monsterTypes";
 import { getAppearanceSprites } from "./spriteCache";
 
 export interface MonsterEditorOptions {
@@ -15,6 +15,28 @@ export interface EditorViewOptions {
 let currentMonster: Monster | null = null;
 let currentFilePath: string | null = null;
 let monsterList: MonsterListEntry[] = [];
+
+function ensureMonsterMeta(monster: Monster): MonsterMeta {
+  if (!monster.meta) {
+    monster.meta = { missingFields: [], touchedFields: [] };
+  } else {
+    if (!monster.meta.missingFields) {
+      monster.meta.missingFields = [];
+    }
+    if (!monster.meta.touchedFields) {
+      monster.meta.touchedFields = [];
+    }
+  }
+  return monster.meta!;
+}
+
+function markFieldTouched(field: string) {
+  if (!currentMonster) return;
+  const meta = ensureMonsterMeta(currentMonster);
+  if (!meta.touchedFields.includes(field)) {
+    meta.touchedFields.push(field);
+  }
+}
 
 export function createMonsterEditorView({ onBack, monstersPath }: MonsterEditorOptions): HTMLElement {
   const container = document.createElement("div");
@@ -149,6 +171,9 @@ async function loadMonster(filePath: string, editorArea: HTMLElement) {
   try {
     currentMonster = await invoke<Monster>("load_monster_file", { filePath });
     currentFilePath = filePath;
+    if (currentMonster) {
+      ensureMonsterMeta(currentMonster);
+    }
     renderMonsterEditor(editorArea);
   } catch (error) {
     editorArea.innerHTML = `<div class='error'>Failed to load monster: ${error}</div>`;
@@ -247,6 +272,7 @@ function createBasicInfoCard(): HTMLElement {
 
   content.appendChild(createFormGroup("Description", "textarea", currentMonster.description, (value) => {
     if (currentMonster) currentMonster.description = value;
+    markFieldTouched("description");
   }));
 
   const statsRow = document.createElement("div");
@@ -254,14 +280,17 @@ function createBasicInfoCard(): HTMLElement {
 
   statsRow.appendChild(createFormGroup("Experience", "number", currentMonster.experience.toString(), (value) => {
     if (currentMonster) currentMonster.experience = parseInt(value) || 0;
+    markFieldTouched("experience");
   }));
 
   statsRow.appendChild(createFormGroup("Health", "number", currentMonster.health.toString(), (value) => {
     if (currentMonster) currentMonster.health = parseInt(value) || 0;
+    markFieldTouched("health");
   }));
 
   statsRow.appendChild(createFormGroup("Max Health", "number", currentMonster.maxHealth.toString(), (value) => {
     if (currentMonster) currentMonster.maxHealth = parseInt(value) || 0;
+    markFieldTouched("maxHealth");
   }));
 
   content.appendChild(statsRow);
@@ -271,14 +300,17 @@ function createBasicInfoCard(): HTMLElement {
 
   detailsRow.appendChild(createFormGroup("Speed", "number", currentMonster.speed.toString(), (value) => {
     if (currentMonster) currentMonster.speed = parseInt(value) || 0;
+    markFieldTouched("speed");
   }));
 
   detailsRow.appendChild(createFormGroup("Mana Cost", "number", currentMonster.manaCost.toString(), (value) => {
     if (currentMonster) currentMonster.manaCost = parseInt(value) || 0;
+    markFieldTouched("manaCost");
   }));
 
   detailsRow.appendChild(createFormGroup("Race", "text", currentMonster.race, (value) => {
     if (currentMonster) currentMonster.race = value;
+    markFieldTouched("race");
   }));
 
   content.appendChild(detailsRow);
@@ -288,10 +320,12 @@ function createBasicInfoCard(): HTMLElement {
 
   idsRow.appendChild(createFormGroup("Race ID", "number", currentMonster.raceId.toString(), (value) => {
     if (currentMonster) currentMonster.raceId = parseInt(value) || 0;
+    markFieldTouched("raceId");
   }));
 
   idsRow.appendChild(createFormGroup("Corpse ID", "number", currentMonster.corpse.toString(), (value) => {
     if (currentMonster) currentMonster.corpse = parseInt(value) || 0;
+    markFieldTouched("corpse");
   }));
 
   content.appendChild(idsRow);
@@ -925,6 +959,8 @@ async function saveMonster() {
     alert("No monster loaded");
     return;
   }
+
+  ensureMonsterMeta(currentMonster);
 
   try {
     await invoke("save_monster_file", {

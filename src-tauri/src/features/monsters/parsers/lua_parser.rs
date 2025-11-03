@@ -1,6 +1,7 @@
 use crate::features::monsters::types::*;
 use anyhow::{Context, Result};
 use regex::Regex;
+use std::collections::HashSet;
 
 pub struct LuaMonsterParser {
     content: String,
@@ -8,85 +9,124 @@ pub struct LuaMonsterParser {
 
 impl LuaMonsterParser {
     pub fn new(content: String) -> Self {
-        Self { content }
+        Self {
+            content,
+        }
     }
 
     pub fn parse(&self) -> Result<Monster> {
-        let name = self.extract_monster_name()?;
-        let description = self.extract_string_field("description")?;
-        let experience = self.extract_number_field("experience")? as u32;
-        let outfit = self.parse_outfit()?;
-        let race_id = self.extract_number_field("raceId")? as u32;
-        let bestiary = self.parse_bestiary().ok();
-        let health = self.extract_number_field("health")? as u32;
-        let max_health = self.extract_number_field("maxHealth")? as u32;
-        let race = self.extract_string_field("race")?;
-        let corpse = self.extract_number_field("corpse")? as u32;
-        let speed = self.extract_number_field("speed")? as u16;
-        let mana_cost = self.extract_number_field("manaCost")? as u16;
-        let change_target = self.parse_change_target()?;
-        let strategies_target = self.parse_strategies_target()?;
-        let flags = self.parse_flags()?;
-        let light = self.parse_light()?;
-        let summon = self.parse_summon().ok();
-        let voices = self.parse_voices().ok();
-        let loot = self.parse_loot()?;
-        let attacks = self.parse_attacks()?;
-        let defenses = self.parse_defenses()?;
-        let elements = self.parse_elements()?;
-        let immunities = self.parse_immunities()?;
+        let mut missing_fields: HashSet<String> = HashSet::new();
 
-        Ok(Monster {
-            name,
-            description,
-            experience,
-            outfit,
-            race_id,
-            bestiary,
-            health,
-            max_health,
-            race,
-            corpse,
-            speed,
-            mana_cost,
-            change_target,
-            strategies_target,
-            flags,
-            light,
-            summon,
-            voices,
-            loot,
-            attacks,
-            defenses,
-            elements,
-            immunities,
-        })
+        let mut monster = Monster::default();
+
+        monster.name = self.extract_monster_name()?;
+        monster.description = self.extract_string_field_with_default("description", "", &mut missing_fields)?;
+        monster.experience = self.extract_number_field_with_default("experience", 0, &mut missing_fields)? as u32;
+        monster.outfit = match self.parse_outfit() {
+            Ok(value) => value,
+            Err(_) => MonsterOutfit::default(),
+        };
+        monster.race_id = self.extract_number_field_with_default("raceId", 0, &mut missing_fields)? as u32;
+        monster.bestiary = self.parse_bestiary().ok();
+        monster.health = self.extract_number_field_with_default("health", 0, &mut missing_fields)? as u32;
+        monster.max_health = self.extract_number_field_with_default("maxHealth", 0, &mut missing_fields)? as u32;
+        monster.race = self.extract_string_field_with_default("race", "", &mut missing_fields)?;
+        monster.corpse = self.extract_number_field_with_default("corpse", 0, &mut missing_fields)? as u32;
+        monster.speed = self.extract_number_field_with_default("speed", 0, &mut missing_fields)? as u16;
+        monster.mana_cost = self.extract_number_field_with_default("manaCost", 0, &mut missing_fields)? as u16;
+        monster.change_target = match self.parse_change_target() {
+            Ok(value) => value,
+            Err(_) => ChangeTarget::default(),
+        };
+        monster.strategies_target = match self.parse_strategies_target() {
+            Ok(value) => value,
+            Err(_) => StrategiesTarget::default(),
+        };
+        monster.flags = match self.parse_flags() {
+            Ok(value) => value,
+            Err(_) => MonsterFlags::default(),
+        };
+        monster.light = match self.parse_light() {
+            Ok(value) => value,
+            Err(_) => MonsterLight::default(),
+        };
+        monster.summon = match self.parse_summon() {
+            Ok(value) => Some(value),
+            Err(_) => None,
+        };
+        monster.voices = match self.parse_voices() {
+            Ok(value) => Some(value),
+            Err(_) => None,
+        };
+        monster.loot = match self.parse_loot() {
+            Ok(value) => value,
+            Err(_) => Vec::new(),
+        };
+        monster.attacks = match self.parse_attacks() {
+            Ok(value) => value,
+            Err(_) => Vec::new(),
+        };
+        monster.defenses = match self.parse_defenses() {
+            Ok(value) => value,
+            Err(_) => MonsterDefenses::default(),
+        };
+        monster.elements = match self.parse_elements() {
+            Ok(value) => value,
+            Err(_) => Vec::new(),
+        };
+        monster.immunities = match self.parse_immunities() {
+            Ok(value) => value,
+            Err(_) => Vec::new(),
+        };
+
+        let mut meta = MonsterMeta::default();
+        if !missing_fields.is_empty() {
+            let mut missing: Vec<String> = missing_fields.into_iter().collect();
+            missing.sort();
+            meta.missing_fields = missing;
+        }
+
+        monster.meta = meta;
+
+        Ok(monster)
     }
 
     fn extract_monster_name(&self) -> Result<String> {
         let re = Regex::new(r#"Game\.createMonsterType\("([^"]+)"\)"#)?;
-        let caps = re
-            .captures(&self.content)
-            .context("Failed to find monster name")?;
+        let caps = re.captures(&self.content).context("Failed to find monster name")?;
         Ok(caps[1].to_string())
     }
 
-    fn extract_string_field(&self, field: &str) -> Result<String> {
+    fn extract_string_field_optional(&self, field: &str) -> Result<Option<String>> {
         let pattern = format!(r#"monster\.{}\s*=\s*"([^"]*)""#, field);
         let re = Regex::new(&pattern)?;
-        let caps = re
-            .captures(&self.content)
-            .context(format!("Failed to find field: {}", field))?;
-        Ok(caps[1].to_string())
+        Ok(re.captures(&self.content).and_then(|caps| caps.get(1).map(|m| m.as_str().to_string())))
     }
 
-    fn extract_number_field(&self, field: &str) -> Result<i64> {
+    fn extract_string_field_with_default(&self, field: &str, default: &str, missing_fields: &mut HashSet<String>) -> Result<String> {
+        match self.extract_string_field_optional(field)? {
+            Some(value) => Ok(value),
+            None => {
+                missing_fields.insert(field.to_string());
+                Ok(default.to_string())
+            }
+        }
+    }
+
+    fn extract_number_field_optional(&self, field: &str) -> Result<Option<i64>> {
         let pattern = format!(r"monster\.{}\s*=\s*(-?\d+)", field);
         let re = Regex::new(&pattern)?;
-        let caps = re
-            .captures(&self.content)
-            .context(format!("Failed to find field: {}", field))?;
-        Ok(caps[1].parse()?)
+        Ok(re.captures(&self.content).and_then(|caps| caps.get(1).and_then(|m| m.as_str().parse().ok())))
+    }
+
+    fn extract_number_field_with_default(&self, field: &str, default: i64, missing_fields: &mut HashSet<String>) -> Result<i64> {
+        match self.extract_number_field_optional(field)? {
+            Some(value) => Ok(value),
+            None => {
+                missing_fields.insert(field.to_string());
+                Ok(default)
+            }
+        }
     }
 
     fn parse_outfit(&self) -> Result<MonsterOutfit> {
@@ -274,18 +314,21 @@ impl LuaMonsterParser {
         let mitigation = self.extract_float_from_section(&section, "mitigation")?;
 
         let entries_vec = self.parse_spell_entries(&section, false)?;
-        let entries = entries_vec.into_iter().map(|attack| DefenseEntry {
-            name: attack.name,
-            interval: attack.interval,
-            chance: attack.chance,
-            min_damage: attack.min_damage,
-            max_damage: attack.max_damage,
-            effect: attack.effect,
-            target: attack.target,
-            combat_type: attack.combat_type,
-            speed_change: attack.speed_change,
-            duration: attack.duration,
-        }).collect();
+        let entries = entries_vec
+            .into_iter()
+            .map(|attack| DefenseEntry {
+                name: attack.name,
+                interval: attack.interval,
+                chance: attack.chance,
+                min_damage: attack.min_damage,
+                max_damage: attack.max_damage,
+                effect: attack.effect,
+                target: attack.target,
+                combat_type: attack.combat_type,
+                speed_change: attack.speed_change,
+                duration: attack.duration,
+            })
+            .collect();
 
         Ok(MonsterDefenses {
             defense,
@@ -440,45 +483,35 @@ impl LuaMonsterParser {
     fn extract_table(&self, table_name: &str) -> Result<String> {
         let pattern = format!(r"monster\.{}\s*=\s*\{{([^}}]*(?:\{{[^}}]*\}}[^}}]*)*)\}}", table_name);
         let re = Regex::new(&pattern)?;
-        let caps = re
-            .captures(&self.content)
-            .context(format!("Failed to find table: {}", table_name))?;
+        let caps = re.captures(&self.content).context(format!("Failed to find table: {}", table_name))?;
         Ok(caps[1].to_string())
     }
 
     fn extract_from_section(&self, section: &str, field: &str) -> Result<i64> {
         let pattern = format!(r"{}\s*=\s*(-?\d+)", field);
         let re = Regex::new(&pattern)?;
-        let caps = re
-            .captures(section)
-            .context(format!("Failed to find field: {}", field))?;
+        let caps = re.captures(section).context(format!("Failed to find field: {}", field))?;
         Ok(caps[1].parse()?)
     }
 
     fn extract_float_from_section(&self, section: &str, field: &str) -> Result<f32> {
         let pattern = format!(r"{}\s*=\s*(-?\d+\.?\d*)", field);
         let re = Regex::new(&pattern)?;
-        let caps = re
-            .captures(section)
-            .context(format!("Failed to find field: {}", field))?;
+        let caps = re.captures(section).context(format!("Failed to find field: {}", field))?;
         Ok(caps[1].parse()?)
     }
 
     fn extract_string_from_section(&self, section: &str, field: &str) -> Result<String> {
         let pattern = format!(r#"{}\s*=\s*"([^"]*)""#, field);
         let re = Regex::new(&pattern)?;
-        let caps = re
-            .captures(section)
-            .context(format!("Failed to find field: {}", field))?;
+        let caps = re.captures(section).context(format!("Failed to find field: {}", field))?;
         Ok(caps[1].to_string())
     }
 
     fn extract_bool_from_section(&self, section: &str, field: &str) -> Result<bool> {
         let pattern = format!(r"{}\s*=\s*(true|false)", field);
         let re = Regex::new(&pattern)?;
-        let caps = re
-            .captures(section)
-            .context(format!("Failed to find field: {}", field))?;
+        let caps = re.captures(section).context(format!("Failed to find field: {}", field))?;
         Ok(&caps[1] == "true")
     }
 }

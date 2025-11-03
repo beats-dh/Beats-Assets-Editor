@@ -138,6 +138,11 @@ export interface ImmunityEntry {
   condition: boolean;
 }
 
+export interface MonsterMeta {
+  missingFields: string[];
+  touchedFields: string[];
+}
+
 export interface Monster {
   name: string;
   description: string;
@@ -162,6 +167,7 @@ export interface Monster {
   defenses: MonsterDefenses;
   elements: ElementEntry[];
   immunities: ImmunityEntry[];
+  meta?: MonsterMeta;
 }
 
 export interface MonsterListEntry {

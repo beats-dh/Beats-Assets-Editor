@@ -1,14 +1,14 @@
 use crate::features::monsters::parsers::lua_parser::LuaMonsterParser;
 use crate::features::monsters::types::{Monster, MonsterListEntry};
 use anyhow::{Context, Result};
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use tauri::command;
 
 #[command]
 pub async fn list_monster_files(monsters_path: String) -> Result<Vec<MonsterListEntry>, String> {
-    list_monsters_recursive(&Path::new(&monsters_path))
-        .map_err(|e| format!("Failed to list monster files: {}", e))
+    list_monsters_recursive(&Path::new(&monsters_path)).map_err(|e| format!("Failed to list monster files: {}", e))
 }
 
 fn list_monsters_recursive(dir: &Path) -> Result<Vec<MonsterListEntry>> {
@@ -18,8 +18,7 @@ fn list_monsters_recursive(dir: &Path) -> Result<Vec<MonsterListEntry>> {
         return Ok(monsters);
     }
 
-    let entries = fs::read_dir(dir)
-        .context(format!("Failed to read directory: {:?}", dir))?;
+    let entries = fs::read_dir(dir).context(format!("Failed to read directory: {:?}", dir))?;
 
     for entry in entries {
         let entry = entry?;
@@ -51,30 +50,23 @@ fn list_monsters_recursive(dir: &Path) -> Result<Vec<MonsterListEntry>> {
 fn extract_monster_name_quick(content: &str) -> Result<String> {
     use regex::Regex;
     let re = Regex::new(r#"Game\.createMonsterType\("([^"]+)"\)"#)?;
-    let caps = re
-        .captures(content)
-        .context("Failed to find monster name")?;
+    let caps = re.captures(content).context("Failed to find monster name")?;
     Ok(caps[1].to_string())
 }
 
 #[command]
 pub async fn load_monster_file(file_path: String) -> Result<Monster, String> {
-    let content = fs::read_to_string(&file_path)
-        .map_err(|e| format!("Failed to read monster file: {}", e))?;
+    let content = fs::read_to_string(&file_path).map_err(|e| format!("Failed to read monster file: {}", e))?;
 
     let parser = LuaMonsterParser::new(content);
-    parser
-        .parse()
-        .map_err(|e| format!("Failed to parse monster file: {}", e))
+    parser.parse().map_err(|e| format!("Failed to parse monster file: {}", e))
 }
 
 #[command]
 pub async fn save_monster_file(file_path: String, monster: Monster) -> Result<(), String> {
-    let lua_content = generate_lua_from_monster(&monster)
-        .map_err(|e| format!("Failed to generate Lua: {}", e))?;
+    let lua_content = generate_lua_from_monster(&monster).map_err(|e| format!("Failed to generate Lua: {}", e))?;
 
-    fs::write(&file_path, lua_content)
-        .map_err(|e| format!("Failed to write monster file: {}", e))?;
+    fs::write(&file_path, lua_content).map_err(|e| format!("Failed to write monster file: {}", e))?;
 
     Ok(())
 }
@@ -82,16 +74,21 @@ pub async fn save_monster_file(file_path: String, monster: Monster) -> Result<()
 fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
     let mut lua = String::new();
 
+    let missing_fields: HashSet<&str> = monster.meta.missing_fields.iter().map(|s| s.as_str()).collect();
+    let touched_fields: HashSet<&str> = monster.meta.touched_fields.iter().map(|s| s.as_str()).collect();
+    let should_emit = |field: &str| !missing_fields.contains(field) || touched_fields.contains(field);
+
     // Header
-    lua.push_str(&format!(
-        "local mType = Game.createMonsterType(\"{}\")\n",
-        monster.name
-    ));
+    lua.push_str(&format!("local mType = Game.createMonsterType(\"{}\")\n", monster.name));
     lua.push_str("local monster = {}\n\n");
 
     // Basic info
-    lua.push_str(&format!("monster.description = \"{}\"\n", monster.description));
-    lua.push_str(&format!("monster.experience = {}\n", monster.experience));
+    if should_emit("description") {
+        lua.push_str(&format!("monster.description = \"{}\"\n", monster.description));
+    }
+    if should_emit("experience") {
+        lua.push_str(&format!("monster.experience = {}\n", monster.experience));
+    }
 
     // Outfit
     lua.push_str("monster.outfit = {\n");
@@ -104,7 +101,9 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
     lua.push_str(&format!("\tlookMount = {},\n", monster.outfit.look_mount));
     lua.push_str("}\n\n");
 
-    lua.push_str(&format!("monster.raceId = {}\n", monster.race_id));
+    if should_emit("raceId") {
+        lua.push_str(&format!("monster.raceId = {}\n", monster.race_id));
+    }
 
     // Bestiary
     if let Some(ref bestiary) = monster.bestiary {
@@ -122,12 +121,25 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
     }
 
     // Stats
-    lua.push_str(&format!("monster.health = {}\n", monster.health));
-    lua.push_str(&format!("monster.maxHealth = {}\n", monster.max_health));
-    lua.push_str(&format!("monster.race = \"{}\"\n", monster.race));
-    lua.push_str(&format!("monster.corpse = {}\n", monster.corpse));
-    lua.push_str(&format!("monster.speed = {}\n", monster.speed));
-    lua.push_str(&format!("monster.manaCost = {}\n\n", monster.mana_cost));
+    if should_emit("health") {
+        lua.push_str(&format!("monster.health = {}\n", monster.health));
+    }
+    if should_emit("maxHealth") {
+        lua.push_str(&format!("monster.maxHealth = {}\n", monster.max_health));
+    }
+    if should_emit("race") {
+        lua.push_str(&format!("monster.race = \"{}\"\n", monster.race));
+    }
+    if should_emit("corpse") {
+        lua.push_str(&format!("monster.corpse = {}\n", monster.corpse));
+    }
+    if should_emit("speed") {
+        lua.push_str(&format!("monster.speed = {}\n", monster.speed));
+    }
+    if should_emit("manaCost") {
+        lua.push_str(&format!("monster.manaCost = {}\n", monster.mana_cost));
+    }
+    lua.push('\n');
 
     // Change target
     lua.push_str("monster.changeTarget = {\n");
@@ -176,10 +188,7 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
         lua.push_str(&format!("\tmaxSummons = {},\n", summon.max_summons));
         lua.push_str("\tsummons = {\n");
         for s in &summon.summons {
-            lua.push_str(&format!(
-                "\t\t{{ name = \"{}\", chance = {}, interval = {}, count = {} }},\n",
-                s.name, s.chance, s.interval, s.count
-            ));
+            lua.push_str(&format!("\t\t{{ name = \"{}\", chance = {}, interval = {}, count = {} }},\n", s.name, s.chance, s.interval, s.count));
         }
         lua.push_str("\t},\n");
         lua.push_str("}\n\n");
@@ -191,10 +200,7 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
         lua.push_str(&format!("\tinterval = {},\n", voices.interval));
         lua.push_str(&format!("\tchance = {},\n", voices.chance));
         for v in &voices.entries {
-            lua.push_str(&format!(
-                "\t{{ text = \"{}\", yell = {} }},\n",
-                v.text, v.yell
-            ));
+            lua.push_str(&format!("\t{{ text = \"{}\", yell = {} }},\n", v.text, v.yell));
         }
         lua.push_str("}\n\n");
     }
@@ -223,10 +229,7 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
     // Attacks
     lua.push_str("monster.attacks = {\n");
     for a in &monster.attacks {
-        lua.push_str(&format!(
-            "\t{{ name = \"{}\", interval = {}, chance = {}",
-            a.name, a.interval, a.chance
-        ));
+        lua.push_str(&format!("\t{{ name = \"{}\", interval = {}, chance = {}", a.name, a.interval, a.chance));
         if let Some(combat_type) = &a.combat_type {
             lua.push_str(&format!(", type = {}", combat_type));
         }
@@ -273,10 +276,7 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
     lua.push_str(&format!("\tarmor = {},\n", monster.defenses.armor));
     lua.push_str(&format!("\tmitigation = {},\n", monster.defenses.mitigation));
     for d in &monster.defenses.entries {
-        lua.push_str(&format!(
-            "\t{{ name = \"{}\", interval = {}, chance = {}",
-            d.name, d.interval, d.chance
-        ));
+        lua.push_str(&format!("\t{{ name = \"{}\", interval = {}, chance = {}", d.name, d.interval, d.chance));
         if let Some(combat_type) = &d.combat_type {
             lua.push_str(&format!(", type = {}", combat_type));
         }
@@ -305,20 +305,14 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
     // Elements
     lua.push_str("monster.elements = {\n");
     for e in &monster.elements {
-        lua.push_str(&format!(
-            "\t{{ type = {}, percent = {} }},\n",
-            e.element_type, e.percent
-        ));
+        lua.push_str(&format!("\t{{ type = {}, percent = {} }},\n", e.element_type, e.percent));
     }
     lua.push_str("}\n\n");
 
     // Immunities
     lua.push_str("monster.immunities = {\n");
     for i in &monster.immunities {
-        lua.push_str(&format!(
-            "\t{{ type = \"{}\", condition = {} }},\n",
-            i.immunity_type, i.condition
-        ));
+        lua.push_str(&format!("\t{{ type = \"{}\", condition = {} }},\n", i.immunity_type, i.condition));
     }
     lua.push_str("}\n\n");
 

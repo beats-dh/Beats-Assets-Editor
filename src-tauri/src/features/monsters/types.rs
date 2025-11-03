@@ -1,6 +1,15 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct MonsterMeta {
+    #[serde(default)]
+    pub missing_fields: Vec<String>,
+    #[serde(default)]
+    pub touched_fields: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MonsterOutfit {
     pub look_type: u32,
@@ -12,7 +21,7 @@ pub struct MonsterOutfit {
     pub look_mount: u16,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MonsterBestiary {
     pub class: String,
@@ -26,14 +35,14 @@ pub struct MonsterBestiary {
     pub locations: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ChangeTarget {
     pub interval: u32,
     pub chance: u8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct StrategiesTarget {
     pub nearest: u8,
@@ -42,7 +51,7 @@ pub struct StrategiesTarget {
     pub random: u8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MonsterFlags {
     pub summonable: bool,
@@ -64,14 +73,14 @@ pub struct MonsterFlags {
     pub can_walk_on_poison: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MonsterLight {
     pub level: u8,
     pub color: u8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SummonEntry {
     pub name: String,
@@ -80,21 +89,21 @@ pub struct SummonEntry {
     pub count: u8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MonsterSummon {
     pub max_summons: u8,
     pub summons: Vec<SummonEntry>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct VoiceEntry {
     pub text: String,
     pub yell: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MonsterVoices {
     pub interval: u32,
@@ -102,7 +111,7 @@ pub struct MonsterVoices {
     pub entries: Vec<VoiceEntry>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct LootEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -116,7 +125,7 @@ pub struct LootEntry {
     pub max_count: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AttackEntry {
     pub name: String,
@@ -148,7 +157,7 @@ pub struct AttackEntry {
     pub duration: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DefenseEntry {
     pub name: String,
@@ -170,7 +179,7 @@ pub struct DefenseEntry {
     pub duration: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MonsterDefenses {
     pub defense: u16,
@@ -179,21 +188,21 @@ pub struct MonsterDefenses {
     pub entries: Vec<DefenseEntry>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ElementEntry {
     pub element_type: String,
     pub percent: i16,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ImmunityEntry {
     pub immunity_type: String,
     pub condition: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Monster {
     pub name: String,
@@ -222,9 +231,11 @@ pub struct Monster {
     pub defenses: MonsterDefenses,
     pub elements: Vec<ElementEntry>,
     pub immunities: Vec<ImmunityEntry>,
+    #[serde(default)]
+    pub meta: MonsterMeta,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MonsterListEntry {
     pub name: String,
