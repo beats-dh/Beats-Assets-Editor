@@ -555,7 +555,9 @@
 .monster-modal-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-md);
+  justify-content: flex-start;
+  flex-wrap: wrap;
   padding: var(--space-md) var(--space-lg);
   border-bottom: 1px solid rgba(139, 92, 246, 0.2);
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.08) 100%);
@@ -568,17 +570,59 @@
   color: var(--text-primary);
 }
 
-.modal-close-button {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 1.5rem;
-  line-height: 1;
+.monster-modal-toolbar {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.monster-modal-toolbar:empty {
+  display: none;
+}
+
+.monster-modal-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.15) 100%);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.monster-modal-action:hover {
+  border-color: rgba(139, 92, 246, 0.6);
+  background: rgba(139, 92, 246, 0.25);
+}
+
+.modal-close-button {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: var(--text-secondary);
+  font-size: 1.3rem;
+  line-height: 1;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-fast);
 }
 
 .modal-close-button:hover {
   color: var(--text-primary);
+  border-color: rgba(139, 92, 246, 0.6);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
 }
 
 .monster-modal-body {
@@ -615,6 +659,20 @@
   background: rgba(15, 23, 42, 0.6);
   color: var(--text-primary);
   font-family: var(--font-family);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.monster-modal-field input::placeholder,
+.monster-modal-field textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.monster-modal-field input:focus,
+.monster-modal-field textarea:focus {
+  outline: none;
+  border-color: rgba(139, 92, 246, 0.7);
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
 }
 
 .monster-modal-field textarea {
@@ -662,6 +720,29 @@
   justify-content: space-between;
   font-weight: 600;
   color: var(--text-primary);
+  gap: var(--space-sm);
+}
+
+/* "X" buttons inside list items */
+.modal-list-item-header .btn-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: var(--text-secondary);
+  background: rgba(15, 23, 42, 0.5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.modal-list-item-header .btn-icon:hover {
+  color: var(--text-primary);
+  border-color: rgba(139, 92, 246, 0.6);
+  background: rgba(139, 92, 246, 0.25);
 }
 
 .modal-sections-wrapper {

@@ -1393,9 +1393,13 @@ function closeMonsterModal() {
   activeMonsterModal = null;
 }
 
+type MonsterModalRenderHelpers = {
+  addAction: (action: HTMLElement) => void;
+};
+
 function showMonsterModal(
   title: string,
-  render: (body: HTMLElement) => (() => boolean | void) | void,
+  render: (body: HTMLElement, helpers: MonsterModalRenderHelpers) => (() => boolean | void) | void,
 ): void {
   closeMonsterModal();
 
@@ -1412,13 +1416,16 @@ function showMonsterModal(
   const titleEl = document.createElement("h3");
   titleEl.textContent = title;
 
+  const toolbar = document.createElement("div");
+  toolbar.className = "monster-modal-toolbar";
+
   const closeBtn = document.createElement("button");
   closeBtn.type = "button";
   closeBtn.className = "modal-close-button";
   closeBtn.innerHTML = "&times;";
   closeBtn.onclick = () => closeMonsterModal();
 
-  header.append(titleEl, closeBtn);
+  header.append(titleEl, toolbar, closeBtn);
 
   const body = document.createElement("div");
   body.className = "monster-modal-body";
@@ -1454,7 +1461,14 @@ function showMonsterModal(
   host.appendChild(backdrop);
   activeMonsterModal = { element: backdrop, restoreFocus: previousFocus, keyHandler };
 
-  const saveHandler = render(body);
+  const helpers: MonsterModalRenderHelpers = {
+    addAction: (action: HTMLElement) => {
+      action.classList.add("monster-modal-action");
+      toolbar.appendChild(action);
+    },
+  };
+
+  const saveHandler = render(body, helpers);
 
   const handleSave = () => {
     if (typeof saveHandler === "function") {
@@ -1500,7 +1514,7 @@ function openLootEditorModal() {
 
   const lootEntries = currentMonster.loot.map((item) => ({ ...item }));
 
-  showMonsterModal("Editar Loot", (body) => {
+  showMonsterModal("Editar Loot", (body, helpers) => {
     const section = createModalSection("Itens de Loot");
     body.appendChild(section);
 
@@ -1519,7 +1533,7 @@ function openLootEditorModal() {
       });
       renderList();
     };
-    section.appendChild(addButton);
+    helpers.addAction(addButton);
 
     function renderList() {
       list.innerHTML = "";
@@ -1749,7 +1763,7 @@ function openSpellsEditorModal() {
   const attacks = currentMonster.attacks.map((attack) => JSON.parse(JSON.stringify(attack)));
   const defenses = currentMonster.defenses.entries.map((defense) => JSON.parse(JSON.stringify(defense)));
 
-  showMonsterModal("Editar Ataques & Defesas", (body) => {
+  showMonsterModal("Editar Ataques & Defesas", (body, helpers) => {
     const sectionsWrapper = document.createElement("div");
     sectionsWrapper.className = "modal-sections-wrapper";
     body.appendChild(sectionsWrapper);
@@ -1766,7 +1780,7 @@ function openSpellsEditorModal() {
       const addBtn = document.createElement("button");
       addBtn.type = "button";
       addBtn.className = "btn-secondary";
-      addBtn.textContent = "Adicionar";
+      addBtn.textContent = category === "attack" ? "Adicionar Ataque" : "Adicionar Defesa";
       addBtn.onclick = () => {
         if (category === "attack") {
           entries.push({
@@ -1783,7 +1797,7 @@ function openSpellsEditorModal() {
         }
         renderList();
       };
-      section.appendChild(addBtn);
+      helpers.addAction(addBtn);
 
       const fieldConfig = buildSpellFields(category);
 
@@ -1882,7 +1896,7 @@ function openElementsModal() {
   const elements = currentMonster.elements.map((element) => ({ ...element }));
   const immunities = currentMonster.immunities.map((immunity) => ({ ...immunity }));
 
-  showMonsterModal("Editar Elementos & Imunidades", (body) => {
+  showMonsterModal("Editar Elementos & Imunidades", (body, helpers) => {
     const elementsSection = createModalSection("Elementos");
     const immunitySection = createModalSection("Imunidades");
     body.append(elementsSection, immunitySection);
@@ -1892,6 +1906,7 @@ function openElementsModal() {
       entries: Array<Record<string, any>>,
       fields: Array<{ key: string; label: string; type: "text" | "number" | "checkbox" }>,
       addDefaults: () => Record<string, any>,
+      addButtonLabel: string,
     ) => {
       const list = document.createElement("div");
       list.className = "modal-list";
@@ -1900,12 +1915,12 @@ function openElementsModal() {
       const addBtn = document.createElement("button");
       addBtn.type = "button";
       addBtn.className = "btn-secondary";
-      addBtn.textContent = "Adicionar";
+      addBtn.textContent = addButtonLabel;
       addBtn.onclick = () => {
         entries.push(addDefaults());
         render();
       };
-      section.appendChild(addBtn);
+      helpers.addAction(addBtn);
 
       const render = () => {
         list.innerHTML = "";
@@ -1980,6 +1995,7 @@ function openElementsModal() {
         { key: "percent", label: "%", type: "number" },
       ],
       () => ({ elementType: "", percent: 0 }),
+      "Adicionar Elemento",
     );
 
     renderSimpleList(
@@ -1990,6 +2006,7 @@ function openElementsModal() {
         { key: "condition", label: "Immune", type: "checkbox" },
       ],
       () => ({ immunityType: "", condition: false }),
+      "Adicionar Imunidade",
     );
 
     return () => {
@@ -2016,7 +2033,7 @@ function openVoicesModal() {
         entries: [],
       };
 
-  showMonsterModal("Editar Falas", (body) => {
+  showMonsterModal("Editar Falas", (body, helpers) => {
     const metaSection = createModalSection("Configuracoes");
     const listSection = createModalSection("Falas");
     body.append(metaSection, listSection);
@@ -2052,7 +2069,7 @@ function openVoicesModal() {
       voices.entries.push({ text: "", yell: false });
       renderVoices();
     };
-    listSection.appendChild(addBtn);
+    helpers.addAction(addBtn);
 
     function renderVoices() {
       list.innerHTML = "";
