@@ -22,6 +22,7 @@ let monsterEditorAreaRef: HTMLElement | null = null;
 let monsterSearchInput: HTMLInputElement | null = null;
 let monstersRootPath: string | null = null;
 let originalMonsterName: string | null = null;
+let monsterSidebarRef: HTMLElement | null = null;
 
 function ensureMonsterMeta(monster: Monster): MonsterMeta {
   if (!monster.meta) {
@@ -86,8 +87,32 @@ function createHeader(onBack: () => void): HTMLElement {
   const title = document.createElement("h1");
   title.textContent = "Monster Editor";
 
+  const actions = document.createElement("div");
+  actions.className = "monster-header-actions";
+
+  const reloadButton = document.createElement("button");
+  reloadButton.type = "button";
+  reloadButton.className = "editor-icon-button";
+  reloadButton.innerHTML = '<span class="btn-icon">🔄</span><span>Reload</span>';
+  reloadButton.title = "Recarregar diretório atual";
+  reloadButton.addEventListener("click", () => {
+    reloadCurrentMonsterDirectory();
+  });
+
+  const changeDirButton = document.createElement("button");
+  changeDirButton.type = "button";
+  changeDirButton.className = "editor-icon-button";
+  changeDirButton.innerHTML = '<span class="btn-icon">📁</span><span>Mudar pasta</span>';
+  changeDirButton.title = "Escolher um novo diretório de monstros";
+  changeDirButton.addEventListener("click", () => {
+    selectNewMonsterDirectory();
+  });
+
+  actions.append(reloadButton, changeDirButton);
+
   header.appendChild(backButton);
   header.appendChild(title);
+  header.appendChild(actions);
 
   return header;
 }
@@ -95,6 +120,7 @@ function createHeader(onBack: () => void): HTMLElement {
 function createSidebar(): HTMLElement {
   const sidebar = document.createElement("aside");
   sidebar.className = "monster-sidebar";
+  monsterSidebarRef = sidebar;
 
   const searchBox = document.createElement("input");
   searchBox.type = "text";
@@ -130,6 +156,15 @@ function createEditorArea(): HTMLElement {
   return editorArea;
 }
 
+function showEmptyMonsterEditorState() {
+  if (!monsterEditorAreaRef) return;
+  monsterEditorAreaRef.innerHTML = "";
+  const emptyState = document.createElement("div");
+  emptyState.className = "monster-editor-empty";
+  emptyState.textContent = "Select a monster to edit";
+  monsterEditorAreaRef.appendChild(emptyState);
+}
+
 async function loadMonsterList(monstersPath: string, sidebar: HTMLElement) {
   monstersRootPath = monstersPath;
   const listEl = sidebar.querySelector(".monster-list") as HTMLElement;
@@ -150,6 +185,44 @@ async function loadMonsterList(monstersPath: string, sidebar: HTMLElement) {
     renderMonsterList(listEl);
   } catch (error) {
     listEl.innerHTML = `<div class='error'>Failed to load monsters: ${error}</div>`;
+  }
+}
+
+async function reloadCurrentMonsterDirectory() {
+  if (!monsterSidebarRef) {
+    alert("Sidebar não está disponível para recarregar.");
+    return;
+  }
+
+  if (!monstersRootPath) {
+    await selectNewMonsterDirectory();
+    return;
+  }
+
+  try {
+    await loadMonsterList(monstersRootPath, monsterSidebarRef);
+  } catch (error) {
+    alert(`Falha ao recarregar monstros: ${error}`);
+  }
+}
+
+async function selectNewMonsterDirectory() {
+  try {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const selection = await open({ directory: true, multiple: false });
+    if (typeof selection !== "string" || !selection) {
+      return;
+    }
+
+    await invoke("set_monster_base_path", { monsterPath: selection });
+    monstersRootPath = selection;
+    showEmptyMonsterEditorState();
+    if (monsterSidebarRef) {
+      await loadMonsterList(selection, monsterSidebarRef);
+    }
+  } catch (error) {
+    console.error("Failed to select monster directory:", error);
+    alert("Não foi possível selecionar a nova pasta de monstros.");
   }
 }
 
