@@ -182,4 +182,6 @@ export interface Monster {
 export interface MonsterListEntry {
   name: string;
   filePath: string;
+  relativePath: string;
+  categories: string[];
 }

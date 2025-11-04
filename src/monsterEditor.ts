@@ -16,6 +16,9 @@ let currentMonster: Monster | null = null;
 let currentFilePath: string | null = null;
 let monsterList: MonsterListEntry[] = [];
 let lastEditorArea: HTMLElement | null = null;
+let monsterListContainer: HTMLElement | null = null;
+let monsterEditorAreaRef: HTMLElement | null = null;
+let monsterSearchInput: HTMLInputElement | null = null;
 
 function ensureMonsterMeta(monster: Monster): MonsterMeta {
   if (!monster.meta) {
@@ -62,7 +65,7 @@ export function createMonsterEditorView({ onBack, monstersPath }: MonsterEditorO
   container.appendChild(mainContent);
 
   // Load monster list
-  loadMonsterList(monstersPath, sidebar, editorArea);
+  loadMonsterList(monstersPath, sidebar);
 
   return container;
 }
@@ -97,9 +100,11 @@ function createSidebar(): HTMLElement {
   const monsterListEl = document.createElement("div");
   monsterListEl.className = "monster-list";
 
+  monsterListContainer = monsterListEl;
+  monsterSearchInput = searchBox;
+
   searchBox.addEventListener("input", () => {
-    const query = searchBox.value.toLowerCase();
-    filterMonsterList(monsterListEl, query);
+    renderMonsterList(monsterListEl, searchBox.value);
   });
 
   sidebar.appendChild(searchBox);
@@ -111,6 +116,7 @@ function createSidebar(): HTMLElement {
 function createEditorArea(): HTMLElement {
   const editorArea = document.createElement("div");
   editorArea.className = "monster-editor-area";
+  monsterEditorAreaRef = editorArea;
 
   const emptyState = document.createElement("div");
   emptyState.className = "monster-editor-empty";
@@ -120,50 +126,162 @@ function createEditorArea(): HTMLElement {
   return editorArea;
 }
 
-async function loadMonsterList(monstersPath: string, sidebar: HTMLElement, editorArea: HTMLElement) {
+async function loadMonsterList(monstersPath: string, sidebar: HTMLElement) {
   const listEl = sidebar.querySelector(".monster-list") as HTMLElement;
   listEl.innerHTML = "<div class='loading'>Loading monsters...</div>";
 
   try {
     monsterList = await invoke<MonsterListEntry[]>("list_monster_files", { monstersPath });
-
-    listEl.innerHTML = "";
-
-    if (monsterList.length === 0) {
-      listEl.innerHTML = "<div class='empty'>No monsters found</div>";
-      return;
-    }
-
-    monsterList.forEach(entry => {
-      const item = document.createElement("div");
-      item.className = "monster-list-item";
-      item.textContent = entry.name;
-      item.dataset.path = entry.filePath;
-
-      item.onclick = () => {
-        loadMonster(entry.filePath, editorArea);
-        // Highlight selected
-        listEl.querySelectorAll(".monster-list-item").forEach(i => i.classList.remove("active"));
-        item.classList.add("active");
-      };
-
-      listEl.appendChild(item);
-    });
+    renderMonsterList(listEl);
   } catch (error) {
     listEl.innerHTML = `<div class='error'>Failed to load monsters: ${error}</div>`;
   }
 }
 
-function filterMonsterList(listEl: HTMLElement, query: string) {
-  const items = listEl.querySelectorAll(".monster-list-item");
-  items.forEach(item => {
-    const name = item.textContent?.toLowerCase() || "";
-    if (name.includes(query)) {
-      (item as HTMLElement).style.display = "block";
-    } else {
-      (item as HTMLElement).style.display = "none";
-    }
+type MonsterCategoryNode = {
+  name: string;
+  path: string;
+  children: Map<string, MonsterCategoryNode>;
+  monsters: MonsterListEntry[];
+};
+
+function renderMonsterList(target?: HTMLElement, filterText?: string) {
+  const listEl = target ?? monsterListContainer;
+  if (!listEl) return;
+
+  const normalizedFilter = (filterText ?? monsterSearchInput?.value ?? "").trim().toLowerCase();
+  const entries =
+    normalizedFilter.length === 0
+      ? [...monsterList]
+      : monsterList.filter((entry) => {
+          const nameMatch = entry.name.toLowerCase().includes(normalizedFilter);
+          const relativePath = entry.relativePath ?? entry.filePath;
+          const pathMatch = relativePath.toLowerCase().includes(normalizedFilter);
+          const categoryMatch = (entry.categories ?? []).some((cat) => cat.toLowerCase().includes(normalizedFilter));
+          return nameMatch || pathMatch || categoryMatch;
+        });
+
+  if (entries.length === 0) {
+    listEl.innerHTML = "<div class='empty'>No monsters found</div>";
+    return;
+  }
+
+  const tree = buildMonsterTree(entries);
+  listEl.innerHTML = "";
+  const forceExpanded = normalizedFilter.length > 0;
+
+  const rootMonsters = [...tree.monsters].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  rootMonsters.forEach((entry) => {
+    listEl.appendChild(createMonsterListItem(entry, 0));
   });
+
+  const categoryNodes = Array.from(tree.children.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  categoryNodes.forEach((node) => {
+    listEl.appendChild(createMonsterCategoryElement(node, 0, forceExpanded));
+  });
+}
+
+function buildMonsterTree(entries: MonsterListEntry[]): MonsterCategoryNode {
+  const root: MonsterCategoryNode = {
+    name: "__root__",
+    path: "",
+    children: new Map(),
+    monsters: [],
+  };
+
+  entries.forEach((entry) => {
+    const categories = Array.isArray(entry.categories) ? entry.categories : [];
+    let cursor = root;
+    categories.forEach((category) => {
+      if (!cursor.children.has(category)) {
+        const nextPath = cursor.path ? `${cursor.path}/${category}` : category;
+        cursor.children.set(category, {
+          name: category,
+          path: nextPath,
+          children: new Map(),
+          monsters: [],
+        });
+      }
+      cursor = cursor.children.get(category)!;
+    });
+    cursor.monsters.push(entry);
+  });
+
+  return root;
+}
+
+function countMonstersInNode(node: MonsterCategoryNode): number {
+  let total = node.monsters.length;
+  node.children.forEach((child) => {
+    total += countMonstersInNode(child);
+  });
+  return total;
+}
+
+function createMonsterCategoryElement(node: MonsterCategoryNode, depth: number, forceExpanded: boolean): HTMLElement {
+  const details = document.createElement("details");
+  details.className = "monster-category";
+  if (forceExpanded) {
+    details.open = true;
+  }
+
+  const summary = document.createElement("summary");
+  summary.className = "monster-category-header";
+  summary.style.paddingLeft = `${depth * 12 + 8}px`;
+
+  const title = document.createElement("span");
+  title.className = "category-name";
+  title.textContent = node.name;
+
+  const count = document.createElement("span");
+  count.className = "category-count";
+  count.textContent = countMonstersInNode(node).toString();
+
+  summary.append(title, count);
+  details.appendChild(summary);
+
+  const childrenContainer = document.createElement("div");
+  childrenContainer.className = "monster-category-children";
+  details.appendChild(childrenContainer);
+
+  const childCategories = Array.from(node.children.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  childCategories.forEach((child) => {
+    childrenContainer.appendChild(createMonsterCategoryElement(child, depth + 1, forceExpanded));
+  });
+
+  const sortedMonsters = [...node.monsters].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  sortedMonsters.forEach((entry) => {
+    childrenContainer.appendChild(createMonsterListItem(entry, depth + 1));
+  });
+
+  return details;
+}
+
+function createMonsterListItem(entry: MonsterListEntry, depth: number): HTMLElement {
+  const item = document.createElement("div");
+  item.className = "monster-list-item";
+  item.dataset.path = entry.filePath;
+  item.textContent = entry.name;
+  item.style.paddingLeft = `${depth * 12 + 24}px`;
+
+  if (entry.filePath === currentFilePath) {
+    item.classList.add("active");
+  }
+
+  item.onclick = () => {
+    if (!monsterEditorAreaRef) return;
+    loadMonster(entry.filePath, monsterEditorAreaRef);
+    highlightActiveMonsterItem(item);
+  };
+
+  return item;
+}
+
+function highlightActiveMonsterItem(activeItem: HTMLElement) {
+  if (!monsterListContainer) return;
+  monsterListContainer.querySelectorAll(".monster-list-item").forEach((item) => item.classList.remove("active"));
+  activeItem.classList.add("active");
+  activeItem.scrollIntoView({ block: "nearest" });
 }
 
 async function loadMonster(filePath: string, editorArea: HTMLElement) {

@@ -255,4 +255,7 @@ pub struct Monster {
 pub struct MonsterListEntry {
     pub name: String,
     pub file_path: String,
+    pub relative_path: String,
+    #[serde(default)]
+    pub categories: Vec<String>,
 }

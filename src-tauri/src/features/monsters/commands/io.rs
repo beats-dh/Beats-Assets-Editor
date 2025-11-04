@@ -3,15 +3,16 @@ use crate::features::monsters::types::{Monster, MonsterListEntry};
 use anyhow::{Context, Result};
 use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tauri::command;
 
 #[command]
 pub async fn list_monster_files(monsters_path: String) -> Result<Vec<MonsterListEntry>, String> {
-    list_monsters_recursive(&Path::new(&monsters_path)).map_err(|e| format!("Failed to list monster files: {}", e))
+    let base_path = PathBuf::from(&monsters_path);
+    list_monsters_recursive(Path::new(&monsters_path), &base_path).map_err(|e| format!("Failed to list monster files: {}", e))
 }
 
-fn list_monsters_recursive(dir: &Path) -> Result<Vec<MonsterListEntry>> {
+fn list_monsters_recursive(dir: &Path, base: &Path) -> Result<Vec<MonsterListEntry>> {
     let mut monsters = Vec::new();
 
     if !dir.exists() {
@@ -26,15 +27,24 @@ fn list_monsters_recursive(dir: &Path) -> Result<Vec<MonsterListEntry>> {
 
         if path.is_dir() {
             // Recursively search subdirectories
-            let sub_monsters = list_monsters_recursive(&path)?;
+            let sub_monsters = list_monsters_recursive(&path, base)?;
             monsters.extend(sub_monsters);
         } else if path.extension().and_then(|s| s.to_str()) == Some("lua") {
             // Try to extract monster name from file
             if let Ok(content) = fs::read_to_string(&path) {
                 if let Ok(monster_name) = extract_monster_name_quick(&content) {
+                    let relative = path.strip_prefix(base).unwrap_or(&path);
+                    let relative_path = relative.to_string_lossy().replace('\\', "/");
+                    let categories = relative
+                        .parent()
+                        .map(|parent| parent.iter().map(|segment| segment.to_string_lossy().to_string()).collect())
+                        .unwrap_or_else(Vec::new);
+
                     monsters.push(MonsterListEntry {
                         name: monster_name,
                         file_path: path.to_string_lossy().to_string(),
+                        relative_path,
+                        categories,
                     });
                 }
             }
@@ -42,7 +52,7 @@ fn list_monsters_recursive(dir: &Path) -> Result<Vec<MonsterListEntry>> {
     }
 
     // Sort by name
-    monsters.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    monsters.sort_by(|a, b| a.relative_path.to_lowercase().cmp(&b.relative_path.to_lowercase()));
 
     Ok(monsters)
 }
