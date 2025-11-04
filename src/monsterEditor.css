@@ -11,6 +11,10 @@
   overflow: hidden;
 }
 
+.btn-icon {
+  font-size: 0.875rem;
+}
+
 /* Header */
 .monster-editor-header {
   display: flex;
@@ -51,9 +55,6 @@
   border-color: var(--border-hover);
 }
 
-.btn-icon {
-  font-size: 0.875rem;
-}
 
 /* Main Layout */
 .monster-editor-main {
@@ -230,9 +231,8 @@
 
 /* Cards Grid */
 .monster-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-lg);
+  column-count: 2;
+  column-gap: var(--space-lg);
   width: 100%;
 }
 
@@ -246,7 +246,10 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
+  width: 100%;
   min-width: 0;
+  break-inside: avoid;
+  margin-bottom: var(--space-lg);
 }
 
 .monster-card:hover {
@@ -802,8 +805,8 @@
   }
 
   .monster-cards-grid {
-    grid-template-columns: 1fr;
-    gap: var(--space-md);
+    column-count: 1;
+    column-gap: var(--space-md);
   }
 
 

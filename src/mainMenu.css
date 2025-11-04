@@ -1,4 +1,4 @@
-.app-launcher-overlay {
+﻿.app-launcher-overlay {
   position: fixed;
   inset: 0;
   z-index: 9999;
@@ -149,6 +149,7 @@
   font-size: 1.75rem;
 }
 
+
 .launcher-option h3 {
   margin: 0;
   font-size: 1.25rem;
@@ -245,6 +246,8 @@
   transform: translateY(-2px);
   box-shadow: 0 18px 32px rgba(129, 140, 248, 0.35);
 }
+
+
 
 .launcher-view {
   display: flex;
@@ -356,10 +359,6 @@
   border-color: var(--border-hover);
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(79, 70, 229, 0.2);
-}
-
-.editor-back-button .btn-icon {
-  font-size: 1.1rem;
 }
 
 .editor-tabs {

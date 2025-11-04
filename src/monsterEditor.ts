@@ -935,7 +935,7 @@ const renderSpellEntry = (entry: SpellEntry, category: "attack" | "defense"): HT
 
 
 
-  const card = createCard("?? Attacks & Defenses", content);
+  const card = createCard("⚔️ Attacks & Defenses", content);
   attachCardEditButton(card, () => openSpellsEditorModal());
   return card;
 
@@ -1007,7 +1007,7 @@ function createElementsImmunitiesCard(): HTMLElement {
     content.appendChild(empty);
   }
 
-  const card = createCard("?? Elements & Immunities", content);
+  const card = createCard("🧪 Elements & Immunities", content);
   attachCardEditButton(card, () => openElementsModal());
   return card;
 }
@@ -1025,7 +1025,7 @@ function createLootCard(): HTMLElement {
     const emptyState = document.createElement("div");
     emptyState.className = "empty-state";
     emptyState.innerHTML = `
-      <div class="empty-state-icon">??</div>
+      <div class="empty-state-icon">🤷</div>
       <div>No loot items found for this monster</div>
     `;
     lootList.appendChild(emptyState);
@@ -1056,7 +1056,7 @@ function createLootCard(): HTMLElement {
 
   content.appendChild(lootList);
 
-  const card = createCard(`?? Loot (${currentMonster.loot.length})`, content);
+  const card = createCard(`💰 Loot (${currentMonster.loot.length})`, content);
   attachCardEditButton(card, () => openLootEditorModal());
   return card;
 }
@@ -1128,7 +1128,7 @@ function createVoicesCard(): HTMLElement {
 
   content.appendChild(voicesList);
 
-  const card = createCard("?? Voices", content);
+  const card = createCard("💬 Voices", content);
   attachCardEditButton(card, () => openVoicesModal());
   return card;
 }
@@ -1355,7 +1355,7 @@ function attachCardEditButton(card: HTMLElement, onClick: () => void) {
       onClick();
     } catch (error) {
       console.error("Failed to open monster editor modal:", error);
-      alert("Não foi possível abrir o editor. Verifique o console para mais detalhes.");
+      alert("Nao foi possivel abrir o editor. Verifique o console para mais detalhes.");
     }
   });
   header.appendChild(button);

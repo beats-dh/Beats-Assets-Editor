@@ -1,4 +1,4 @@
-import { open } from "@tauri-apps/plugin-dialog";
+﻿import { open } from "@tauri-apps/plugin-dialog";
 
 export interface FolderSelectionViewOptions {
   onBack: () => void;
@@ -186,3 +186,4 @@ export function createFolderSelectionView(options: FolderSelectionViewOptions): 
 
   return container;
 }
+

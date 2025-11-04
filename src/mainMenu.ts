@@ -1,4 +1,4 @@
-import './mainMenu.css';
+﻿import './mainMenu.css';
 import { createMonsterEditorView } from './monsterEditor';
 import { createNpcEditorView } from './npcEditor';
 import {
@@ -90,7 +90,7 @@ export function openAppLauncherHome(): void {
 function createOptionButton(
   label: string,
   description: string,
-  icon: string,
+  iconText: string,
   onClick: () => void,
   options: { badge?: string; disabled?: boolean; badgeClass?: string } = {}
 ): HTMLButtonElement {
@@ -105,7 +105,7 @@ function createOptionButton(
 
   const iconWrapper = document.createElement('div');
   iconWrapper.className = 'launcher-option-icon';
-  iconWrapper.textContent = icon;
+  iconWrapper.textContent = iconText;
 
   const title = document.createElement('h3');
   title.textContent = label;
@@ -325,7 +325,7 @@ export function initializeAppLauncher(callbacks: LauncherCallbacks = {}): void {
     const assetsOption = createOptionButton(
       'Assets editor',
       'Browse, edit and export appearance assets with the modern workflow.',
-      '🗃️',
+      '🗂️',
       () => {
         const tibiaPath = tibiaPathInput.value.trim();
         if (!tibiaPath) {
@@ -340,7 +340,7 @@ export function initializeAppLauncher(callbacks: LauncherCallbacks = {}): void {
     const monsterOption = createOptionButton(
       'Monster editor',
       'Select a monster scripts folder to load encounter data just like assets.',
-      '🐲',
+      '👾',
       async () => {
         try {
           const { open } = await import('@tauri-apps/plugin-dialog');
