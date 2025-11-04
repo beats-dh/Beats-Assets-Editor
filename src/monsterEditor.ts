@@ -19,6 +19,8 @@ let lastEditorArea: HTMLElement | null = null;
 let monsterListContainer: HTMLElement | null = null;
 let monsterEditorAreaRef: HTMLElement | null = null;
 let monsterSearchInput: HTMLInputElement | null = null;
+let monstersRootPath: string | null = null;
+let originalMonsterName: string | null = null;
 
 function ensureMonsterMeta(monster: Monster): MonsterMeta {
   if (!monster.meta) {
@@ -45,6 +47,7 @@ function markFieldTouched(field: string) {
 export function createMonsterEditorView({ onBack, monstersPath }: MonsterEditorOptions): HTMLElement {
   const container = document.createElement("div");
   container.className = "monster-editor-container";
+  monstersRootPath = monstersPath;
 
   // Header
   const header = createHeader(onBack);
@@ -127,6 +130,7 @@ function createEditorArea(): HTMLElement {
 }
 
 async function loadMonsterList(monstersPath: string, sidebar: HTMLElement) {
+  monstersRootPath = monstersPath;
   const listEl = sidebar.querySelector(".monster-list") as HTMLElement;
   listEl.innerHTML = "<div class='loading'>Loading monsters...</div>";
 
@@ -143,6 +147,11 @@ type MonsterCategoryNode = {
   path: string;
   children: Map<string, MonsterCategoryNode>;
   monsters: MonsterListEntry[];
+};
+
+type RenameMonsterResult = {
+  filePath: string;
+  relativePath: string;
 };
 
 function renderMonsterList(target?: HTMLElement, filterText?: string) {
@@ -292,6 +301,7 @@ async function loadMonster(filePath: string, editorArea: HTMLElement) {
     currentFilePath = filePath;
     if (currentMonster) {
       ensureMonsterMeta(currentMonster);
+      originalMonsterName = currentMonster.name;
     }
     renderMonsterEditor(editorArea);
   } catch (error) {
@@ -2280,12 +2290,53 @@ async function saveMonster() {
   }
 
   ensureMonsterMeta(currentMonster);
+  const previousName = originalMonsterName;
+  const previousPath = currentFilePath;
 
   try {
     await invoke("save_monster_file", {
       filePath: currentFilePath,
       monster: currentMonster,
     });
+
+    let needsListRefresh = false;
+    const trimmedCurrentName = currentMonster.name.trim();
+    const nameChanged = Boolean(previousName && trimmedCurrentName && trimmedCurrentName !== previousName.trim());
+
+    if (nameChanged && monstersRootPath) {
+      try {
+        const renameResult = await invoke<RenameMonsterResult>("rename_monster_file", {
+          oldPath: previousPath,
+          newName: trimmedCurrentName,
+          monstersRoot: monstersRootPath,
+        });
+
+        const listEntry = monsterList.find((entry) => entry.filePath === previousPath);
+        if (listEntry) {
+          listEntry.name = trimmedCurrentName;
+          listEntry.filePath = renameResult.filePath;
+          listEntry.relativePath = renameResult.relativePath;
+        }
+
+        currentFilePath = renameResult.filePath;
+        originalMonsterName = trimmedCurrentName;
+        needsListRefresh = true;
+      } catch (renameError) {
+        alert(`Monster saved, but failed to rename file: ${renameError}`);
+      }
+    } else if (nameChanged) {
+      const listEntry = monsterList.find((entry) => entry.filePath === previousPath);
+      if (listEntry) {
+        listEntry.name = trimmedCurrentName;
+        needsListRefresh = true;
+      }
+      originalMonsterName = trimmedCurrentName;
+    }
+
+    if (needsListRefresh) {
+      renderMonsterList();
+    }
+
     alert("Monster saved successfully!");
   } catch (error) {
     alert(`Failed to save monster: ${error}`);

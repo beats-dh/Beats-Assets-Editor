@@ -1,10 +1,18 @@
 use crate::features::monsters::parsers::lua_parser::LuaMonsterParser;
 use crate::features::monsters::types::{Monster, MonsterListEntry};
 use anyhow::{Context, Result};
+use serde::Serialize;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::command;
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenameMonsterResult {
+    pub file_path: String,
+    pub relative_path: String,
+}
 
 #[command]
 pub async fn list_monster_files(monsters_path: String) -> Result<Vec<MonsterListEntry>, String> {
@@ -34,7 +42,7 @@ fn list_monsters_recursive(dir: &Path, base: &Path) -> Result<Vec<MonsterListEnt
             if let Ok(content) = fs::read_to_string(&path) {
                 if let Ok(monster_name) = extract_monster_name_quick(&content) {
                     let relative = path.strip_prefix(base).unwrap_or(&path);
-                    let relative_path = relative.to_string_lossy().replace('\\', "/");
+                    let relative_path = compute_relative_path(&path, base);
                     let categories = relative
                         .parent()
                         .map(|parent| parent.iter().map(|segment| segment.to_string_lossy().to_string()).collect())
@@ -79,6 +87,70 @@ pub async fn save_monster_file(file_path: String, monster: Monster) -> Result<()
     fs::write(&file_path, lua_content).map_err(|e| format!("Failed to write monster file: {}", e))?;
 
     Ok(())
+}
+
+#[command]
+pub async fn rename_monster_file(old_path: String, new_name: String, monsters_root: String) -> Result<RenameMonsterResult, String> {
+    if new_name.trim().is_empty() {
+        return Err("New monster name cannot be empty".into());
+    }
+
+    let old_path_buf = PathBuf::from(&old_path);
+    if !old_path_buf.exists() {
+        return Err("Original monster file was not found".into());
+    }
+
+    let parent_dir = old_path_buf
+        .parent()
+        .ok_or_else(|| "Failed to determine monster directory".to_string())?;
+
+    let slug = slugify_name(&new_name);
+    let new_file_name = format!("{}.lua", slug);
+    let new_path = parent_dir.join(&new_file_name);
+
+    if new_path != old_path_buf && new_path.exists() {
+        return Err("Another monster already uses this file name".into());
+    }
+
+    if new_path != old_path_buf {
+        fs::rename(&old_path_buf, &new_path).map_err(|e| format!("Failed to rename monster file: {}", e))?;
+    }
+
+    let relative_path = compute_relative_path(&new_path, Path::new(&monsters_root));
+
+    Ok(RenameMonsterResult {
+        file_path: new_path.to_string_lossy().to_string(),
+        relative_path,
+    })
+}
+
+fn compute_relative_path(path: &Path, base: &Path) -> String {
+    path.strip_prefix(base)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+fn slugify_name(name: &str) -> String {
+    let mut slug = String::new();
+    let mut last_was_separator = false;
+
+    for ch in name.chars() {
+        if ch.is_ascii_alphanumeric() {
+            slug.push(ch.to_ascii_lowercase());
+            last_was_separator = false;
+        } else if !last_was_separator {
+            slug.push('_');
+            last_was_separator = true;
+        }
+    }
+
+    let trimmed = slug.trim_matches('_').to_string();
+    if trimmed.is_empty() {
+        "monster".to_string()
+    } else {
+        trimmed
+    }
 }
 
 fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
