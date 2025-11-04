@@ -43,10 +43,7 @@ fn list_monsters_recursive(dir: &Path, base: &Path) -> Result<Vec<MonsterListEnt
                 if let Ok(monster_name) = extract_monster_name_quick(&content) {
                     let relative = path.strip_prefix(base).unwrap_or(&path);
                     let relative_path = compute_relative_path(&path, base);
-                    let categories = relative
-                        .parent()
-                        .map(|parent| parent.iter().map(|segment| segment.to_string_lossy().to_string()).collect())
-                        .unwrap_or_else(Vec::new);
+                    let categories = relative.parent().map(|parent| parent.iter().map(|segment| segment.to_string_lossy().to_string()).collect()).unwrap_or_else(Vec::new);
 
                     monsters.push(MonsterListEntry {
                         name: monster_name,
@@ -100,9 +97,7 @@ pub async fn rename_monster_file(old_path: String, new_name: String, monsters_ro
         return Err("Original monster file was not found".into());
     }
 
-    let parent_dir = old_path_buf
-        .parent()
-        .ok_or_else(|| "Failed to determine monster directory".to_string())?;
+    let parent_dir = old_path_buf.parent().ok_or_else(|| "Failed to determine monster directory".to_string())?;
 
     let slug = slugify_name(&new_name);
     let new_file_name = format!("{}.lua", slug);
@@ -125,10 +120,7 @@ pub async fn rename_monster_file(old_path: String, new_name: String, monsters_ro
 }
 
 fn compute_relative_path(path: &Path, base: &Path) -> String {
-    path.strip_prefix(base)
-        .unwrap_or(path)
-        .to_string_lossy()
-        .replace('\\', "/")
+    path.strip_prefix(base).unwrap_or(path).to_string_lossy().replace('\\', "/")
 }
 
 fn slugify_name(name: &str) -> String {
