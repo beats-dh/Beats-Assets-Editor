@@ -1,6 +1,7 @@
 ﻿import './mainMenu.css';
 import { createMonsterEditorView } from './monsterEditor';
 import { createNpcEditorView } from './npcEditor';
+import { invoke } from "@tauri-apps/api/core";
 import {
   applyDocumentTranslations,
   DEFAULT_LANGUAGE,
@@ -91,7 +92,7 @@ function createOptionButton(
   label: string,
   description: string,
   iconText: string,
-  onClick: () => void,
+  onClick: (event: MouseEvent) => void,
   options: { badge?: string; disabled?: boolean; badgeClass?: string } = {}
 ): HTMLButtonElement {
   const button = document.createElement('button');
@@ -126,7 +127,7 @@ function createOptionButton(
   }
 
   if (!options.disabled) {
-    button.addEventListener('click', onClick);
+    button.addEventListener('click', (event) => onClick(event));
   }
 
   return button;
@@ -277,6 +278,8 @@ export function initializeAppLauncher(callbacks: LauncherCallbacks = {}): void {
 
   const view = document.createElement('div');
   view.className = 'launcher-view';
+  let cachedMonsterView: HTMLElement | null = null;
+  let cachedMonsterPath: string | null = null;
 
   card.append(view);
   overlay.append(card);
@@ -337,22 +340,78 @@ export function initializeAppLauncher(callbacks: LauncherCallbacks = {}): void {
       { badge: 'Current', disabled: !tibiaPathInput.value.trim() }
     );
 
+    const openMonsterEditor = async (forceSelect = false) => {
+      try {
+        let monsterPath: string | null = null;
+
+        if (!forceSelect) {
+          monsterPath = cachedMonsterPath;
+          if (!monsterPath) {
+            try {
+              monsterPath = await invoke<string | null>("get_monster_base_path");
+            } catch (error) {
+              console.warn('Failed to read saved monster path:', error);
+            }
+          }
+        }
+
+        if (!monsterPath) {
+          const { open } = await import('@tauri-apps/plugin-dialog');
+          const selection = await open({ directory: true, multiple: false });
+          if (typeof selection !== 'string' || !selection) {
+            return;
+          }
+          monsterPath = selection;
+          try {
+            await invoke("set_monster_base_path", { monsterPath: selection });
+          } catch (persistError) {
+            console.warn('Failed to persist monster path:', persistError);
+          }
+          cachedMonsterView = null;
+        }
+
+        if (!monsterPath) {
+          return;
+        }
+
+        if (cachedMonsterView && cachedMonsterPath === monsterPath) {
+          view.innerHTML = '';
+          view.append(cachedMonsterView);
+          return;
+        }
+
+        const monsterView = createMonsterEditorView({
+          onBack: () => {
+            view.innerHTML = '';
+            renderHome();
+          },
+          monstersPath: monsterPath,
+        });
+
+        cachedMonsterView = monsterView;
+        cachedMonsterPath = monsterPath;
+        view.innerHTML = '';
+        view.append(monsterView);
+      } catch (error) {
+        console.error('Failed to open monster editor:', error);
+        if (!forceSelect) {
+          try {
+            await openMonsterEditor(true);
+            return;
+          } catch (innerError) {
+            console.error('Failed to select monster folder after retry:', innerError);
+          }
+        }
+        alert('Failed to select monster scripts folder');
+      }
+    };
+
     const monsterOption = createOptionButton(
       'Monster editor',
       'Select a monster scripts folder to load encounter data just like assets.',
       '👾',
-      async () => {
-        try {
-          const { open } = await import('@tauri-apps/plugin-dialog');
-          const selection = await open({ directory: true, multiple: false });
-          if (typeof selection === 'string' && selection) {
-            view.innerHTML = '';
-            view.append(createMonsterEditorView({ onBack: renderHome, monstersPath: selection }));
-          }
-        } catch (error) {
-          console.error('Failed to open directory chooser:', error);
-          alert('Failed to select monster scripts folder');
-        }
+      async (event) => {
+        await openMonsterEditor(Boolean(event?.shiftKey || event?.altKey));
       }
     );
 

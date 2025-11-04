@@ -132,6 +132,8 @@ pub fn run() {
             // Settings API
             features::settings::set_tibia_base_path,
             features::settings::get_tibia_base_path,
+            features::settings::set_monster_base_path,
+            features::settings::get_monster_base_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
