@@ -246,10 +246,14 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
-  width: 100%;
   min-width: 0;
   break-inside: avoid;
   margin-bottom: var(--space-lg);
+  width: 100%;
+}
+
+.monster-card.card-full-width {
+  column-span: all;
 }
 
 .monster-card:hover {
