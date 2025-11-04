@@ -917,6 +917,46 @@
   justify-content: center;
   font-size: 3rem;
   box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.sprite-placeholder-text {
+  width: 100%;
+  height: 100%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  color: var(--text-muted);
+}
+
+.sprite-rotate-button {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(139, 92, 246, 0.5);
+  background: rgba(15, 23, 42, 0.75);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.sprite-rotate-button:hover {
+  border-color: rgba(139, 92, 246, 0.9);
+  background: rgba(139, 92, 246, 0.35);
+}
+
+.sprite-rotate-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .outfit-info {

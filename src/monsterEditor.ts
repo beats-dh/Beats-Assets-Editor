@@ -1,6 +1,16 @@
 ﻿import { invoke } from "@tauri-apps/api/core";
-import type { AttackEntry, DefenseEntry, LuaProperty, Monster, MonsterListEntry, MonsterMeta } from "./monsterTypes";
+import type {
+  AttackEntry,
+  DefenseEntry,
+  LuaProperty,
+  Monster,
+  MonsterListEntry,
+  MonsterMeta,
+  MonsterOutfit,
+} from "./monsterTypes";
+import type { CompleteAppearanceItem, CompleteSpriteInfo, CompleteFrameGroup } from "./types";
 import { getAppearanceSprites } from "./spriteCache";
+import { computeSpriteIndex, computeGroupOffsetsFromDetails } from "./animation";
 import { ensureAppearancesLoaded } from "./appearanceLoader";
 
 export interface MonsterEditorOptions {
@@ -23,6 +33,7 @@ let monsterSearchInput: HTMLInputElement | null = null;
 let monstersRootPath: string | null = null;
 let originalMonsterName: string | null = null;
 let monsterSidebarRef: HTMLElement | null = null;
+const outfitSpriteMetadataCache = new Map<number, { spriteInfo: CompleteSpriteInfo; baseOffset: number }>();
 
 function ensureMonsterMeta(monster: Monster): MonsterMeta {
   if (!monster.meta) {
@@ -607,6 +618,9 @@ function createOutfitPreviewCard(): HTMLElement {
   const outfit = currentMonster.outfit;
   const content = document.createElement("div");
   content.className = "card-content";
+  let currentSprites: string[] = [];
+  let currentSpriteIndex = 0;
+  let currentLookType = outfit.lookType;
 
   // Outfit Preview
   const previewContainer = document.createElement("div");
@@ -623,30 +637,63 @@ function createOutfitPreviewCard(): HTMLElement {
   spriteImg.style.height = "80%";
   spriteImg.style.objectFit = "contain";
 
+  const spritePlaceholder = document.createElement("div");
+  spritePlaceholder.className = "sprite-placeholder-text";
+  spritePlaceholder.textContent = "?";
+
+  const rotateButton = document.createElement("button");
+  rotateButton.type = "button";
+  rotateButton.className = "sprite-rotate-button";
+  rotateButton.title = "Rotacionar sprite";
+  rotateButton.innerHTML = "⟳";
+
+  const updateSpriteImage = () => {
+    if (currentSprites.length === 0) {
+      spriteImg.style.display = "none";
+      spritePlaceholder.style.display = "flex";
+      rotateButton.disabled = true;
+      return;
+    }
+    rotateButton.disabled = currentSprites.length <= 1;
+    spriteImg.style.display = "block";
+    spritePlaceholder.style.display = "none";
+    const spriteData = currentSprites[currentSpriteIndex];
+    spriteImg.src = `data:image/png;base64,${spriteData}`;
+    spriteImg.alt = `Outfit ${currentLookType} (frame ${currentSpriteIndex + 1})`;
+  };
+
+  const rotateSprite = () => {
+    if (currentSprites.length === 0) return;
+    currentSpriteIndex = (currentSpriteIndex + 1) % currentSprites.length;
+    updateSpriteImage();
+  };
+
+  rotateButton.addEventListener("click", rotateSprite);
+
   // Function to load and display outfit sprite
-  const loadOutfitSprite = async (lookType: number) => {
+  const loadOutfitSprite = async (outfitState: MonsterOutfit) => {
     try {
-      const sprites = await getAppearanceSprites("Outfits", lookType);
-      if (sprites.length > 0) {
-        spriteImg.src = `data:image/png;base64,${sprites[0]}`;
-        spriteImg.alt = `Outfit ${lookType}`;
-      } else {
-        spriteImg.src = "";
-        spriteImg.alt = "No sprite available";
-        spriteContainer.textContent = "A";
+      currentLookType = outfitState.lookType;
+      const sprites = await getAppearanceSprites("Outfits", outfitState.lookType);
+      currentSprites = await getDirectionalSpritesForOutfit(outfitState, sprites);
+      currentSpriteIndex = 0;
+      if (currentSprites.length === 0) {
+        spritePlaceholder.textContent = "—";
       }
+      updateSpriteImage();
     } catch (error) {
       console.error("Failed to load outfit sprite:", error);
-      spriteImg.src = "";
-      spriteImg.alt = "Failed to load";
-      spriteContainer.textContent = "!";
+      currentSprites = [];
+      currentSpriteIndex = 0;
+      spritePlaceholder.textContent = "!";
+      updateSpriteImage();
     }
   };
 
   // Load initial sprite
-  loadOutfitSprite(outfit.lookType);
+  loadOutfitSprite(outfit);
 
-  spriteContainer.appendChild(spriteImg);
+  spriteContainer.append(spriteImg, spritePlaceholder, rotateButton);
 
   const outfitInfo = document.createElement("div");
   outfitInfo.className = "outfit-info";
@@ -687,12 +734,15 @@ function createOutfitPreviewCard(): HTMLElement {
       currentMonster.outfit.lookType = newLookType;
       const preview = outfitInfo.children[0]?.querySelector('.outfit-info-value');
       if (preview) preview.textContent = value;
-      loadOutfitSprite(newLookType);
+      loadOutfitSprite(currentMonster.outfit);
     }
   }));
 
   editRow1.appendChild(createFormGroup("Look Mount", "number", outfit.lookMount.toString(), (value) => {
-    if (currentMonster) currentMonster.outfit.lookMount = parseInt(value) || 0;
+    if (currentMonster) {
+      currentMonster.outfit.lookMount = parseInt(value) || 0;
+      loadOutfitSprite(currentMonster.outfit);
+    }
   }));
 
   content.appendChild(editRow1);
@@ -742,12 +792,106 @@ function createOutfitPreviewCard(): HTMLElement {
       currentMonster.outfit.lookAddons = parseInt(value) || 0;
       const preview = outfitInfo.children[5]?.querySelector('.outfit-info-value');
       if (preview) preview.textContent = value;
+      loadOutfitSprite(currentMonster.outfit);
     }
   }));
 
   content.appendChild(editRow3);
 
   return createCard("👤 Outfit & Appearance", content);
+}
+
+async function getDirectionalSpritesForOutfit(outfit: MonsterOutfit, sprites: string[]): Promise<string[]> {
+  if (sprites.length === 0) return [];
+
+  try {
+    const metadata = await getOutfitSpriteMetadata(outfit.lookType);
+    if (metadata) {
+      const { spriteInfo, baseOffset } = metadata;
+      const directionCount = Math.max(1, Math.min(4, spriteInfo.pattern_width ?? 4));
+      const addonCount = Math.max(1, spriteInfo.pattern_height ?? 1);
+      const mountCount = Math.max(1, spriteInfo.pattern_depth ?? 1);
+      const addonIndex = computeAddonPatternIndex(outfit.lookAddons, addonCount);
+      const mountIndex = computeMountPatternIndex(outfit.lookMount, mountCount);
+
+      const result: string[] = [];
+      for (let direction = 0; direction < directionCount; direction += 1) {
+        const localIndex = computeSpriteIndex(spriteInfo, 0, direction, addonIndex, mountIndex, 0);
+        const aggregatedIndex = baseOffset + localIndex;
+        if (aggregatedIndex >= 0 && aggregatedIndex < sprites.length) {
+          result.push(sprites[aggregatedIndex]);
+        }
+      }
+      if (result.length > 0) {
+        return result;
+      }
+    }
+  } catch (error) {
+    console.warn("Failed to load outfit metadata for preview:", error);
+  }
+
+  const fallbackCount = Math.min(4, sprites.length);
+  return sprites.slice(0, fallbackCount);
+}
+
+async function getOutfitSpriteMetadata(
+  lookType: number,
+): Promise<{ spriteInfo: CompleteSpriteInfo; baseOffset: number } | null> {
+  if (outfitSpriteMetadataCache.has(lookType)) {
+    return outfitSpriteMetadataCache.get(lookType)!;
+  }
+
+  try {
+    const details = await invoke<CompleteAppearanceItem>("get_complete_appearance", {
+      category: "Outfits",
+      id: lookType,
+    });
+    if (!details || !details.frame_groups?.length) {
+      return null;
+    }
+
+    const groupOffsets = computeGroupOffsetsFromDetails(details);
+    let targetIndex = details.frame_groups.findIndex((fg: CompleteFrameGroup) => fg.fixed_frame_group === 0);
+    if (targetIndex < 0) {
+      targetIndex = 0;
+    }
+
+    const spriteInfo = details.frame_groups[targetIndex]?.sprite_info;
+    if (!spriteInfo) {
+      return null;
+    }
+
+    const metadata = {
+      spriteInfo,
+      baseOffset: groupOffsets[targetIndex] ?? 0,
+    };
+    outfitSpriteMetadataCache.set(lookType, metadata);
+    return metadata;
+  } catch (error) {
+    console.warn("Failed to retrieve outfit sprite metadata:", error);
+    return null;
+  }
+}
+
+function computeAddonPatternIndex(addons: number, patternHeight: number): number {
+  if (patternHeight <= 1) return 0;
+
+  if (patternHeight >= 4) {
+    const hasAddon1 = (addons & 1) !== 0;
+    const hasAddon2 = (addons & 2) !== 0;
+    if (hasAddon1 && hasAddon2) return Math.min(patternHeight - 1, 3);
+    if (hasAddon1) return 1;
+    if (hasAddon2) return Math.min(patternHeight - 1, 2);
+    return 0;
+  }
+
+  return Math.min(patternHeight - 1, Math.max(0, addons));
+}
+
+function computeMountPatternIndex(lookMount: number, patternDepth: number): number {
+  if (patternDepth <= 1) return 0;
+  if (lookMount <= 0) return 0;
+  return 1;
 }
 
 function createCombatStatsCard(): HTMLElement {
