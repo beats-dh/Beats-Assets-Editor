@@ -15,6 +15,7 @@ export interface EditorViewOptions {
 let currentMonster: Monster | null = null;
 let currentFilePath: string | null = null;
 let monsterList: MonsterListEntry[] = [];
+let lastEditorArea: HTMLElement | null = null;
 
 function ensureMonsterMeta(monster: Monster): MonsterMeta {
   if (!monster.meta) {
@@ -183,6 +184,7 @@ async function loadMonster(filePath: string, editorArea: HTMLElement) {
 function renderMonsterEditor(editorArea: HTMLElement) {
   if (!currentMonster) return;
 
+  lastEditorArea = editorArea;
   editorArea.innerHTML = "";
 
   // Save button at top
@@ -204,6 +206,12 @@ function renderMonsterEditor(editorArea: HTMLElement) {
 
   // Render all sections as cards
   renderAllSections(contentArea);
+}
+
+function refreshMonsterEditorView() {
+  if (lastEditorArea && currentMonster) {
+    renderMonsterEditor(lastEditorArea);
+  }
 }
 
 function renderAllSections(container: HTMLElement) {
@@ -365,7 +373,7 @@ function createOutfitPreviewCard(): HTMLElement {
       } else {
         spriteImg.src = "";
         spriteImg.alt = "No sprite available";
-        spriteContainer.textContent = "?";
+        spriteContainer.textContent = "A";
       }
     } catch (error) {
       console.error("Failed to load outfit sprite:", error);
@@ -587,13 +595,9 @@ const renderSpellEntry = (entry: SpellEntry, category: "attack" | "defense"): HT
     const metaEntries: Array<{ label: string; value: string }> = [];
 
     const addMeta = (label: string, value?: string | null) => {
-
       if (value && value.trim().length > 0) {
-
         metaEntries.push({ label, value });
-
       }
-
     };
 
 
@@ -760,9 +764,8 @@ const renderSpellEntry = (entry: SpellEntry, category: "attack" | "defense"): HT
 
 
 
-    const appendPropertiesSection = (title: string, properties?: LuaProperty[] | null) => {
-
-      if (!properties || properties.length === 0) return;
+    const appendPropertiesSection = (title: string, props?: LuaProperty[] | null) => {
+      if (!props || props.length === 0) return;
 
 
 
@@ -788,7 +791,7 @@ const renderSpellEntry = (entry: SpellEntry, category: "attack" | "defense"): HT
 
 
 
-      properties.forEach((property) => {
+      props.forEach((property) => {
 
         const row = document.createElement("div");
 
@@ -876,17 +879,28 @@ const renderSpellEntry = (entry: SpellEntry, category: "attack" | "defense"): HT
 
 
 
-    let renderedSections = 0;
-  sections.forEach(({ title, items, category }) => {
-    if (items.length === 0) return;
-
-    const heading = createSectionHeading(title);
-    if (renderedSections === 0) {
-      heading.style.marginTop = "0";
-    }
-    content.appendChild(heading);
-    renderedSections += 1;
-
+    let renderedSections = 0;
+
+  sections.forEach(({ title, items, category }) => {
+
+    if (items.length === 0) return;
+
+
+
+    const heading = createSectionHeading(title);
+
+    if (renderedSections === 0) {
+
+      heading.style.marginTop = "0";
+
+    }
+
+    content.appendChild(heading);
+
+    renderedSections += 1;
+
+
+
     const list = document.createElement("div");
 
     list.className = category === "attack" ? "attacks-list" : "defenses-list";
@@ -921,7 +935,9 @@ const renderSpellEntry = (entry: SpellEntry, category: "attack" | "defense"): HT
 
 
 
-  return createCard("?? Attacks & Defenses", content);
+  const card = createCard("?? Attacks & Defenses", content);
+  attachCardEditButton(card, () => openSpellsEditorModal());
+  return card;
 
 }
 
@@ -991,7 +1007,9 @@ function createElementsImmunitiesCard(): HTMLElement {
     content.appendChild(empty);
   }
 
-  return createCard("🔥 Elements & Immunities", content);
+  const card = createCard("?? Elements & Immunities", content);
+  attachCardEditButton(card, () => openElementsModal());
+  return card;
 }
 
 function createLootCard(): HTMLElement {
@@ -1007,7 +1025,7 @@ function createLootCard(): HTMLElement {
     const emptyState = document.createElement("div");
     emptyState.className = "empty-state";
     emptyState.innerHTML = `
-      <div class="empty-state-icon">📦</div>
+      <div class="empty-state-icon">??</div>
       <div>No loot items found for this monster</div>
     `;
     lootList.appendChild(emptyState);
@@ -1020,7 +1038,7 @@ function createLootCard(): HTMLElement {
 
       const itemName = item.name || (item.id ? `Item ID: ${item.id}` : "Unknown Item");
       const count = item.minCount || item.maxCount
-        ? `<span style="color: var(--text-secondary)">×${item.minCount || 1}${item.maxCount && item.maxCount !== item.minCount ? `-${item.maxCount}` : ""}</span>`
+        ? `<span style="color: var(--text-secondary)">x${item.minCount || 1}${item.maxCount && item.maxCount !== item.minCount ? `-${item.maxCount}` : ""}</span>`
         : "";
 
       lootItem.innerHTML = `
@@ -1038,7 +1056,9 @@ function createLootCard(): HTMLElement {
 
   content.appendChild(lootList);
 
-  return createCard(`💎 Loot (${currentMonster.loot.length})`, content);
+  const card = createCard(`?? Loot (${currentMonster.loot.length})`, content);
+  attachCardEditButton(card, () => openLootEditorModal());
+  return card;
 }
 
 function createSummonsCard(): HTMLElement {
@@ -1108,7 +1128,9 @@ function createVoicesCard(): HTMLElement {
 
   content.appendChild(voicesList);
 
-  return createCard("💬 Voices", content);
+  const card = createCard("?? Voices", content);
+  attachCardEditButton(card, () => openVoicesModal());
+  return card;
 }
 
 function createFlagsCard(): HTMLElement {
@@ -1319,6 +1341,765 @@ function createFormGroup(label: string, type: string, value: string, onChange: (
   return group;
 }
 
+function attachCardEditButton(card: HTMLElement, onClick: () => void) {
+  const header = card.querySelector(".monster-card-header");
+  if (!header) return;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "card-edit-button";
+  button.textContent = "Editar";
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    try {
+      onClick();
+    } catch (error) {
+      console.error("Failed to open monster editor modal:", error);
+      alert("Não foi possível abrir o editor. Verifique o console para mais detalhes.");
+    }
+  });
+  header.appendChild(button);
+}
+
+let activeMonsterModal: {
+  element: HTMLElement;
+  restoreFocus: HTMLElement | null;
+  keyHandler: (event: KeyboardEvent) => void;
+} | null = null;
+
+function closeMonsterModal() {
+  if (!activeMonsterModal) return;
+  document.removeEventListener("keydown", activeMonsterModal.keyHandler);
+  activeMonsterModal.element.remove();
+  activeMonsterModal.restoreFocus?.focus();
+  activeMonsterModal = null;
+}
+
+function showMonsterModal(
+  title: string,
+  render: (body: HTMLElement) => (() => boolean | void) | void,
+): void {
+  closeMonsterModal();
+
+  const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const backdrop = document.createElement("div");
+  backdrop.className = "monster-modal-backdrop";
+
+  const modal = document.createElement("div");
+  modal.className = "monster-modal";
+
+  const header = document.createElement("div");
+  header.className = "monster-modal-header";
+
+  const titleEl = document.createElement("h3");
+  titleEl.textContent = title;
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "modal-close-button";
+  closeBtn.innerHTML = "&times;";
+  closeBtn.onclick = () => closeMonsterModal();
+
+  header.append(titleEl, closeBtn);
+
+  const body = document.createElement("div");
+  body.className = "monster-modal-body";
+
+  const footer = document.createElement("div");
+  footer.className = "monster-modal-footer";
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.className = "btn-secondary";
+  cancelBtn.textContent = "Cancelar";
+  cancelBtn.onclick = () => closeMonsterModal();
+
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "btn-primary";
+  saveBtn.textContent = "Salvar";
+
+  footer.append(cancelBtn, saveBtn);
+
+  modal.append(header, body, footer);
+  backdrop.appendChild(modal);
+
+  const keyHandler = (event: KeyboardEvent) => {
+    if (event.key === "Escape" && activeMonsterModal) {
+      event.preventDefault();
+      closeMonsterModal();
+    }
+  };
+  document.addEventListener("keydown", keyHandler);
+
+  const host = document.querySelector(".monster-editor-container") || document.body;
+  host.appendChild(backdrop);
+  activeMonsterModal = { element: backdrop, restoreFocus: previousFocus, keyHandler };
+
+  const saveHandler = render(body);
+
+  const handleSave = () => {
+    if (typeof saveHandler === "function") {
+      const result = saveHandler();
+      if (result === false) {
+        return;
+      }
+    }
+    closeMonsterModal();
+    refreshMonsterEditorView();
+  };
+
+  saveBtn.onclick = handleSave;
+  backdrop.addEventListener("click", (event) => {
+    if (event.target === backdrop) {
+      closeMonsterModal();
+    }
+  });
+}
+
+function createModalField(labelText: string, input: HTMLElement): HTMLElement {
+  const wrapper = document.createElement("label");
+  wrapper.className = "monster-modal-field";
+
+  const label = document.createElement("span");
+  label.textContent = labelText;
+  wrapper.append(label, input);
+  return wrapper;
+}
+
+function createModalSection(title: string): HTMLElement {
+  const section = document.createElement("div");
+  section.className = "monster-modal-section";
+
+  const heading = document.createElement("h4");
+  heading.textContent = title;
+  section.appendChild(heading);
+  return section;
+}
+
+function openLootEditorModal() {
+  if (!currentMonster) return;
+
+  const lootEntries = currentMonster.loot.map((item) => ({ ...item }));
+
+  showMonsterModal("Editar Loot", (body) => {
+    const section = createModalSection("Itens de Loot");
+    body.appendChild(section);
+
+    const list = document.createElement("div");
+    list.className = "modal-list";
+    section.appendChild(list);
+
+    const addButton = document.createElement("button");
+    addButton.type = "button";
+    addButton.className = "btn-secondary";
+    addButton.textContent = "Adicionar Item";
+    addButton.onclick = () => {
+      lootEntries.push({
+        name: "",
+        chance: 0,
+      });
+      renderList();
+    };
+    section.appendChild(addButton);
+
+    function renderList() {
+      list.innerHTML = "";
+      if (lootEntries.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = "Nenhum item configurado";
+        list.appendChild(empty);
+        return;
+      }
+
+      lootEntries.forEach((entry, index) => {
+        const row = document.createElement("div");
+        row.className = "modal-list-item";
+
+        const header = document.createElement("div");
+        header.className = "modal-list-item-header";
+        header.textContent = `Item ${index + 1}`;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn-icon";
+        removeBtn.innerHTML = "&times;";
+        removeBtn.title = "Remover";
+        removeBtn.onclick = () => {
+          lootEntries.splice(index, 1);
+          renderList();
+        };
+        header.appendChild(removeBtn);
+
+        const grid = document.createElement("div");
+        grid.className = "modal-grid";
+
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.value = entry.name ?? "";
+        nameInput.placeholder = "Nome do item";
+        nameInput.oninput = () => {
+          entry.name = nameInput.value || undefined;
+        };
+
+        const idInput = document.createElement("input");
+        idInput.type = "number";
+        idInput.value = entry.id?.toString() ?? "";
+        idInput.placeholder = "ID (opcional)";
+        idInput.oninput = () => {
+          const value = parseInt(idInput.value, 10);
+          entry.id = Number.isNaN(value) ? undefined : value;
+        };
+
+        const chanceInput = document.createElement("input");
+        chanceInput.type = "number";
+        chanceInput.min = "0";
+        chanceInput.value = entry.chance.toString();
+        chanceInput.oninput = () => {
+          entry.chance = parseInt(chanceInput.value, 10) || 0;
+        };
+
+        const minInput = document.createElement("input");
+        minInput.type = "number";
+        minInput.min = "0";
+        minInput.value = entry.minCount?.toString() ?? "";
+        minInput.oninput = () => {
+          const value = parseInt(minInput.value, 10);
+          entry.minCount = Number.isNaN(value) ? undefined : value;
+        };
+
+        const maxInput = document.createElement("input");
+        maxInput.type = "number";
+        maxInput.min = "0";
+        maxInput.value = entry.maxCount?.toString() ?? "";
+        maxInput.oninput = () => {
+          const value = parseInt(maxInput.value, 10);
+          entry.maxCount = Number.isNaN(value) ? undefined : value;
+        };
+
+        grid.append(
+          createModalField("Nome", nameInput),
+          createModalField("ID", idInput),
+          createModalField("Chance (0-100000)", chanceInput),
+          createModalField("Qtd. Minima", minInput),
+          createModalField("Qtd. Maxima", maxInput),
+        );
+
+        row.append(header, grid);
+        list.appendChild(row);
+      });
+    }
+
+    renderList();
+
+    return () => {
+      if (!currentMonster) return false;
+      currentMonster.loot = lootEntries
+        .map((entry) => ({
+          id: entry.id,
+          name: entry.name?.trim() || undefined,
+          chance: entry.chance || 0,
+          minCount: entry.minCount,
+          maxCount: entry.maxCount,
+        }))
+        .filter((entry) => (entry.id !== undefined || entry.name) && entry.chance >= 0);
+      return true;
+    };
+  });
+}
+
+type SpellFieldConfig = {
+  key: string;
+  label: string;
+  type: "text" | "number" | "checkbox";
+};
+
+function buildSpellFields(category: "attack" | "defense"): SpellFieldConfig[] {
+  const shared: SpellFieldConfig[] = [
+    { key: "name", label: "Nome", type: "text" },
+    { key: "interval", label: "Intervalo (ms)", type: "number" },
+    { key: "chance", label: "Chance (%)", type: "number" },
+    { key: "minDamage", label: "Dano minimo", type: "number" },
+    { key: "maxDamage", label: "Dano maximo", type: "number" },
+    { key: "combatType", label: "Tipo", type: "text" },
+    { key: "target", label: "Precisa alvo", type: "checkbox" },
+    { key: "effect", label: "Efeito", type: "text" },
+    { key: "speedChange", label: "Alteracao velocidade", type: "number" },
+    { key: "duration", label: "Duracao (ms)", type: "number" },
+  ];
+
+  if (category === "attack") {
+    return [
+      ...shared,
+      { key: "range", label: "Alcance", type: "number" },
+      { key: "radius", label: "Raio", type: "number" },
+      { key: "length", label: "Comprimento", type: "number" },
+      { key: "spread", label: "Abertura", type: "number" },
+      { key: "shootEffect", label: "Efeito projetil", type: "text" },
+    ];
+  }
+
+  return shared;
+}
+
+function renderPropertyEditor(title: string, properties: LuaProperty[] | undefined, onChange: (values: LuaProperty[]) => void) {
+  const container = document.createElement("div");
+  container.className = "attack-subsection";
+
+  const heading = document.createElement("div");
+  heading.className = "attack-subsection-title";
+  heading.textContent = title;
+
+  const list = document.createElement("div");
+  list.className = "attack-property-list";
+
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "btn-secondary btn-compact";
+  addBtn.textContent = "Adicionar propriedade";
+
+  container.append(heading, list, addBtn);
+
+  const values = properties ?? [];
+  if (!properties) {
+    onChange(values);
+  }
+
+  const renderList = () => {
+    list.innerHTML = "";
+    if (values.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.textContent = "Nenhuma propriedade";
+      list.appendChild(empty);
+      return;
+    }
+
+    values.forEach((prop, index) => {
+      const row = document.createElement("div");
+      row.className = "attack-property-row";
+
+      const keyInput = document.createElement("input");
+      keyInput.type = "text";
+      keyInput.value = prop.key;
+      keyInput.placeholder = "Chave";
+      keyInput.oninput = () => {
+        prop.key = keyInput.value;
+      };
+
+      const valueInput = document.createElement("input");
+      valueInput.type = "text";
+      valueInput.value = prop.value;
+      valueInput.placeholder = "Valor";
+      valueInput.oninput = () => {
+        prop.value = valueInput.value;
+      };
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "btn-icon";
+      remove.innerHTML = "&times;";
+      remove.title = "Remover";
+      remove.onclick = () => {
+        values.splice(index, 1);
+        onChange(values);
+        renderList();
+      };
+
+      row.append(keyInput, valueInput, remove);
+      list.appendChild(row);
+    });
+  };
+
+  addBtn.onclick = () => {
+    values.push({ key: "", value: "" });
+    onChange(values);
+    renderList();
+  };
+
+  renderList();
+
+  return {
+    element: container,
+  };
+}
+
+function openSpellsEditorModal() {
+  if (!currentMonster) return;
+
+  const attacks = currentMonster.attacks.map((attack) => JSON.parse(JSON.stringify(attack)));
+  const defenses = currentMonster.defenses.entries.map((defense) => JSON.parse(JSON.stringify(defense)));
+
+  showMonsterModal("Editar Ataques & Defesas", (body) => {
+    const sectionsWrapper = document.createElement("div");
+    sectionsWrapper.className = "modal-sections-wrapper";
+    body.appendChild(sectionsWrapper);
+
+    const buildSection = (title: string, entries: (AttackEntry | DefenseEntry)[], category: "attack" | "defense") => {
+      const section = createModalSection(title);
+      section.classList.add("modal-spell-section");
+      sectionsWrapper.appendChild(section);
+
+      const list = document.createElement("div");
+      list.className = "modal-list";
+      section.appendChild(list);
+
+      const addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "btn-secondary";
+      addBtn.textContent = "Adicionar";
+      addBtn.onclick = () => {
+        if (category === "attack") {
+          entries.push({
+            name: "",
+            interval: 2000,
+            chance: 100,
+          } as AttackEntry);
+        } else {
+          entries.push({
+            name: "",
+            interval: 2000,
+            chance: 100,
+          } as DefenseEntry);
+        }
+        renderList();
+      };
+      section.appendChild(addBtn);
+
+      const fieldConfig = buildSpellFields(category);
+
+      const renderList = () => {
+        list.innerHTML = "";
+        if (entries.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Nenhum registro";
+          list.appendChild(empty);
+          return;
+        }
+
+        entries.forEach((entry, index) => {
+          const row = document.createElement("div");
+          row.className = "modal-list-item";
+
+          const header = document.createElement("div");
+          header.className = "modal-list-item-header";
+          header.textContent = `${title} ${index + 1}`;
+
+          const removeBtn = document.createElement("button");
+          removeBtn.type = "button";
+          removeBtn.className = "btn-icon";
+          removeBtn.innerHTML = "&times;";
+          removeBtn.title = "Remover";
+          removeBtn.onclick = () => {
+            entries.splice(index, 1);
+            renderList();
+          };
+          header.appendChild(removeBtn);
+
+          const grid = document.createElement("div");
+          grid.className = "modal-grid";
+
+          fieldConfig.forEach((field) => {
+            const input = document.createElement("input");
+            if (field.type === "checkbox") {
+              input.type = "checkbox";
+              input.checked = Boolean((entry as any)[field.key]);
+              input.onchange = () => {
+                (entry as any)[field.key] = input.checked;
+              };
+            } else {
+              input.type = "number" === field.type ? "number" : "text";
+              const value = (entry as any)[field.key];
+              input.value = value !== undefined && value !== null ? value.toString() : "";
+              input.oninput = () => {
+                const val = input.value.trim();
+                if (field.type === "number") {
+                  if (val === "") {
+                    (entry as any)[field.key] = undefined;
+                    return;
+                  }
+                  const num = Number(val);
+                  (entry as any)[field.key] = Number.isNaN(num) ? undefined : num;
+                } else {
+                  (entry as any)[field.key] = val || undefined;
+                }
+              };
+            }
+            grid.appendChild(createModalField(field.label, input));
+          });
+
+          const conditionEditor = renderPropertyEditor("Condicao", (entry as any).condition, (values) => {
+            (entry as any).condition = values;
+          });
+          const extrasEditor = renderPropertyEditor("Propriedades extras", (entry as any).extra_fields || (entry as any).extraFields, (values) => {
+            (entry as any).extra_fields = values;
+            (entry as any).extraFields = values;
+          });
+
+          row.append(header, grid, conditionEditor.element, extrasEditor.element);
+          list.appendChild(row);
+        });
+      };
+
+      renderList();
+    };
+
+    buildSection("Ataques", attacks, "attack");
+    buildSection("Defesas", defenses, "defense");
+
+    return () => {
+      if (!currentMonster) return false;
+      currentMonster.attacks = attacks;
+      currentMonster.defenses.entries = defenses;
+      return true;
+    };
+  });
+}
+
+function openElementsModal() {
+  if (!currentMonster) return;
+
+  const elements = currentMonster.elements.map((element) => ({ ...element }));
+  const immunities = currentMonster.immunities.map((immunity) => ({ ...immunity }));
+
+  showMonsterModal("Editar Elementos & Imunidades", (body) => {
+    const elementsSection = createModalSection("Elementos");
+    const immunitySection = createModalSection("Imunidades");
+    body.append(elementsSection, immunitySection);
+
+    const renderSimpleList = (
+      section: HTMLElement,
+      entries: Array<Record<string, any>>,
+      fields: Array<{ key: string; label: string; type: "text" | "number" | "checkbox" }>,
+      addDefaults: () => Record<string, any>,
+    ) => {
+      const list = document.createElement("div");
+      list.className = "modal-list";
+      section.appendChild(list);
+
+      const addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "btn-secondary";
+      addBtn.textContent = "Adicionar";
+      addBtn.onclick = () => {
+        entries.push(addDefaults());
+        render();
+      };
+      section.appendChild(addBtn);
+
+      const render = () => {
+        list.innerHTML = "";
+        if (entries.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Nenhum registro";
+          list.appendChild(empty);
+          return;
+        }
+
+        entries.forEach((entry, index) => {
+          const row = document.createElement("div");
+          row.className = "modal-list-item";
+
+          const header = document.createElement("div");
+          header.className = "modal-list-item-header";
+          header.textContent = `${section.querySelector("h4")?.textContent || "Item"} ${index + 1}`;
+
+          const removeBtn = document.createElement("button");
+          removeBtn.type = "button";
+          removeBtn.className = "btn-icon";
+          removeBtn.innerHTML = "&times;";
+          removeBtn.title = "Remover";
+          removeBtn.onclick = () => {
+            entries.splice(index, 1);
+            render();
+          };
+          header.appendChild(removeBtn);
+
+          const grid = document.createElement("div");
+          grid.className = "modal-grid";
+
+          fields.forEach((field) => {
+            const input = document.createElement("input");
+            input.type = field.type === "checkbox" ? "checkbox" : field.type;
+
+            if (field.type === "checkbox") {
+              input.checked = Boolean(entry[field.key]);
+              input.onchange = () => {
+                entry[field.key] = input.checked;
+              };
+            } else {
+              input.value = entry[field.key]?.toString() ?? "";
+              input.oninput = () => {
+                const val = input.value.trim();
+                if (field.type === "number") {
+                  const num = Number(val);
+                  entry[field.key] = val === "" || Number.isNaN(num) ? undefined : num;
+                } else {
+                  entry[field.key] = val;
+                }
+              };
+            }
+
+            grid.appendChild(createModalField(field.label, input));
+          });
+
+          row.append(header, grid);
+          list.appendChild(row);
+        });
+      };
+
+      render();
+    };
+
+    renderSimpleList(
+      elementsSection,
+      elements,
+      [
+        { key: "elementType", label: "Tipo", type: "text" },
+        { key: "percent", label: "%", type: "number" },
+      ],
+      () => ({ elementType: "", percent: 0 }),
+    );
+
+    renderSimpleList(
+      immunitySection,
+      immunities,
+      [
+        { key: "immunityType", label: "Tipo", type: "text" },
+        { key: "condition", label: "Immune", type: "checkbox" },
+      ],
+      () => ({ immunityType: "", condition: false }),
+    );
+
+    return () => {
+      if (!currentMonster) return false;
+      currentMonster.elements = elements.filter((el) => el.elementType.trim().length > 0);
+      currentMonster.immunities = immunities.filter((imm) => imm.immunityType.trim().length > 0);
+      return true;
+    };
+  });
+}
+
+function openVoicesModal() {
+  if (!currentMonster) return;
+
+  const voices = currentMonster.voices
+    ? {
+        interval: currentMonster.voices.interval,
+        chance: currentMonster.voices.chance,
+        entries: currentMonster.voices.entries.map((voice) => ({ ...voice })),
+      }
+    : {
+        interval: 5000,
+        chance: 10,
+        entries: [],
+      };
+
+  showMonsterModal("Editar Falas", (body) => {
+    const metaSection = createModalSection("Configuracoes");
+    const listSection = createModalSection("Falas");
+    body.append(metaSection, listSection);
+
+    const intervalInput = document.createElement("input");
+    intervalInput.type = "number";
+    intervalInput.value = voices.interval.toString();
+    intervalInput.oninput = () => {
+      voices.interval = parseInt(intervalInput.value, 10) || 0;
+    };
+
+    const chanceInput = document.createElement("input");
+    chanceInput.type = "number";
+    chanceInput.value = voices.chance.toString();
+    chanceInput.oninput = () => {
+      voices.chance = parseInt(chanceInput.value, 10) || 0;
+    };
+
+    const grid = document.createElement("div");
+    grid.className = "modal-grid";
+    grid.append(createModalField("Intervalo (ms)", intervalInput), createModalField("Chance (%)", chanceInput));
+    metaSection.appendChild(grid);
+
+    const list = document.createElement("div");
+    list.className = "modal-list";
+    listSection.appendChild(list);
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "btn-secondary";
+    addBtn.textContent = "Adicionar fala";
+    addBtn.onclick = () => {
+      voices.entries.push({ text: "", yell: false });
+      renderVoices();
+    };
+    listSection.appendChild(addBtn);
+
+    function renderVoices() {
+      list.innerHTML = "";
+      if (voices.entries.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = "Nenhuma fala cadastrada";
+        list.appendChild(empty);
+        return;
+      }
+
+      voices.entries.forEach((voice, index) => {
+        const row = document.createElement("div");
+        row.className = "modal-list-item";
+
+        const header = document.createElement("div");
+        header.className = "modal-list-item-header";
+        header.textContent = `Fala ${index + 1}`;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn-icon";
+        removeBtn.innerHTML = "&times;";
+        removeBtn.title = "Remover";
+        removeBtn.onclick = () => {
+          voices.entries.splice(index, 1);
+          renderVoices();
+        };
+
+        header.appendChild(removeBtn);
+
+        const textInput = document.createElement("textarea");
+        textInput.value = voice.text;
+        textInput.rows = 2;
+        textInput.oninput = () => {
+          voice.text = textInput.value;
+        };
+
+        const yellLabel = document.createElement("label");
+        yellLabel.className = "monster-modal-field checkbox";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = voice.yell;
+        checkbox.onchange = () => {
+          voice.yell = checkbox.checked;
+        };
+        const span = document.createElement("span");
+        span.textContent = "Gritar";
+        yellLabel.append(checkbox, span);
+
+        row.append(header, createModalField("Texto", textInput), yellLabel);
+        list.appendChild(row);
+      });
+    }
+
+    renderVoices();
+
+    return () => {
+      if (!currentMonster) return false;
+      currentMonster.voices = voices;
+      return true;
+    };
+  });
+}
+
 function createCheckboxGroup(label: string, checked: boolean, onChange: (value: boolean) => void): HTMLElement {
   const group = document.createElement("div");
   group.className = "form-group checkbox-group";
@@ -1357,5 +2138,20 @@ async function saveMonster() {
     alert(`Failed to save monster: ${error}`);
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
