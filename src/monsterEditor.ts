@@ -201,6 +201,9 @@ async function reloadCurrentMonsterDirectory() {
 
   try {
     await loadMonsterList(monstersRootPath, monsterSidebarRef);
+    if (currentFilePath && monsterEditorAreaRef) {
+      await loadMonster(currentFilePath, monsterEditorAreaRef);
+    }
   } catch (error) {
     alert(`Falha ao recarregar monstros: ${error}`);
   }
@@ -272,6 +275,13 @@ function renderMonsterList(target?: HTMLElement, filterText?: string) {
   categoryNodes.forEach((node) => {
     listEl.appendChild(createMonsterCategoryElement(node, 0, forceExpanded));
   });
+
+  if (currentFilePath) {
+    const activeItem = findMonsterListItemByPath(currentFilePath);
+    if (activeItem) {
+      highlightActiveMonsterItem(activeItem);
+    }
+  }
 }
 
 function buildMonsterTree(entries: MonsterListEntry[]): MonsterCategoryNode {
@@ -374,7 +384,27 @@ function highlightActiveMonsterItem(activeItem: HTMLElement) {
   if (!monsterListContainer) return;
   monsterListContainer.querySelectorAll(".monster-list-item").forEach((item) => item.classList.remove("active"));
   activeItem.classList.add("active");
+
+  let parent: HTMLElement | null = activeItem.parentElement as HTMLElement | null;
+  while (parent && parent !== monsterListContainer) {
+    if (parent.tagName.toLowerCase() === "details") {
+      (parent as HTMLDetailsElement).open = true;
+    }
+    parent = parent.parentElement as HTMLElement | null;
+  }
+
   activeItem.scrollIntoView({ block: "nearest" });
+}
+
+function findMonsterListItemByPath(path: string): HTMLElement | null {
+  if (!monsterListContainer) return null;
+  const items = monsterListContainer.querySelectorAll<HTMLElement>(".monster-list-item");
+  for (const item of items) {
+    if ((item.dataset.path || "") === path) {
+      return item;
+    }
+  }
+  return null;
 }
 
 async function loadMonster(filePath: string, editorArea: HTMLElement) {
