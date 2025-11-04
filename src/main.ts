@@ -21,6 +21,7 @@ import {
 import { initAssetDetailsElements } from './assetDetails';
 import { setupGlobalEventListeners } from './eventListeners';
 import { loadSpecialMeaningIds } from './specialMeaning';
+import { areSoundsLoaded, loadSoundsFile } from "./sounds";
 import { setupImportExportFeature } from './importExport';
 import {
   applyDocumentTranslations,
@@ -261,15 +262,17 @@ window.addEventListener("DOMContentLoaded", async () => {
         // Load sounds from the sounds directory
         try {
           const soundsDir = await join(tibiaPath, "sounds");
-          await invoke("load_sounds_file", { soundsDir });
-          console.log("Sounds loaded successfully");
+          if (!areSoundsLoaded()) {
+            const stats = await loadSoundsFile(soundsDir);
+            (window as any).__lastLoadedSoundCount = stats.total_sounds;
+            console.log("Sounds loaded successfully");
+          }
 
-          // Update sounds count in header
+          // Update sounds count in header (if we have cached stats)
           const soundsCount = document.getElementById('sounds-count');
           if (soundsCount) {
-            const stats = await invoke("get_sounds_stats");
-            if (stats && typeof stats === 'object' && 'total_sounds' in stats) {
-              const totalSounds = (stats as any).total_sounds as number;
+            const totalSounds = (window as any).__lastLoadedSoundCount as number | undefined;
+            if (typeof totalSounds === 'number') {
               soundsCount.textContent = translate('count.items', { count: totalSounds });
             }
           }
