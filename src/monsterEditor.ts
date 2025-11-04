@@ -1,6 +1,7 @@
 ﻿import { invoke } from "@tauri-apps/api/core";
 import type { AttackEntry, DefenseEntry, LuaProperty, Monster, MonsterListEntry, MonsterMeta } from "./monsterTypes";
 import { getAppearanceSprites } from "./spriteCache";
+import { ensureAppearancesLoaded } from "./appearanceLoader";
 
 export interface MonsterEditorOptions {
   onBack: () => void;
@@ -132,6 +133,16 @@ function createEditorArea(): HTMLElement {
 async function loadMonsterList(monstersPath: string, sidebar: HTMLElement) {
   monstersRootPath = monstersPath;
   const listEl = sidebar.querySelector(".monster-list") as HTMLElement;
+  listEl.innerHTML = "<div class='loading'>Carregando assets...</div>";
+
+  try {
+    await ensureAppearancesLoaded();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    listEl.innerHTML = `<div class='error'>${message}</div>`;
+    return;
+  }
+
   listEl.innerHTML = "<div class='loading'>Loading monsters...</div>";
 
   try {

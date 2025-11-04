@@ -4,7 +4,8 @@ import { join } from "@tauri-apps/api/path";
 // Import all modules
 import type { AppearanceStats } from './types';
 import { showStatus } from './utils';
-import { setUserTibiaPath, debugCache } from './spriteCache';
+import { debugCache } from './spriteCache';
+import { loadAppearancesForAssetsEditor } from "./appearanceLoader";
 import {
   initAssetUIElements,
   loadAssets,
@@ -242,8 +243,6 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
     },
     onAssetsEditorSelected: async (tibiaPath: string) => {
-      // Set the Tibia path
-      setUserTibiaPath(tibiaPath);
       localStorage.setItem(LAST_TIBIA_PATH_KEY, tibiaPath);
 
       // Persist path to backend for use between sessions
@@ -254,28 +253,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
 
       try {
-        // List available appearance files
-        const files = await invoke<string[]>("list_appearance_files", { tibiaPath });
-
-        if (files.length === 0) {
-          showStatus(translate('status.noFilesFound'), "error");
-          return;
-        }
-
-        // Build paths using Tauri's path.join for cross-platform compatibility
-        const assetsDir = await join(tibiaPath, "assets");
-
-        // Try to load appearances_latest.dat first (our working copy)
-        let appearancePath = await join(assetsDir, "appearances_latest.dat");
-
-        // If that doesn't exist, fall back to the first file
-        if (!files.includes("appearances_latest.dat")) {
-          appearancePath = await join(assetsDir, files[0]);
-        }
-
-        const result = await invoke<AppearanceStats>("load_appearances_file", {
-          path: appearancePath
-        });
+        const result = await loadAppearancesForAssetsEditor(tibiaPath);
 
         // Load special meaning IDs for global access
         await loadSpecialMeaningIds();
