@@ -221,10 +221,29 @@ function renderAllSections(container: HTMLElement) {
   const cardsGrid = document.createElement("div");
   cardsGrid.className = "monster-cards-grid";
 
+  const leftColumn = document.createElement("div");
+  leftColumn.className = "monster-card-column";
+
+  const rightColumn = document.createElement("div");
+  rightColumn.className = "monster-card-column";
+
+  cardsGrid.append(leftColumn, rightColumn);
+  container.appendChild(cardsGrid);
+
+  const columns = [
+    { element: leftColumn, height: 0 },
+    { element: rightColumn, height: 0 }
+  ];
+
   const appendCard = (card: HTMLElement | null) => {
     if (!card) return;
 
-    cardsGrid.appendChild(card);
+    const targetIndex = columns[0].height <= columns[1].height ? 0 : 1;
+    const targetColumn = columns[targetIndex];
+    targetColumn.element.appendChild(card);
+    const rect = card.getBoundingClientRect();
+    const measuredHeight = rect.height || card.offsetHeight || 0;
+    columns[targetIndex].height += measuredHeight;
   };
 
   appendCard(createOutfitPreviewCard());
@@ -246,7 +265,6 @@ function renderAllSections(container: HTMLElement) {
   appendCard(createFlagsCard());
   appendCard(createAdvancedSettingsCard());
 
-  container.appendChild(cardsGrid);
 }
 
 // Card creation functions

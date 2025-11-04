@@ -231,9 +231,17 @@
 
 /* Cards Grid */
 .monster-cards-grid {
-  column-count: 2;
-  column-gap: var(--space-lg);
+  display: flex;
+  gap: var(--space-lg);
   width: 100%;
+  align-items: flex-start;
+}
+
+.monster-card-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
 }
 
 /* Card Styles */
@@ -247,13 +255,11 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  break-inside: avoid;
-  margin-bottom: var(--space-lg);
   width: 100%;
 }
 
 .monster-card.card-full-width {
-  column-span: all;
+  flex: 1 1 100%;
 }
 
 .monster-card:hover {
@@ -809,8 +815,12 @@
   }
 
   .monster-cards-grid {
-    column-count: 1;
-    column-gap: var(--space-md);
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .monster-card-column {
+    width: 100%;
   }
 
 
