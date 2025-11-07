@@ -37,6 +37,7 @@ const outfitSpriteMetadataCache = new Map<number, { spriteInfo: CompleteSpriteIn
 const OUTFIT_COLOR_COUNT = 19 * 7;
 const outfitColorHexCache = Array.from({ length: OUTFIT_COLOR_COUNT }, (_, id) => rgbToCss(outfitColorIdToRgb(id)));
 const outfitColorRgbCache = Array.from({ length: OUTFIT_COLOR_COUNT }, (_, id) => outfitColorIdToRgb(id));
+const MAX_OUTFIT_ADDONS = 3;
 
 function ensureMonsterMeta(monster: Monster): MonsterMeta {
   if (!monster.meta) {
@@ -752,14 +753,14 @@ function createOutfitPreviewCard(): HTMLElement {
       updateInfoValue(0, newLookType);
       loadOutfitSprite(currentMonster.outfit, false);
     }
-  }));
+  }, { min: 0 }));
 
   editRow1.appendChild(createFormGroup("Look Mount", "number", outfit.lookMount.toString(), (value) => {
     if (currentMonster) {
       currentMonster.outfit.lookMount = parseInt(value) || 0;
       loadOutfitSprite(currentMonster.outfit, true);
     }
-  }));
+  }, { min: 0, max: 1 }));
 
   content.appendChild(editRow1);
 
@@ -805,7 +806,7 @@ function createOutfitPreviewCard(): HTMLElement {
       updateInfoValue(5, currentMonster.outfit.lookAddons);
       loadOutfitSprite(currentMonster.outfit, true);
     }
-  }));
+  }, { min: 0, max: MAX_OUTFIT_ADDONS }));
 
   content.appendChild(editRow3);
 
@@ -925,10 +926,11 @@ type ComposeSpriteParams = {
 async function composeOutfitSprite(params: ComposeSpriteParams): Promise<string | null> {
   const { sprites, spriteInfo, baseOffset, direction, addonIndex, mountIndex, outfit } = params;
 
-  const baseIndex = baseOffset + computeSpriteIndex(spriteInfo, 0, direction, addonIndex, mountIndex, 0);
-  if (!sprites[baseIndex]) return null;
+  const addonLayersToDraw = addonIndex > 0 ? [0, addonIndex] : [0];
+  const primaryIndex = baseOffset + computeSpriteIndex(spriteInfo, 0, direction, addonLayersToDraw[0], mountIndex, 0);
+  if (!sprites[primaryIndex]) return null;
 
-  const baseImage = await loadBase64Image(sprites[baseIndex]);
+  const baseImage = await loadBase64Image(sprites[primaryIndex]);
   const canvas = document.createElement("canvas");
   canvas.width = baseImage.width;
   canvas.height = baseImage.height;
@@ -936,54 +938,63 @@ async function composeOutfitSprite(params: ComposeSpriteParams): Promise<string 
   if (!ctx) return null;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(baseImage, 0, 0);
 
   const layers = spriteInfo.layers ?? spriteInfo.pattern_layers ?? 1;
   const hasTemplateLayer = layers > 1;
 
-  if (hasTemplateLayer) {
-    const templateIndex = baseOffset + computeSpriteIndex(spriteInfo, 1, direction, addonIndex, mountIndex, 0);
+  const applyTemplateLayer = async (addonLayer: number) => {
+    if (!hasTemplateLayer) return;
+    const templateIndex = baseOffset + computeSpriteIndex(spriteInfo, 1, direction, addonLayer, mountIndex, 0);
     const templateBase64 = sprites[templateIndex];
+    if (!templateBase64) return;
 
-    if (templateBase64) {
-      const templateImage = await loadBase64Image(templateBase64);
-      const templateCanvas = document.createElement("canvas");
-      templateCanvas.width = templateImage.width;
-      templateCanvas.height = templateImage.height;
-      const templateCtx = templateCanvas.getContext("2d");
-      if (templateCtx) {
-        templateCtx.drawImage(templateImage, 0, 0);
-        const templateData = templateCtx.getImageData(0, 0, templateCanvas.width, templateCanvas.height);
-        const baseData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const templateImage = await loadBase64Image(templateBase64);
+    const templateCanvas = document.createElement("canvas");
+    templateCanvas.width = templateImage.width;
+    templateCanvas.height = templateImage.height;
+    const templateCtx = templateCanvas.getContext("2d");
+    if (!templateCtx) return;
 
-        const headColor = outfitColorIdToRgb(outfit.lookHead);
-        const bodyColor = outfitColorIdToRgb(outfit.lookBody);
-        const legsColor = outfitColorIdToRgb(outfit.lookLegs);
-        const feetColor = outfitColorIdToRgb(outfit.lookFeet);
+    templateCtx.drawImage(templateImage, 0, 0);
+    const templateData = templateCtx.getImageData(0, 0, templateCanvas.width, templateCanvas.height);
+    const baseData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-        for (let i = 0; i < templateData.data.length; i += 4) {
-          const r = templateData.data[i];
-          const g = templateData.data[i + 1];
-          const b = templateData.data[i + 2];
-          const alpha = templateData.data[i + 3];
-          if (alpha === 0) continue;
+    const headColor = outfitColorIdToRgb(outfit.lookHead);
+    const bodyColor = outfitColorIdToRgb(outfit.lookBody);
+    const legsColor = outfitColorIdToRgb(outfit.lookLegs);
+    const feetColor = outfitColorIdToRgb(outfit.lookFeet);
 
-          let targetColor: { r: number; g: number; b: number } | null = null;
-          if (r > 0 && g > 0 && b === 0) targetColor = headColor;
-          else if (r > 0 && g === 0 && b === 0) targetColor = bodyColor;
-          else if (r === 0 && g > 0 && b === 0) targetColor = legsColor;
-          else if (r === 0 && g === 0 && b > 0) targetColor = feetColor;
+    for (let i = 0; i < templateData.data.length; i += 4) {
+      const r = templateData.data[i];
+      const g = templateData.data[i + 1];
+      const b = templateData.data[i + 2];
+      const alpha = templateData.data[i + 3];
+      if (alpha === 0) continue;
 
-          if (!targetColor) continue;
+      let targetColor: { r: number; g: number; b: number } | null = null;
+      if (r > 0 && g > 0 && b === 0) targetColor = headColor;
+      else if (r > 0 && g === 0 && b === 0) targetColor = bodyColor;
+      else if (r === 0 && g > 0 && b === 0) targetColor = legsColor;
+      else if (r === 0 && g === 0 && b > 0) targetColor = feetColor;
 
-          baseData.data[i] = clampByte((baseData.data[i] + targetColor.r) / 2);
-          baseData.data[i + 1] = clampByte((baseData.data[i + 1] + targetColor.g) / 2);
-          baseData.data[i + 2] = clampByte((baseData.data[i + 2] + targetColor.b) / 2);
-        }
+      if (!targetColor) continue;
 
-        ctx.putImageData(baseData, 0, 0);
-      }
+      baseData.data[i] = clampByte((baseData.data[i] + targetColor.r) / 2);
+      baseData.data[i + 1] = clampByte((baseData.data[i + 1] + targetColor.g) / 2);
+      baseData.data[i + 2] = clampByte((baseData.data[i + 2] + targetColor.b) / 2);
     }
+
+    ctx.putImageData(baseData, 0, 0);
+  };
+
+  for (const addonLayer of addonLayersToDraw) {
+    const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, 0, direction, addonLayer, mountIndex, 0);
+    const spriteBase64 = sprites[spriteIdx];
+    if (!spriteBase64) continue;
+
+    const layerImage = await loadBase64Image(spriteBase64);
+    ctx.drawImage(layerImage, 0, 0);
+    await applyTemplateLayer(addonLayer);
   }
 
   return canvas.toDataURL("image/png");
@@ -1977,7 +1988,20 @@ function createAdvancedSettingsCard(): HTMLElement {
   return createCard("🔧 Advanced Settings", content);
 }
 
-function createFormGroup(label: string, type: string, value: string, onChange: (value: string) => void): HTMLElement {
+type FormGroupOptions = {
+  min?: number;
+  max?: number;
+  step?: number;
+  clampValue?: boolean;
+};
+
+function createFormGroup(
+  label: string,
+  type: string,
+  value: string,
+  onChange: (value: string) => void,
+  options?: FormGroupOptions,
+): HTMLElement {
   const group = document.createElement("div");
   group.className = "form-group";
 
@@ -1994,7 +2018,29 @@ function createFormGroup(label: string, type: string, value: string, onChange: (
     const input = document.createElement("input");
     input.type = type;
     input.value = value;
-    input.addEventListener("input", () => onChange(input.value));
+
+    if (type === "number") {
+      if (options?.min !== undefined) input.min = String(options.min);
+      if (options?.max !== undefined) input.max = String(options.max);
+      if (options?.step !== undefined) input.step = String(options.step);
+    }
+
+    const shouldClamp = type === "number" && (options?.min !== undefined || options?.max !== undefined);
+    input.addEventListener("input", () => {
+      let nextValue = input.value;
+      if (shouldClamp && nextValue.trim() !== "") {
+        let parsed = parseFloat(nextValue);
+        if (Number.isNaN(parsed)) {
+          parsed = options?.min ?? 0;
+        }
+        if (options?.min !== undefined) parsed = Math.max(options.min, parsed);
+        if (options?.max !== undefined) parsed = Math.min(options.max, parsed);
+        nextValue = String(parsed);
+        input.value = nextValue;
+      }
+      onChange(nextValue);
+    });
+
     group.appendChild(input);
   }
 
