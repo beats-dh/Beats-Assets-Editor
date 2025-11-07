@@ -1,4 +1,4 @@
-﻿import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import type {
   AttackEntry,
   DefenseEntry,
@@ -35,8 +35,6 @@ let originalMonsterName: string | null = null;
 let monsterSidebarRef: HTMLElement | null = null;
 const outfitSpriteMetadataCache = new Map<number, { spriteInfo: CompleteSpriteInfo; baseOffset: number }>();
 const OUTFIT_COLOR_COUNT = 19 * 7;
-const outfitColorHexCache = Array.from({ length: OUTFIT_COLOR_COUNT }, (_, id) => rgbToCss(outfitColorIdToRgb(id)));
-const outfitColorRgbCache = Array.from({ length: OUTFIT_COLOR_COUNT }, (_, id) => outfitColorIdToRgb(id));
 
 function ensureMonsterMeta(monster: Monster): MonsterMeta {
   if (!monster.meta) {
@@ -95,7 +93,7 @@ function createHeader(onBack: () => void): HTMLElement {
 
   const backButton = document.createElement("button");
   backButton.className = "editor-back-button";
-  backButton.innerHTML = '<span class="btn-icon">🏠</span><span>Back to Home</span>';
+  backButton.innerHTML = '<span class="btn-icon">??</span><span>Back to Home</span>';
   backButton.onclick = onBack;
 
   const title = document.createElement("h1");
@@ -107,8 +105,8 @@ function createHeader(onBack: () => void): HTMLElement {
   const reloadButton = document.createElement("button");
   reloadButton.type = "button";
   reloadButton.className = "editor-icon-button";
-  reloadButton.innerHTML = '<span class="btn-icon">🔄</span><span>Reload</span>';
-  reloadButton.title = "Recarregar diretório atual";
+  reloadButton.innerHTML = '<span class="btn-icon">??</span><span>Reload</span>';
+  reloadButton.title = "Recarregar diret�rio atual";
   reloadButton.addEventListener("click", () => {
     reloadCurrentMonsterDirectory();
   });
@@ -116,8 +114,8 @@ function createHeader(onBack: () => void): HTMLElement {
   const changeDirButton = document.createElement("button");
   changeDirButton.type = "button";
   changeDirButton.className = "editor-icon-button";
-  changeDirButton.innerHTML = '<span class="btn-icon">📁</span><span>Mudar pasta</span>';
-  changeDirButton.title = "Escolher um novo diretório de monstros";
+  changeDirButton.innerHTML = '<span class="btn-icon">??</span><span>Mudar pasta</span>';
+  changeDirButton.title = "Escolher um novo diret�rio de monstros";
   changeDirButton.addEventListener("click", () => {
     selectNewMonsterDirectory();
   });
@@ -204,7 +202,7 @@ async function loadMonsterList(monstersPath: string, sidebar: HTMLElement) {
 
 async function reloadCurrentMonsterDirectory() {
   if (!monsterSidebarRef) {
-    alert("Sidebar não está disponível para recarregar.");
+    alert("Sidebar n�o est� dispon�vel para recarregar.");
     return;
   }
 
@@ -239,7 +237,7 @@ async function selectNewMonsterDirectory() {
     }
   } catch (error) {
     console.error("Failed to select monster directory:", error);
-    alert("Não foi possível selecionar a nova pasta de monstros.");
+    alert("N�o foi poss�vel selecionar a nova pasta de monstros.");
   }
 }
 
@@ -612,7 +610,7 @@ function createBasicInfoCard(): HTMLElement {
 
   content.appendChild(idsRow);
 
-  return createCard("📋 Basic Information", content);
+  return createCard("?? Basic Information", content);
 }
 
 function createOutfitPreviewCard(): HTMLElement {
@@ -648,7 +646,7 @@ function createOutfitPreviewCard(): HTMLElement {
   rotateButton.type = "button";
   rotateButton.className = "sprite-rotate-button";
   rotateButton.title = "Rotacionar sprite";
-  rotateButton.innerHTML = "⟳";
+  rotateButton.innerHTML = "?";
 
   const updateSpriteImage = () => {
     if (currentSprites.length === 0) {
@@ -689,7 +687,7 @@ function createOutfitPreviewCard(): HTMLElement {
         currentSpriteIndex = 0;
       }
       if (currentSprites.length === 0) {
-        spritePlaceholder.textContent = "—";
+        spritePlaceholder.textContent = "�";
       }
       updateSpriteImage();
     } catch (error) {
@@ -809,7 +807,7 @@ function createOutfitPreviewCard(): HTMLElement {
 
   content.appendChild(editRow3);
 
-  return createCard("👤 Outfit & Appearance", content);
+  return createCard("?? Outfit & Appearance", content);
 }
 
 async function getDirectionalSpritesForOutfit(outfit: MonsterOutfit, sprites: string[]): Promise<string[]> {
@@ -1095,52 +1093,6 @@ function clampByte(value: number): number {
   return Math.max(0, Math.min(255, Math.round(value)));
 }
 
-function clampColorId(value: number): number {
-  if (Number.isNaN(value)) return 0;
-  return Math.max(0, Math.min(OUTFIT_COLOR_COUNT - 1, Math.round(value)));
-}
-
-function rgbToCss(color: { r: number; g: number; b: number }): string {
-  const toHex = (component: number) => clampByte(component).toString(16).padStart(2, "0");
-  return `#${toHex(color.r)}${toHex(color.g)}${toHex(color.b)}`;
-}
-
-function normalizeHex(hex: string): string {
-  let value = hex.trim().toLowerCase();
-  if (!value.startsWith("#")) {
-    value = `#${value}`;
-  }
-  if (value.length === 4) {
-    value = `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`;
-  }
-  return value;
-}
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const normalized = normalizeHex(hex).slice(1);
-  const r = parseInt(normalized.slice(0, 2), 16);
-  const g = parseInt(normalized.slice(2, 4), 16);
-  const b = parseInt(normalized.slice(4, 6), 16);
-  return { r, g, b };
-}
-
-function findClosestColorId(rgb: { r: number; g: number; b: number }): number {
-  let bestIndex = 0;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  for (let i = 0; i < outfitColorRgbCache.length; i += 1) {
-    const color = outfitColorRgbCache[i];
-    const dr = color.r - rgb.r;
-    const dg = color.g - rgb.g;
-    const db = color.b - rgb.b;
-    const distance = dr * dr + dg * dg + db * db;
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestIndex = i;
-    }
-  }
-  return bestIndex;
-}
-
 function loadBase64Image(base64: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -1173,7 +1125,7 @@ function createCombatStatsCard(): HTMLElement {
 
   content.appendChild(row);
 
-  return createCard("🛡️ Combat Stats", content);
+  return createCard("??? Combat Stats", content);
 }
 
 function createAttacksCard(): HTMLElement {
@@ -1595,7 +1547,7 @@ const renderSpellEntry = (entry: SpellEntry, category: "attack" | "defense"): HT
 
 
 
-  const card = createCard("⚔️ Attacks & Defenses", content);
+  const card = createCard("?? Attacks & Defenses", content);
   attachCardEditButton(card, () => openSpellsEditorModal());
   return card;
 
@@ -1667,7 +1619,7 @@ function createElementsImmunitiesCard(): HTMLElement {
     content.appendChild(empty);
   }
 
-  const card = createCard("🧪 Elements & Immunities", content);
+  const card = createCard("?? Elements & Immunities", content);
   attachCardEditButton(card, () => openElementsModal());
   return card;
 }
@@ -1685,7 +1637,7 @@ function createLootCard(): HTMLElement {
     const emptyState = document.createElement("div");
     emptyState.className = "empty-state";
     emptyState.innerHTML = `
-      <div class="empty-state-icon">🤷</div>
+      <div class="empty-state-icon">??</div>
       <div>No loot items found for this monster</div>
     `;
     lootList.appendChild(emptyState);
@@ -1716,7 +1668,7 @@ function createLootCard(): HTMLElement {
 
   content.appendChild(lootList);
 
-  const card = createCard(`💰 Loot (${currentMonster.loot.length})`, content);
+  const card = createCard(`?? Loot (${currentMonster.loot.length})`, content);
   attachCardEditButton(card, () => openLootEditorModal());
   return card;
 }
@@ -1750,7 +1702,7 @@ function createSummonsCard(): HTMLElement {
 
   content.appendChild(summonsList);
 
-  return createCard("🔮 Summons", content);
+  return createCard("?? Summons", content);
 }
 
 function createVoicesCard(): HTMLElement {
@@ -1788,7 +1740,7 @@ function createVoicesCard(): HTMLElement {
 
   content.appendChild(voicesList);
 
-  const card = createCard("💬 Voices", content);
+  const card = createCard("?? Voices", content);
   attachCardEditButton(card, () => openVoicesModal());
   return card;
 }
@@ -1882,7 +1834,7 @@ function createFlagsCard(): HTMLElement {
 
   content.appendChild(numericRow);
 
-  return createCard("⚙️ Flags", content);
+  return createCard("?? Flags", content);
 }
 
 function createAdvancedSettingsCard(): HTMLElement {
@@ -1974,7 +1926,7 @@ function createAdvancedSettingsCard(): HTMLElement {
 
   content.appendChild(strategiesRow);
 
-  return createCard("🔧 Advanced Settings", content);
+  return createCard("?? Advanced Settings", content);
 }
 
 function createFormGroup(label: string, type: string, value: string, onChange: (value: string) => void): HTMLElement {
@@ -2002,75 +1954,85 @@ function createFormGroup(label: string, type: string, value: string, onChange: (
 }
 
 function createColorField(label: string, initialValue: number, onValueChange: (value: number) => void): HTMLElement {
-  const field = document.createElement("div");
-  field.className = "monster-color-field";
+  const group = document.createElement("div");
+  group.className = "form-group color-group";
 
-  const fieldId = `monster-color-${label.toLowerCase().replace(/[^a-z0-9]+/gi, "-")}`;
+  const labelEl = document.createElement("label");
+  labelEl.textContent = label;
+  group.appendChild(labelEl);
 
-  const labelElement = document.createElement("label");
-  labelElement.className = "monster-color-label";
-  labelElement.textContent = label;
-  labelElement.setAttribute("for", `${fieldId}-number`);
-  field.appendChild(labelElement);
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = "0";
+  input.max = String(OUTFIT_COLOR_COUNT - 1);
+  group.appendChild(input);
 
-  const controls = document.createElement("div");
-  controls.className = "monster-color-controls";
-  field.appendChild(controls);
+  const palette = document.createElement("div");
+  palette.className = "color-palette";
+  group.appendChild(palette);
 
-  const numberInput = document.createElement("input");
-  numberInput.type = "number";
-  numberInput.id = `${fieldId}-number`;
-  numberInput.min = "0";
-  numberInput.max = String(OUTFIT_COLOR_COUNT - 1);
-  numberInput.className = "monster-color-number";
-  controls.appendChild(numberInput);
+  let currentColor = clampColorId(initialValue);
+  input.value = String(currentColor);
 
-  const colorInput = document.createElement("input");
-  colorInput.type = "color";
-  colorInput.className = "monster-color-input";
-  colorInput.title = `Selecionar cor para ${label}`;
-  controls.appendChild(colorInput);
+  let activeSwatch: HTMLElement | null = null;
 
-  let currentColorId = clampColorId(initialValue);
-
-  const updateVisualState = () => {
-    const hex = outfitColorHexCache[currentColorId];
-    numberInput.value = String(currentColorId);
-    colorInput.value = hex;
-  };
-
-  const commitColor = (colorId: number, forceEmit = false) => {
-    const normalized = clampColorId(colorId);
-    const changed = normalized !== currentColorId;
-    currentColorId = normalized;
-    updateVisualState();
-    if (changed || forceEmit) {
-      onValueChange(currentColorId);
-    }
-  };
-
-  numberInput.addEventListener("input", () => {
-    const parsed = parseInt(numberInput.value, 10);
-    if (Number.isNaN(parsed)) {
-      numberInput.value = String(currentColorId);
+  const setActiveSwatch = (colorId: number) => {
+    if (activeSwatch && Number(activeSwatch.dataset.colorId) === colorId) {
       return;
     }
-    commitColor(parsed, true);
-  });
-
-  colorInput.addEventListener("input", () => {
-    const normalized = normalizeHex(colorInput.value);
-    let targetIndex = outfitColorHexCache.indexOf(normalized);
-    if (targetIndex === -1) {
-      const rgb = hexToRgb(normalized);
-      targetIndex = findClosestColorId(rgb);
+    if (activeSwatch) {
+      activeSwatch.classList.remove("active");
     }
-    commitColor(targetIndex, true);
+    activeSwatch = palette.querySelector<HTMLElement>(`[data-color-id="${colorId}"]`) || null;
+    if (activeSwatch) {
+      activeSwatch.classList.add("active");
+    }
+  };
+
+  const applyColor = (colorId: number, triggerChange: boolean) => {
+    const clamped = clampColorId(colorId);
+    input.value = String(clamped);
+    if (clamped !== currentColor) {
+      currentColor = clamped;
+      if (triggerChange) {
+        onValueChange(clamped);
+      }
+    } else if (triggerChange) {
+      onValueChange(clamped);
+    }
+    setActiveSwatch(clamped);
+  };
+
+  input.addEventListener("input", () => {
+    const parsed = parseInt(input.value, 10);
+    if (Number.isNaN(parsed)) {
+      input.value = String(currentColor);
+      return;
+    }
+    applyColor(parsed, true);
   });
 
-  updateVisualState();
+  for (let colorId = 0; colorId < OUTFIT_COLOR_COUNT; colorId += 1) {
+    const swatch = document.createElement("button");
+    swatch.type = "button";
+    swatch.className = "color-swatch";
+    swatch.dataset.colorId = String(colorId);
+    swatch.style.backgroundColor = rgbToCss(outfitColorIdToRgb(colorId));
+    swatch.title = `Color ${colorId}`;
+    if (colorId === currentColor) {
+      swatch.classList.add("active");
+      activeSwatch = swatch;
+    }
+    swatch.addEventListener("click", () => {
+      if (currentColor === colorId) return;
+      applyColor(colorId, true);
+    });
+    palette.appendChild(swatch);
+  }
 
-  return field;
+  setActiveSwatch(currentColor);
+
+  return group;
 }
 
 function attachCardEditButton(card: HTMLElement, onClick: () => void) {
