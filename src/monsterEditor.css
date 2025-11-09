@@ -181,7 +181,7 @@
 }
 
 .monster-category-header::before {
-  content: "?";
+  content: "▸";
   font-size: 0.75rem;
   color: var(--text-secondary);
   transition: transform var(--transition-fast);
@@ -200,6 +200,12 @@
 
 .category-name {
   flex: 1;
+}
+
+.category-icon {
+  font-size: 0.95rem;
+  width: 1.4rem;
+  text-align: center;
 }
 
 .category-count {

@@ -251,6 +251,44 @@ type MonsterCategoryNode = {
   monsters: MonsterListEntry[];
 };
 
+const CATEGORY_ICON_MAP: Record<string, string> = {
+  amphibics: "🐸",
+  aquatics: "🐟",
+  animals: "🐾",
+  birds: "🕊",
+  bosses: "👑",
+  constructs: "🛠",
+  custom: "✨",
+  dawnport: "🌅",
+  demons: "😈",
+  dragons: "🐉",
+  elementals: "🌪",
+  event_creatures: "🎉",
+  extra_dimensional: "🌀",
+  familiars: "🧿",
+  fey: "🧚",
+  giants: "🗿",
+  humanoids: "🧑",
+  humans: "👤",
+  insects: "🐞",
+  lycanthropes: "🐺",
+  machines: "🤖",
+  mammals: "🦁",
+  mutants: "🧟",
+  orcs: "⚔",
+  plants: "🌿",
+  reptiles: "🦎",
+  undead: "💀",
+  vampires: "🩸",
+  event: "🎊",
+  familiars_event: "🧙",
+};
+
+function getCategoryIcon(categoryName: string): string {
+  const normalized = categoryName.toLowerCase();
+  return CATEGORY_ICON_MAP[normalized] ?? "📁";
+}
+
 type RenameMonsterResult = {
   filePath: string;
   relativePath: string;
@@ -347,6 +385,10 @@ function createMonsterCategoryElement(node: MonsterCategoryNode, depth: number, 
   summary.className = "monster-category-header";
   summary.style.paddingLeft = `${depth * 12 + 8}px`;
 
+  const icon = document.createElement("span");
+  icon.className = "category-icon";
+  icon.textContent = getCategoryIcon(node.name);
+
   const title = document.createElement("span");
   title.className = "category-name";
   title.textContent = node.name;
@@ -355,7 +397,7 @@ function createMonsterCategoryElement(node: MonsterCategoryNode, depth: number, 
   count.className = "category-count";
   count.textContent = countMonstersInNode(node).toString();
 
-  summary.append(title, count);
+  summary.append(icon, title, count);
   details.appendChild(summary);
 
   const childrenContainer = document.createElement("div");
