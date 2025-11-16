@@ -32,6 +32,14 @@ let pageInfo: HTMLElement | null = null;
 let prevPageBtn: HTMLButtonElement | null = null;
 let nextPageBtn: HTMLButtonElement | null = null;
 let pageSizeSelect: HTMLSelectElement | null = null;
+const PREVIEW_BATCH_SIZE = 12;
+const scheduleIdle = (cb: () => void): void => {
+  if ('requestIdleCallback' in window) {
+    (window as any).requestIdleCallback(cb, { timeout: 32 });
+  } else {
+    setTimeout(cb, 0);
+  }
+};
 
 export interface LoadAssetsOptions {
   append?: boolean;
@@ -310,24 +318,35 @@ async function loadSpritesForAssets(assets: any[]): Promise<void> {
     return;
   }
 
-  // Render previews e só busque sprites completos quando animação estiver habilitada/visível
-  for (const asset of assets) {
-    const container = document.getElementById(`sprite-${asset.id}`);
-    if (!container) continue;
-
-    const previewSprite = previews.get(asset.id);
-    if (previewSprite) {
-      const img = createSpriteImage(previewSprite);
-      container.innerHTML = '';
-      container.appendChild(img);
-    } else {
-      const placeholder = createPlaceholderImage();
-      container.innerHTML = '';
-      container.appendChild(placeholder);
+  // Render previews em lotes usando requestIdleCallback para evitar jank na UI
+  const renderBatch = (startIndex: number) => {
+    if (thisLoadId !== currentLoadId) {
+      return;
     }
 
-    initAssetCardAutoAnimation(currentCategory, asset.id, autoAnimateGridEnabled);
-  }
+    const endIndex = Math.min(startIndex + PREVIEW_BATCH_SIZE, assets.length);
+    for (let i = startIndex; i < endIndex; i++) {
+      const asset = assets[i];
+      const container = document.getElementById(`sprite-${asset.id}`);
+      if (!container) continue;
+
+      const previewSprite = previews.get(asset.id);
+      container.innerHTML = '';
+      if (previewSprite) {
+        container.appendChild(createSpriteImage(previewSprite));
+      } else {
+        container.appendChild(createPlaceholderImage());
+      }
+
+      initAssetCardAutoAnimation(currentCategory, asset.id, autoAnimateGridEnabled);
+    }
+
+    if (endIndex < assets.length) {
+      scheduleIdle(() => renderBatch(endIndex));
+    }
+  };
+
+  renderBatch(0);
 }
 
 function displaySounds(sounds: any[], append = false): void {

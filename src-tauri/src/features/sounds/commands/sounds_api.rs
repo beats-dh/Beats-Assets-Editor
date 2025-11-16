@@ -19,7 +19,10 @@ pub struct PagedResponse<T> {
 fn page_vec<T: Clone>(items: &mut Vec<T>, page: Option<usize>, page_size: Option<usize>) -> PagedResponse<T> {
     let total = items.len();
     let sliced = paginate(items, page, page_size);
-    PagedResponse { total, items: sliced }
+    PagedResponse {
+        total,
+        items: sliced,
+    }
 }
 
 pub struct SoundsState {
@@ -113,7 +116,12 @@ pub async fn list_all_sounds(state: State<'_, SoundsState>) -> Result<Vec<SoundI
 }
 
 #[tauri::command]
-pub async fn list_numeric_sound_effects(page: Option<usize>, page_size: Option<usize>, sound_type: Option<String>, state: State<'_, SoundsState>) -> Result<PagedResponse<NumericSoundEffectInfo>, String> {
+pub async fn list_numeric_sound_effects(
+    page: Option<usize>,
+    page_size: Option<usize>,
+    sound_type: Option<String>,
+    state: State<'_, SoundsState>,
+) -> Result<PagedResponse<NumericSoundEffectInfo>, String> {
     let parser = state.parser.lock().map_err(|e| e.to_string())?;
 
     let mut effects: Vec<NumericSoundEffectInfo> = if let Some(st) = sound_type {

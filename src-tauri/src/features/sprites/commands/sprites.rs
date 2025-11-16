@@ -1,3 +1,4 @@
+use crate::core::protobuf::Appearance;
 use crate::features::appearances::AppearanceCategory;
 use crate::features::sprites::parsers::SpriteLoader;
 use crate::state::AppState;
@@ -6,6 +7,22 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::State;
 use rayon::prelude::*;
+
+#[inline(always)]
+fn resolve_appearance<'a>(state: &'a AppState, items: &'a [Appearance], category: &AppearanceCategory, appearance_id: u32) -> Option<&'a Appearance> {
+    let index_map = match category {
+        AppearanceCategory::Objects => &state.object_index,
+        AppearanceCategory::Outfits => &state.outfit_index,
+        AppearanceCategory::Effects => &state.effect_index,
+        AppearanceCategory::Missiles => &state.missile_index,
+    };
+
+    if let Some(idx) = index_map.get(&appearance_id) {
+        items.get(*idx)
+    } else {
+        items.iter().find(|app| app.id.unwrap_or(0) == appearance_id)
+    }
+}
 
 #[tauri::command]
 pub async fn load_sprites_catalog(catalog_path: String, assets_dir: String, state: State<'_, AppState>) -> Result<usize, String> {
@@ -106,6 +123,7 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
         None => return Err("No sprites loaded".to_string()),
     };
 
+    let app_state = state.inner();
     let items = match category {
         AppearanceCategory::Objects => &appearances.object,
         AppearanceCategory::Outfits => &appearances.outfit,
@@ -113,7 +131,7 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
         AppearanceCategory::Missiles => &appearances.missile,
     };
 
-    let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", appearance_id, category))?;
+    let appearance = resolve_appearance(app_state, items, &category, appearance_id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", appearance_id, category))?;
 
     // Collect all sprite IDs from all frame groups
     let all_sprite_ids: Vec<u32> = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()).collect();
@@ -183,6 +201,7 @@ pub async fn get_appearance_preview_sprite(category: AppearanceCategory, appeara
         None => return Err("No sprites loaded".to_string()),
     };
 
+    let app_state = state.inner();
     let items = match category {
         AppearanceCategory::Objects => &appearances.object,
         AppearanceCategory::Outfits => &appearances.outfit,
@@ -190,7 +209,7 @@ pub async fn get_appearance_preview_sprite(category: AppearanceCategory, appeara
         AppearanceCategory::Missiles => &appearances.missile,
     };
 
-    let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", appearance_id, category))?;
+    let appearance = resolve_appearance(app_state, items, &category, appearance_id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", appearance_id, category))?;
 
     let first_sprite_id = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter()).copied().next();
 
@@ -264,6 +283,7 @@ pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearan
         None => return Err("No sprites loaded".to_string()),
     };
 
+    let app_state = state.inner();
     let items = match category {
         AppearanceCategory::Objects => &appearances.object,
         AppearanceCategory::Outfits => &appearances.outfit,
@@ -301,8 +321,8 @@ pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearan
     let loaded_sprites: Vec<(u32, Vec<String>)> = ids_to_load
         .par_iter()
         .filter_map(|&appearance_id| {
-            // Find appearance
-            let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id)?;
+            // Find appearance (O(1) via índices pré-construídos)
+            let appearance = resolve_appearance(app_state, items, &category, appearance_id)?;
 
             // Collect all sprite IDs from all frame groups
             let all_sprite_ids: Vec<u32> = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()).collect();
@@ -384,6 +404,7 @@ pub async fn get_appearance_preview_sprites_batch(category: AppearanceCategory, 
         None => return Err("No sprites loaded".to_string()),
     };
 
+    let app_state = state.inner();
     let items = match category {
         AppearanceCategory::Objects => &appearances.object,
         AppearanceCategory::Outfits => &appearances.outfit,
@@ -414,16 +435,10 @@ pub async fn get_appearance_preview_sprites_batch(category: AppearanceCategory, 
         .par_iter()
         .filter_map(|&appearance_id| {
             // Find appearance
-            let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id)?;
+            let appearance = resolve_appearance(app_state, items, &category, appearance_id)?;
 
             // Get first sprite ID
-            let first_sprite_id = appearance
-                .frame_group
-                .iter()
-                .filter_map(|fg| fg.sprite_info.as_ref())
-                .flat_map(|info| info.sprite_id.iter())
-                .copied()
-                .next()?;
+            let first_sprite_id = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter()).copied().next()?;
 
             // Load and encode sprite
             let sprite = sprite_loader.get_sprite(first_sprite_id).ok()?;

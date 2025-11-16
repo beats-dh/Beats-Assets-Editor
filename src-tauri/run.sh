@@ -12,4 +12,4 @@ export WEBKIT_DISABLE_DMABUF_RENDERER=0
 export WEBKIT_FORCE_COMPOSITING_MODE=1
 
 # Executa o Tauri com as flags
-npm run tauri build
+npm run tauri dev

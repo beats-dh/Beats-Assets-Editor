@@ -1,5 +1,5 @@
 use super::category_types::{AppearanceCategory, AppearanceDetails, AppearanceFlagsInfo, AppearanceItem, FrameGroupInfo, ItemSubcategory};
-use super::helpers::{get_items_by_category, get_index_for_category};
+use super::helpers::{create_appearance_item_response, get_items_by_category, get_index_for_category};
 use crate::features::appearances::CompleteAppearanceItem;
 use crate::state::AppState;
 use tauri::State;
@@ -32,6 +32,9 @@ pub async fn list_appearances_by_category(
 
     // Check cache first (lock-free DashMap)
     if let Some(cached_ids) = state.search_cache.get(&cache_key) {
+        // Clone Arc to drop DashMap guard ASAP (reduz contenção)
+        let cached_ids = cached_ids.clone();
+
         // Cache hit! Just fetch the page of items
         let appearances_lock = state.appearances.read();
         let appearances = match &*appearances_lock {
@@ -40,35 +43,32 @@ pub async fn list_appearances_by_category(
         };
 
         let items = get_items_by_category(appearances, &category);
-        let start = page * page_size;
-        let end = std::cmp::min(start + page_size, cached_ids.len());
+        let index_map = get_index_for_category(&state, &category);
 
-        if start >= cached_ids.len() {
+        let start = page * page_size;
+        let ids_slice = cached_ids.as_ref();
+        let end = std::cmp::min(start + page_size, ids_slice.len());
+
+        if start >= ids_slice.len() {
             return Ok(AppearancePage {
-                total: cached_ids.len(),
+                total: ids_slice.len(),
                 items: vec![],
             });
         }
 
-        let result: Vec<AppearanceItem> = cached_ids[start..end]
+        let result: Vec<AppearanceItem> = ids_slice[start..end]
             .iter()
             .filter_map(|&id| {
-                items.iter().find(|app| app.id.unwrap_or(0) == id).map(|appearance| {
-                    let sprite_count = appearance.frame_group.iter().map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32)).sum();
-
-                    AppearanceItem {
-                        id,
-                        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-                        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-                        has_flags: appearance.flags.is_some(),
-                        sprite_count,
-                    }
-                })
+                if let Some(idx) = index_map.get(&id) {
+                    items.get(*idx).map(|appearance| create_appearance_item_response(id, appearance))
+                } else {
+                    items.iter().find(|app| app.id.unwrap_or(0) == id).map(|appearance| create_appearance_item_response(id, appearance))
+                }
             })
             .collect();
 
         return Ok(AppearancePage {
-            total: cached_ids.len(),
+            total: ids_slice.len(),
             items: result,
         });
     }
@@ -81,6 +81,7 @@ pub async fn list_appearances_by_category(
     };
 
     let items = get_items_by_category(appearances, &category);
+    let index_map = get_index_for_category(&state, &category);
 
     // OPTIMIZATION: Pre-lowercase search term once (not per item!)
     let search_lower = search.as_ref().map(|s| s.to_lowercase());
@@ -176,39 +177,38 @@ pub async fn list_appearances_by_category(
         filtered_ids.sort_unstable();
     }
 
+    let filtered_ids = Arc::new(filtered_ids);
+    let total = filtered_ids.len();
     // Cache the filtered IDs for future queries (Arc for zero-copy sharing)
-    state.search_cache.insert(cache_key, Arc::new(filtered_ids.clone()));
+    state.search_cache.insert(cache_key, filtered_ids.clone());
 
     // Build response for this page
     let start = page * page_size;
-    let end = std::cmp::min(start + page_size, filtered_ids.len());
+    let end = std::cmp::min(start + page_size, total);
 
-    if start >= filtered_ids.len() {
+    if start >= total {
         return Ok(AppearancePage {
-            total: filtered_ids.len(),
+            total,
             items: vec![],
         });
     }
 
-    let result: Vec<AppearanceItem> = filtered_ids[start..end]
+    let ids_slice = filtered_ids.as_ref();
+    let result: Vec<AppearanceItem> = ids_slice[start..end]
         .iter()
         .filter_map(|&id| {
-            items.iter().find(|app| app.id.unwrap_or(0) == id).map(|appearance| {
-                let sprite_count = appearance.frame_group.iter().map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32)).sum();
+            let appearance = if let Some(idx) = index_map.get(&id) {
+                items.get(*idx)
+            } else {
+                items.iter().find(|app| app.id.unwrap_or(0) == id)
+            };
 
-                AppearanceItem {
-                    id,
-                    name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-                    description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-                    has_flags: appearance.flags.is_some(),
-                    sprite_count,
-                }
-            })
+            appearance.map(|appearance| create_appearance_item_response(id, appearance))
         })
         .collect();
 
     Ok(AppearancePage {
-        total: filtered_ids.len(),
+        total,
         items: result,
     })
 }
