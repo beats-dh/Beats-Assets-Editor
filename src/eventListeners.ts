@@ -24,12 +24,13 @@ import {
   saveAssetTransparencyLevel,
   saveFlagCheckbox
 } from './assetSave';
-import { setAssetSelection } from './assetSelection';
+import { getPrimarySelection, isAssetSelected, setAssetSelection } from './assetSelection';
 
 export function setupGlobalEventListeners(): void {
   // Global click listener for category navigation and all save buttons
   document.addEventListener('click', async (e) => {
     const target = e.target as HTMLElement;
+    const mouseEvent = e as MouseEvent;
 
     if (target.closest('.asset-select-control')) {
       return;
@@ -60,7 +61,13 @@ export function setupGlobalEventListeners(): void {
       const assetId = (assetItem as HTMLElement).dataset.assetId;
       const category = (assetItem as HTMLElement).dataset.category;
       if (assetId && category) {
-        await showAssetDetails(category, parseInt(assetId));
+        const parsedId = parseInt(assetId, 10);
+        if (!Number.isNaN(parsedId)) {
+          if (shouldHandleCtrlSelection(mouseEvent, category, parsedId)) {
+            return;
+          }
+          await showAssetDetails(category, parsedId);
+        }
       } else {
         console.error('Missing assetId or category in dataset');
       }
@@ -111,6 +118,49 @@ export function setupGlobalEventListeners(): void {
       }
     }
   });
+}
+
+function getAssetItemsInOrder(category: string): HTMLElement[] {
+  const grid = document.querySelector('#assets-grid');
+  if (!grid) {
+    return [];
+  }
+  return Array.from(grid.querySelectorAll<HTMLElement>(`.asset-item[data-category="${category}"]`));
+}
+
+function shouldHandleCtrlSelection(event: MouseEvent, category: string, assetId: number): boolean {
+  if (!event.ctrlKey && !event.metaKey) {
+    return false;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const items = getAssetItemsInOrder(category);
+  const targetIndex = items.findIndex((item) => parseInt(item.dataset.assetId ?? '', 10) === assetId);
+  const primary = getPrimarySelection();
+
+  if (!primary || primary.category !== category) {
+    setAssetSelection(category, assetId, !isAssetSelected(category, assetId));
+    return true;
+  }
+
+  const primaryIndex = items.findIndex((item) => parseInt(item.dataset.assetId ?? '', 10) === primary.id);
+  if (primaryIndex === -1 || targetIndex === -1) {
+    setAssetSelection(category, assetId, !isAssetSelected(category, assetId));
+    return true;
+  }
+
+  const start = Math.min(primaryIndex, targetIndex);
+  const end = Math.max(primaryIndex, targetIndex);
+  for (let i = start; i <= end; i += 1) {
+    const id = parseInt(items[i].dataset.assetId ?? '', 10);
+    if (!Number.isNaN(id)) {
+      setAssetSelection(category, id, true);
+    }
+  }
+
+  return true;
 }
 
 async function handleSpinnerButtons(_e: Event, target: HTMLElement): Promise<void> {
