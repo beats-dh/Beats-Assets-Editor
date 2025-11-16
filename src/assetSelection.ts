@@ -8,8 +8,16 @@ export interface AssetSelectionChangeDetail {
   primary: AssetSelectionItem | null;
 }
 
+interface AssetSelectionSnapshot {
+  selected: AssetSelectionItem[];
+  primary: AssetSelectionItem | null;
+}
+
 const selection: AssetSelectionItem[] = [];
 let primarySelection: AssetSelectionItem | null = null;
+const undoStack: AssetSelectionSnapshot[] = [];
+const redoStack: AssetSelectionSnapshot[] = [];
+const HISTORY_LIMIT = 100;
 
 function dispatchSelectionChanged(): void {
   const detail: AssetSelectionChangeDetail = {
@@ -17,6 +25,75 @@ function dispatchSelectionChanged(): void {
     primary: primarySelection ? { ...primarySelection } : null,
   };
   document.dispatchEvent(new CustomEvent<AssetSelectionChangeDetail>('asset-selection-changed', { detail }));
+}
+
+function createSnapshot(): AssetSelectionSnapshot {
+  return {
+    selected: selection.map((item) => ({ ...item })),
+    primary: primarySelection ? { ...primarySelection } : null,
+  };
+}
+
+function selectionChangedSince(snapshot: AssetSelectionSnapshot): boolean {
+  if (snapshot.selected.length !== selection.length) {
+    return true;
+  }
+
+  for (let i = 0; i < selection.length; i += 1) {
+    const current = selection[i];
+    const prev = snapshot.selected[i];
+    if (!prev || current.category !== prev.category || current.id !== prev.id) {
+      return true;
+    }
+  }
+
+  const primaryA = snapshot.primary;
+  const primaryB = primarySelection;
+  if (!primaryA && !primaryB) {
+    return false;
+  }
+  if (!primaryA || !primaryB) {
+    return true;
+  }
+  return primaryA.category !== primaryB.category || primaryA.id !== primaryB.id;
+}
+
+function pushUndoSnapshot(snapshot: AssetSelectionSnapshot): void {
+  undoStack.push(snapshot);
+  if (undoStack.length > HISTORY_LIMIT) {
+    undoStack.shift();
+  }
+}
+
+function commitHistory(snapshotBefore: AssetSelectionSnapshot | null, recordHistory: boolean): void {
+  if (recordHistory && snapshotBefore && selectionChangedSince(snapshotBefore)) {
+    pushUndoSnapshot(snapshotBefore);
+    redoStack.length = 0;
+  }
+  dispatchSelectionChanged();
+}
+
+function applySelectionSnapshot(snapshot: AssetSelectionSnapshot): void {
+  const targetKeys = new Set(snapshot.selected.map((item) => `${item.category}:${item.id}`));
+
+  // Unselect items not present in the snapshot
+  selection.forEach((item) => {
+    const key = `${item.category}:${item.id}`;
+    if (!targetKeys.has(key)) {
+      updateCardSelection(item.category, item.id, false);
+    }
+  });
+
+  // Apply snapshot
+  selection.splice(0, selection.length, ...snapshot.selected.map((item) => ({ ...item })));
+  primarySelection = snapshot.primary ? { ...snapshot.primary } : null;
+
+  // Select items in the snapshot
+  snapshot.selected.forEach((item) => {
+    updateCardSelection(item.category, item.id, true);
+  });
+
+  dispatchSelectionChanged();
 }
 
 function findIndex(category: string, id: number): number {
@@ -39,7 +116,8 @@ export function isAssetSelected(category: string, id: number): boolean {
   return findIndex(category, id) !== -1;
 }
 
-export function setAssetSelection(category: string, id: number, selected: boolean): void {
+export function setAssetSelection(category: string, id: number, selected: boolean, recordHistory = true): void {
+  const snapshotBefore = recordHistory ? createSnapshot() : null;
   const existingIndex = findIndex(category, id);
 
   if (selected) {
@@ -60,7 +138,7 @@ export function setAssetSelection(category: string, id: number, selected: boolea
   }
 
   updateCardSelection(category, id, selected);
-  dispatchSelectionChanged();
+  commitHistory(snapshotBefore, recordHistory);
 }
 
 export function toggleAssetSelection(category: string, id: number): void {
@@ -73,6 +151,7 @@ export function clearAssetSelection(): void {
     return;
   }
 
+  const snapshotBefore = createSnapshot();
   const snapshot = selection.splice(0, selection.length);
   primarySelection = null;
 
@@ -80,7 +159,7 @@ export function clearAssetSelection(): void {
     updateCardSelection(item.category, item.id, false);
   });
 
-  dispatchSelectionChanged();
+  commitHistory(snapshotBefore, true);
 }
 
 export function removeAssetSelection(category: string, id: number): void {
@@ -89,13 +168,14 @@ export function removeAssetSelection(category: string, id: number): void {
     return;
   }
 
+  const snapshotBefore = createSnapshot();
   const [removed] = selection.splice(existingIndex, 1);
   if (primarySelection && primarySelection.category === removed.category && primarySelection.id === removed.id) {
     primarySelection = selection.length > 0 ? selection[selection.length - 1] : null;
   }
 
   updateCardSelection(category, id, false);
-  dispatchSelectionChanged();
+  commitHistory(snapshotBefore, true);
 }
 
 export function getCurrentSelection(): AssetSelectionItem[] {
@@ -104,4 +184,26 @@ export function getCurrentSelection(): AssetSelectionItem[] {
 
 export function getPrimarySelection(): AssetSelectionItem | null {
   return primarySelection ? { ...primarySelection } : null;
+}
+
+export function undoSelection(): void {
+  const snapshot = undoStack.pop();
+  if (!snapshot) {
+    return;
+  }
+
+  const currentSnapshot = createSnapshot();
+  redoStack.push(currentSnapshot);
+  applySelectionSnapshot(snapshot);
+}
+
+export function redoSelection(): void {
+  const snapshot = redoStack.pop();
+  if (!snapshot) {
+    return;
+  }
+
+  const currentSnapshot = createSnapshot();
+  pushUndoSnapshot(currentSnapshot);
+  applySelectionSnapshot(snapshot);
 }

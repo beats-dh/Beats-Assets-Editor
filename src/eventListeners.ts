@@ -24,7 +24,7 @@ import {
   saveAssetTransparencyLevel,
   saveFlagCheckbox
 } from './assetSave';
-import { getPrimarySelection, isAssetSelected, setAssetSelection } from './assetSelection';
+import { getPrimarySelection, isAssetSelected, redoSelection, setAssetSelection, undoSelection } from './assetSelection';
 
 export function setupGlobalEventListeners(): void {
   // Global click listener for category navigation and all save buttons
@@ -116,6 +116,60 @@ export function setupGlobalEventListeners(): void {
           setAssetSelection(category, parsedId, target.checked);
         }
       }
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (!event.ctrlKey && !event.metaKey) {
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+      return;
+    }
+
+    const key = event.key.toLowerCase();
+
+    if (key === 'a') {
+      const grid = document.querySelector('#assets-grid');
+      if (!grid) {
+        return;
+      }
+
+      const assetItems = Array.from(grid.querySelectorAll<HTMLElement>('.asset-item'));
+      if (assetItems.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      assetItems.forEach((item) => {
+        const id = parseInt(item.dataset.assetId ?? '', 10);
+        const cat = item.dataset.category;
+        if (!Number.isNaN(id) && cat) {
+          setAssetSelection(cat, id, true);
+        }
+      });
+      return;
+    }
+
+    if (key === 'z') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.shiftKey) {
+        redoSelection();
+      } else {
+        undoSelection();
+      }
+      return;
+    }
+
+    if (key === 'y') {
+      event.preventDefault();
+      event.stopPropagation();
+      redoSelection();
     }
   });
 }
