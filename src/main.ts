@@ -187,7 +187,12 @@ function initializeAssetsBrowser(): void {
   }
 
   if (autoAnimateToggle) {
-    autoAnimateToggle.checked = localStorage.getItem('autoAnimateGridEnabled') === 'true';
+    const stored = localStorage.getItem('autoAnimateGridEnabled');
+    const enabled = stored === null ? false : stored === 'true';
+    if (stored === null) {
+      localStorage.setItem('autoAnimateGridEnabled', 'false');
+    }
+    autoAnimateToggle.checked = enabled;
     autoAnimateToggle.addEventListener('change', () => {
       const enabled = autoAnimateToggle.checked;
       localStorage.setItem('autoAnimateGridEnabled', String(enabled));

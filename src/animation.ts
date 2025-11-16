@@ -5,6 +5,15 @@ import { buildAssetPreviewAnimation } from './features/previewAnimation/assetPre
 
 // Active animation players storage
 const activeAnimationPlayers = new Map<string, number>();
+const detailCache = new Map<string, CompleteAppearanceItem>();
+const MAX_AUTO_ANIMATIONS = 32;
+const runWhenIdle = (cb: () => void): void => {
+  if ('requestIdleCallback' in window) {
+    (window as any).requestIdleCallback(cb, { timeout: 500 });
+  } else {
+    setTimeout(cb, 0);
+  }
+};
 
 export function stopAllAnimationPlayers(): void {
   activeAnimationPlayers.forEach((timerId) => {
@@ -231,6 +240,8 @@ export function initDetailSpriteCardAnimations(
       if (!spriteInfo) return;
       const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_frames ?? 1);
       if (frames <= 1) return;
+      if (el.dataset.animReady === 'true') return;
+      el.dataset.animReady = 'true';
 
       const imgEl = el.querySelector('img.detail-sprite-image') as HTMLImageElement | null;
       if (!imgEl) return;
@@ -316,17 +327,26 @@ export function initDetailSpriteCardAnimations(
 export function initAssetCardAutoAnimation(
   category: string,
   appearanceId: number,
-  sprites: string[],
   autoAnimateGridEnabled: boolean
 ): void {
-  (async () => {
-    try {
-      const container = document.getElementById(`sprite-${appearanceId}`) as HTMLElement | null;
-      const imgEl = container?.querySelector('img') as HTMLImageElement | null;
-      if (!container || !imgEl) return;
+  const container = document.getElementById(`sprite-${appearanceId}`) as HTMLElement | null;
+  const imgEl = container?.querySelector('img') as HTMLImageElement | null;
+  if (!container || !imgEl) return;
 
-      const details = await invoke('get_complete_appearance', { category, id: appearanceId }) as CompleteAppearanceItem;
+  const cacheKey = `${category}:${appearanceId}`;
+
+  const startAnimation = async (): Promise<void> => {
+    try {
       if (!autoAnimateGridEnabled) return;
+      if (activeAnimationPlayers.has(`asset:${category}:${appearanceId}`)) return;
+      if (activeAnimationPlayers.size >= MAX_AUTO_ANIMATIONS) return;
+
+      const details = detailCache.has(cacheKey)
+        ? detailCache.get(cacheKey)!
+        : await invoke('get_complete_appearance', { category, id: appearanceId }) as CompleteAppearanceItem;
+      detailCache.set(cacheKey, details);
+
+      const sprites = await getAppearanceSprites(category, appearanceId);
 
       const sequence = await buildAssetPreviewAnimation(category, appearanceId, details, sprites);
       if (!sequence || sequence.frames.length === 0) {
@@ -334,10 +354,8 @@ export function initAssetCardAutoAnimation(
       }
 
       const key = `asset:${category}:${appearanceId}`;
-
-      // CRITICAL: Check if animation already exists to prevent duplicate timers
       if (activeAnimationPlayers.has(key)) {
-        return; // Already animating, don't create duplicate timer
+        return;
       }
 
       let frameIndex = 0;
@@ -354,18 +372,26 @@ export function initAssetCardAutoAnimation(
         return;
       }
 
-      const start = () => {
-        const timerId = window.setInterval(() => {
-          frameIndex = (frameIndex + 1) % sequence.frames.length;
-          draw();
-        }, sequence.interval);
-        activeAnimationPlayers.set(key, timerId);
-        container.classList.add('animating');
-      };
-
-      start();
+      const timerId = window.setInterval(() => {
+        frameIndex = (frameIndex + 1) % sequence.frames.length;
+        draw();
+      }, sequence.interval);
+      activeAnimationPlayers.set(key, timerId);
+      container.classList.add('animating');
     } catch (e) {
       console.warn('Failed to init auto animation for asset card:', e);
     }
-  })();
+  };
+
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        observer.disconnect();
+        runWhenIdle(() => { void startAnimation(); });
+      }
+    }, { threshold: 0.25 });
+    observer.observe(container);
+  } else {
+    runWhenIdle(() => { void startAnimation(); });
+  }
 }

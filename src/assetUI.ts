@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { getAppearanceSprites, getAppearancePreviewSpritesBatch, createSpriteImage, createPlaceholderImage, hasCachedSprites } from './spriteCache';
+import { getAppearancePreviewSpritesBatch, createSpriteImage, createPlaceholderImage } from './spriteCache';
 import { stopAllAnimationPlayers, initAssetCardAutoAnimation } from './animation';
 import { isAssetSelected } from './assetSelection';
 import { translate } from './i18n';
@@ -8,16 +8,20 @@ import { updateActionButtonStates } from './importExport';
 let currentCategory = 'Objects';
 let currentSubcategory = 'All';
 let currentPage = 0;
-let currentPageSize = 100;
+let currentPageSize = 60;
 let currentSearch = '';
 let totalItems = 0;
 let pendingScrollToId: number | null = null;
 let currentLoadId = 0; // Track current load operation to cancel stale ones
 
 const storedAnimationPreference = localStorage.getItem('autoAnimateGridEnabled');
-let autoAnimateGridEnabled = storedAnimationPreference === null ? true : storedAnimationPreference === 'true';
+let autoAnimateGridEnabled: boolean;
 if (storedAnimationPreference === null) {
-  localStorage.setItem('autoAnimateGridEnabled', 'true');
+  // Auto animação da grade desabilitada por padrão para evitar carga pesada ao abrir a página
+  autoAnimateGridEnabled = false;
+  localStorage.setItem('autoAnimateGridEnabled', 'false');
+} else {
+  autoAnimateGridEnabled = storedAnimationPreference === 'true';
 }
 
 // DOM element references
@@ -124,74 +128,59 @@ export async function loadAssets(options: LoadAssetsOptions = {}): Promise<void>
       const sub = currentSubcategory;
 
       if (sub === 'Ambience Streams') {
-        const totalCount = await invoke('get_ambience_stream_count');
-        totalItems = totalCount as number;
-        const assets = await invoke('list_ambience_streams', {
+        const response = await invoke('list_ambience_streams', {
           page: currentPage,
           pageSize: currentPageSize
-        });
-        const ambienceStreams = assets as any[];
-        renderedCount = ambienceStreams.length;
-        displayAmbienceStreams(ambienceStreams, append);
+        }) as { total: number; items: any[] };
+        totalItems = response.total;
+        renderedCount = response.items.length;
+        displayAmbienceStreams(response.items, append);
         updatePaginationInfo();
       } else if (sub === 'Ambience Object Streams') {
-        const totalCount = await invoke('get_ambience_object_stream_count');
-        totalItems = totalCount as number;
-        const assets = await invoke('list_ambience_object_streams', {
+        const response = await invoke('list_ambience_object_streams', {
           page: currentPage,
           pageSize: currentPageSize
-        });
-        const ambienceObjectStreams = assets as any[];
-        renderedCount = ambienceObjectStreams.length;
-        displayAmbienceObjectStreams(ambienceObjectStreams, append);
+        }) as { total: number; items: any[] };
+        totalItems = response.total;
+        renderedCount = response.items.length;
+        displayAmbienceObjectStreams(response.items, append);
         updatePaginationInfo();
       } else if (sub === 'Music Templates') {
-        const totalCount = await invoke('get_music_template_count');
-        totalItems = totalCount as number;
-        const assets = await invoke('list_music_templates', {
+        const response = await invoke('list_music_templates', {
           page: currentPage,
           pageSize: currentPageSize
-        });
-        const musicTemplates = assets as any[];
-        renderedCount = musicTemplates.length;
-        displayMusicTemplates(musicTemplates, append);
+        }) as { total: number; items: any[] };
+        totalItems = response.total;
+        renderedCount = response.items.length;
+        displayMusicTemplates(response.items, append);
         updatePaginationInfo();
       } else {
         // Numeric sound effects (All or specific type)
-        const totalCount = await invoke('get_sound_effect_count');
-        totalItems = totalCount as number;
-
         const soundType = currentSubcategory !== 'All' ? currentSubcategory : null;
-        const assets = await invoke('list_numeric_sound_effects', {
+        const response = await invoke('list_numeric_sound_effects', {
           page: currentPage,
           pageSize: currentPageSize,
           soundType
-        });
+        }) as { total: number; items: any[] };
 
-        const soundEffects = assets as any[];
-        renderedCount = soundEffects.length;
-        displaySounds(soundEffects, append);
+        totalItems = response.total;
+        renderedCount = response.items.length;
+        displaySounds(response.items, append);
         updatePaginationInfo();
       }
     } else {
-      // Get total count
-      const totalCount = await invoke('get_appearance_count', {
-        category: currentCategory,
-        search: currentSearch || null,
-        subcategory: currentCategory === 'Objects' && currentSubcategory !== 'All' ? currentSubcategory : null
-      });
-      totalItems = totalCount as number;
-
-      // Load assets for current page
-      const assets = await invoke('list_appearances_by_category', {
+      // Load assets for current page (now returns items + total in one IPC)
+      const response = await invoke('list_appearances_by_category', {
         category: currentCategory,
         page: currentPage,
         pageSize: currentPageSize,
         search: currentSearch || null,
         subcategory: currentCategory === 'Objects' && currentSubcategory !== 'All' ? currentSubcategory : null
-      });
+      }) as { total: number; items: any[] };
 
-      const appearanceAssets = assets as any[];
+      totalItems = response.total;
+
+      const appearanceAssets = response.items;
       renderedCount = appearanceAssets.length;
       displayAssets(appearanceAssets, append);
       updatePaginationInfo();
@@ -306,130 +295,38 @@ async function displayAssets(assets: any[], append = false): Promise<void> {
   loadSpritesForAssets(assets);
 }
 
-/**
- * Separate assets into cached and uncached for optimized loading
- * Cached assets can be rendered IMMEDIATELY without waiting for batch API
- */
-function separateCachedAndUncached(assets: any[]): { cached: any[], needsLoading: any[] } {
-  const cached: any[] = [];
-  const needsLoading: any[] = [];
-
-  for (const asset of assets) {
-    if (hasCachedSprites(currentCategory, asset.id)) {
-      cached.push(asset);
-    } else {
-      needsLoading.push(asset);
-    }
-  }
-
-  console.debug(`CACHE CHECK: ${cached.length} cached, ${needsLoading.length} need loading`);
-  return { cached, needsLoading };
-}
-
 async function loadSpritesForAssets(assets: any[]): Promise<void> {
   if (assets.length === 0) return;
 
   // Increment load ID to invalidate previous load operations
   const thisLoadId = ++currentLoadId;
 
-  // OPTIMIZATION: Check cache FIRST and render cached sprites immediately
-  const { cached, needsLoading } = separateCachedAndUncached(assets);
+  // Pré-visualização: carregar apenas o primeiro sprite por asset (batch + cache backend)
+  const ids = assets.map(asset => asset.id);
+  const previews = await getAppearancePreviewSpritesBatch(currentCategory, ids);
 
-  // Step 1: Render cached sprites IMMEDIATELY (no waiting!)
-  for (const asset of cached) {
-    const container = document.getElementById(`sprite-${asset.id}`);
-    if (!container) continue;
-
-    // Get from frontend cache (instant!)
-    const sprites = await getAppearanceSprites(currentCategory, asset.id);
-    if (sprites.length > 0) {
-      const img = createSpriteImage(sprites[0]);
-      container.innerHTML = '';
-      container.appendChild(img);
-      // Initialize animation for cached sprites
-      initAssetCardAutoAnimation(currentCategory, asset.id, sprites, autoAnimateGridEnabled);
-    }
-  }
-
-  // Step 2: If no items need loading, we're done!
-  if (needsLoading.length === 0) {
+  // Cancel stale operations
+  if (thisLoadId !== currentLoadId) {
     return;
   }
 
-  // Step 3: Load uncached sprites via batch API
-  const uncachedIds = needsLoading.map(asset => asset.id);
+  // Render previews e só busque sprites completos quando animação estiver habilitada/visível
+  for (const asset of assets) {
+    const container = document.getElementById(`sprite-${asset.id}`);
+    if (!container) continue;
 
-  try {
-    const previews = await getAppearancePreviewSpritesBatch(currentCategory, uncachedIds);
-
-    // BUGFIX: Check if this load was cancelled (user changed page during load)
-    if (thisLoadId !== currentLoadId) {
-      console.debug('Sprite load cancelled (stale operation)');
-      return; // Don't render stale results
+    const previewSprite = previews.get(asset.id);
+    if (previewSprite) {
+      const img = createSpriteImage(previewSprite);
+      container.innerHTML = '';
+      container.appendChild(img);
+    } else {
+      const placeholder = createPlaceholderImage();
+      container.innerHTML = '';
+      container.appendChild(placeholder);
     }
 
-    // Step 4: Render newly loaded previews
-    for (const asset of needsLoading) {
-      const container = document.getElementById(`sprite-${asset.id}`);
-      if (!container) continue;
-
-      const previewSprite = previews.get(asset.id);
-      if (previewSprite) {
-        const img = createSpriteImage(previewSprite);
-        container.innerHTML = '';
-        container.appendChild(img);
-      } else {
-        const placeholder = createPlaceholderImage();
-        container.innerHTML = '';
-        container.appendChild(placeholder);
-      }
-    }
-
-    // Step 5: Initialize animations ONLY for newly loaded assets (cached already initialized in Step 1)
-    for (const asset of needsLoading) {
-      // Check again if load is still valid
-      if (thisLoadId !== currentLoadId) return;
-
-      try {
-        const sprites = await getAppearanceSprites(currentCategory, asset.id);
-        if (sprites.length > 0) {
-          initAssetCardAutoAnimation(currentCategory, asset.id, sprites, autoAnimateGridEnabled);
-        }
-      } catch (error) {
-        // Ignore animation errors - preview is already shown
-      }
-    }
-  } catch (error) {
-    console.error('Batch sprite loading failed, falling back to individual loads:', error);
-
-    // Fallback: load individually if batch fails
-    for (const asset of assets) {
-      try {
-        const sprites = await getAppearanceSprites(currentCategory, asset.id);
-        const container = document.getElementById(`sprite-${asset.id}`);
-
-        if (container) {
-          if (sprites.length > 0) {
-            const img = createSpriteImage(sprites[0]);
-            container.innerHTML = '';
-            container.appendChild(img);
-            initAssetCardAutoAnimation(currentCategory, asset.id, sprites, autoAnimateGridEnabled);
-          } else {
-            const placeholder = createPlaceholderImage();
-            container.innerHTML = '';
-            container.appendChild(placeholder);
-          }
-        }
-      } catch (error) {
-        console.warn(`Failed to load sprite for asset ${asset.id}:`, error);
-        const container = document.getElementById(`sprite-${asset.id}`);
-        if (container) {
-          const placeholder = createPlaceholderImage();
-          container.innerHTML = '';
-          container.appendChild(placeholder);
-        }
-      }
-    }
+    initAssetCardAutoAnimation(currentCategory, asset.id, autoAnimateGridEnabled);
   }
 }
 

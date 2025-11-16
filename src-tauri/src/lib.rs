@@ -23,6 +23,7 @@ pub fn run() {
             sprite_loader: RwLock::new(None),
             tibia_path: Mutex::new(None),
             sprite_cache: DashMap::new(),
+            preview_cache: DashMap::new(),
 
             // O(1) lookup indexes (no more linear scans!)
             object_index: DashMap::with_hasher(ahash::RandomState::new()),

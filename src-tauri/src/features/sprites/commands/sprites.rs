@@ -211,9 +211,11 @@ pub async fn get_appearance_preview_sprite(category: AppearanceCategory, appeara
 #[tauri::command]
 pub async fn clear_sprite_cache(state: State<'_, AppState>) -> Result<usize, String> {
     let cache_size = state.sprite_cache.len();
+    let preview_size = state.preview_cache.len();
     state.sprite_cache.clear();
-    log::info!("Cleared sprite cache ({} entries)", cache_size);
-    Ok(cache_size)
+    state.preview_cache.clear();
+    log::info!("Cleared sprite cache ({} entries) and preview cache ({})", cache_size, preview_size);
+    Ok(cache_size + preview_size)
 }
 
 /// Get sprite cache statistics
@@ -222,7 +224,7 @@ pub async fn clear_sprite_cache(state: State<'_, AppState>) -> Result<usize, Str
 pub async fn get_sprite_cache_stats(state: State<'_, AppState>) -> Result<(usize, usize), String> {
     let total_entries = state.sprite_cache.len();
     let total_sprites: usize = state.sprite_cache.iter().map(|entry| entry.value().len()).sum();
-    Ok((total_entries, total_sprites))
+    Ok((total_entries + state.preview_cache.len(), total_sprites + state.preview_cache.len()))
 }
 
 /// BATCH SPRITE LOADING - MASSIVE PERFORMANCE BOOST for preview grids
@@ -389,15 +391,39 @@ pub async fn get_appearance_preview_sprites_batch(category: AppearanceCategory, 
         AppearanceCategory::Missiles => &appearances.missile,
     };
 
-    // OPTIMIZATION: Load all previews in PARALLEL
-    let result: HashMap<u32, String> = appearance_ids
+    // OPTIMIZATION: First check preview cache, collect misses
+    let mut result: HashMap<u32, String> = HashMap::with_capacity(appearance_ids.len());
+    let mut ids_to_load: Vec<u32> = Vec::new();
+
+    for &appearance_id in &appearance_ids {
+        let cache_key = format!("{:?}:{}", category, appearance_id);
+        if let Some(cached) = state.preview_cache.get(&cache_key) {
+            result.insert(appearance_id, cached.value().as_ref().clone());
+        } else {
+            ids_to_load.push(appearance_id);
+        }
+    }
+
+    if ids_to_load.is_empty() {
+        log::info!("BATCH PREVIEW LOAD: all {} previews cached", result.len());
+        return Ok(result);
+    }
+
+    // OPTIMIZATION: Load remaining previews in PARALLEL
+    let loaded: HashMap<u32, String> = ids_to_load
         .par_iter()
         .filter_map(|&appearance_id| {
             // Find appearance
             let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id)?;
 
             // Get first sprite ID
-            let first_sprite_id = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter()).copied().next()?;
+            let first_sprite_id = appearance
+                .frame_group
+                .iter()
+                .filter_map(|fg| fg.sprite_info.as_ref())
+                .flat_map(|info| info.sprite_id.iter())
+                .copied()
+                .next()?;
 
             // Load and encode sprite
             let sprite = sprite_loader.get_sprite(first_sprite_id).ok()?;
@@ -406,6 +432,13 @@ pub async fn get_appearance_preview_sprites_batch(category: AppearanceCategory, 
             Some((appearance_id, preview))
         })
         .collect();
+
+    // Cache loaded previews and merge
+    for (id, preview) in loaded {
+        let cache_key = format!("{:?}:{}", category, id);
+        state.preview_cache.insert(cache_key, Arc::new(preview.clone()));
+        result.insert(id, preview);
+    }
 
     log::info!("BATCH PREVIEW LOAD: Successfully loaded {} previews", result.len());
     Ok(result)

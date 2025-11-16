@@ -3,8 +3,15 @@ use super::helpers::{get_items_by_category, get_index_for_category};
 use crate::features::appearances::CompleteAppearanceItem;
 use crate::state::AppState;
 use tauri::State;
+use serde::Serialize;
 use std::sync::Arc;
 use rayon::prelude::*;
+
+#[derive(Serialize)]
+pub struct AppearancePage {
+    pub total: usize,
+    pub items: Vec<AppearanceItem>,
+}
 
 /// HEAVILY OPTIMIZED list_appearances_by_category:
 /// - Search result caching (memoize expensive filter operations)
@@ -19,7 +26,7 @@ pub async fn list_appearances_by_category(
     search: Option<String>,
     subcategory: Option<ItemSubcategory>,
     state: State<'_, AppState>,
-) -> Result<Vec<AppearanceItem>, String> {
+) -> Result<AppearancePage, String> {
     // Build cache key for this exact query
     let cache_key = format!("{:?}:{}:{:?}", category, search.as_deref().unwrap_or(""), subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
 
@@ -37,7 +44,10 @@ pub async fn list_appearances_by_category(
         let end = std::cmp::min(start + page_size, cached_ids.len());
 
         if start >= cached_ids.len() {
-            return Ok(vec![]);
+            return Ok(AppearancePage {
+                total: cached_ids.len(),
+                items: vec![],
+            });
         }
 
         let result: Vec<AppearanceItem> = cached_ids[start..end]
@@ -57,7 +67,10 @@ pub async fn list_appearances_by_category(
             })
             .collect();
 
-        return Ok(result);
+        return Ok(AppearancePage {
+            total: cached_ids.len(),
+            items: result,
+        });
     }
 
     // Cache miss - do full filter and cache result
@@ -171,7 +184,10 @@ pub async fn list_appearances_by_category(
     let end = std::cmp::min(start + page_size, filtered_ids.len());
 
     if start >= filtered_ids.len() {
-        return Ok(vec![]);
+        return Ok(AppearancePage {
+            total: filtered_ids.len(),
+            items: vec![],
+        });
     }
 
     let result: Vec<AppearanceItem> = filtered_ids[start..end]
@@ -191,7 +207,10 @@ pub async fn list_appearances_by_category(
         })
         .collect();
 
-    Ok(result)
+    Ok(AppearancePage {
+        total: filtered_ids.len(),
+        items: result,
+    })
 }
 
 /// HEAVILY OPTIMIZED find_appearance_position:

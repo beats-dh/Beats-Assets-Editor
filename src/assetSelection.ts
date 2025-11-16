@@ -63,14 +63,14 @@ function commitHistory(snapshotBefore: AssetSelectionSnapshot | null, recordHist
     const snapshotAfter = createSnapshot();
     recordAction({
       description: 'Atualizar seleção',
-      undo: () => applySelectionSnapshot(snapshotBefore, true),
-      redo: () => applySelectionSnapshot(snapshotAfter, true),
+      undo: () => applySelectionSnapshot(snapshotBefore),
+      redo: () => applySelectionSnapshot(snapshotAfter),
     });
   }
   dispatchSelectionChanged();
 }
 
-function applySelectionSnapshot(snapshot: AssetSelectionSnapshot, skipHistory = false): void {
+function applySelectionSnapshot(snapshot: AssetSelectionSnapshot): void {
   if (isApplyingSnapshot) return;
   isApplyingSnapshot = true;
 
