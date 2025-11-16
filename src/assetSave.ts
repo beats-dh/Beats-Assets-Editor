@@ -1,4 +1,36 @@
 ﻿import { invoke } from '@tauri-apps/api/core';
+import { getCurrentAppearanceDetails } from './assetDetails';
+import { recordAction } from './history';
+import type { CompleteAppearanceItem } from './types';
+
+function getDetailsSnapshot(id: number): CompleteAppearanceItem | null {
+  const details = getCurrentAppearanceDetails();
+  if (details && details.id === id) {
+    return details;
+  }
+  return null;
+}
+
+function registerUndoRedo(
+  description: string,
+  undoFn: () => Promise<void>,
+  redoFn: () => Promise<void>,
+  onRefresh: () => Promise<void>
+): void {
+  recordAction({
+    description,
+    undo: async () => {
+      await undoFn();
+      await invoke('save_appearances_file');
+      await onRefresh();
+    },
+    redo: async () => {
+      await redoFn();
+      await invoke('save_appearances_file');
+      await onRefresh();
+    }
+  });
+}
 
 // Generic save helper to reduce repetition
 async function saveWithFeedback(
@@ -28,28 +60,46 @@ async function saveWithFeedback(
 
 // Save basic info (name + description)
 export async function saveAssetBasicInfo(category: string, id: number, onRefresh: () => Promise<void>): Promise<void> {
+  const detailsBefore = getDetailsSnapshot(id);
+  const prevName = detailsBefore?.name ?? '';
+  const prevDescription = detailsBefore?.description ?? '';
+  let newNameValue = '';
+  let newDescriptionValue = '';
+
   await saveWithFeedback('save-basic-info', async () => {
     const inputName = document.getElementById('asset-name-input') as HTMLInputElement | null;
     const inputDesc = document.getElementById('asset-description-input') as HTMLTextAreaElement | null;
     if (!inputName || !inputDesc) return;
 
-    const newName = inputName.value?.trim() || '';
-    if (!newName) {
+    newNameValue = inputName.value?.trim() || '';
+    if (!newNameValue) {
       alert('O nome nÃ£o pode ser vazio.');
       throw new Error('Empty name');
     }
-    const newDescription = inputDesc.value?.trim() || '';
+    newDescriptionValue = inputDesc.value?.trim() || '';
 
-    await invoke('update_appearance_name', { category, id, newName });
-    await invoke('update_appearance_description', { category, id, newDescription });
+    await invoke('update_appearance_name', { category, id, newName: newNameValue });
+    await invoke('update_appearance_description', { category, id, newDescription: newDescriptionValue });
 
     // Update UI immediately
     const nameValue = document.getElementById('detail-name-value');
-    if (nameValue) nameValue.textContent = newName;
+    if (nameValue) nameValue.textContent = newNameValue;
     const sel = `.asset-item[data-asset-id="${id}"][data-category="${category}"] .asset-name`;
     const gridNameEl = document.querySelector(sel) as HTMLElement | null;
-    if (gridNameEl) gridNameEl.textContent = newName;
+    if (gridNameEl) gridNameEl.textContent = newNameValue;
   });
+  registerUndoRedo(
+    'Alterar nome/descrição',
+    async () => {
+      await invoke('update_appearance_name', { category, id, newName: prevName });
+      await invoke('update_appearance_description', { category, id, newDescription: prevDescription });
+    },
+    async () => {
+      await invoke('update_appearance_name', { category, id, newName: newNameValue });
+      await invoke('update_appearance_description', { category, id, newDescription: newDescriptionValue });
+    },
+    onRefresh
+  );
   await onRefresh();
 }
 

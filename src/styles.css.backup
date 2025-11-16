@@ -310,6 +310,33 @@ body {
   box-shadow: var(--shadow-lg);
 }
 
+.setup-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-lg);
+}
+
+.setup-main-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-soft);
+  background: rgba(15, 23, 42, 0.6);
+  color: var(--text-secondary);
+  font-weight: 600;
+  transition: border-color var(--transition-normal), background var(--transition-normal), color var(--transition-normal), transform var(--transition-normal);
+  cursor: pointer;
+}
+
+.setup-main-menu-btn:hover {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
 .setup-card h2 {
   font-size: 1.5rem;
   margin-bottom: var(--space-lg);

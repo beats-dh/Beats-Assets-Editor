@@ -40,6 +40,7 @@ export async function loadSoundsFile(soundsDir: string): Promise<SoundStats> {
 
     soundsLoaded = true;
     soundStats = stats;
+    (window as any).__lastLoadedSoundCount = stats.total_sounds;
 
     console.log('Sounds loaded successfully:', stats);
     showStatus(translate('sounds.loaded', { count: stats.total_sounds }), 'success');

@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.9.2",
+    "playwright": "^1.56.1",
     "typescript": "~5.6.2",
     "vite": "^6.0.3"
   }
