@@ -300,14 +300,16 @@ export async function showAssetDetails(category: string, id: number): Promise<vo
 
   // Reabre o modal reutilizando o conteúdo já renderizado se nada mudou
   if (assetDetails && detailsContent && !assetDetails.classList.contains('show')) {
-    const sameAsLast = lastRenderedDetails
+    const cachedDetails = lastRenderedDetails
       && lastRenderedDetails.category === category
-      && lastRenderedDetails.id === id;
+      && lastRenderedDetails.id === id
+      ? lastRenderedDetails.details
+      : null;
 
-    if (sameAsLast) {
+    if (cachedDetails) {
       currentDetailCategory = category;
       currentDetailId = id;
-      currentAppearanceDetails = lastRenderedDetails.details;
+      currentAppearanceDetails = cachedDetails;
 
       restoreActiveTab(category);
 
@@ -318,7 +320,7 @@ export async function showAssetDetails(category: string, id: number): Promise<vo
       updateNavigationButtons(category, id);
 
       // Reinicia animações e sprites caso tenham sido paradas no fechamento
-      scheduleIdle(() => { void initAnimationPlayersForDetails(lastRenderedDetails!.details, category); });
+      scheduleIdle(() => { void initAnimationPlayersForDetails(cachedDetails, category); });
       const spritesLoaded = document.querySelector(`#detail-sprites-${id} .detail-sprite-item`);
       if (!spritesLoaded) {
         scheduleIdle(() => { void loadDetailSprites(category, id); });
