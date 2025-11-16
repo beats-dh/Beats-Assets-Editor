@@ -9,6 +9,7 @@ import type { CompleteAppearanceItem } from "./types";
 import { clearAssetSelection, removeAssetSelection } from "./assetSelection";
 import type { AssetSelectionChangeDetail } from "./assetSelection";
 import { recordAction } from "./history";
+import { openConfirmModal } from "./confirmModal";
 
 const ACTION_CONTAINER_ID = "appearance-action-bar";
 const ACTION_BUTTON_IDS = {
@@ -371,16 +372,21 @@ async function handleDeleteAppearances(targets: AssetTarget[]): Promise<void> {
     return;
   }
 
-  if (uniqueTargets.length === 1) {
-    const target = uniqueTargets[0];
-    if (!window.confirm(translate('confirm.deleteSingle', { id: target.id }))) {
-      return;
-    }
-  } else {
-    const ids = uniqueTargets.map((target) => `#${target.id}`).join(", ");
-    if (!window.confirm(translate('confirm.deleteMultiple', { count: uniqueTargets.length, ids }))) {
-      return;
-    }
+  const confirmed = uniqueTargets.length === 1
+    ? await openConfirmModal(
+      translate('confirm.deleteSingle', { id: uniqueTargets[0].id }),
+      translate('action.verb.delete')
+    )
+    : await openConfirmModal(
+      translate('confirm.deleteMultiple', {
+        count: uniqueTargets.length,
+        ids: uniqueTargets.map((target) => `#${target.id}`).join(", ")
+      }),
+      translate('action.verb.delete')
+    );
+
+  if (!confirmed) {
+    return;
   }
 
   try {
