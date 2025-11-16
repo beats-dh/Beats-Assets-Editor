@@ -384,12 +384,13 @@ Cada feature contém:
 ### Importação/Exportação e Gerenciamento
 
 - `export_appearance_to_json(category, id) -> string`: Exporta appearance para JSON
-- `import_appearance_from_json(category, json_data) -> AppearanceItem`: Importa de JSON
+- `import_appearance_from_file(category, path, mode?, new_id?) -> AppearanceItem[]`: Importa aparências em JSON ou AEC
 - `duplicate_appearance(category, source_id) -> AppearanceItem`: Duplica um appearance
 - `create_empty_appearance(category) -> AppearanceItem`: Cria novo appearance vazio
 - `copy_appearance_flags(category, id) -> void`: Copia flags para clipboard
 - `paste_appearance_flags(category, id) -> AppearanceItem`: Cola flags do clipboard
 - `delete_appearance(category, id) -> void`: Remove um appearance
+- `export_appearances_to_aec(category, start_id, end_id, path, include_sprites?) -> number`: Exporta um intervalo como arquivo .aec
 
 ### Sprites
 

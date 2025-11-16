@@ -26,3 +26,13 @@
   border-color: var(--error-color);
   background: linear-gradient(135deg, var(--tertiary-bg) 0%, rgba(239, 68, 68, 0.1) 100%);
 }
+
+.status-toast.warning {
+  border-color: var(--warning-color);
+  background: linear-gradient(135deg, var(--tertiary-bg) 0%, rgba(245, 158, 11, 0.15) 100%);
+}
+
+.status-toast.info {
+  border-color: var(--primary-accent);
+  background: linear-gradient(135deg, var(--tertiary-bg) 0%, rgba(79, 70, 229, 0.15) 100%);
+}

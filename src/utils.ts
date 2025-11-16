@@ -83,7 +83,7 @@ export function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export function showStatus(message: string, type: 'loading' | 'success' | 'error'): void {
+export function showStatus(message: string, type: 'loading' | 'success' | 'error' | 'warning' | 'info'): void {
   const statusMessage = document.querySelector('#status-message') as HTMLElement | null;
   if (!statusMessage) return;
 

@@ -11,7 +11,7 @@ pub struct AppearanceItem {
 }
 
 /// Category of appearances
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum AppearanceCategory {
     Objects,
     Outfits,

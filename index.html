@@ -451,7 +451,78 @@
         </div>
       </div>
 
-      <!-- Add Sound Modal -->
+        <!-- Export Modal -->
+        <div id="export-modal" class="asset-details-modal" role="dialog" aria-modal="true" aria-labelledby="export-modal-title" aria-describedby="export-modal-desc" style="display: none;">
+          <div class="modal-backdrop" id="export-modal-backdrop"></div>
+          <div class="modal-content" role="document">
+            <div class="modal-header">
+              <div class="modal-title-stack">
+                <h2 id="export-modal-title" data-i18n="modal.export.title">Export Appearances</h2>
+                <p id="export-modal-desc" class="modal-subtitle" data-i18n="modal.export.description">Configure the export range and format.</p>
+              </div>
+              <button id="export-modal-close" class="close-btn" aria-label="Close export dialog">×</button>
+            </div>
+            <div class="modal-body">
+              <div class="edit-section">
+                <div id="export-modal-error" class="form-error" role="alert" style="display:none;"></div>
+                <div class="form-grid">
+                  <div>
+                    <span class="field-label" data-i18n="modal.export.categoryLabel">Category</span>
+                    <div id="export-category-options" class="category-option-grid"></div>
+                  </div>
+                  <div>
+                    <span class="field-label" data-i18n="modal.export.formatLabel">Format</span>
+                    <fieldset class="radio-group" aria-label="Export format">
+                      <label>
+                        <input type="radio" name="export-format" value="json" checked />
+                        <span data-i18n="modal.export.format.json">JSON (one file per ID)</span>
+                      </label>
+                      <label>
+                        <input type="radio" name="export-format" value="aec" />
+                        <span data-i18n="modal.export.format.aec">AEC (legacy archive)</span>
+                      </label>
+                    </fieldset>
+                  </div>
+                </div>
+
+                <div class="form-grid">
+                  <label for="export-start-id" data-i18n="modal.export.startId">Start ID
+                    <input id="export-start-id" class="modern-input" type="number" min="0" />
+                  </label>
+                  <label for="export-end-id" data-i18n="modal.export.endId">End ID
+                    <input id="export-end-id" class="modern-input" type="number" min="0" />
+                  </label>
+                </div>
+
+                <div id="export-json-destination" class="edit-subsection">
+                  <span class="field-label" data-i18n="modal.export.jsonDestination">Destination folder</span>
+                  <div class="input-row">
+                    <input id="export-json-path" class="modern-input" type="text" readonly />
+                    <button id="export-json-browse" type="button" class="btn-secondary" data-i18n="modal.export.browse">Browse</button>
+                  </div>
+                </div>
+
+                <div id="export-aec-destination" class="edit-subsection" style="display:none;">
+                  <span class="field-label" data-i18n="modal.export.aecDestination">AEC file path</span>
+                  <div class="input-row">
+                    <input id="export-aec-path" class="modern-input" type="text" readonly />
+                    <button id="export-aec-browse" type="button" class="btn-secondary" data-i18n="modal.export.browse">Browse</button>
+                  </div>
+                </div>
+
+                <label class="checkbox-toggle" style="margin-top: var(--space-sm);">
+                  <input id="export-include-sprites" type="checkbox" checked />
+                  <span data-i18n="modal.export.includeSprites">Include sprite data (AEC only)</span>
+                </label>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button id="export-modal-confirm" class="btn-primary" data-i18n="modal.export.submit">Export</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add Sound Modal -->
       <div id="add-sound-modal" class="asset-details-modal" role="dialog" aria-modal="true" aria-labelledby="add-sound-title" aria-describedby="add-sound-desc" style="display: none;">
         <div class="modal-backdrop"></div>
         <div class="modal-content" role="document">

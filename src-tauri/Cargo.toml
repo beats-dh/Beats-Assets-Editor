@@ -76,3 +76,9 @@ ahash = "0.8"
 # String interning for reduced allocations
 string-interner = "0.17"
 
+# Import fingerprinting
+md5 = "0.7"
+sha2 = "0.10"
+
+# Compression utilities for legacy formats
+flate2 = "1.0"

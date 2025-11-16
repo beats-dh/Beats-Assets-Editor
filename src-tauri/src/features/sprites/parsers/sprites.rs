@@ -1,14 +1,14 @@
 use anyhow::{anyhow, Context, Result};
+use base64::{engine::general_purpose, Engine as _};
+use dashmap::DashMap;
 use image::{DynamicImage, ImageBuffer, Rgba};
+use serde::{Deserialize, Serialize};
+use serde_json;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Cursor;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-
-use base64::{engine::general_purpose, Engine as _};
-use dashmap::DashMap;
-use serde::{Deserialize, Serialize};
 
 /// Represents a sprite from Tibia
 /// Uses Arc for zero-copy sharing of sprite data
@@ -35,15 +35,18 @@ impl TibiaSprite {
     /// Inline for hot-path performance
     #[inline]
     pub fn to_base64_png(&self) -> Result<String> {
+        let buffer = self.to_png_bytes()?;
+        Ok(general_purpose::STANDARD.encode(buffer))
+    }
+
+    #[inline]
+    pub fn to_png_bytes(&self) -> Result<Vec<u8>> {
         let img = self.to_image()?;
-        // Pre-allocate buffer with estimated size (PNG typically ~1.5x raw RGBA)
         let estimated_size = (self.width * self.height * 4 * 3 / 2) as usize;
         let mut buffer = Vec::with_capacity(estimated_size);
         let mut cursor = Cursor::new(&mut buffer);
-
         img.write_to(&mut cursor, image::ImageFormat::Png).context("Failed to encode sprite as PNG")?;
-
-        Ok(general_purpose::STANDARD.encode(buffer))
+        Ok(buffer)
     }
 }
 
@@ -109,6 +112,24 @@ impl SpriteCatalog {
         })
     }
 
+    pub fn next_sprite_id(&self) -> Option<u32> {
+        self.entries.iter().filter_map(|entry| entry.last_sprite_id).max()
+    }
+
+    pub fn append_entry(&mut self, entry: SpriteCatalogEntry) {
+        let index = self.entries.len();
+        if let (Some(first), Some(last)) = (entry.first_sprite_id, entry.last_sprite_id) {
+            for sprite_id in first..=last {
+                self.sprite_map.insert(sprite_id, index);
+            }
+        }
+        self.entries.push(entry);
+    }
+
+    pub fn entries(&self) -> &[SpriteCatalogEntry] {
+        &self.entries
+    }
+
     /// Get the catalog entry for a specific sprite ID
     #[inline]
     pub fn get_entry_for_sprite(&self, sprite_id: u32) -> Option<&SpriteCatalogEntry> {
@@ -133,21 +154,44 @@ impl SpriteCatalog {
 /// Uses DashMap for lock-free concurrent caching
 pub struct SpriteLoader {
     catalog: SpriteCatalog,
-    assets_dir: std::path::PathBuf,
+    catalog_path: PathBuf,
+    assets_dir: PathBuf,
     sprite_cache: DashMap<String, Arc<Vec<TibiaSprite>>>, // Lock-free cache: filename -> sprites
 }
 
 impl SpriteLoader {
     /// Create a new sprite loader with catalog and assets directory
     pub fn new<P: AsRef<Path>>(catalog_path: P, assets_dir: P) -> Result<Self> {
-        let catalog = SpriteCatalog::load(catalog_path)?;
+        let catalog_path_buf = catalog_path.as_ref().to_path_buf();
+        let catalog = SpriteCatalog::load(&catalog_path_buf)?;
         let assets_dir = assets_dir.as_ref().to_path_buf();
 
         Ok(SpriteLoader {
             catalog,
+            catalog_path: catalog_path_buf,
             assets_dir,
             sprite_cache: DashMap::new(),
         })
+    }
+
+    #[inline]
+    pub fn assets_dir(&self) -> &Path {
+        &self.assets_dir
+    }
+
+    #[inline]
+    pub fn next_sprite_id(&self) -> Option<u32> {
+        self.catalog.next_sprite_id()
+    }
+
+    pub fn append_catalog_entry(&mut self, entry: SpriteCatalogEntry) {
+        self.catalog.append_entry(entry);
+    }
+
+    pub fn save_catalog(&self) -> Result<()> {
+        let json = serde_json::to_string_pretty(self.catalog.entries()).context("Failed to serialize sprite catalog")?;
+        fs::write(&self.catalog_path, json).context("Failed to write catalog-content.json")?;
+        Ok(())
     }
 
     /// Get sprite by ID (lock-free implementation)

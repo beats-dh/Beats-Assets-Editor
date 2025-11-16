@@ -859,6 +859,20 @@ const translationEntries = {
     es: 'Introduce un nuevo ID de objeto (déjalo en blanco para asignación automática)',
     ru: 'Введите новый ID объекта (оставьте пустым для автоматического назначения)'
   },
+  'prompt.enterExportStartId': {
+    default: 'Informe o ID inicial para exportar (ex: 1000)',
+    'pt-BR': 'Informe o ID inicial para exportar (ex: 1000)',
+    en: 'Enter the starting ID to export (e.g. 1000)',
+    es: 'Introduce el ID inicial a exportar (ej. 1000)',
+    ru: 'Введите начальный ID для экспорта (например, 1000)'
+  },
+  'prompt.enterExportEndId': {
+    default: 'Informe o ID final (maior ou igual a {{start}})',
+    'pt-BR': 'Informe o ID final (maior ou igual a {{start}})',
+    en: 'Enter the ending ID (must be >= {{start}})',
+    es: 'Introduce el ID final (debe ser ≥ {{start}})',
+    ru: 'Введите конечный ID (должен быть ≥ {{start}})'
+  },
   'status.invalidIdAuto': {
     default: 'ID inválido fornecido. Usando atribuição automática.',
     'pt-BR': 'ID inválido fornecido. Usando atribuição automática.',
@@ -873,12 +887,117 @@ const translationEntries = {
     es: 'Apariencia importada como #{{id}}',
     ru: 'Внешность импортирована как №{{id}}'
   },
+  'status.appearancesImportedBatch': {
+    default: '{{count}} aparências importadas com sucesso',
+    'pt-BR': '{{count}} aparências importadas com sucesso',
+    en: '{{count}} appearances imported successfully',
+    es: '{{count}} apariencias importadas correctamente',
+    ru: 'Импортировано {{count}} внешностей'
+  },
+  'status.appearanceImportPartial': {
+    default: 'Importação concluída: {{success}} sucesso(s), {{failed}} falha(s).',
+    'pt-BR': 'Importação concluída: {{success}} sucesso(s), {{failed}} falha(s).',
+    en: 'Import finished: {{success}} succeeded, {{failed}} failed.',
+    es: 'Importación finalizada: {{success}} correctas, {{failed}} fallidas.',
+    ru: 'Импорт завершён: {{success}} успешно, {{failed}} с ошибками.'
+  },
+  'status.batchImportAutoIds': {
+    default: 'Importando {{count}} arquivos como novos itens. IDs serão atribuídos automaticamente.',
+    'pt-BR': 'Importando {{count}} arquivos como novos itens. IDs serão atribuídos automaticamente.',
+    en: 'Importing {{count}} files as new entries. IDs will be assigned automatically.',
+    es: 'Importando {{count}} archivos como nuevos objetos. Los ID se asignarán automáticamente.',
+    ru: 'Импорт {{count}} файлов как новых объектов. ID будут назначены автоматически.'
+  },
   'status.appearanceImportFailed': {
     default: 'Falha ao importar aparência',
     'pt-BR': 'Falha ao importar aparência',
     en: 'Failed to import appearance',
     es: 'Error al importar la apariencia',
     ru: 'Не удалось импортировать внешность'
+  },
+  'status.appearancesExported': {
+    default: 'Exportadas {{count}} aparências (#{{start}} até #{{end}})',
+    'pt-BR': 'Exportadas {{count}} aparências (#{{start}} até #{{end}})',
+    en: 'Exported {{count}} appearances (#{{start}} to #{{end}})',
+    es: 'Exportadas {{count}} apariencias (#{{start}} a #{{end}})',
+    ru: 'Экспортировано {{count}} внешностей (№{{start}}–№{{end}})'
+  },
+  'status.appearanceExportPartial': {
+    default: 'Exportação concluída: {{success}} sucesso(s), {{failed}} falha(s).',
+    'pt-BR': 'Exportação concluída: {{success}} sucesso(s), {{failed}} falha(s).',
+    en: 'Export finished: {{success}} succeeded, {{failed}} failed.',
+    es: 'Exportación finalizada: {{success}} correcta(s), {{failed}} fallida(s).',
+    ru: 'Экспорт завершён: {{success}} успешно, {{failed}} с ошибками.'
+  },
+  'status.exportRangeInvalid': {
+    default: 'Intervalo de IDs inválido informado.',
+    'pt-BR': 'Intervalo de IDs inválido informado.',
+    en: 'Invalid ID range provided.',
+    es: 'Rango de IDs inválido.',
+    ru: 'Указан недопустимый диапазон ID.'
+  },
+  'status.exportModalUnavailable': {
+    default: 'Export dialog is not ready. Reload the app and try again.',
+    'pt-BR': 'O di�logo de exporta��o n�o est� pronto. Recarregue o app e tente novamente.',
+    en: 'Export dialog is not ready. Reload the app and try again.',
+    es: 'El di�logo de exportaci�n no est� disponible. Recarga la app e int�ntalo de nuevo.',
+    ru: '?????? ???????? ??????????. ????????????? ?????????? ? ?????????? ?????.'
+  },
+  'status.selectCategoryFirst': {
+    default: 'Selecione uma categoria suportada antes de continuar.',
+    'pt-BR': 'Selecione uma categoria suportada antes de continuar.',
+    en: 'Select a supported category before continuing.',
+    es: 'Selecciona una categoría soportada antes de continuar.',
+    ru: 'Сначала выберите поддерживаемую категорию.'
+  },
+  'status.exportNoDestination': {
+    default: 'Selecione um destino antes de exportar.',
+    'pt-BR': 'Selecione um destino antes de exportar.',
+    en: 'Select a destination before exporting.',
+    es: 'Selecciona un destino antes de exportar.',
+    ru: 'Выберите путь сохранения перед экспортом.'
+  },
+  'status.exportNoAppearances': {
+    default: 'Nenhuma aparência encontrada no intervalo selecionado.',
+    'pt-BR': 'Nenhuma aparência encontrada no intervalo selecionado.',
+    en: 'No appearances were found in the selected range.',
+    es: 'No se encontraron apariencias en el rango seleccionado.',
+    ru: 'В указанном диапазоне не найдено внешностей.'
+  },
+  'status.exportNoCategory': {
+    default: 'Selecione pelo menos uma categoria para exportar.',
+    'pt-BR': 'Selecione pelo menos uma categoria para exportar.',
+    en: 'Select at least one category to export.',
+    es: 'Selecciona al menos una categoría para exportar.',
+    ru: 'Выберите хотя бы одну категорию для экспорта.'
+  },
+  'status.exportAecSingleCategory': {
+    default: 'A exportação AEC suporta apenas uma categoria por vez.',
+    'pt-BR': 'A exportação AEC suporta apenas uma categoria por vez.',
+    en: 'AEC export supports only one category at a time.',
+    es: 'La exportación AEC solo admite una categoría a la vez.',
+    ru: 'Экспорт AEC поддерживает только одну категорию за раз.'
+  },
+  'status.importSkippedSummary': {
+    default: 'Ignorados {{count}} itens: {{details}}',
+    'pt-BR': 'Ignorados {{count}} itens: {{details}}',
+    en: 'Ignored {{count}} item(s): {{details}}',
+    es: 'Se ignoraron {{count}} elemento(s): {{details}}',
+    ru: 'Пропущено {{count}} элементов: {{details}}'
+  },
+  'status.importSkipped.reason.existingId': {
+    default: '{{count}} com ID já existente',
+    'pt-BR': '{{count}} com ID já existente',
+    en: '{{count}} with existing ID',
+    es: '{{count}} con ID existente',
+    ru: '{{count}} с уже существующим ID'
+  },
+  'status.importSkipped.reason.duplicateSprite': {
+    default: '{{count}} duplicado(s) de sprite',
+    'pt-BR': '{{count}} duplicado(s) de sprite',
+    en: '{{count}} duplicate sprite(s)',
+    es: '{{count}} sprite(s) duplicado(s)',
+    ru: '{{count}} дублей спрайтов'
   },
   'prompt.enterDuplicateId': {
     default: 'Informe o novo ID para a aparência duplicada (deixe em branco para atribuição automática)',
@@ -900,6 +1019,97 @@ const translationEntries = {
     en: 'Failed to duplicate appearance',
     es: 'Error al duplicar la apariencia',
     ru: 'Не удалось дублировать внешность'
+  },
+  'modal.export.title': {
+    default: 'Exportar aparências',
+    'pt-BR': 'Exportar aparências',
+    en: 'Export Appearances',
+    es: 'Exportar apariencias',
+    ru: 'Экспорт внешностей'
+  },
+  'modal.export.description': {
+    default: 'Escolha o intervalo, formato e destino para exportar.',
+    'pt-BR': 'Escolha o intervalo, formato e destino para exportar.',
+    en: 'Choose the range, format, and destination for export.',
+    es: 'Elige el rango, formato y destino para exportar.',
+    ru: 'Выберите диапазон, формат и путь для экспорта.'
+  },
+  'modal.export.categoryLabel': {
+    default: 'Categoria',
+    'pt-BR': 'Categoria',
+    en: 'Category',
+    es: 'Categoría',
+    ru: 'Категория'
+  },
+  'modal.export.formatLabel': {
+    default: 'Formato',
+    'pt-BR': 'Formato',
+    en: 'Format',
+    es: 'Formato',
+    ru: 'Формат'
+  },
+  'modal.export.format.json': {
+    default: 'JSON (um arquivo por ID)',
+    'pt-BR': 'JSON (um arquivo por ID)',
+    en: 'JSON (one file per ID)',
+    es: 'JSON (un archivo por ID)',
+    ru: 'JSON (отдельный файл на ID)'
+  },
+  'modal.export.format.aec': {
+    default: 'AEC (arquivo legado)',
+    'pt-BR': 'AEC (arquivo legado)',
+    en: 'AEC (legacy archive)',
+    es: 'AEC (archivo heredado)',
+    ru: 'AEC (архив)'
+  },
+  'modal.export.startId': {
+    default: 'ID inicial',
+    'pt-BR': 'ID inicial',
+    en: 'Start ID',
+    es: 'ID inicial',
+    ru: 'Начальный ID'
+  },
+  'modal.export.endId': {
+    default: 'ID final',
+    'pt-BR': 'ID final',
+    en: 'End ID',
+    es: 'ID final',
+    ru: 'Конечный ID'
+  },
+  'modal.export.jsonDestination': {
+    default: 'Pasta de destino',
+    'pt-BR': 'Pasta de destino',
+    en: 'Destination folder',
+    es: 'Carpeta de destino',
+    ru: 'Папка назначения'
+  },
+  'modal.export.aecDestination': {
+    default: 'Arquivo AEC',
+    'pt-BR': 'Arquivo AEC',
+    en: 'AEC file path',
+    es: 'Archivo AEC',
+    ru: 'Файл AEC'
+  },
+  'modal.export.includeSprites': {
+    default: 'Incluir sprite data (apenas AEC)',
+    'pt-BR': 'Incluir dados de sprite (apenas AEC)',
+    en: 'Include sprite data (AEC only)',
+    es: 'Incluir datos de sprites (solo AEC)',
+    ru: 'Включить данные спрайтов (только AEC)'
+  },
+  'modal.export.browse': {
+    default: 'Selecionar',
+    'pt-BR': 'Selecionar',
+    en: 'Browse',
+    es: 'Seleccionar',
+    ru: 'Выбрать'
+  },
+  'modal.export.submit': {
+    default: 'Exportar',
+    'pt-BR': 'Exportar',
+    en: 'Export',
+    es: 'Exportar',
+    ru: 'Экспортировать'
   },
   'prompt.enterNewId': {
     default: 'Informe o ID da nova aparência (deixe em branco para atribuição automática)',
