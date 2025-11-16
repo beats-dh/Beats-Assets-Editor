@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { join, tempDir } from "@tauri-apps/api/path";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { showStatus } from "./utils";
 import { translate, type TranslationKey } from "./i18n";
@@ -7,6 +8,7 @@ import { getCurrentCategory, loadAssets } from "./assetUI";
 import type { CompleteAppearanceItem } from "./types";
 import { clearAssetSelection, removeAssetSelection } from "./assetSelection";
 import type { AssetSelectionChangeDetail } from "./assetSelection";
+import { recordAction } from "./history";
 
 const ACTION_CONTAINER_ID = "appearance-action-bar";
 const ACTION_BUTTON_IDS = {
@@ -382,6 +384,20 @@ async function handleDeleteAppearances(targets: AssetTarget[]): Promise<void> {
   }
 
   try {
+    const tmpDir = await tempDir();
+    const snapshots: { category: string; id: number; path: string }[] = [];
+
+    for (const target of uniqueTargets) {
+      const uniqueName = `appearance-undo-${target.category}-${target.id}-${Date.now()}-${Math.random().toString(16).slice(2)}.json`;
+      const snapshotPath = await join(tmpDir, uniqueName);
+      await invoke("export_appearance_to_json", {
+        category: target.category,
+        id: target.id,
+        path: snapshotPath
+      });
+      snapshots.push({ ...target, path: snapshotPath });
+    }
+
     for (const target of uniqueTargets) {
       await invoke("delete_appearance", { category: target.category, id: target.id });
       removeAssetSelection(target.category, target.id);
@@ -396,6 +412,39 @@ async function handleDeleteAppearances(targets: AssetTarget[]): Promise<void> {
         ? translate('status.appearanceDeletedSingle', { id: uniqueTargets[0].id })
         : translate('status.appearanceDeletedMultiple', { count: uniqueTargets.length });
     showStatus(message, "success");
+
+    recordAction({
+      description: uniqueTargets.length === 1
+        ? translate('status.appearanceDeletedSingle', { id: uniqueTargets[0].id })
+        : translate('status.appearanceDeletedMultiple', { count: uniqueTargets.length }),
+      undo: async () => {
+        for (const snap of snapshots) {
+          await invoke<CompleteAppearanceItem>("import_appearance_from_json", {
+            category: snap.category,
+            path: snap.path,
+            // Use "new" to reintroduce the deleted ID even if it no longer exists
+            mode: "new",
+            newId: snap.id
+          });
+        }
+        await invoke("save_appearances_file");
+        await loadAssets();
+        if (snapshots.length === 1) {
+          await refreshAssetDetails(snapshots[0].category, snapshots[0].id);
+        }
+      },
+      redo: async () => {
+        for (const snap of snapshots) {
+          await invoke("delete_appearance", { category: snap.category, id: snap.id });
+          removeAssetSelection(snap.category, snap.id);
+        }
+        await invoke("save_appearances_file");
+        await loadAssets();
+        closeAssetDetails();
+        clearAssetSelection();
+        setActionSelection(resolveCategory(null), null);
+      }
+    });
   } catch (error) {
     console.error("Failed to delete appearance", error);
     showStatus(translate('status.appearanceDeleteFailed'), "error");

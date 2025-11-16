@@ -24,7 +24,8 @@ import {
   saveAssetTransparencyLevel,
   saveFlagCheckbox
 } from './assetSave';
-import { getPrimarySelection, isAssetSelected, redoSelection, setAssetSelection, undoSelection } from './assetSelection';
+import { getPrimarySelection, isAssetSelected, setAssetSelection } from './assetSelection';
+import { redo, undo } from './history';
 
 export function setupGlobalEventListeners(): void {
   // Global click listener for category navigation and all save buttons
@@ -159,9 +160,9 @@ export function setupGlobalEventListeners(): void {
       event.preventDefault();
       event.stopPropagation();
       if (event.shiftKey) {
-        redoSelection();
+        void redo();
       } else {
-        undoSelection();
+        void undo();
       }
       return;
     }
@@ -169,7 +170,7 @@ export function setupGlobalEventListeners(): void {
     if (key === 'y') {
       event.preventDefault();
       event.stopPropagation();
-      redoSelection();
+      void redo();
     }
   });
 }

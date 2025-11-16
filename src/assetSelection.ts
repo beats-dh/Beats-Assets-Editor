@@ -1,3 +1,5 @@
+import { recordAction } from './history';
+
 export interface AssetSelectionItem {
   category: string;
   id: number;
@@ -15,9 +17,7 @@ interface AssetSelectionSnapshot {
 
 const selection: AssetSelectionItem[] = [];
 let primarySelection: AssetSelectionItem | null = null;
-const undoStack: AssetSelectionSnapshot[] = [];
-const redoStack: AssetSelectionSnapshot[] = [];
-const HISTORY_LIMIT = 100;
+let isApplyingSnapshot = false;
 
 function dispatchSelectionChanged(): void {
   const detail: AssetSelectionChangeDetail = {
@@ -58,22 +58,22 @@ function selectionChangedSince(snapshot: AssetSelectionSnapshot): boolean {
   return primaryA.category !== primaryB.category || primaryA.id !== primaryB.id;
 }
 
-function pushUndoSnapshot(snapshot: AssetSelectionSnapshot): void {
-  undoStack.push(snapshot);
-  if (undoStack.length > HISTORY_LIMIT) {
-    undoStack.shift();
-  }
-}
-
 function commitHistory(snapshotBefore: AssetSelectionSnapshot | null, recordHistory: boolean): void {
   if (recordHistory && snapshotBefore && selectionChangedSince(snapshotBefore)) {
-    pushUndoSnapshot(snapshotBefore);
-    redoStack.length = 0;
+    const snapshotAfter = createSnapshot();
+    recordAction({
+      description: 'Atualizar seleção',
+      undo: () => applySelectionSnapshot(snapshotBefore, true),
+      redo: () => applySelectionSnapshot(snapshotAfter, true),
+    });
   }
   dispatchSelectionChanged();
 }
 
-function applySelectionSnapshot(snapshot: AssetSelectionSnapshot): void {
+function applySelectionSnapshot(snapshot: AssetSelectionSnapshot, skipHistory = false): void {
+  if (isApplyingSnapshot) return;
+  isApplyingSnapshot = true;
+
   const targetKeys = new Set(snapshot.selected.map((item) => `${item.category}:${item.id}`));
 
   // Unselect items not present in the snapshot
@@ -93,6 +93,7 @@ function applySelectionSnapshot(snapshot: AssetSelectionSnapshot): void {
     updateCardSelection(item.category, item.id, true);
   });
 
+  isApplyingSnapshot = false;
   dispatchSelectionChanged();
 }
 
@@ -184,26 +185,4 @@ export function getCurrentSelection(): AssetSelectionItem[] {
 
 export function getPrimarySelection(): AssetSelectionItem | null {
   return primarySelection ? { ...primarySelection } : null;
-}
-
-export function undoSelection(): void {
-  const snapshot = undoStack.pop();
-  if (!snapshot) {
-    return;
-  }
-
-  const currentSnapshot = createSnapshot();
-  redoStack.push(currentSnapshot);
-  applySelectionSnapshot(snapshot);
-}
-
-export function redoSelection(): void {
-  const snapshot = redoStack.pop();
-  if (!snapshot) {
-    return;
-  }
-
-  const currentSnapshot = createSnapshot();
-  pushUndoSnapshot(currentSnapshot);
-  applySelectionSnapshot(snapshot);
 }
