@@ -143,8 +143,7 @@ pub async fn list_bestiary_classes(monsters_path: String) -> Result<Vec<String>,
     let definition_files = find_bestiary_definition_files(&monsters_path);
 
     for file_path in definition_files {
-        let content =
-            fs::read_to_string(&file_path).map_err(|e| format!("Failed to read bestiary definitions: {}", e))?;
+        let content = fs::read_to_string(&file_path).map_err(|e| format!("Failed to read bestiary definitions: {}", e))?;
         let classes = parse_bestiary_classes(&content);
         if !classes.is_empty() {
             return Ok(ensure_unknown_class(classes));
@@ -231,11 +230,7 @@ fn parse_bestiary_classes(content: &str) -> Vec<String> {
         }
 
         if let Some(remainder) = trimmed.strip_prefix("BESTY_RACE_") {
-            let identifier = remainder
-                .split(|c| c == '=' || c == ',' || c == ' ')
-                .next()
-                .unwrap_or("")
-                .trim();
+            let identifier = remainder.split(|c| c == '=' || c == ',' || c == ' ').next().unwrap_or("").trim();
             if identifier.is_empty() || matches!(identifier, "NONE" | "FIRST" | "LAST") {
                 continue;
             }
@@ -573,4 +568,3 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
 
     Ok(lua)
 }
-
