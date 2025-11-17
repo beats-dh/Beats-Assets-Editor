@@ -27,6 +27,7 @@ import { initAssetDetailsElements } from './assetDetails';
 import { setupGlobalEventListeners } from './eventListeners';
 import { loadSpecialMeaningIds } from './specialMeaning';
 import { setupImportExportFeature } from './importExport';
+import { initExportImagesModal } from './exportimages';
 import {
   applyDocumentTranslations,
   DEFAULT_LANGUAGE,
@@ -263,6 +264,7 @@ function initializeAssetsBrowser(): void {
   initAssetUIElements();
   initAssetDetailsElements();
   setupImportExportFeature();
+  initExportImagesModal();
 
   // Setup search and scrolling behaviour
   setupAssetsSearchListeners();

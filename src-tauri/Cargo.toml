@@ -45,7 +45,9 @@ lzma-rs = "0.3"
 xz2 = "0.1"
 
 # Image manipulation
-image = { version = "0.25", features = ["png", "jpeg", "bmp"] }
+image = { version = "0.25", features = ["png", "jpeg", "bmp", "gif"] }
+apng = "0.3.4"
+png = "0.17"
 
 # Error handling
 anyhow = "1.0"
@@ -75,4 +77,3 @@ ahash = "0.8"
 
 # String interning for reduced allocations
 string-interner = "0.17"
-

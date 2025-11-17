@@ -1,4 +1,4 @@
-﻿import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
 
 // Generic save helper to reduce repetition
 async function saveWithFeedback(
@@ -35,7 +35,7 @@ export async function saveAssetBasicInfo(category: string, id: number, onRefresh
 
     const newName = inputName.value?.trim() || '';
     if (!newName) {
-      alert('O nome nÃ£o pode ser vazio.');
+      alert('O nome não pode ser vazio.');
       throw new Error('Empty name');
     }
     const newDescription = inputDesc.value?.trim() || '';

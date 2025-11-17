@@ -7,11 +7,12 @@ import { getCurrentCategory, loadAssets } from "./assetUI";
 import type { CompleteAppearanceItem } from "./types";
 import { clearAssetSelection, removeAssetSelection } from "./assetSelection";
 import type { AssetSelectionChangeDetail } from "./assetSelection";
-
+import { openExportImagesModal } from "./exportimages";
 const ACTION_CONTAINER_ID = "appearance-action-bar";
 const ACTION_BUTTON_IDS = {
   export: "action-export-json",
   import: "action-import-json",
+  exportImages: "action-export-images",
   duplicate: "action-duplicate",
   copy: "action-copy-flags",
   paste: "action-paste-flags",
@@ -30,6 +31,7 @@ const ACTION_VERB_KEYS: Record<ActionMessageKey, TranslationKey> = {
 const ACTION_BUTTON_LABEL_KEYS: Record<keyof typeof ACTION_BUTTON_IDS, TranslationKey> = {
   export: "action.button.export",
   import: "action.button.import",
+  exportImages: "action.button.exportImages",
   duplicate: "action.button.duplicate",
   copy: "action.button.copyFlags",
   paste: "action.button.pasteFlags",
@@ -427,6 +429,9 @@ function ensureActionBar(): HTMLDivElement | null {
         <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.export}" data-i18n="${ACTION_BUTTON_LABEL_KEYS.export}">
           ${translate(ACTION_BUTTON_LABEL_KEYS.export)}
         </button>
+        <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.exportImages}" data-i18n="${ACTION_BUTTON_LABEL_KEYS.exportImages}">
+          ${translate(ACTION_BUTTON_LABEL_KEYS.exportImages)}
+        </button>
         <button type="button" class="appearance-action-button" id="${ACTION_BUTTON_IDS.duplicate}" data-i18n="${ACTION_BUTTON_LABEL_KEYS.duplicate}">
           ${translate(ACTION_BUTTON_LABEL_KEYS.duplicate)}
         </button>
@@ -459,6 +464,17 @@ function ensureActionBar(): HTMLDivElement | null {
       if (target) {
         void handleExport(target.category, target.id);
       }
+    });
+
+    const exportImagesBtn = getActionButton("exportImages");
+    exportImagesBtn?.addEventListener("click", () => {
+      const category = currentCategory || resolveCategory(null);
+      if (!category) {
+        showStatus(translate('status.exportImages.noSelection'), "error");
+        return;
+      }
+      const referenceId = currentId ?? detailTarget?.id ?? null;
+      openExportImagesModal(category, referenceId ?? undefined);
     });
 
     const duplicateBtn = getActionButton("duplicate");
@@ -553,6 +569,11 @@ export function updateActionButtonStates(): void {
   const exportBtn = getActionButton("export");
   if (exportBtn) {
     exportBtn.disabled = !hasSingleTarget;
+  }
+
+  const exportImagesBtn = getActionButton("exportImages");
+  if (exportImagesBtn) {
+    exportImagesBtn.disabled = !hasCategory;
   }
 
   const duplicateBtn = getActionButton("duplicate");

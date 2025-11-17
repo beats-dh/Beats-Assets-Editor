@@ -1027,6 +1027,55 @@ const translationEntries = {
     es: 'Error al guardar las configuraciones de textura.',
     ru: 'Не удалось сохранить настройки текстуры.'
   },
+  'status.exportImages.noSelection': {
+    default: 'Selecione ao menos uma categoria ou intervalo de IDs.',
+    'pt-BR': 'Selecione ao menos uma categoria ou intervalo de IDs.',
+    en: 'Select at least one category or range of IDs.',
+    es: 'Selecciona al menos una categoría o rango de IDs.',
+    ru: 'Выберите хотя бы одну категорию или диапазон идентификаторов.'
+  },
+  'status.exportImages.noDestination': {
+    default: 'Informe uma pasta de destino válida.',
+    'pt-BR': 'Informe uma pasta de destino válida.',
+    en: 'Choose a valid destination directory.',
+    es: 'Indica una carpeta de destino válida.',
+    ru: 'Укажите допустимую папку назначения.'
+  },
+  'status.exportImages.invalidRange': {
+    default: 'O ID final deve ser maior ou igual ao ID inicial.',
+    'pt-BR': 'O ID final deve ser maior ou igual ao ID inicial.',
+    en: 'End ID must be greater than or equal to the start ID.',
+    es: 'El ID final debe ser mayor o igual que el ID inicial.',
+    ru: 'Конечный идентификатор должен быть больше или равен начальному.'
+  },
+  'status.exportImages.error': {
+    default: 'Falha ao exportar imagens. Veja o console para detalhes.',
+    'pt-BR': 'Falha ao exportar imagens. Veja o console para detalhes.',
+    en: 'Failed to export images. Check the console for details.',
+    es: 'Error al exportar imágenes. Revisa la consola para más detalles.',
+    ru: 'Не удалось экспортировать изображения. Проверьте консоль.'
+  },
+  'status.exportImages.success': {
+    default: 'Exportou {{count}} arquivos de imagem em {{destination}}.',
+    'pt-BR': 'Exportou {{count}} arquivos de imagem em {{destination}}.',
+    en: 'Exported {{count}} image files to {{destination}}.',
+    es: 'Se exportaron {{count}} archivos de imagen a {{destination}}.',
+    ru: 'Экспортировано {{count}} файлов изображений в {{destination}}.'
+  },
+  'status.exportImages.partial': {
+    default: 'Exportou {{exported}} arquivos, {{failed}} falharam.',
+    'pt-BR': 'Exportou {{exported}} arquivos, {{failed}} falharam.',
+    en: 'Exported {{exported}} files, {{failed}} failed.',
+    es: 'Se exportaron {{exported}} archivos, {{failed}} fallaron.',
+    ru: 'Экспортировано {{exported}} файлов, {{failed}} завершились с ошибкой.'
+  },
+  'status.exportNoAppearances': {
+    default: 'Nenhuma aparência encontrada para exportar.',
+    'pt-BR': 'Nenhuma aparência encontrada para exportar.',
+    en: 'No appearances found to export.',
+    es: 'No se encontraron apariencias para exportar.',
+    ru: 'Не найдено внешностей для экспорта.'
+  },
   'status.saving': {
     default: 'Salvando...',
     'pt-BR': 'Salvando...',
@@ -1426,6 +1475,13 @@ const translationEntries = {
     es: 'Exportar',
     ru: 'Экспорт'
   },
+  'action.button.exportImages': {
+    default: 'Exportar imagens',
+    'pt-BR': 'Exportar imagens',
+    en: 'Export images',
+    es: 'Exportar imágenes',
+    ru: 'Экспорт изображений'
+  },
   'action.button.duplicate': {
     default: 'Duplicar',
     'pt-BR': 'Duplicar',
@@ -1502,6 +1558,244 @@ const translationEntries = {
     en: 'delete',
     es: 'eliminar',
     ru: 'удалить'
+  },
+  'exportImages.title': {
+    default: 'Exportar imagens',
+    'pt-BR': 'Exportar imagens',
+    en: 'Export images',
+    es: 'Exportar imágenes',
+    ru: 'Экспорт изображений'
+  },
+  'exportImages.subtitle': {
+    default: 'Gere prévias APNG/GIF a partir dos intervalos selecionados.',
+    'pt-BR': 'Gere prévias APNG/GIF a partir dos intervalos selecionados.',
+    en: 'Generate APNG/GIF previews from the selected ranges.',
+    es: 'Genera vistas previas APNG/GIF a partir de los rangos seleccionados.',
+    ru: 'Создавайте предварительные APNG/GIF из выбранных диапазонов.'
+  },
+  'exportImages.destination.label': {
+    default: 'Diretório de destino',
+    'pt-BR': 'Diretório de destino',
+    en: 'Destination folder',
+    es: 'Directorio de destino',
+    ru: 'Папка назначения'
+  },
+  'exportImages.destination.placeholder': {
+    default: 'Ex.: C:\\Exports\\Outfits',
+    'pt-BR': 'Ex.: C:\\Exports\\Outfits',
+    en: 'e.g. C:\\Exports\\Outfits',
+    es: 'Ej.: C:\\Exports\\Outfits',
+    ru: 'Напр.: C:\\Exports\\Outfits'
+  },
+  'exportImages.actions.browse': {
+    default: 'Procurar',
+    'pt-BR': 'Procurar',
+    en: 'Browse',
+    es: 'Examinar',
+    ru: 'Обзор'
+  },
+  'exportImages.delay.label': {
+    default: 'Atraso personalizado (ms)',
+    'pt-BR': 'Atraso personalizado (ms)',
+    en: 'Custom frame delay (ms)',
+    es: 'Retardo personalizado (ms)',
+    ru: 'Пользовательская задержка (мс)'
+  },
+  'exportImages.delay.placeholder': {
+    default: 'Padrão: 250',
+    'pt-BR': 'Padrão: 250',
+    en: 'Default: 250',
+    es: 'Predeterminado: 250',
+    ru: 'По умолчанию: 250'
+  },
+  'exportImages.format.label': {
+    default: 'Formatos',
+    'pt-BR': 'Formatos',
+    en: 'Formats',
+    es: 'Formatos',
+    ru: 'Форматы'
+  },
+  'exportImages.format.apng': {
+    default: 'APNG (transparente)',
+    'pt-BR': 'APNG (transparente)',
+    en: 'APNG (transparent)',
+    es: 'APNG (transparente)',
+    ru: 'APNG (прозрачный)'
+  },
+  'exportImages.format.gif': {
+    default: 'GIF animado',
+    'pt-BR': 'GIF animado',
+    en: 'Animated GIF',
+    es: 'GIF animado',
+    ru: 'Анимированный GIF'
+  },
+  'exportImages.addonMode.label': {
+    default: 'Modo de addons',
+    'pt-BR': 'Modo de addons',
+    en: 'Addon mode',
+    es: 'Modo de addons',
+    ru: 'Режим аддонов'
+  },
+  'exportImages.addonMode.none': {
+    default: 'Sem addons',
+    'pt-BR': 'Sem addons',
+    en: 'No addons',
+    es: 'Sin addons',
+    ru: 'Без аддонов'
+  },
+  'exportImages.addonMode.one': {
+    default: 'Addon 1',
+    'pt-BR': 'Addon 1',
+    en: 'Addon 1',
+    es: 'Addon 1',
+    ru: 'Аддон 1'
+  },
+  'exportImages.addonMode.two': {
+    default: 'Addon 2',
+    'pt-BR': 'Addon 2',
+    en: 'Addon 2',
+    es: 'Addon 2',
+    ru: 'Аддон 2'
+  },
+  'exportImages.addonMode.full': {
+    default: 'Completo',
+    'pt-BR': 'Completo',
+    en: 'Full set',
+    es: 'Completo',
+    ru: 'Полный комплект'
+  },
+  'exportImages.mount.enable': {
+    default: 'Incluir montaria',
+    'pt-BR': 'Incluir montaria',
+    en: 'Include mount',
+    es: 'Incluir montura',
+    ru: 'Добавить маунта'
+  },
+  'exportImages.mount.id': {
+    default: 'ID da montaria',
+    'pt-BR': 'ID da montaria',
+    en: 'Mount appearance ID',
+    es: 'ID de la montura',
+    ru: 'ID внешности маунта'
+  },
+  'exportImages.colors.title': {
+    default: 'Cores do outfit',
+    'pt-BR': 'Cores do outfit',
+    en: 'Outfit colors',
+    es: 'Colores del outfit',
+    ru: 'Цвета образа'
+  },
+  'exportImages.colors.description': {
+    default: 'Aplicado apenas em exports de outfits.',
+    'pt-BR': 'Aplicado apenas em exports de outfits.',
+    en: 'Only applied when exporting outfits.',
+    es: 'Se aplica solo al exportar outfits.',
+    ru: 'Используется только при экспорте нарядов.'
+  },
+  'exportImages.colors.head': {
+    default: 'Cabeça',
+    'pt-BR': 'Cabeça',
+    en: 'Head',
+    es: 'Cabeza',
+    ru: 'Голова'
+  },
+  'exportImages.colors.body': {
+    default: 'Corpo',
+    'pt-BR': 'Corpo',
+    en: 'Body',
+    es: 'Cuerpo',
+    ru: 'Торс'
+  },
+  'exportImages.colors.legs': {
+    default: 'Pernas',
+    'pt-BR': 'Pernas',
+    en: 'Legs',
+    es: 'Piernas',
+    ru: 'Ноги'
+  },
+  'exportImages.colors.feet': {
+    default: 'Pés',
+    'pt-BR': 'Pés',
+    en: 'Feet',
+    es: 'Pies',
+    ru: 'Ступни'
+  },
+  'exportImages.range.title': {
+    default: 'Categorias e intervalos',
+    'pt-BR': 'Categorias e intervalos',
+    en: 'Categories and ranges',
+    es: 'Categorías e intervalos',
+    ru: 'Категории и диапазоны'
+  },
+  'exportImages.range.description': {
+    default: 'Ative cada categoria e defina IDs inicial e final.',
+    'pt-BR': 'Ative cada categoria e defina IDs inicial e final.',
+    en: 'Enable each category and set start/end IDs.',
+    es: 'Activa cada categoría y define los IDs inicial y final.',
+    ru: 'Включите категории и задайте начальный и конечный ID.'
+  },
+  'exportImages.range.start': {
+    default: 'ID inicial',
+    'pt-BR': 'ID inicial',
+    en: 'Start ID',
+    es: 'ID inicial',
+    ru: 'Начальный ID'
+  },
+  'exportImages.range.end': {
+    default: 'ID final',
+    'pt-BR': 'ID final',
+    en: 'End ID',
+    es: 'ID final',
+    ru: 'Конечный ID'
+  },
+  'exportImages.category.objects': {
+    default: 'Objetos',
+    'pt-BR': 'Objetos',
+    en: 'Objects',
+    es: 'Objetos',
+    ru: 'Объекты'
+  },
+  'exportImages.category.outfits': {
+    default: 'Outfits',
+    'pt-BR': 'Outfits',
+    en: 'Outfits',
+    es: 'Outfits',
+    ru: 'Наряды'
+  },
+  'exportImages.category.effects': {
+    default: 'Efeitos',
+    'pt-BR': 'Efeitos',
+    en: 'Effects',
+    es: 'Efectos',
+    ru: 'Эффекты'
+  },
+  'exportImages.category.missiles': {
+    default: 'Mísseis',
+    'pt-BR': 'Mísseis',
+    en: 'Missiles',
+    es: 'Misiles',
+    ru: 'Снаряды'
+  },
+  'exportImages.actions.cancel': {
+    default: 'Cancelar',
+    'pt-BR': 'Cancelar',
+    en: 'Cancel',
+    es: 'Cancelar',
+    ru: 'Отмена'
+  },
+  'exportImages.actions.confirm': {
+    default: 'Exportar',
+    'pt-BR': 'Exportar',
+    en: 'Export',
+    es: 'Exportar',
+    ru: 'Экспорт'
+  },
+  'exportImages.actions.close': {
+    default: 'Fechar modal de exportação',
+    'pt-BR': 'Fechar modal de exportação',
+    en: 'Close export modal',
+    es: 'Cerrar el modal de exportación',
+    ru: 'Закрыть окно экспорта'
   },
   'files.table.empty': {
     default: 'No data available',

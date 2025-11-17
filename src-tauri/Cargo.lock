@@ -120,6 +120,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
+name = "apng"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a79142fc4e25db11e703bf09431aad1488d65d2e1bb4d0f664a8f8af000054c"
+dependencies = [
+ "byteorder",
+ "flate2",
+ "image 0.24.9",
+ "png 0.17.16",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2000,6 +2013,19 @@ checksum = "3acae9609540aa318d1bc588455225fb2085b9ed0c4f6bd0d9d5bcd86f1a0344"
 dependencies = [
  "icu_normalizer",
  "icu_properties",
+]
+
+[[package]]
+name = "image"
+version = "0.24.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5690139d2f55868e080017335e4b94cb7414274c74f1669c84fb5feba2c9f69d"
+dependencies = [
+ "bytemuck",
+ "byteorder",
+ "color_quant",
+ "num-traits",
+ "png 0.17.16",
 ]
 
 [[package]]
@@ -4902,13 +4928,15 @@ version = "0.1.0"
 dependencies = [
  "ahash",
  "anyhow",
+ "apng",
  "base64 0.22.1",
  "dashmap",
  "env_logger",
- "image",
+ "image 0.25.8",
  "log",
  "lzma-rs",
  "parking_lot",
+ "png 0.17.16",
  "prost",
  "prost-build",
  "prost-types",

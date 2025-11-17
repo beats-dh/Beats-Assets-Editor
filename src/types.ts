@@ -210,3 +210,15 @@ export interface GroupMapping {
   groupIndex: number;
   localIndex: number;
 }
+
+export interface ImageExportFailure {
+  category: string;
+  id: number;
+  reason: string;
+  file_path?: string;
+}
+
+export interface ImageExportResult {
+  exported_files: number;
+  failed: ImageExportFailure[];
+}
