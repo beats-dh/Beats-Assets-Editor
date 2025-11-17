@@ -11,7 +11,9 @@ import {
   loadAssets,
   setupAssetsSearchListeners,
   setupAssetsCategoryListeners,
-  setupAssetsPaginationListeners
+  setupAssetsPaginationListeners,
+  clearPreviewSpriteCaches,
+  clearAssetsQueryCaches
 } from './assetUI';
 import {
   showMainApp,
@@ -203,12 +205,16 @@ function initializeAssetsBrowser(): void {
   if (clearCacheBtn) {
     clearCacheBtn.addEventListener('click', async () => {
       await debugCache.clearAllCaches();
+      clearPreviewSpriteCaches();
+      clearAssetsQueryCaches();
       showStatus(translate('status.cacheCleared'), 'success');
     });
   }
 
   if (refreshBtn) {
     refreshBtn.addEventListener('click', async () => {
+      clearAssetsQueryCaches();
+      clearPreviewSpriteCaches();
       await loadAssets();
       showStatus(translate('status.assetsRefreshed'), 'success');
     });

@@ -8,7 +8,7 @@ import { updateActionButtonStates } from './importExport';
 let currentCategory = 'Objects';
 let currentSubcategory = 'All';
 let currentPage = 0;
-let currentPageSize = 60;
+let currentPageSize = 100;
 let currentSearch = '';
 let totalItems = 0;
 let pendingScrollToId: number | null = null;
@@ -32,7 +32,13 @@ let pageInfo: HTMLElement | null = null;
 let prevPageBtn: HTMLButtonElement | null = null;
 let nextPageBtn: HTMLButtonElement | null = null;
 let pageSizeSelect: HTMLSelectElement | null = null;
+const previewSpriteCaches = new Map<string, Map<number, string>>();
+const assetsQueryCache = new Map<string, { ids: number[]; itemsById: Map<number, any>; total: number | null }>();
+const animationQueue: Array<{ category: string; id: number }> = [];
+const enqueuedAnimations = new Set<string>();
+let processingAnimations = false;
 const PREVIEW_BATCH_SIZE = 12;
+const ANIMATION_BATCH_SIZE = 24;
 const scheduleIdle = (cb: () => void): void => {
   if ('requestIdleCallback' in window) {
     (window as any).requestIdleCallback(cb, { timeout: 32 });
@@ -120,14 +126,122 @@ export function setAutoAnimateGridEnabled(enabled: boolean): void {
   autoAnimateGridEnabled = enabled;
 }
 
+function getPreviewCache(category: string): Map<number, string> {
+  let cache = previewSpriteCaches.get(category);
+  if (!cache) {
+    cache = new Map<number, string>();
+    previewSpriteCaches.set(category, cache);
+  }
+  return cache;
+}
+
+export function clearPreviewSpriteCaches(): void {
+  previewSpriteCaches.clear();
+}
+
+export function clearAssetsQueryCaches(): void {
+  assetsQueryCache.clear();
+  enqueuedAnimations.clear();
+  animationQueue.length = 0;
+  processingAnimations = false;
+}
+
+function getQueryKey(): string {
+  const subSel = currentCategory === 'Objects' ? currentSubcategory : 'All';
+  return `${currentCategory}|${currentSearch}|${subSel}`;
+}
+
+function getCachedPage(page: number, pageSize: number): { items: any[]; total: number } | null {
+  const key = getQueryKey();
+  const cached = assetsQueryCache.get(key);
+  if (!cached) return null;
+
+  const start = page * pageSize;
+  const end = Math.min(start + pageSize, cached.total ?? cached.ids.length);
+
+  if (cached.ids.length < end) return null;
+
+  const sliceIds = cached.ids.slice(start, end);
+  const pageItems = sliceIds.map(id => cached.itemsById.get(id)).filter(Boolean);
+  if (pageItems.length !== sliceIds.length) return null;
+
+  return { items: pageItems, total: cached.total ?? cached.ids.length };
+}
+
+function updateQueryCache(items: any[], total: number): void {
+  const key = getQueryKey();
+  let cached = assetsQueryCache.get(key);
+  if (!cached) {
+    cached = { ids: [], itemsById: new Map<number, any>(), total: total ?? null };
+  }
+
+  for (const item of items) {
+    cached.itemsById.set(item.id, item);
+    if (!cached.ids.includes(item.id)) {
+      cached.ids.push(item.id);
+    }
+  }
+
+  cached.total = total ?? cached.total;
+  cached.ids.sort((a, b) => a - b);
+  assetsQueryCache.set(key, cached);
+}
+
+function enqueueAnimations(category: string, ids: number[]): void {
+  for (const id of ids) {
+    const key = `${category}:${id}`;
+    if (enqueuedAnimations.has(key)) continue;
+    enqueuedAnimations.add(key);
+    animationQueue.push({ category, id });
+  }
+
+  if (!processingAnimations && animationQueue.length > 0) {
+    processingAnimations = true;
+    const isVisible = (element: HTMLElement): boolean => {
+      const rect = element.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      const vw = window.innerWidth || document.documentElement.clientWidth;
+      const verticallyVisible = rect.top < vh * 0.95 && rect.bottom > vh * 0.05;
+      const horizontallyVisible = rect.left < vw && rect.right > 0;
+      return verticallyVisible && horizontallyVisible;
+    };
+
+    const process = (): void => {
+      let processed = 0;
+      while (animationQueue.length > 0 && processed < ANIMATION_BATCH_SIZE) {
+        const item = animationQueue.shift();
+        if (!item) break;
+        enqueuedAnimations.delete(`${item.category}:${item.id}`);
+        const container = document.getElementById(`sprite-${item.id}`);
+        const forceStart = !!(container && isVisible(container));
+        initAssetCardAutoAnimation(item.category, item.id, autoAnimateGridEnabled, forceStart);
+        processed++;
+      }
+      if (animationQueue.length > 0) {
+        scheduleIdle(process);
+      } else {
+        processingAnimations = false;
+      }
+    };
+    scheduleIdle(process);
+  }
+}
+
+function resetAnimationQueue(): void {
+  enqueuedAnimations.clear();
+  animationQueue.length = 0;
+  processingAnimations = false;
+}
+
 export async function loadAssets(options: LoadAssetsOptions = {}): Promise<void> {
   if (!assetsGrid) return;
 
   const append = options.append === true;
   let renderedCount = 0;
+  const cachedPage = !append ? getCachedPage(currentPage, currentPageSize) : null;
 
   try {
-    if (!append) {
+    if (!append && !cachedPage) {
       showLoadingState();
     }
 
@@ -177,6 +291,24 @@ export async function loadAssets(options: LoadAssetsOptions = {}): Promise<void>
         updatePaginationInfo();
       }
     } else {
+      if (cachedPage && cachedPage.items.length > 0) {
+        totalItems = cachedPage.total;
+        renderedCount = cachedPage.items.length;
+        displayAssets(cachedPage.items, false);
+        updatePaginationInfo();
+        document.dispatchEvent(new CustomEvent<AssetsGridRenderedEventDetail>('assets-grid-rendered', {
+          detail: {
+            append,
+            renderedCount,
+            totalItems,
+            category: currentCategory,
+            page: currentPage,
+            pageSize: currentPageSize
+          }
+        }));
+        return;
+      }
+
       // Load assets for current page (now returns items + total in one IPC)
       const response = await invoke('list_appearances_by_category', {
         category: currentCategory,
@@ -192,6 +324,7 @@ export async function loadAssets(options: LoadAssetsOptions = {}): Promise<void>
       renderedCount = appearanceAssets.length;
       displayAssets(appearanceAssets, append);
       updatePaginationInfo();
+      updateQueryCache(appearanceAssets, totalItems);
     }
 
     const renderedEvent: AssetsGridRenderedEventDetail = {
@@ -296,6 +429,8 @@ async function displayAssets(assets: any[], append = false): Promise<void> {
   if (append) {
     assetsGrid.insertAdjacentHTML('beforeend', html);
   } else {
+    stopAllAnimationPlayers();
+    resetAnimationQueue();
     assetsGrid.innerHTML = html;
   }
 
@@ -309,9 +444,38 @@ async function loadSpritesForAssets(assets: any[]): Promise<void> {
   // Increment load ID to invalidate previous load operations
   const thisLoadId = ++currentLoadId;
 
-  // Pré-visualização: carregar apenas o primeiro sprite por asset (batch + cache backend)
-  const ids = assets.map(asset => asset.id);
-  const previews = await getAppearancePreviewSpritesBatch(currentCategory, ids);
+  // Pré-visualização: carregar apenas o primeiro sprite por asset (batch + cache backend + cache front)
+  const cache = getPreviewCache(currentCategory);
+  const missingIds: number[] = [];
+  const readyToAnimate: number[] = [];
+
+  // First paint with cached previews immediately; collect misses
+  const animateIds: number[] = [];
+  for (const asset of assets) {
+    const container = document.getElementById(`sprite-${asset.id}`);
+    if (!container) continue;
+
+    const cached = cache.get(asset.id);
+    container.innerHTML = '';
+    if (cached) {
+      container.appendChild(createSpriteImage(cached));
+      readyToAnimate.push(asset.id);
+    } else {
+      container.appendChild(createPlaceholderImage());
+      missingIds.push(asset.id);
+    }
+
+    animateIds.push(asset.id);
+  }
+
+  if (missingIds.length === 0) {
+    enqueueAnimations(currentCategory, readyToAnimate);
+    return;
+  }
+
+  const previews = await getAppearancePreviewSpritesBatch(currentCategory, missingIds);
+  const assetById = new Map<number, any>();
+  assets.forEach(asset => assetById.set(asset.id, asset));
 
   // Cancel stale operations
   if (thisLoadId !== currentLoadId) {
@@ -324,29 +488,39 @@ async function loadSpritesForAssets(assets: any[]): Promise<void> {
       return;
     }
 
-    const endIndex = Math.min(startIndex + PREVIEW_BATCH_SIZE, assets.length);
+    const endIndex = Math.min(startIndex + PREVIEW_BATCH_SIZE, missingIds.length);
+    const batchReady: number[] = [];
     for (let i = startIndex; i < endIndex; i++) {
-      const asset = assets[i];
+      const assetId = missingIds[i];
+      const asset = assetById.get(assetId);
+      if (!asset) continue;
       const container = document.getElementById(`sprite-${asset.id}`);
       if (!container) continue;
 
       const previewSprite = previews.get(asset.id);
-      container.innerHTML = '';
       if (previewSprite) {
+        cache.set(asset.id, previewSprite);
+        container.innerHTML = '';
         container.appendChild(createSpriteImage(previewSprite));
+        batchReady.push(asset.id);
       } else {
-        container.appendChild(createPlaceholderImage());
+        // Keep placeholder if preview missing
       }
-
-      initAssetCardAutoAnimation(currentCategory, asset.id, autoAnimateGridEnabled);
     }
 
-    if (endIndex < assets.length) {
+    if (batchReady.length > 0) {
+      enqueueAnimations(currentCategory, batchReady);
+    }
+
+    if (endIndex < missingIds.length) {
       scheduleIdle(() => renderBatch(endIndex));
     }
   };
 
   renderBatch(0);
+  if (readyToAnimate.length > 0) {
+    enqueueAnimations(currentCategory, readyToAnimate);
+  }
 }
 
 function displaySounds(sounds: any[], append = false): void {

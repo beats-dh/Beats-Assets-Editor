@@ -6,7 +6,7 @@ import { buildAssetPreviewAnimation } from './features/previewAnimation/assetPre
 // Active animation players storage
 const activeAnimationPlayers = new Map<string, number>();
 const detailCache = new Map<string, CompleteAppearanceItem>();
-const MAX_AUTO_ANIMATIONS = 32;
+const MAX_AUTO_ANIMATIONS = 10_000;
 const runWhenIdle = (cb: () => void): void => {
   if ('requestIdleCallback' in window) {
     (window as any).requestIdleCallback(cb, { timeout: 500 });
@@ -327,7 +327,8 @@ export function initDetailSpriteCardAnimations(
 export function initAssetCardAutoAnimation(
   category: string,
   appearanceId: number,
-  autoAnimateGridEnabled: boolean
+  autoAnimateGridEnabled: boolean,
+  forceStart = false
 ): void {
   const container = document.getElementById(`sprite-${appearanceId}`) as HTMLElement | null;
   const imgEl = container?.querySelector('img') as HTMLImageElement | null;
@@ -384,13 +385,17 @@ export function initAssetCardAutoAnimation(
   };
 
   if ('IntersectionObserver' in window) {
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some(entry => entry.isIntersecting)) {
-        observer.disconnect();
-        runWhenIdle(() => { void startAnimation(); });
-      }
-    }, { threshold: 0.25 });
-    observer.observe(container);
+    if (forceStart) {
+      runWhenIdle(() => { void startAnimation(); });
+    } else {
+      const observer = new IntersectionObserver((entries) => {
+        if (entries.some(entry => entry.isIntersecting)) {
+          observer.disconnect();
+          runWhenIdle(() => { void startAnimation(); });
+        }
+      }, { threshold: 0.25 });
+      observer.observe(container);
+    }
   } else {
     runWhenIdle(() => { void startAnimation(); });
   }
