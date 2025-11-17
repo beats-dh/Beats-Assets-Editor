@@ -3,6 +3,7 @@ use crate::features::monsters::types::{Monster, MonsterListEntry};
 use anyhow::{Context, Result};
 use serde::Serialize;
 use std::collections::HashSet;
+use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::command;
@@ -34,39 +35,56 @@ fn list_monsters_recursive(dir: &Path, base: &Path) -> Result<Vec<MonsterListEnt
         let path = entry.path();
 
         if path.is_dir() {
-            // Recursively search subdirectories
             let sub_monsters = list_monsters_recursive(&path, base)?;
             monsters.extend(sub_monsters);
         } else if path.extension().and_then(|s| s.to_str()) == Some("lua") {
-            // Try to extract monster name from file
             if let Ok(content) = fs::read_to_string(&path) {
-                if let Ok(monster_name) = extract_monster_name_quick(&content) {
-                    let relative = path.strip_prefix(base).unwrap_or(&path);
-                    let relative_path = compute_relative_path(&path, base);
-                    let categories = relative.parent().map(|parent| parent.iter().map(|segment| segment.to_string_lossy().to_string()).collect()).unwrap_or_else(Vec::new);
+                let monster_name = match extract_monster_name_quick(&content) {
+                    Ok(name) => name,
+                    Err(_) => continue,
+                };
 
-                    monsters.push(MonsterListEntry {
-                        name: monster_name,
-                        file_path: path.to_string_lossy().to_string(),
-                        relative_path,
-                        categories,
-                    });
-                }
+                let relative_path = compute_relative_path(&path, base);
+                let bestiary_class = extract_bestiary_class(&content);
+                let is_boss = extract_boss_flag(&content);
+
+                monsters.push(MonsterListEntry {
+                    name: monster_name,
+                    file_path: path.to_string_lossy().to_string(),
+                    relative_path,
+                    categories: Vec::new(),
+                    bestiary_class,
+                    is_boss,
+                });
             }
         }
     }
 
-    // Sort by name
     monsters.sort_by(|a, b| a.relative_path.to_lowercase().cmp(&b.relative_path.to_lowercase()));
-
     Ok(monsters)
 }
-
 fn extract_monster_name_quick(content: &str) -> Result<String> {
-    use regex::Regex;
     let re = Regex::new(r#"Game\.createMonsterType\("([^"]+)"\)"#)?;
     let caps = re.captures(content).context("Failed to find monster name")?;
     Ok(caps[1].to_string())
+}
+
+fn extract_bestiary_class(content: &str) -> Option<String> {
+    let block_re = Regex::new(r#"(?s)monster\.Bestiary\s*=\s*\{([^}]*)\}"#).ok()?;
+    let class_re = Regex::new(r#"class\s*=\s*"([^"]+)""#).ok()?;
+
+    let block = block_re.captures(content)?.get(1)?.as_str();
+    let class_match = class_re.captures(block)?;
+    let value = class_match.get(1)?.as_str().trim();
+    if value.is_empty() {
+        return None;
+    }
+    Some(value.to_string())
+}
+
+fn extract_boss_flag(content: &str) -> bool {
+    let boss_re = Regex::new(r#"rewardBoss\s*=\s*true"#).unwrap();
+    boss_re.is_match(content) || content.contains("monster.bosstiary")
 }
 
 #[command]
@@ -119,6 +137,23 @@ pub async fn rename_monster_file(old_path: String, new_name: String, monsters_ro
     })
 }
 
+#[command]
+pub async fn list_bestiary_classes(monsters_path: String) -> Result<Vec<String>, String> {
+    let monsters_path = PathBuf::from(monsters_path);
+    let definition_files = find_bestiary_definition_files(&monsters_path);
+
+    for file_path in definition_files {
+        let content =
+            fs::read_to_string(&file_path).map_err(|e| format!("Failed to read bestiary definitions: {}", e))?;
+        let classes = parse_bestiary_classes(&content);
+        if !classes.is_empty() {
+            return Ok(ensure_unknown_class(classes));
+        }
+    }
+
+    Ok(vec!["Unknown".to_string()])
+}
+
 fn compute_relative_path(path: &Path, base: &Path) -> String {
     path.strip_prefix(base).unwrap_or(path).to_string_lossy().replace('\\', "/")
 }
@@ -143,6 +178,106 @@ fn slugify_name(name: &str) -> String {
     } else {
         trimmed
     }
+}
+
+fn find_bestiary_definition_files(monsters_path: &Path) -> Vec<PathBuf> {
+    let candidates = [
+        PathBuf::from("src/creatures/creatures_definitions.hpp"),
+        PathBuf::from("creatures/creatures_definitions.hpp"),
+        PathBuf::from("utils_definitions.hpp"),
+        PathBuf::from("data/utils_definitions.hpp"),
+        PathBuf::from("src/utils/utils_definitions.hpp"),
+    ];
+
+    let mut current = Some(monsters_path);
+    let mut results = Vec::new();
+    let mut seen = HashSet::new();
+
+    for _ in 0..8 {
+        if let Some(dir) = current {
+            for candidate in &candidates {
+                let candidate_path = dir.join(candidate);
+                if candidate_path.exists() {
+                    let key = candidate_path.to_string_lossy().to_string();
+                    if seen.insert(key) {
+                        results.push(candidate_path);
+                    }
+                }
+            }
+            current = dir.parent();
+        } else {
+            break;
+        }
+    }
+
+    results
+}
+
+fn parse_bestiary_classes(content: &str) -> Vec<String> {
+    let mut classes = Vec::new();
+    let mut inside_enum = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if !inside_enum {
+            if trimmed.starts_with("enum BestiaryType_t") {
+                inside_enum = true;
+            }
+            continue;
+        }
+
+        if trimmed.starts_with("};") {
+            break;
+        }
+
+        if let Some(remainder) = trimmed.strip_prefix("BESTY_RACE_") {
+            let identifier = remainder
+                .split(|c| c == '=' || c == ',' || c == ' ')
+                .next()
+                .unwrap_or("")
+                .trim();
+            if identifier.is_empty() || matches!(identifier, "NONE" | "FIRST" | "LAST") {
+                continue;
+            }
+            classes.push(format_bestiary_class_name(identifier));
+        }
+    }
+
+    classes
+}
+
+fn format_bestiary_class_name(identifier: &str) -> String {
+    identifier
+        .split('_')
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            let lower = part.to_ascii_lowercase();
+            let mut chars = lower.chars();
+            match chars.next() {
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn ensure_unknown_class(classes: Vec<String>) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut ordered = Vec::new();
+
+    for class_name in classes {
+        let key = class_name.to_ascii_lowercase();
+        if seen.insert(key) {
+            ordered.push(class_name);
+        }
+    }
+
+    if !seen.contains("unknown") {
+        ordered.push("Unknown".to_string());
+    }
+
+    ordered
 }
 
 fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
@@ -191,6 +326,23 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
         lua.push_str(&format!("\tStars = {},\n", bestiary.stars));
         lua.push_str(&format!("\tOccurrence = {},\n", bestiary.occurrence));
         lua.push_str(&format!("\tLocations = \"{}\",\n", bestiary.locations));
+        lua.push_str("}\n\n");
+    }
+
+    // Bosstiary
+    if let Some(ref bosstiary) = monster.bosstiary {
+        lua.push_str("monster.bosstiary = {\n");
+        lua.push_str(&format!("\tbossRaceId = {},\n", bosstiary.boss_race_id));
+        lua.push_str(&format!("\tbossRace = {},\n", bosstiary.boss_race));
+        lua.push_str("}\n\n");
+    }
+
+    // Events
+    if !monster.events.is_empty() {
+        lua.push_str("monster.events = {\n");
+        for event_name in &monster.events {
+            lua.push_str(&format!("\t\"{}\",\n", event_name));
+        }
         lua.push_str("}\n\n");
     }
 
@@ -421,3 +573,4 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
 
     Ok(lua)
 }
+

@@ -1,12 +1,15 @@
-﻿import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import type {
   AttackEntry,
   DefenseEntry,
   LuaProperty,
   Monster,
+  MonsterBestiary,
+  MonsterBosstiary,
   MonsterListEntry,
   MonsterMeta,
   MonsterOutfit,
+  MonsterSummon,
 } from "./monsterTypes";
 import type { CompleteAppearanceItem, CompleteSpriteInfo, CompleteFrameGroup } from "./types";
 import { getAppearanceSprites } from "./spriteCache";
@@ -33,11 +36,47 @@ let monsterSearchInput: HTMLInputElement | null = null;
 let monstersRootPath: string | null = null;
 let originalMonsterName: string | null = null;
 let monsterSidebarRef: HTMLElement | null = null;
+let bestiaryClassOrder: string[] = [];
 const outfitSpriteMetadataCache = new Map<number, { spriteInfo: CompleteSpriteInfo; baseOffset: number }>();
 const OUTFIT_COLOR_COUNT = 19 * 7;
 const outfitColorHexCache = Array.from({ length: OUTFIT_COLOR_COUNT }, (_, id) => rgbToCss(outfitColorIdToRgb(id)));
 const outfitColorRgbCache = Array.from({ length: OUTFIT_COLOR_COUNT }, (_, id) => outfitColorIdToRgb(id));
 const MAX_OUTFIT_ADDONS = 3;
+const UNKNOWN_CLASS_NAME = "Unknown";
+
+type DirectionalPreview = {
+  direction: number;
+  frames: string[];
+  durations: number[];
+};
+
+function createDefaultBestiary(): MonsterBestiary {
+  return {
+    class: "",
+    race: "",
+    toKill: 0,
+    firstUnlock: 0,
+    secondUnlock: 0,
+    charmsPoints: 0,
+    stars: 0,
+    occurrence: 0,
+    locations: "",
+  };
+}
+
+function createDefaultBosstiary(): MonsterBosstiary {
+  return {
+    bossRaceId: 0,
+    bossRace: "",
+  };
+}
+
+function createDefaultSummon(): MonsterSummon {
+  return {
+    maxSummons: 0,
+    summons: [],
+  };
+}
 
 function ensureMonsterMeta(monster: Monster): MonsterMeta {
   if (!monster.meta) {
@@ -196,7 +235,12 @@ async function loadMonsterList(monstersPath: string, sidebar: HTMLElement) {
   listEl.innerHTML = "<div class='loading'>Loading monsters...</div>";
 
   try {
-    monsterList = await invoke<MonsterListEntry[]>("list_monster_files", { monstersPath });
+    const [monsterEntries, classOrder] = await Promise.all([
+      invoke<MonsterListEntry[]>("list_monster_files", { monstersPath }),
+      invoke<string[]>("list_bestiary_classes", { monstersPath }).catch(() => []),
+    ]);
+    monsterList = monsterEntries;
+    bestiaryClassOrder = normalizeBestiaryOrder(classOrder);
     renderMonsterList(listEl);
   } catch (error) {
     listEl.innerHTML = `<div class='error'>Failed to load monsters: ${error}</div>`;
@@ -252,47 +296,128 @@ type MonsterCategoryNode = {
 };
 
 const CATEGORY_ICON_MAP: Record<string, string> = {
+  amphibic: "🐸",
   amphibics: "🐸",
-  aquatics: "🐟",
+  aquatic: "🐠",
+  aquatics: "🐠",
+  animal: "🐾",
   animals: "🐾",
-  birds: "🕊",
+  bird: "🐦",
+  birds: "🐦",
+  boss: "👑",
   bosses: "👑",
-  constructs: "🛠",
-  custom: "✨",
+  construct: "🏗️",
+  constructs: "🏗️",
+  custom: "❓",
   dawnport: "🌅",
+  demon: "😈",
   demons: "😈",
+  dragon: "🐉",
   dragons: "🐉",
-  elementals: "🌪",
+  elemental: "🔥",
+  elementals: "🔥",
   event_creatures: "🎉",
+  event: "🎊",
   extra_dimensional: "🌀",
   familiars: "🧿",
+  familiars_event: "🎭",
   fey: "🧚",
+  giant: "🗿",
   giants: "🗿",
-  humanoids: "🧑",
-  humans: "👤",
+  humanoid: "🧍",
+  humanoids: "🧍",
+  human: "🧑",
+  humans: "🧑",
+  inkborn: "🦑",
+  insect: "🐞",
   insects: "🐞",
+  lycanthrope: "🐺",
   lycanthropes: "🐺",
-  machines: "🤖",
-  mammals: "🦁",
-  mutants: "🧟",
-  orcs: "⚔",
+  machine: "⚙️",
+  machines: "⚙️",
+  magical: "✨",
+  mammal: "🦬",
+  mammals: "🦬",
+  mutant: "🧬",
+  mutants: "🧬",
+  orc: "🪓",
+  orcs: "🪓",
+  plant: "🌿",
   plants: "🌿",
-  reptiles: "🦎",
+  reptile: "🐍",
+  reptiles: "🐍",
+  slime: "🟢",
+  slimes: "🟢",
   undead: "💀",
+  vampire: "🩸",
   vampires: "🩸",
-  event: "🎊",
-  familiars_event: "🧙",
+  vermin: "🐀",
+  unknown: "❔",
 };
-
 function getCategoryIcon(categoryName: string): string {
-  const normalized = categoryName.toLowerCase();
-  return CATEGORY_ICON_MAP[normalized] ?? "📁";
+  const normalized = categoryName.toLowerCase().replace(/\s+/g, "_");
+  return CATEGORY_ICON_MAP[normalized] ?? "??";
 }
 
-type RenameMonsterResult = {
-  filePath: string;
-  relativePath: string;
-};
+function formatBestiaryClassName(raw?: string | null): string | null {
+  if (!raw) return null;
+  const cleaned = raw.replace(/_/g, " ").trim();
+  if (!cleaned) return null;
+
+  return cleaned
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function getBestiaryClassLabel(entry: MonsterListEntry): string {
+  return formatBestiaryClassName(entry.bestiaryClass) ?? UNKNOWN_CLASS_NAME;
+}
+
+function normalizeBestiaryOrder(order?: string[]): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+
+  (order ?? []).forEach((name) => {
+    const formatted = formatBestiaryClassName(name);
+    if (!formatted) return;
+    const key = formatted.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      normalized.push(formatted);
+    }
+  });
+
+  if (!seen.has(UNKNOWN_CLASS_NAME.toLowerCase())) {
+    normalized.push(UNKNOWN_CLASS_NAME);
+  }
+
+  return normalized;
+}
+
+function sortCategoryNodes(nodes: MonsterCategoryNode[]): MonsterCategoryNode[] {
+  if (nodes.length === 0) return nodes;
+  const orderMap = new Map<string, number>(
+    bestiaryClassOrder.map((name, index) => [name.toLowerCase(), index]),
+  );
+
+  return nodes.sort((a, b) => {
+    const aIndex = getCategoryOrderIndex(a.name, orderMap);
+    const bIndex = getCategoryOrderIndex(b.name, orderMap);
+    if (aIndex !== bIndex) {
+      return aIndex - bIndex;
+    }
+    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  });
+}
+
+function getCategoryOrderIndex(name: string, orderMap: Map<string, number>): number {
+  const normalized = name.toLowerCase();
+  if (normalized === "bosses") {
+    return Number.MAX_SAFE_INTEGER - 1;
+  }
+  return orderMap.get(normalized) ?? Number.MAX_SAFE_INTEGER;
+}
 
 function renderMonsterList(target?: HTMLElement, filterText?: string) {
   const listEl = target ?? monsterListContainer;
@@ -307,7 +432,8 @@ function renderMonsterList(target?: HTMLElement, filterText?: string) {
           const relativePath = entry.relativePath ?? entry.filePath;
           const pathMatch = relativePath.toLowerCase().includes(normalizedFilter);
           const categoryMatch = (entry.categories ?? []).some((cat) => cat.toLowerCase().includes(normalizedFilter));
-          return nameMatch || pathMatch || categoryMatch;
+          const classMatch = getBestiaryClassLabel(entry).toLowerCase().includes(normalizedFilter);
+          return nameMatch || pathMatch || categoryMatch || classMatch;
         });
 
   if (entries.length === 0) {
@@ -315,7 +441,13 @@ function renderMonsterList(target?: HTMLElement, filterText?: string) {
     return;
   }
 
-  const tree = buildMonsterTree(entries);
+  const classificationEntries = entries
+    .filter((entry) => !entry.isBoss)
+    .map((entry) => ({
+      ...entry,
+      categories: [getBestiaryClassLabel(entry)],
+    }));
+  const tree = buildMonsterTree(classificationEntries);
   listEl.innerHTML = "";
   const forceExpanded = normalizedFilter.length > 0;
 
@@ -324,10 +456,28 @@ function renderMonsterList(target?: HTMLElement, filterText?: string) {
     listEl.appendChild(createMonsterListItem(entry, 0));
   });
 
-  const categoryNodes = Array.from(tree.children.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  const categoryNodes = sortCategoryNodes(Array.from(tree.children.values()));
   categoryNodes.forEach((node) => {
     listEl.appendChild(createMonsterCategoryElement(node, 0, forceExpanded));
   });
+
+  const bossEntries = entries.filter((entry) => entry.isBoss);
+  if (bossEntries.length > 0) {
+    const bossTreeEntries = bossEntries.map((entry) => {
+      const label = getBestiaryClassLabel(entry);
+      const categories =
+        label === UNKNOWN_CLASS_NAME ? ["Bosses"] : ["Bosses", label];
+      return {
+        ...entry,
+        categories,
+      };
+    });
+    const bossTree = buildMonsterTree(bossTreeEntries);
+    const bossNode = bossTree.children.get("Bosses");
+    if (bossNode) {
+      listEl.appendChild(createMonsterCategoryElement(bossNode, 0, forceExpanded));
+    }
+  }
 
   if (currentFilePath) {
     const activeItem = findMonsterListItemByPath(currentFilePath);
@@ -404,7 +554,7 @@ function createMonsterCategoryElement(node: MonsterCategoryNode, depth: number, 
   childrenContainer.className = "monster-category-children";
   details.appendChild(childrenContainer);
 
-  const childCategories = Array.from(node.children.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  const childCategories = sortCategoryNodes(Array.from(node.children.values()));
   childCategories.forEach((child) => {
     childrenContainer.appendChild(createMonsterCategoryElement(child, depth + 1, forceExpanded));
   });
@@ -472,6 +622,7 @@ async function loadMonster(filePath: string, editorArea: HTMLElement) {
     currentFilePath = filePath;
     if (currentMonster) {
       ensureMonsterMeta(currentMonster);
+      currentMonster.events = currentMonster.events ?? [];
       originalMonsterName = currentMonster.name;
     }
     renderMonsterEditor(editorArea);
@@ -516,54 +667,27 @@ function refreshMonsterEditorView() {
 function renderAllSections(container: HTMLElement) {
   if (!currentMonster) return;
 
-  // Create a grid layout for cards
-  const cardsGrid = document.createElement("div");
-  cardsGrid.className = "monster-cards-grid";
-
-  const leftColumn = document.createElement("div");
-  leftColumn.className = "monster-card-column";
-
-  const rightColumn = document.createElement("div");
-  rightColumn.className = "monster-card-column";
-
-  cardsGrid.append(leftColumn, rightColumn);
-  container.appendChild(cardsGrid);
-
-  const columns = [
-    { element: leftColumn, height: 0 },
-    { element: rightColumn, height: 0 }
-  ];
+  const cardsStack = document.createElement("div");
+  cardsStack.className = "monster-cards-grid";
+  container.appendChild(cardsStack);
 
   const appendCard = (card: HTMLElement | null) => {
     if (!card) return;
-
-    const targetIndex = columns[0].height <= columns[1].height ? 0 : 1;
-    const targetColumn = columns[targetIndex];
-    targetColumn.element.appendChild(card);
-    const rect = card.getBoundingClientRect();
-    const measuredHeight = rect.height || card.offsetHeight || 0;
-    columns[targetIndex].height += measuredHeight;
+    cardsStack.appendChild(card);
   };
 
   appendCard(createOutfitPreviewCard());
   appendCard(createBasicInfoCard());
+  appendCard(createClassificationCard());
   appendCard(createCombatStatsCard());
+  appendCard(createEventsCard());
+  appendCard(createSummonsCard());
+  appendCard(createVoicesCard());
   appendCard(createAttacksCard());
   appendCard(createElementsImmunitiesCard());
-
-  const lootCard = createLootCard();
-  appendCard(lootCard);
-
-  if (currentMonster.summon) {
-    appendCard(createSummonsCard());
-  }
-  if (currentMonster.voices) {
-    appendCard(createVoicesCard());
-  }
-
+  appendCard(createLootCard());
   appendCard(createFlagsCard());
   appendCard(createAdvancedSettingsCard());
-
 }
 
 // Card creation functions
@@ -642,12 +766,6 @@ function createBasicInfoCard(): HTMLElement {
 
   const idsRow = document.createElement("div");
   idsRow.className = "form-row";
-
-  idsRow.appendChild(createFormGroup("Race ID", "number", currentMonster.raceId.toString(), (value) => {
-    if (currentMonster) currentMonster.raceId = parseInt(value) || 0;
-    markFieldTouched("raceId");
-  }));
-
   idsRow.appendChild(createFormGroup("Corpse ID", "number", currentMonster.corpse.toString(), (value) => {
     if (currentMonster) currentMonster.corpse = parseInt(value) || 0;
     markFieldTouched("corpse");
@@ -658,14 +776,204 @@ function createBasicInfoCard(): HTMLElement {
   return createCard("📋 Basic Information", content);
 }
 
+function createClassificationCard(): HTMLElement {
+  if (!currentMonster) return document.createElement("div");
+
+  const buildSection = (
+    title: string,
+    enabled: boolean,
+    description: string,
+    onToggle: ((nextEnabled: boolean) => void) | null,
+    renderContent: (container: HTMLElement) => void,
+    options?: { showToggle?: boolean },
+  ): HTMLElement => {
+    const section = document.createElement("div");
+    section.className = "classification-section";
+
+    const header = document.createElement("div");
+    header.className = "classification-section-header";
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "classification-section-title";
+    titleEl.textContent = title;
+
+    header.appendChild(titleEl);
+
+    const showToggle = options?.showToggle !== false && Boolean(onToggle);
+    if (showToggle && onToggle) {
+      const toggleBtn = document.createElement("button");
+      toggleBtn.type = "button";
+      toggleBtn.className = `classification-toggle ${enabled ? "is-active" : ""}`;
+      toggleBtn.textContent = enabled ? "Enabled" : "Disabled";
+      let currentState = enabled;
+      toggleBtn.addEventListener("click", () => {
+        currentState = !currentState;
+        onToggle(currentState);
+      });
+      header.appendChild(toggleBtn);
+    }
+
+    section.appendChild(header);
+
+    const descriptionEl = document.createElement("p");
+    descriptionEl.className = "classification-section-description";
+    descriptionEl.textContent = description;
+    section.appendChild(descriptionEl);
+
+    const body = document.createElement("div");
+    body.className = "classification-section-body";
+    const shouldRenderContent = !showToggle || enabled;
+    if (shouldRenderContent) {
+      renderContent(body);
+    } else {
+      const placeholder = document.createElement("p");
+      placeholder.className = "classification-placeholder";
+      placeholder.textContent = "Disabled for this monster.";
+      body.appendChild(placeholder);
+    }
+    section.appendChild(body);
+
+    return section;
+  };
+
+  const content = document.createElement("div");
+  content.className = "card-content classification-card";
+
+  const raceIdRow = document.createElement("div");
+  raceIdRow.className = "form-row";
+  raceIdRow.appendChild(
+    createFormGroup("Race ID", "number", currentMonster.raceId.toString(), (value) => {
+      if (!currentMonster) return;
+      currentMonster.raceId = parseInt(value, 10) || 0;
+      markFieldTouched("raceId");
+    }),
+  );
+  content.appendChild(raceIdRow);
+
+  if (!currentMonster.bestiary) {
+    currentMonster.bestiary = createDefaultBestiary();
+  }
+  content.appendChild(
+    buildSection(
+      "Bestiary",
+      true,
+      "Controls monster.Bestiary table: lore, stars, unlock thresholds and locations.",
+      null,
+      (container) => {
+        if (!currentMonster?.bestiary) return;
+        const metaRow = document.createElement("div");
+        metaRow.className = "form-row";
+        metaRow.append(
+          createFormGroup("Class", "text", currentMonster.bestiary.class, (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.class = value;
+            markFieldTouched("bestiary");
+          }),
+          createFormGroup("Race", "text", currentMonster.bestiary.race, (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.race = value;
+            markFieldTouched("bestiary");
+          }),
+          createFormGroup("Stars", "number", currentMonster.bestiary.stars.toString(), (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.stars = parseInt(value, 10) || 0;
+            markFieldTouched("bestiary");
+          }),
+          createFormGroup("Occurrence", "number", currentMonster.bestiary.occurrence.toString(), (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.occurrence = parseInt(value, 10) || 0;
+            markFieldTouched("bestiary");
+          }),
+        );
+        container.appendChild(metaRow);
+
+        const unlockRow = document.createElement("div");
+        unlockRow.className = "form-row";
+        unlockRow.append(
+          createFormGroup("To Kill", "number", currentMonster.bestiary.toKill.toString(), (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.toKill = parseInt(value, 10) || 0;
+            markFieldTouched("bestiary");
+          }),
+          createFormGroup("First Unlock", "number", currentMonster.bestiary.firstUnlock.toString(), (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.firstUnlock = parseInt(value, 10) || 0;
+            markFieldTouched("bestiary");
+          }),
+          createFormGroup("Second Unlock", "number", currentMonster.bestiary.secondUnlock.toString(), (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.secondUnlock = parseInt(value, 10) || 0;
+            markFieldTouched("bestiary");
+          }),
+          createFormGroup("Charms Points", "number", currentMonster.bestiary.charmsPoints.toString(), (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.charmsPoints = parseInt(value, 10) || 0;
+            markFieldTouched("bestiary");
+          }),
+        );
+        container.appendChild(unlockRow);
+
+        container.appendChild(
+          createFormGroup("Locations", "textarea", currentMonster.bestiary.locations, (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.locations = value;
+            markFieldTouched("bestiary");
+          }),
+        );
+      },
+      { showToggle: false },
+    ),
+  );
+
+  const bosstiaryEnabled = Boolean(currentMonster.bosstiary) || currentMonster.flags.rewardBoss;
+  content.appendChild(
+    buildSection(
+      "Bosstiary",
+      bosstiaryEnabled,
+      "Boss rarity information exported in monster.bosstiary.",
+      (enabled) => {
+        if (!currentMonster) return;
+        if (enabled) {
+          currentMonster.bosstiary = currentMonster.bosstiary ?? createDefaultBosstiary();
+        } else {
+          currentMonster.bosstiary = undefined;
+        }
+        markFieldTouched("bosstiary");
+        refreshMonsterEditorView();
+      },
+      (container) => {
+        if (!currentMonster?.bosstiary) return;
+        const row = document.createElement("div");
+        row.className = "form-row";
+        row.append(
+          createFormGroup("Boss Race ID", "number", currentMonster.bosstiary.bossRaceId.toString(), (value) => {
+            if (!currentMonster || !currentMonster.bosstiary) return;
+            currentMonster.bosstiary.bossRaceId = parseInt(value, 10) || 0;
+            markFieldTouched("bosstiary");
+          }),
+          createFormGroup("Boss Race Constant", "text", currentMonster.bosstiary.bossRace, (value) => {
+            if (!currentMonster || !currentMonster.bosstiary) return;
+            currentMonster.bosstiary.bossRace = value;
+            markFieldTouched("bosstiary");
+          })
+        );
+        container.appendChild(row);
+      }
+    )
+  );
+
+  return createCard("?? Lore & Classification", content);
+}
 function createOutfitPreviewCard(): HTMLElement {
   if (!currentMonster) return document.createElement("div");
 
   const outfit = currentMonster.outfit;
   const content = document.createElement("div");
   content.className = "card-content";
-  let currentSprites: string[] = [];
-  let currentSpriteIndex = 0;
+  let previewDirections: DirectionalPreview[] = [];
+  let currentDirectionIndex = 0;
+  let animationFrameIndex = 0;
+  let animationTimer: number | null = null;
   let currentLookType = outfit.lookType;
 
   // Outfit Preview
@@ -693,54 +1001,98 @@ function createOutfitPreviewCard(): HTMLElement {
   rotateButton.title = "Rotacionar sprite";
   rotateButton.innerHTML = "⟳";
 
-  const updateSpriteImage = () => {
-    if (currentSprites.length === 0) {
+  const setSpriteSource = (frameData: string, directionIndex: number, frameIndex: number) => {
+    spriteImg.src = frameData.startsWith("data:image/") ? frameData : `data:image/png;base64,${frameData}`;
+    spriteImg.alt = `Outfit ${currentLookType} (direction ${directionIndex}, frame ${frameIndex + 1})`;
+  };
+
+  const stopAnimation = () => {
+    if (animationTimer !== null) {
+      window.clearTimeout(animationTimer);
+      animationTimer = null;
+    }
+  };
+
+  const startAnimation = () => {
+    stopAnimation();
+
+    if (previewDirections.length === 0) {
       spriteImg.style.display = "none";
       spritePlaceholder.style.display = "flex";
       rotateButton.disabled = true;
       return;
     }
-    rotateButton.disabled = currentSprites.length <= 1;
+
+    const directionPreview = previewDirections[currentDirectionIndex];
+    if (!directionPreview || directionPreview.frames.length === 0) {
+      spriteImg.style.display = "none";
+      spritePlaceholder.style.display = "flex";
+      rotateButton.disabled = true;
+      return;
+    }
+
     spriteImg.style.display = "block";
     spritePlaceholder.style.display = "none";
-    const spriteData = currentSprites[currentSpriteIndex];
-    spriteImg.src = spriteData.startsWith("data:image/")
-      ? spriteData
-      : `data:image/png;base64,${spriteData}`;
-    spriteImg.alt = `Outfit ${currentLookType} (frame ${currentSpriteIndex + 1})`;
+    rotateButton.disabled = previewDirections.length <= 1;
+
+    const playFrame = () => {
+      const frame = directionPreview.frames[animationFrameIndex];
+      if (frame) {
+        setSpriteSource(frame, directionPreview.direction, animationFrameIndex);
+      }
+      const duration = directionPreview.durations[animationFrameIndex] ?? 150;
+      animationTimer = window.setTimeout(() => {
+        animationFrameIndex = (animationFrameIndex + 1) % directionPreview.frames.length;
+        playFrame();
+      }, Math.max(60, duration));
+    };
+
+    animationFrameIndex = 0;
+    playFrame();
   };
 
   const rotateSprite = () => {
-    if (currentSprites.length === 0) return;
-    currentSpriteIndex = (currentSpriteIndex + 1) % currentSprites.length;
-    updateSpriteImage();
+    if (previewDirections.length <= 1) return;
+    currentDirectionIndex = (currentDirectionIndex + 1) % previewDirections.length;
+    animationFrameIndex = 0;
+    startAnimation();
   };
 
   rotateButton.addEventListener("click", rotateSprite);
 
   // Function to load and display outfit sprite
   const loadOutfitSprite = async (outfitState: MonsterOutfit, preserveDirection = false) => {
+    stopAnimation();
     if (!preserveDirection) {
-      currentSpriteIndex = 0;
+      currentDirectionIndex = 0;
     }
 
     try {
       currentLookType = outfitState.lookType;
       const sprites = await getAppearanceSprites("Outfits", outfitState.lookType);
-      currentSprites = await getDirectionalSpritesForOutfit(outfitState, sprites);
-      if (preserveDirection && currentSpriteIndex >= currentSprites.length) {
-        currentSpriteIndex = 0;
+      const newDirections = await getDirectionalSpritesForOutfit(outfitState, sprites);
+      previewDirections = newDirections;
+      if (!preserveDirection) {
+        const preferredIndex = Math.min(previewDirections.length - 1, 2);
+        currentDirectionIndex = preferredIndex >= 0 ? preferredIndex : 0;
+      } else if (previewDirections.length > 0) {
+        currentDirectionIndex = Math.min(currentDirectionIndex, previewDirections.length - 1);
+      } else {
+        currentDirectionIndex = 0;
       }
-      if (currentSprites.length === 0) {
+      if (previewDirections.length === 0) {
         spritePlaceholder.textContent = "—";
       }
-      updateSpriteImage();
+      animationFrameIndex = 0;
+      startAnimation();
     } catch (error) {
       console.error("Failed to load outfit sprite:", error);
-      currentSprites = [];
-      currentSpriteIndex = 0;
+      stopAnimation();
+      previewDirections = [];
+      currentDirectionIndex = 0;
       spritePlaceholder.textContent = "!";
-      updateSpriteImage();
+      spriteImg.style.display = "none";
+      spritePlaceholder.style.display = "flex";
     }
   };
 
@@ -855,7 +1207,7 @@ function createOutfitPreviewCard(): HTMLElement {
   return createCard("👤 Outfit & Appearance", content);
 }
 
-async function getDirectionalSpritesForOutfit(outfit: MonsterOutfit, sprites: string[]): Promise<string[]> {
+async function getDirectionalSpritesForOutfit(outfit: MonsterOutfit, sprites: string[]): Promise<DirectionalPreview[]> {
   if (sprites.length === 0) return [];
 
   try {
@@ -867,32 +1219,80 @@ async function getDirectionalSpritesForOutfit(outfit: MonsterOutfit, sprites: st
       const mountCount = Math.max(1, spriteInfo.pattern_depth ?? 1);
       const addonIndex = computeAddonPatternIndex(outfit.lookAddons, addonCount);
       const mountIndex = computeMountPatternIndex(outfit.lookMount, mountCount);
+      const frameCount = computeFrameCount(spriteInfo);
+      const phaseDurations = getAnimationDurations(spriteInfo, frameCount);
 
-      const composedSprites = await Promise.all(
-        Array.from({ length: directionCount }, (_, direction) =>
-          composeOutfitSprite({
-            sprites,
-            spriteInfo,
-            baseOffset,
+      const previews: DirectionalPreview[] = [];
+      for (let direction = 0; direction < directionCount; direction++) {
+        const renderResults = await Promise.all(
+          Array.from({ length: frameCount }, (_, phaseIndex) =>
+            composeOutfitSprite({
+              sprites,
+              spriteInfo,
+              baseOffset,
+              direction,
+              addonIndex,
+              mountIndex,
+              outfit,
+              phaseIndex,
+            }),
+          ),
+        );
+
+        const frames: string[] = [];
+        const durations: number[] = [];
+        renderResults.forEach((result, index) => {
+          if (result) {
+            frames.push(result);
+            durations.push(phaseDurations[index] ?? 200);
+          }
+        });
+        if (frames.length > 0) {
+          previews.push({
             direction,
-            addonIndex,
-            mountIndex,
-            outfit,
-          }),
-        ),
-      );
+            frames,
+            durations,
+          });
+        }
+      }
 
-      const filtered = composedSprites.filter((sprite): sprite is string => Boolean(sprite));
-      if (filtered.length > 0) {
-        return filtered;
+      if (previews.length > 0) {
+        return previews;
       }
     }
   } catch (error) {
     console.warn("Failed to load outfit metadata for preview:", error);
   }
 
-  const fallbackCount = Math.min(4, sprites.length);
-  return sprites.slice(0, fallbackCount);
+  const fallbackSprite = sprites[0];
+  if (!fallbackSprite) {
+    return [];
+  }
+  return [
+    {
+      direction: 0,
+      frames: [fallbackSprite],
+      durations: [250],
+    },
+  ];
+}
+
+function computeFrameCount(spriteInfo: CompleteSpriteInfo): number {
+  const layers = spriteInfo.layers ?? spriteInfo.pattern_layers ?? 1;
+  const pw = spriteInfo.pattern_width ?? 1;
+  const ph = spriteInfo.pattern_height ?? 1;
+  const pd = spriteInfo.pattern_depth ?? 1;
+  const spritesPerFrame = Math.max(1, layers * pw * ph * pd);
+  const totalSprites = spriteInfo.sprite_ids?.length ?? spritesPerFrame;
+  const inferredFrames = Math.max(1, Math.floor(totalSprites / spritesPerFrame));
+  const metadataFrames =
+    spriteInfo.animation?.phases?.length ?? spriteInfo.pattern_frames ?? inferredFrames;
+  return Math.max(1, metadataFrames, inferredFrames);
+}
+
+function getAnimationDurations(spriteInfo: CompleteSpriteInfo, frameCountOverride?: number): number[] {
+  const frames = frameCountOverride ?? computeFrameCount(spriteInfo);
+  return Array.from({ length: frames }, () => 100);
 }
 
 async function getOutfitSpriteMetadata(
@@ -912,9 +1312,9 @@ async function getOutfitSpriteMetadata(
     }
 
     const groupOffsets = computeGroupOffsetsFromDetails(details);
-    let targetIndex = details.frame_groups.findIndex((fg: CompleteFrameGroup) => fg.fixed_frame_group === 0);
+    const targetIndex = selectOutfitPreviewGroup(details);
     if (targetIndex < 0) {
-      targetIndex = 0;
+      return null;
     }
 
     const spriteInfo = details.frame_groups[targetIndex]?.sprite_info;
@@ -932,6 +1332,32 @@ async function getOutfitSpriteMetadata(
     console.warn("Failed to retrieve outfit sprite metadata:", error);
     return null;
   }
+}
+
+function selectOutfitPreviewGroup(details: CompleteAppearanceItem): number {
+  if (!details.frame_groups || details.frame_groups.length === 0) {
+    return -1;
+  }
+
+  // Prefer animated frame group that matches how the asset editor behaves
+  if (details.frame_groups.length > 1 && hasAnimatedSprite(details.frame_groups[1]?.sprite_info)) {
+    return 1;
+  }
+
+  for (let i = 0; i < details.frame_groups.length; i++) {
+    if (hasAnimatedSprite(details.frame_groups[i]?.sprite_info)) {
+      return i;
+    }
+  }
+
+  // Fallback to first available frame group
+  return 0;
+}
+
+function hasAnimatedSprite(spriteInfo: CompleteSpriteInfo | undefined): boolean {
+  if (!spriteInfo) return false;
+  const phaseCount = spriteInfo.animation?.phases?.length ?? spriteInfo.pattern_frames ?? 1;
+  return phaseCount > 1;
 }
 
 function computeAddonPatternIndex(addons: number, patternHeight: number): number {
@@ -963,13 +1389,17 @@ type ComposeSpriteParams = {
   addonIndex: number;
   mountIndex: number;
   outfit: MonsterOutfit;
+  phaseIndex: number;
 };
 
 async function composeOutfitSprite(params: ComposeSpriteParams): Promise<string | null> {
-  const { sprites, spriteInfo, baseOffset, direction, addonIndex, mountIndex, outfit } = params;
+  const { sprites, spriteInfo, baseOffset, direction, addonIndex, mountIndex, outfit, phaseIndex } = params;
 
   const addonLayersToDraw = addonIndex > 0 ? [0, addonIndex] : [0];
-  const primaryIndex = baseOffset + computeSpriteIndex(spriteInfo, 0, direction, addonLayersToDraw[0], mountIndex, 0);
+  const frameCount = computeFrameCount(spriteInfo);
+  const normalizedPhase = ((phaseIndex % frameCount) + frameCount) % frameCount;
+  const primaryIndex =
+    baseOffset + computeSpriteIndex(spriteInfo, 0, direction, addonLayersToDraw[0], mountIndex, normalizedPhase);
   if (!sprites[primaryIndex]) return null;
 
   const baseImage = await loadBase64Image(sprites[primaryIndex]);
@@ -986,7 +1416,8 @@ async function composeOutfitSprite(params: ComposeSpriteParams): Promise<string 
 
   const applyTemplateLayer = async (addonLayer: number) => {
     if (!hasTemplateLayer) return;
-    const templateIndex = baseOffset + computeSpriteIndex(spriteInfo, 1, direction, addonLayer, mountIndex, 0);
+    const templateIndex =
+      baseOffset + computeSpriteIndex(spriteInfo, 1, direction, addonLayer, mountIndex, normalizedPhase);
     const templateBase64 = sprites[templateIndex];
     if (!templateBase64) return;
 
@@ -1030,7 +1461,7 @@ async function composeOutfitSprite(params: ComposeSpriteParams): Promise<string 
   };
 
   for (const addonLayer of addonLayersToDraw) {
-    const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, 0, direction, addonLayer, mountIndex, 0);
+    const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, 0, direction, addonLayer, mountIndex, normalizedPhase);
     const spriteBase64 = sprites[spriteIdx];
     if (!spriteBase64) continue;
 
@@ -1229,6 +1660,40 @@ function createCombatStatsCard(): HTMLElement {
   return createCard("🛡️ Combat Stats", content);
 }
 
+function createEventsCard(): HTMLElement {
+  if (!currentMonster) return document.createElement("div");
+
+  const content = document.createElement("div");
+  content.className = "card-content";
+
+  if (!currentMonster.events || currentMonster.events.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "No Lua events linked to this monster.";
+    content.appendChild(empty);
+
+    const quickAdd = document.createElement("button");
+    quickAdd.type = "button";
+    quickAdd.className = "btn-secondary";
+    quickAdd.textContent = "Adicionar Evento";
+    quickAdd.onclick = () => openEventsModal();
+    content.appendChild(quickAdd);
+  } else {
+    const list = document.createElement("div");
+    list.className = "events-list";
+    currentMonster.events.forEach((eventName) => {
+      const chip = document.createElement("span");
+      chip.className = "event-pill";
+      chip.textContent = eventName;
+      list.appendChild(chip);
+    });
+    content.appendChild(list);
+  }
+
+  const card = createCard("?? Monster Events", content);
+  attachCardEditButton(card, () => openEventsModal());
+  return card;
+}
 function createAttacksCard(): HTMLElement {
 
   if (!currentMonster) return document.createElement("div");
@@ -1775,73 +2240,128 @@ function createLootCard(): HTMLElement {
 }
 
 function createSummonsCard(): HTMLElement {
-  if (!currentMonster || !currentMonster.summon) return document.createElement("div");
+  if (!currentMonster) return document.createElement("div");
 
   const content = document.createElement("div");
   content.className = "card-content";
 
-  content.appendChild(createFormGroup("Max Summons", "number", currentMonster.summon.maxSummons.toString(), (value) => {
-    if (currentMonster && currentMonster.summon) {
-      currentMonster.summon.maxSummons = parseInt(value) || 0;
+  if (!currentMonster.summon) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "Summons desativados para este monstro.";
+    content.appendChild(empty);
+
+    const enableBtn = document.createElement("button");
+    enableBtn.type = "button";
+    enableBtn.className = "btn-secondary";
+    enableBtn.textContent = "Ativar Summons";
+    enableBtn.onclick = () => {
+      if (!currentMonster) return;
+      currentMonster.summon = createDefaultSummon();
+      markFieldTouched("summon");
+      refreshMonsterEditorView();
+    };
+    content.appendChild(enableBtn);
+  } else {
+    content.appendChild(createFormGroup("Max Summons", "number", currentMonster.summon.maxSummons.toString(), (value) => {
+      if (currentMonster && currentMonster.summon) {
+        currentMonster.summon.maxSummons = parseInt(value) || 0;
+        markFieldTouched("summon");
+      }
+    }));
+
+    const summonsList = document.createElement("div");
+    summonsList.className = "summons-list";
+
+    if (currentMonster.summon.summons.length === 0) {
+      const emptyState = document.createElement("div");
+      emptyState.className = "empty-state";
+      emptyState.textContent = "Nenhum summon configurado.";
+      summonsList.appendChild(emptyState);
+    } else {
+      currentMonster.summon.summons.forEach((summon) => {
+        const summonItem = document.createElement("div");
+        summonItem.className = "summon-item";
+        summonItem.innerHTML = `
+          <strong>${summon.name}</strong> -
+          Count: ${summon.count},
+          Chance: ${summon.chance}%,
+          Interval: ${summon.interval}ms
+        `;
+        summonsList.appendChild(summonItem);
+      });
     }
-  }));
 
-  const summonsList = document.createElement("div");
-  summonsList.className = "summons-list";
+    content.appendChild(summonsList);
+  }
 
-  currentMonster.summon.summons.forEach((summon) => {
-    const summonItem = document.createElement("div");
-    summonItem.className = "summon-item";
-    summonItem.innerHTML = `
-      <strong>${summon.name}</strong> -
-      Count: ${summon.count},
-      Chance: ${summon.chance}%,
-      Interval: ${summon.interval}ms
-    `;
-    summonsList.appendChild(summonItem);
-  });
-
-  content.appendChild(summonsList);
-
-  return createCard("🔮 Summons", content);
+  const card = createCard("?? Summons", content);
+  attachCardEditButton(card, () => openSummonsModal());
+  return card;
 }
 
 function createVoicesCard(): HTMLElement {
-  if (!currentMonster || !currentMonster.voices) return document.createElement("div");
+  if (!currentMonster) return document.createElement("div");
 
   const content = document.createElement("div");
   content.className = "card-content";
 
-  const settingsRow = document.createElement("div");
-  settingsRow.className = "form-row";
+  if (!currentMonster.voices) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "Falas desativadas.";
+    content.appendChild(empty);
 
-  settingsRow.appendChild(createFormGroup("Voice Interval", "number", currentMonster.voices.interval.toString(), (value) => {
-    if (currentMonster && currentMonster.voices) {
-      currentMonster.voices.interval = parseInt(value) || 0;
+    const enableBtn = document.createElement("button");
+    enableBtn.type = "button";
+    enableBtn.className = "btn-secondary";
+    enableBtn.textContent = "Ativar Falas";
+    enableBtn.onclick = () => {
+      if (!currentMonster) return;
+      currentMonster.voices = { interval: 5000, chance: 10, entries: [] };
+      markFieldTouched("voices");
+      refreshMonsterEditorView();
+    };
+    content.appendChild(enableBtn);
+  } else {
+    const settingsRow = document.createElement("div");
+    settingsRow.className = "form-row";
+
+    settingsRow.appendChild(createFormGroup("Voice Interval", "number", currentMonster.voices.interval.toString(), (value) => {
+      if (currentMonster && currentMonster.voices) {
+        currentMonster.voices.interval = parseInt(value) || 0;
+      }
+    }));
+
+    settingsRow.appendChild(createFormGroup("Voice Chance", "number", currentMonster.voices.chance.toString(), (value) => {
+      if (currentMonster && currentMonster.voices) {
+        currentMonster.voices.chance = parseInt(value) || 0;
+      }
+    }));
+
+    content.appendChild(settingsRow);
+
+    const voicesList = document.createElement("div");
+    voicesList.className = "voices-list";
+
+    if (currentMonster.voices.entries.length === 0) {
+      const emptyState = document.createElement("div");
+      emptyState.className = "empty-state";
+      emptyState.textContent = "Nenhuma fala configurada.";
+      voicesList.appendChild(emptyState);
+    } else {
+      currentMonster.voices.entries.forEach((voice) => {
+        const voiceItem = document.createElement("div");
+        voiceItem.className = "voice-item";
+        voiceItem.innerHTML = `"${voice.text}" ${voice.yell ? "(yell)" : "(say)"}`;
+        voicesList.appendChild(voiceItem);
+      });
     }
-  }));
 
-  settingsRow.appendChild(createFormGroup("Voice Chance", "number", currentMonster.voices.chance.toString(), (value) => {
-    if (currentMonster && currentMonster.voices) {
-      currentMonster.voices.chance = parseInt(value) || 0;
-    }
-  }));
+    content.appendChild(voicesList);
+  }
 
-  content.appendChild(settingsRow);
-
-  const voicesList = document.createElement("div");
-  voicesList.className = "voices-list";
-
-  currentMonster.voices.entries.forEach((voice) => {
-    const voiceItem = document.createElement("div");
-    voiceItem.className = "voice-item";
-    voiceItem.innerHTML = `"${voice.text}" ${voice.yell ? "(yell)" : "(say)"}`;
-    voicesList.appendChild(voiceItem);
-  });
-
-  content.appendChild(voicesList);
-
-  const card = createCard("💬 Voices", content);
+  const card = createCard("?? Voices", content);
   attachCardEditButton(card, () => openVoicesModal());
   return card;
 }
@@ -2309,6 +2829,238 @@ function createModalSection(title: string): HTMLElement {
   heading.textContent = title;
   section.appendChild(heading);
   return section;
+}
+
+function openSummonsModal() {
+  if (!currentMonster) return;
+
+  const summonData = currentMonster.summon
+    ? {
+        maxSummons: currentMonster.summon.maxSummons,
+        summons: currentMonster.summon.summons.map((summon) => ({ ...summon })),
+      }
+    : createDefaultSummon();
+  let enabled = Boolean(currentMonster.summon);
+
+  showMonsterModal("Editar Summons", (body, helpers) => {
+    const configSection = createModalSection("Configuracoes");
+    const listSection = createModalSection("Criaturas");
+    body.append(configSection, listSection);
+
+    const toggleWrapper = document.createElement("label");
+    toggleWrapper.className = "monster-modal-field checkbox";
+    const toggle = document.createElement("input");
+    toggle.type = "checkbox";
+    toggle.checked = enabled;
+    const toggleText = document.createElement("span");
+    toggleText.textContent = "Ativar Summons";
+    toggleWrapper.append(toggle, toggleText);
+    configSection.appendChild(toggleWrapper);
+
+    const maxInput = document.createElement("input");
+    maxInput.type = "number";
+    maxInput.value = summonData.maxSummons.toString();
+    maxInput.oninput = () => {
+      summonData.maxSummons = parseInt(maxInput.value, 10) || 0;
+    };
+    configSection.appendChild(createModalField("Max Summons", maxInput));
+
+    const list = document.createElement("div");
+    list.className = "modal-list";
+    listSection.appendChild(list);
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "btn-secondary";
+    addBtn.textContent = "Adicionar Summon";
+    addBtn.onclick = () => {
+      if (!enabled) return;
+      summonData.summons.push({ name: "", chance: 0, interval: 2000, count: 1 });
+      renderList();
+    };
+    helpers.addAction(addBtn);
+
+    const updateControls = () => {
+      maxInput.disabled = !enabled;
+      addBtn.disabled = !enabled;
+      renderList();
+    };
+
+    toggle.addEventListener("change", () => {
+      enabled = toggle.checked;
+      updateControls();
+    });
+
+    function renderList() {
+      list.innerHTML = "";
+      if (!enabled) {
+        const disabledState = document.createElement("div");
+        disabledState.className = "empty-state";
+        disabledState.textContent = "Summons desativados.";
+        list.appendChild(disabledState);
+        return;
+      }
+
+      if (summonData.summons.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = "Nenhum summon configurado.";
+        list.appendChild(empty);
+        return;
+      }
+
+      summonData.summons.forEach((entry, index) => {
+        const row = document.createElement("div");
+        row.className = "modal-list-item";
+
+        const header = document.createElement("div");
+        header.className = "modal-list-item-header";
+        header.textContent = `Summon ${index + 1}`;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn-icon";
+        removeBtn.innerHTML = "&times;";
+        removeBtn.onclick = () => {
+          summonData.summons.splice(index, 1);
+          renderList();
+        };
+        header.appendChild(removeBtn);
+
+        const grid = document.createElement("div");
+        grid.className = "modal-grid";
+
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.value = entry.name;
+        nameInput.oninput = () => {
+          entry.name = nameInput.value;
+        };
+
+        const chanceInput = document.createElement("input");
+        chanceInput.type = "number";
+        chanceInput.value = entry.chance.toString();
+        chanceInput.oninput = () => {
+          entry.chance = parseInt(chanceInput.value, 10) || 0;
+        };
+
+        const intervalInput = document.createElement("input");
+        intervalInput.type = "number";
+        intervalInput.value = entry.interval.toString();
+        intervalInput.oninput = () => {
+          entry.interval = parseInt(intervalInput.value, 10) || 0;
+        };
+
+        const countInput = document.createElement("input");
+        countInput.type = "number";
+        countInput.value = entry.count.toString();
+        countInput.oninput = () => {
+          entry.count = parseInt(countInput.value, 10) || 0;
+        };
+
+        grid.append(
+          createModalField("Name", nameInput),
+          createModalField("Chance (%)", chanceInput),
+          createModalField("Interval (ms)", intervalInput),
+          createModalField("Count", countInput),
+        );
+
+        row.append(header, grid);
+        list.appendChild(row);
+      });
+    }
+
+    updateControls();
+
+    return () => {
+      if (!currentMonster) return false;
+      if (!enabled) {
+        currentMonster.summon = undefined;
+      } else {
+        currentMonster.summon = {
+          maxSummons: Math.max(0, summonData.maxSummons),
+          summons: summonData.summons.filter((summon) => summon.name.trim().length > 0),
+        };
+      }
+      markFieldTouched("summon");
+      return true;
+    };
+  });
+}
+
+function openEventsModal() {
+  if (!currentMonster) return;
+
+  const events = [...(currentMonster.events || [])];
+
+  showMonsterModal("Editar Eventos", (body, helpers) => {
+    const section = createModalSection("Eventos Registrados");
+    body.appendChild(section);
+
+    const list = document.createElement("div");
+    list.className = "modal-list";
+    section.appendChild(list);
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "btn-secondary";
+    addBtn.textContent = "Adicionar Evento";
+    addBtn.onclick = () => {
+      events.push("");
+      renderList();
+    };
+    helpers.addAction(addBtn);
+
+    function renderList() {
+      list.innerHTML = "";
+      if (events.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = "Nenhum evento vinculado.";
+        list.appendChild(empty);
+        return;
+      }
+
+      events.forEach((eventName, index) => {
+        const row = document.createElement("div");
+        row.className = "modal-list-item";
+
+        const header = document.createElement("div");
+        header.className = "modal-list-item-header";
+        header.textContent = `Evento ${index + 1}`;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn-icon";
+        removeBtn.innerHTML = "&times;";
+        removeBtn.onclick = () => {
+          events.splice(index, 1);
+          renderList();
+        };
+        header.appendChild(removeBtn);
+
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.value = eventName;
+        nameInput.placeholder = "Ex.: RottenBloodBakragoreDeath";
+        nameInput.oninput = () => {
+          events[index] = nameInput.value;
+        };
+
+        row.append(header, createModalField("Nome do Evento", nameInput));
+        list.appendChild(row);
+      });
+    }
+
+    renderList();
+
+    return () => {
+      if (!currentMonster) return false;
+      currentMonster.events = events.map((name) => name.trim()).filter((name) => name.length > 0);
+      markFieldTouched("events");
+      return true;
+    };
+  });
 }
 
 function openLootEditorModal() {
@@ -2932,6 +3684,7 @@ function openVoicesModal() {
     return () => {
       if (!currentMonster) return false;
       currentMonster.voices = voices;
+      markFieldTouched("voices");
       return true;
     };
   });
@@ -3016,6 +3769,9 @@ async function saveMonster() {
     alert(`Failed to save monster: ${error}`);
   }
 }
+
+
+
 
 
 

@@ -26,6 +26,7 @@ impl LuaMonsterParser {
         monster.outfit = self.parse_outfit().unwrap_or_default();
         monster.race_id = self.extract_number_field_with_default("raceId", 0, &mut missing_fields)? as u32;
         monster.bestiary = self.parse_bestiary().ok();
+        monster.bosstiary = self.parse_bosstiary().ok();
         monster.health = self.extract_number_field_with_default("health", 0, &mut missing_fields)? as u32;
         monster.max_health = self.extract_number_field_with_default("maxHealth", 0, &mut missing_fields)? as u32;
         monster.race = self.extract_string_field_with_default("race", "", &mut missing_fields)?;
@@ -36,6 +37,7 @@ impl LuaMonsterParser {
         monster.strategies_target = self.parse_strategies_target().unwrap_or_default();
         monster.flags = self.parse_flags().unwrap_or_default();
         monster.light = self.parse_light().unwrap_or_default();
+        monster.events = self.parse_events().unwrap_or_default();
         monster.summon = self.parse_summon().ok();
         monster.voices = self.parse_voices().ok();
         monster.loot = self.parse_loot().unwrap_or_default();
@@ -113,7 +115,7 @@ impl LuaMonsterParser {
 
         Ok(MonsterBestiary {
             class: self.extract_string_from_section(&bestiary_section, "class")?,
-            race: self.extract_string_from_section(&bestiary_section, "race")?,
+            race: self.extract_identifier_or_string_from_section(&bestiary_section, "race")?,
             to_kill: self.extract_from_section(&bestiary_section, "toKill")? as u32,
             first_unlock: self.extract_from_section(&bestiary_section, "FirstUnlock")? as u32,
             second_unlock: self.extract_from_section(&bestiary_section, "SecondUnlock")? as u32,
@@ -121,6 +123,15 @@ impl LuaMonsterParser {
             stars: self.extract_from_section(&bestiary_section, "Stars")? as u8,
             occurrence: self.extract_from_section(&bestiary_section, "Occurrence")? as u8,
             locations: self.extract_string_from_section(&bestiary_section, "Locations")?,
+        })
+    }
+
+    fn parse_bosstiary(&self) -> Result<MonsterBosstiary> {
+        let section = self.extract_table("bosstiary")?;
+
+        Ok(MonsterBosstiary {
+            boss_race_id: self.extract_from_section(&section, "bossRaceId")? as u32,
+            boss_race: self.extract_identifier_or_string_from_section(&section, "bossRace")?,
         })
     }
 
@@ -175,6 +186,16 @@ impl LuaMonsterParser {
             level: self.extract_from_section(&section, "level")? as u8,
             color: self.extract_from_section(&section, "color")? as u8,
         })
+    }
+
+    fn parse_events(&self) -> Result<Vec<String>> {
+        let section = self.extract_table_last("events")?;
+        let re = Regex::new(r#""((?:\\.|[^"])*)""#)?;
+        let mut events = Vec::new();
+        for caps in re.captures_iter(&section) {
+            events.push(caps[1].to_string());
+        }
+        Ok(events)
     }
 
     fn parse_summon(&self) -> Result<MonsterSummon> {
@@ -465,9 +486,21 @@ impl LuaMonsterParser {
 
     // Helper methods
     fn extract_table(&self, table_name: &str) -> Result<String> {
+        self.extract_table_internal(table_name, false)
+    }
+
+    fn extract_table_last(&self, table_name: &str) -> Result<String> {
+        self.extract_table_internal(table_name, true)
+    }
+
+    fn extract_table_internal(&self, table_name: &str, search_from_end: bool) -> Result<String> {
         let search = format!("monster.{}", table_name);
         let content = &self.content;
-        let start_pos = content.find(&search).context(format!("Failed to find table: {}", table_name))?;
+        let start_pos = if search_from_end {
+            content.rfind(&search).context(format!("Failed to find table: {}", table_name))?
+        } else {
+            content.find(&search).context(format!("Failed to find table: {}", table_name))?
+        };
 
         let bytes = content.as_bytes();
         let len = bytes.len();
@@ -790,6 +823,19 @@ impl LuaMonsterParser {
         let re = Regex::new(&pattern)?;
         let caps = re.captures(section).context(format!("Failed to find field: {}", field))?;
         Ok(caps[1].to_string())
+    }
+
+    fn extract_identifier_or_string_from_section(&self, section: &str, field: &str) -> Result<String> {
+        let pattern = format!(r#"{}\s*=\s*(?:"([^"]*)"|([A-Za-z0-9_\.]+))"#, field);
+        let re = Regex::new(&pattern)?;
+        let caps = re.captures(section).context(format!("Failed to find field: {}", field))?;
+        if let Some(m) = caps.get(1) {
+            return Ok(m.as_str().to_string());
+        }
+        if let Some(m) = caps.get(2) {
+            return Ok(m.as_str().to_string());
+        }
+        Err(anyhow!("Failed to parse identifier or string for {}", field))
     }
 
     fn extract_bool_from_section(&self, section: &str, field: &str) -> Result<bool> {
