@@ -210,19 +210,13 @@ pub async fn replace_appearance_sprites(category: AppearanceCategory, id: u32, u
         return Err(format!("Frame group {} not found for appearance {}", update.frame_group_index, id));
     }
 
-    let frame_group = appearance
-        .frame_group
-        .get_mut(update.frame_group_index)
-        .expect("validated above");
+    let frame_group = appearance.frame_group.get_mut(update.frame_group_index).expect("validated above");
 
     if frame_group.sprite_info.is_none() {
         return Err("Sprite info not available for this frame group".to_string());
     }
 
-    let sprite_info = frame_group
-        .sprite_info
-        .as_mut()
-        .expect("checked above");
+    let sprite_info = frame_group.sprite_info.as_mut().expect("checked above");
 
     if sprite_info.sprite_id.is_empty() {
         return Err("No sprite slots available to replace".to_string());
@@ -235,10 +229,7 @@ pub async fn replace_appearance_sprites(category: AppearanceCategory, id: u32, u
     let total_slots = sprite_info.sprite_id.len();
     for upd in &update.updates {
         if upd.index >= total_slots {
-            return Err(format!(
-                "Sprite index {} out of bounds. Frame group has {} slots.",
-                upd.index, total_slots
-            ));
+            return Err(format!("Sprite index {} out of bounds. Frame group has {} slots.", upd.index, total_slots));
         }
     }
 
