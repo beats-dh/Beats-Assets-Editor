@@ -5,6 +5,7 @@ import { getVocationOptionsHTML, getFlagBool } from './utils';
 import { getAppearanceSprites } from './spriteCache';
 import { stopDetailAnimationPlayers, initAnimationPlayersForDetails, initDetailSpriteCardAnimations } from './animation';
 import { renderTextureTab } from './textureTab';
+import { setSpriteLibraryEnabled } from './spriteLibrary';
 import { loadAssets, getCurrentPage, setCurrentPage, getCurrentPageSize, getTotalItemsCount, getCurrentCategory } from './assetUI';
 import { translate } from './i18n';
 
@@ -101,14 +102,17 @@ function restoreActiveTab(category: string): void {
   if (currentActiveTab === 'edit') {
     if (editContainer) editContainer.style.display = 'block';
     tabEdit?.classList.add('active');
+    setSpriteLibraryEnabled(false);
   } else if (currentActiveTab === 'texture' && (category === 'Objects' || category === 'Outfits')) {
     if (textureContainer) textureContainer.style.display = 'block';
     tabTexture?.classList.add('active');
+    setSpriteLibraryEnabled(true);
   } else {
     // Default to details
     if (detailsContainer) detailsContainer.style.display = 'block';
     tabDetails?.classList.add('active');
     currentActiveTab = 'details';
+    setSpriteLibraryEnabled(false);
   }
 }
 
@@ -470,12 +474,14 @@ async function showAppearanceDetails(category: string, id: number): Promise<void
       // Only show Texture tab for Objects and Outfits
       if (category === 'Objects' || category === 'Outfits') {
         tabTexture.style.display = '';
+        setSpriteLibraryEnabled(true);
       } else {
         tabTexture.style.display = 'none';
         // If we were on texture tab but this category doesn't support it, switch to details
         if (currentActiveTab === 'texture') {
           currentActiveTab = 'details';
         }
+        setSpriteLibraryEnabled(false);
       }
     }
 
@@ -2827,6 +2833,7 @@ export function closeAssetDetails(): void {
     assetDetails.classList.remove('show');
     assetDetails.style.display = 'none';
   }
+  setSpriteLibraryEnabled(false);
   resetNavigationState();
   document.dispatchEvent(new CustomEvent('appearance-details-closed'));
 }

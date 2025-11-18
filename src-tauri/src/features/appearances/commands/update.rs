@@ -49,6 +49,18 @@ pub struct TextureSettingsUpdate {
     pub animation: Option<Option<SpriteAnimationInput>>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct SpriteSlotUpdate {
+    pub index: usize,
+    pub sprite_id: u32,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SpriteReplacementUpdate {
+    pub frame_group_index: usize,
+    pub updates: Vec<SpriteSlotUpdate>,
+}
+
 /// HEAVILY OPTIMIZED update_appearance_texture_settings:
 /// - O(1) lookup via index map (no linear scan!)
 /// - Invalidates search cache after mutation
@@ -167,6 +179,77 @@ pub async fn update_appearance_texture_settings(category: AppearanceCategory, id
     invalidate_search_cache(&state);
 
     // Invalidate cache (data changed)
+    invalidate_search_cache(&state);
+
+    Ok(create_appearance_item_response(id, appearance))
+}
+
+/// Replace one or more sprite IDs inside a specific frame group
+/// - Validates bounds
+/// - Invalidates caches so previews are refreshed
+#[tauri::command]
+pub async fn replace_appearance_sprites(category: AppearanceCategory, id: u32, update: SpriteReplacementUpdate, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+    let mut appearances_lock = state.appearances.write();
+
+    let appearances = match &mut *appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category_mut(appearances, &category);
+
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds for category {:?}", idx, category))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?
+    };
+
+    if update.frame_group_index >= appearance.frame_group.len() {
+        return Err(format!("Frame group {} not found for appearance {}", update.frame_group_index, id));
+    }
+
+    let frame_group = appearance
+        .frame_group
+        .get_mut(update.frame_group_index)
+        .expect("validated above");
+
+    if frame_group.sprite_info.is_none() {
+        return Err("Sprite info not available for this frame group".to_string());
+    }
+
+    let sprite_info = frame_group
+        .sprite_info
+        .as_mut()
+        .expect("checked above");
+
+    if sprite_info.sprite_id.is_empty() {
+        return Err("No sprite slots available to replace".to_string());
+    }
+
+    if update.updates.is_empty() {
+        return Err("No sprite replacements provided".to_string());
+    }
+
+    let total_slots = sprite_info.sprite_id.len();
+    for upd in &update.updates {
+        if upd.index >= total_slots {
+            return Err(format!(
+                "Sprite index {} out of bounds. Frame group has {} slots.",
+                upd.index, total_slots
+            ));
+        }
+    }
+
+    for upd in update.updates {
+        sprite_info.sprite_id[upd.index] = upd.sprite_id;
+    }
+
+    // Invalidate caches so previews and sprite lists are recalculated
+    let cache_key = format!("{:?}:{}", category, id);
+    state.sprite_cache.remove(&cache_key);
+    state.preview_cache.remove(&cache_key);
     invalidate_search_cache(&state);
 
     Ok(create_appearance_item_response(id, appearance))

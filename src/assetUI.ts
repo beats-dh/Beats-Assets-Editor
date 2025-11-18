@@ -139,6 +139,11 @@ export function clearPreviewSpriteCaches(): void {
   previewSpriteCaches.clear();
 }
 
+export function invalidatePreviewSpriteCache(category: string, id: number): void {
+  const cache = previewSpriteCaches.get(category);
+  cache?.delete(id);
+}
+
 export function clearAssetsQueryCaches(): void {
   assetsQueryCache.clear();
   enqueuedAnimations.clear();

@@ -74,6 +74,7 @@ pub fn run() {
             features::appearances::commands::update_appearance_transparency_level,
             features::appearances::commands::update_appearance_weapon_type,
             features::appearances::commands::update_appearance_texture_settings,
+            features::appearances::commands::replace_appearance_sprites,
             features::appearances::commands::save_appearances_file,
             features::appearances::commands::export_appearance_to_json,
             features::appearances::commands::import_appearance_from_json,

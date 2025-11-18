@@ -3,6 +3,7 @@ import { clearPreviewAnimationCache } from './features/previewAnimation/assetPre
 
 // Sprite cache to avoid reloading the same sprites
 const spriteCache = new Map<string, string[]>();
+const singleSpriteCache = new Map<number, string>();
 
 // Export for cache checking in other modules
 export function hasCachedSprites(category: string, appearanceId: number): boolean {
@@ -20,6 +21,38 @@ export function setUserTibiaPath(path: string): void {
 
 export function getSpritesCacheKey(category: string, appearanceId: number): string {
   return `${category}:${appearanceId}`;
+}
+
+export function invalidateAppearanceSpritesCache(category: string, appearanceId: number): void {
+  const cacheKey = getSpritesCacheKey(category, appearanceId);
+  spriteCache.delete(cacheKey);
+}
+
+export async function getSpriteById(spriteId: number): Promise<string | null> {
+  if (!Number.isFinite(spriteId)) return null;
+
+  if (singleSpriteCache.has(spriteId)) {
+    return singleSpriteCache.get(spriteId) ?? null;
+  }
+
+  if (!spritesLoaded) {
+    await loadSprites();
+  }
+
+  if (!spritesLoaded) {
+    return null;
+  }
+
+  try {
+    const sprite = await invoke('get_sprite_by_id', { spriteId }) as string;
+    if (sprite) {
+      singleSpriteCache.set(spriteId, sprite);
+    }
+    return sprite ?? null;
+  } catch (error) {
+    console.error(`Failed to load sprite ${spriteId}:`, error);
+    return null;
+  }
 }
 
 export function clearSpritesCache(): void {

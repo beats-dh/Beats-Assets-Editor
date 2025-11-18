@@ -25,6 +25,7 @@ import {
   saveFlagCheckbox
 } from './assetSave';
 import { getPrimarySelection, isAssetSelected, setAssetSelection } from './assetSelection';
+import { setSpriteLibraryEnabled } from './spriteLibrary';
 import { redo, undo } from './history';
 
 export function setupGlobalEventListeners(): void {
@@ -345,12 +346,15 @@ function handleModalTabs(_e: Event, target: HTMLElement): void {
     if (tab === 'edit' && editContainer) {
       editContainer.style.display = 'block';
       tabEdit?.classList.add('active');
+      setSpriteLibraryEnabled(false);
     } else if (tab === 'texture' && textureContainer) {
       textureContainer.style.display = 'block';
       tabTexture?.classList.add('active');
+      setSpriteLibraryEnabled(true);
     } else if (detailsContainer) {
       detailsContainer.style.display = 'block';
       tabDetails?.classList.add('active');
+      setSpriteLibraryEnabled(false);
     }
   }
 }

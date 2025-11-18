@@ -25,6 +25,7 @@ import { setupGlobalEventListeners } from './eventListeners';
 import { loadSpecialMeaningIds } from './specialMeaning';
 import { areSoundsLoaded, loadSoundsFile } from "./sounds";
 import { setupImportExportFeature } from './importExport';
+import { initSpriteLibraryUI } from './spriteLibrary';
 import {
   applyDocumentTranslations,
   DEFAULT_LANGUAGE,
@@ -118,6 +119,7 @@ function initializeAssetsBrowser(): void {
   initAssetUIElements();
   initAssetDetailsElements();
   setupImportExportFeature();
+  initSpriteLibraryUI();
 
   // Setup search and scrolling behaviour
   setupAssetsSearchListeners();
