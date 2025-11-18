@@ -11,7 +11,7 @@ import type {
   MonsterOutfit,
   MonsterSummon,
 } from "./monsterTypes";
-import type { CompleteAppearanceItem, CompleteSpriteInfo, CompleteFrameGroup } from "./types";
+import type { CompleteAppearanceItem, CompleteSpriteInfo } from "./types";
 import { getAppearanceSprites } from "./spriteCache";
 import { computeSpriteIndex, computeGroupOffsetsFromDetails } from "./animation";
 import { ensureAppearancesLoaded } from "./appearanceLoader";
@@ -3732,7 +3732,7 @@ async function saveMonster() {
 
     if (nameChanged && monstersRootPath) {
       try {
-        const renameResult = await invoke<RenameMonsterResult>("rename_monster_file", {
+        const renameResult = await invoke<any>("rename_monster_file", {
           oldPath: previousPath,
           newName: trimmedCurrentName,
           monstersRoot: monstersRootPath,
@@ -3769,8 +3769,6 @@ async function saveMonster() {
     alert(`Failed to save monster: ${error}`);
   }
 }
-
-
 
 
 

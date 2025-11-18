@@ -1,3 +1,5 @@
+import { modalOpened, modalClosed } from './modalState';
+
 export function openConfirmModal(message: string, title = 'Confirmar ação'): Promise<boolean> {
   return new Promise((resolve) => {
     const modal = document.getElementById('confirm-modal') as HTMLElement | null;
@@ -26,6 +28,8 @@ export function openConfirmModal(message: string, title = 'Confirmar ação'): P
       okBtn.onclick = null;
       cancelBtn.onclick = null;
       if (closeBtn) closeBtn.onclick = null;
+      if (backdrop) backdrop.onclick = null;
+      modalClosed();
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -70,6 +74,7 @@ export function openConfirmModal(message: string, title = 'Confirmar ação'): P
     // Show modal and focus OK
     mm.style.display = 'flex';
     mm.classList.add('show');
+    modalOpened();
     okBtn.focus();
     document.addEventListener('keydown', onKeyDown);
   });

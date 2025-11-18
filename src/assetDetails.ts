@@ -6,6 +6,7 @@ import { getAppearanceSprites } from './spriteCache';
 import { stopDetailAnimationPlayers, initAnimationPlayersForDetails, initDetailSpriteCardAnimations } from './animation';
 import { renderTextureTab } from './textureTab';
 import { setSpriteLibraryEnabled } from './spriteLibrary';
+import { modalOpened, modalClosed } from './modalState';
 import { loadAssets, getCurrentPage, setCurrentPage, getCurrentPageSize, getTotalItemsCount, getCurrentCategory } from './assetUI';
 import { translate } from './i18n';
 
@@ -320,6 +321,7 @@ export async function showAssetDetails(category: string, id: number): Promise<vo
       const modal = assetDetails as HTMLElement;
       modal.style.display = 'flex';
       modal.classList.add('show');
+      modalOpened();
 
       updateNavigationButtons(category, id);
 
@@ -435,6 +437,7 @@ async function showSoundDetails(id: number): Promise<void> {
     const modal = assetDetails as HTMLElement;
     modal.style.display = 'flex';
     modal.classList.add('show');
+    modalOpened();
     console.log('Sound modal should now be visible');
   } catch (error) {
     console.error('Error loading sound details:', error);
@@ -488,11 +491,12 @@ async function showAppearanceDetails(category: string, id: number): Promise<void
     // Restore the previously active tab
     restoreActiveTab(category);
 
-    // Force display the modal
-    const modal = assetDetails as HTMLElement;
-    modal.style.display = 'flex';
-    modal.classList.add('show');
-    console.log('Modal display:', window.getComputedStyle(modal).display);
+  // Force display the modal
+  const modal = assetDetails as HTMLElement;
+  modal.style.display = 'flex';
+  modal.classList.add('show');
+  modalOpened();
+  console.log('Modal display:', window.getComputedStyle(modal).display);
     console.log('Modal should now be visible');
 
     // Carregamento pesado fica desacoplado para não travar a abertura do modal
@@ -2836,6 +2840,7 @@ export function closeAssetDetails(): void {
   setSpriteLibraryEnabled(false);
   resetNavigationState();
   document.dispatchEvent(new CustomEvent('appearance-details-closed'));
+  modalClosed();
 }
 
 // Mantém compatibilidade com handlers inline do HTML legacy (onclick="closeAssetDetails()")

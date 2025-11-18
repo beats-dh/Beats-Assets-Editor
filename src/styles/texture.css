@@ -698,3 +698,7 @@
 }
 
 .sprite-library-chip { cursor: grab; }
+
+body.modal-open {
+  overflow: hidden;
+}
