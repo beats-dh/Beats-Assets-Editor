@@ -116,6 +116,7 @@ async function applySpriteReplacements(
 }
 
 const LANGUAGE_CHANGE_EVENT = 'app-language-changed';
+const MIN_PREVIEW_DIM = 140; // tamanho mínimo em px para aparecer maior
 
 let outfitLanguageListener: EventListener | null = null;
 let objectLanguageListener: EventListener | null = null;
@@ -499,13 +500,20 @@ function computePreviewDimensions(
   return { width, height };
 }
 
-function drawBoundingSquareOverlay(ctx: CanvasRenderingContext2D, boundingSquare: number | null): void {
+function computePreviewScale(width: number, height: number): number {
+  const maxDim = Math.max(width, height);
+  if (maxDim === 0) return 1;
+  return Math.max(1, Math.floor(MIN_PREVIEW_DIM / maxDim));
+}
+
+function drawBoundingSquareOverlay(ctx: CanvasRenderingContext2D, boundingSquare: number | null, scale = 1): void {
   if (!boundingSquare || boundingSquare <= 0) return;
   ctx.save();
   ctx.strokeStyle = '#4caf50';
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 4]);
-  ctx.strokeRect(0, 0, boundingSquare, boundingSquare);
+  const sq = boundingSquare * scale;
+  ctx.strokeRect(0, 0, sq, sq);
   ctx.restore();
 }
 
@@ -703,6 +711,7 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
+  const dropZone = document.getElementById('texture-drop-zone');
 
   let sprites = await getAppearanceSprites(category, details.id);
   const imageCache: ImageCache = new Map();
@@ -835,7 +844,7 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     }
   };
 
-  const drawBoundingBoxes = (boxes: NormalizedBoundingBox[]): void => {
+  const drawBoundingBoxes = (boxes: NormalizedBoundingBox[], scale = 1): void => {
     if (!boxes.length) return;
     const directionIndex = clamp(state.direction, 0, boxes.length - 1);
     const box = boxes[directionIndex] || boxes[0];
@@ -843,10 +852,10 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     ctx.save();
     ctx.strokeStyle = '#ff9800';
     ctx.lineWidth = 1;
-    const x = ensureNumber(box.x, 0);
-    const y = ensureNumber(box.y, 0);
-    const w = ensureNumber(box.width, 0);
-    const h = ensureNumber(box.height, 0);
+    const x = ensureNumber(box.x, 0) * scale;
+    const y = ensureNumber(box.y, 0) * scale;
+    const w = ensureNumber(box.width, 0) * scale;
+    const h = ensureNumber(box.height, 0) * scale;
     if (w > 0 && h > 0) {
       ctx.strokeRect(x, y, w, h);
     }
@@ -920,8 +929,11 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     const spriteInfo = getCurrentSpriteInfo();
     if (!spriteInfo) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      dropZone?.classList.remove('has-preview');
       return;
     }
+    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = false;
     const frameCount = getFrameCount(spriteInfo);
     const boxes = getPreviewBoundingBoxes(spriteInfo);
     const boundingSquare = getBoundingSquareValue();
@@ -951,22 +963,26 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     ctx.fillStyle = `rgb(${background.r}, ${background.g}, ${background.b})`;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    let scale = 1;
     for (const addon of variants) {
       const rendered = await renderSpriteVariant(spriteInfo, baseOffset, direction, addon, mount, state.frame);
       if (!initialized) {
         const { width, height } = computePreviewDimensions(rendered.width, rendered.height, boxes, boundingSquare);
-        canvas.width = width;
-        canvas.height = height;
+        scale = computePreviewScale(width, height);
+        canvas.width = width * scale;
+        canvas.height = height * scale;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         initialized = true;
       }
-      ctx.drawImage(rendered, 0, 0);
+      ctx.drawImage(rendered, 0, 0, rendered.width, rendered.height, 0, 0, rendered.width * scale, rendered.height * scale);
     }
 
     if (state.showBoundingBoxes) {
-      drawBoundingSquareOverlay(ctx, boundingSquare);
-      drawBoundingBoxes(boxes);
+      drawBoundingSquareOverlay(ctx, boundingSquare, scale);
+      drawBoundingBoxes(boxes, scale);
     }
+
+    dropZone?.classList.add('has-preview');
   };
 
   const refreshSpritesAfterUpdate = async (): Promise<void> => {
@@ -1073,7 +1089,6 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     await draw();
   };
 
-  const dropZone = document.getElementById('texture-drop-zone');
   const clearDropState = (): void => dropZone?.classList.remove('is-drag-over');
 
   dropZone?.addEventListener('dragover', (event) => {
@@ -1344,6 +1359,7 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
+  const dropZone = document.getElementById('texture-drop-zone');
 
   let sprites = await getAppearanceSprites(category, details.id);
   const imageCache: ImageCache = new Map();
@@ -1446,6 +1462,7 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
     const spriteInfo = getCurrentSpriteInfo();
     if (!spriteInfo) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      dropZone?.classList.remove('has-preview');
       return;
     }
     const baseOffset = groupOffsets[state.frameGroupIndex] ?? 0;
@@ -1474,13 +1491,14 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
     const boxes = getPreviewBoundingBoxes(spriteInfo);
     const boundingSquare = getBoundingSquareValue();
     const { width, height } = computePreviewDimensions(image.width, image.height, boxes, boundingSquare);
-    canvas.width = width;
-    canvas.height = height;
+    const scale = computePreviewScale(width, height);
+    canvas.width = width * scale;
+    canvas.height = height * scale;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(image, 0, 0);
+    ctx.drawImage(image, 0, 0, image.width, image.height, 0, 0, image.width * scale, image.height * scale);
 
     if (state.showBoundingBoxes) {
-      drawBoundingSquareOverlay(ctx, boundingSquare);
+      drawBoundingSquareOverlay(ctx, boundingSquare, scale);
       if (boxes.length > 0) {
         const directionIndex = clamp(state.patternX, 0, boxes.length - 1);
         const box = boxes[directionIndex] || boxes[0];
@@ -1488,10 +1506,10 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
           ctx.save();
           ctx.strokeStyle = '#00bcd4';
           ctx.lineWidth = 1;
-          const x = ensureNumber(box.x, 0);
-          const y = ensureNumber(box.y, 0);
-          const w = ensureNumber(box.width, 0);
-          const h = ensureNumber(box.height, 0);
+          const x = ensureNumber(box.x, 0) * scale;
+          const y = ensureNumber(box.y, 0) * scale;
+          const w = ensureNumber(box.width, 0) * scale;
+          const h = ensureNumber(box.height, 0) * scale;
           if (w > 0 && h > 0) {
             ctx.strokeRect(x, y, w, h);
           }
@@ -1499,6 +1517,8 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
         }
       }
     }
+
+    dropZone?.classList.add('has-preview');
   };
 
   const refreshSpritesAfterUpdate = async (): Promise<void> => {
@@ -1583,7 +1603,6 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
     return clamped;
   };
 
-  const dropZone = document.getElementById('texture-drop-zone');
   const clearDropState = (): void => dropZone?.classList.remove('is-drag-over');
 
   dropZone?.addEventListener('dragover', (event) => {

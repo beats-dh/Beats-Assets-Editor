@@ -21,7 +21,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 220px;
+  min-height: 200px;
   position: relative;
   overflow: hidden;
 }
@@ -47,6 +47,16 @@
   text-align: center;
   color: var(--text-secondary);
   pointer-events: none;
+}
+
+.texture-drop-zone.has-preview .texture-drop-hint {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.texture-drop-zone.has-preview {
+  min-height: auto;
+  padding: 12px;
 }
 
 .texture-drop-title {
