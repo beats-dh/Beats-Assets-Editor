@@ -22,6 +22,11 @@ export interface MonsterBestiary {
   locations: string;
 }
 
+export interface MonsterBosstiary {
+  bossRaceId: number;
+  bossRace: string;
+}
+
 export interface ChangeTarget {
   interval: number;
   chance: number;
@@ -159,6 +164,7 @@ export interface Monster {
   outfit: MonsterOutfit;
   raceId: number;
   bestiary?: MonsterBestiary;
+  bosstiary?: MonsterBosstiary;
   health: number;
   maxHealth: number;
   race: string;
@@ -169,6 +175,7 @@ export interface Monster {
   strategiesTarget: StrategiesTarget;
   flags: MonsterFlags;
   light: MonsterLight;
+  events: string[];
   summon?: MonsterSummon;
   voices?: MonsterVoices;
   loot: LootEntry[];
@@ -184,4 +191,6 @@ export interface MonsterListEntry {
   filePath: string;
   relativePath: string;
   categories: string[];
+  bestiaryClass?: string | null;
+  isBoss?: boolean;
 }

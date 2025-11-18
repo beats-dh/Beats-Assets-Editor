@@ -44,6 +44,13 @@ pub struct MonsterBestiary {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct MonsterBosstiary {
+    pub boss_race_id: u32,
+    pub boss_race: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct ChangeTarget {
     pub interval: u32,
     pub chance: u8,
@@ -227,6 +234,8 @@ pub struct Monster {
     pub race_id: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bestiary: Option<MonsterBestiary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bosstiary: Option<MonsterBosstiary>,
     pub health: u32,
     pub max_health: u32,
     pub race: String,
@@ -237,6 +246,8 @@ pub struct Monster {
     pub strategies_target: StrategiesTarget,
     pub flags: MonsterFlags,
     pub light: MonsterLight,
+    #[serde(default)]
+    pub events: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub summon: Option<MonsterSummon>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -258,4 +269,8 @@ pub struct MonsterListEntry {
     pub relative_path: String,
     #[serde(default)]
     pub categories: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bestiary_class: Option<String>,
+    #[serde(default)]
+    pub is_boss: bool,
 }

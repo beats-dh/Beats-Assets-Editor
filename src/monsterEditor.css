@@ -333,14 +333,17 @@
   flex: 1;
   overflow-y: auto;
   padding: var(--space-lg);
+  display: block;
 }
 
 /* Cards Grid */
 .monster-cards-grid {
   display: flex;
+  flex-direction: column;
   gap: var(--space-lg);
   width: 100%;
-  align-items: flex-start;
+  max-width: 1040px;
+  margin: 0 auto;
 }
 
 .monster-card-column {
@@ -419,6 +422,67 @@
   flex-direction: column;
   gap: var(--space-md);
   flex: 1;
+}
+
+.classification-card {
+  gap: var(--space-lg);
+}
+
+.classification-section {
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.classification-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.classification-section-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.classification-toggle {
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 999px;
+  padding: 0.2rem 0.85rem;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.classification-toggle.is-active {
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--text-primary);
+  border-color: rgba(139, 92, 246, 0.8);
+}
+
+.classification-section-description {
+  margin: var(--space-sm) 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.classification-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.classification-placeholder {
+  margin: 0;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  font-size: 0.85rem;
 }
 
 /* Forms */
@@ -510,6 +574,22 @@
   flex-direction: column;
   gap: var(--space-sm);
   margin-top: var(--space-md);
+}
+
+.events-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.event-pill {
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
 }
 
 .attack-item,

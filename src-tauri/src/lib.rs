@@ -131,6 +131,7 @@ pub fn run() {
             features::monsters::commands::load_monster_file,
             features::monsters::commands::save_monster_file,
             features::monsters::commands::rename_monster_file,
+            features::monsters::commands::list_bestiary_classes,
             // Settings API
             features::settings::set_tibia_base_path,
             features::settings::get_tibia_base_path,
