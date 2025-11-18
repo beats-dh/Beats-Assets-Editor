@@ -1,4 +1,4 @@
-import { getSpriteById } from './spriteCache';
+import { getSpriteById, getCachedSpriteById } from './spriteCache';
 import { translate } from './i18n';
 import { showStatus } from './utils';
 
@@ -14,12 +14,12 @@ const orderButtonId = 'sprite-library-order';
 const prevButtonId = 'sprite-library-prev';
 const nextButtonId = 'sprite-library-next';
 
-const spriteCache = new Map<number, string>();
 let visibleRange: number[] = [];
 let isEnabled = false;
 let pageStart = 1;
 let pageSize = 100;
 let order: 'asc' | 'desc' = 'asc';
+let hasLoadedSprites = false;
 
 function parseSpriteIdInput(raw: string): number[] {
   if (!raw) return [];
@@ -76,7 +76,7 @@ function renderList(): void {
   list.innerHTML = '';
   const fragment = document.createDocumentFragment();
   visibleRange.forEach((id) => {
-    const cached = spriteCache.get(id);
+    const cached = getCachedSpriteById(id);
     const button = document.createElement('button');
     button.type = 'button';
     button.draggable = !!cached;
@@ -119,16 +119,19 @@ async function loadSprites(rawInput: string): Promise<void> {
     return;
   }
   const uniqueIds = Array.from(new Set(ids));
+  if (uniqueIds.some(id => !!getCachedSpriteById(id))) {
+    hasLoadedSprites = true;
+  }
   visibleRange = uniqueIds;
   renderList();
 
   let loaded = 0;
   for (const id of uniqueIds) {
-    if (spriteCache.has(id)) continue;
+    if (getCachedSpriteById(id)) continue;
     const data = await getSpriteById(id);
     if (data) {
-      spriteCache.set(id, data);
       loaded += 1;
+      hasLoadedSprites = true;
       renderList();
     }
   }
@@ -174,16 +177,19 @@ async function loadPageFromState(): Promise<void> {
   }
   if (ids.length === 0) return;
 
+  if (ids.some(id => !!getCachedSpriteById(id))) {
+    hasLoadedSprites = true;
+  }
   visibleRange = ids;
   renderList();
 
   let loaded = 0;
   for (const id of ids) {
-    if (spriteCache.has(id)) continue;
+    if (getCachedSpriteById(id)) continue;
     const data = await getSpriteById(id);
     if (data) {
-      spriteCache.set(id, data);
       loaded += 1;
+      hasLoadedSprites = true;
       renderList();
     }
   }
@@ -287,8 +293,10 @@ export function setSpriteLibraryEnabled(enabled: boolean): void {
   updateButtonVisibility();
   if (enabled) {
     toggleDrawer(true);
-    if (spriteCache.size === 0 || visibleRange.length === 0) {
+    if (!hasLoadedSprites || visibleRange.length === 0) {
       void loadPageFromState();
+    } else {
+      renderList();
     }
   }
 }

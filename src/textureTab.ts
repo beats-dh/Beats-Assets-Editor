@@ -1465,6 +1465,7 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
       dropZone?.classList.remove('has-preview');
       return;
     }
+    ctx.imageSmoothingEnabled = false; // keep pixels crisp
     const baseOffset = groupOffsets[state.frameGroupIndex] ?? 0;
     const patternWidth = Math.max(1, ensureNumber(spriteInfo.pattern_width, 1));
     const patternHeight = Math.max(1, ensureNumber(spriteInfo.pattern_height, 1));

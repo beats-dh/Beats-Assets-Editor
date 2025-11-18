@@ -28,6 +28,10 @@ export function invalidateAppearanceSpritesCache(category: string, appearanceId:
   spriteCache.delete(cacheKey);
 }
 
+export function getCachedSpriteById(spriteId: number): string | null {
+  return singleSpriteCache.get(spriteId) ?? null;
+}
+
 export async function getSpriteById(spriteId: number): Promise<string | null> {
   if (!Number.isFinite(spriteId)) return null;
 
