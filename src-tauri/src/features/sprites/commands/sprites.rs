@@ -239,9 +239,12 @@ pub async fn clear_sprite_cache(state: State<'_, AppState>) -> Result<usize, Str
 
 /// Get sprite cache statistics
 /// Optimized: Lock-free cache statistics
+/// NOTE: DashMap doesn't implement IntoParallelRefIterator, so we use sequential iteration
+/// which is still fast due to DashMap's lock-free design
 #[tauri::command]
 pub async fn get_sprite_cache_stats(state: State<'_, AppState>) -> Result<(usize, usize), String> {
     let total_entries = state.sprite_cache.len();
+    // DashMap iteration is already efficient (lock-free), sequential is fine
     let total_sprites: usize = state.sprite_cache.iter().map(|entry| entry.value().len()).sum();
     Ok((total_entries + state.preview_cache.len(), total_sprites + state.preview_cache.len()))
 }

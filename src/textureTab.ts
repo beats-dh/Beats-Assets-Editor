@@ -5,6 +5,7 @@ import { showStatus } from './utils';
 import { translate, applyDocumentTranslations, getActiveLanguage } from './i18n';
 import { invalidatePreviewSpriteCache } from './assetUI';
 import type { CompleteAppearanceItem, CompleteSpriteInfo, SpriteAnimation } from './types';
+import type { OutfitComposeResponseMessage, OutfitComposeLayer } from './workers/outfitComposeWorker';
 
 interface OutfitPreviewState {
   frameGroupIndex: number;
@@ -36,6 +37,67 @@ interface ObjectPreviewState {
 interface RGB { r: number; g: number; b: number; }
 
 type ImageCache = Map<number, Promise<HTMLImageElement>>;
+let outfitComposeWorker: Worker | null = null;
+let outfitComposeRequestId = 0;
+const outfitComposePending = new Map<string, (value: string | null) => void>();
+const textureDecodePending = new Map<string, (value: string | null) => void>();
+let textureDecodeWorker: Worker | null = null;
+
+interface RenderedSprite {
+  image: CanvasImageSource;
+  width: number;
+  height: number;
+}
+
+function initOutfitComposeWorker(): void {
+  if (outfitComposeWorker) return;
+  try {
+    outfitComposeWorker = new Worker(
+      new URL('./workers/outfitComposeWorker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    outfitComposeWorker.onmessage = (event: MessageEvent<OutfitComposeResponseMessage>) => {
+      const { id, buffer } = event.data;
+      const resolver = outfitComposePending.get(id);
+      if (resolver) {
+        const dataUrl = buffer ? URL.createObjectURL(new Blob([buffer], { type: 'image/png' })) : null;
+        resolver(dataUrl);
+        outfitComposePending.delete(id);
+      }
+    };
+  } catch (error) {
+    console.warn('Failed to init outfit compose worker:', error);
+    outfitComposeWorker = null;
+    outfitComposePending.clear();
+  }
+}
+
+function initTextureDecodeWorker(): void {
+  if (textureDecodeWorker) return;
+  try {
+    textureDecodeWorker = new Worker(
+      new URL('./workers/imageBitmapWorker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    textureDecodeWorker.onmessage = (event: MessageEvent<{ id: string; buffer: ArrayBuffer | null }>) => {
+      const { id, buffer } = event.data;
+      const resolver = textureDecodePending.get(id);
+      if (resolver) {
+        const dataUrl = buffer ? URL.createObjectURL(new Blob([buffer], { type: 'image/png' })) : null;
+        resolver(dataUrl);
+        textureDecodePending.delete(id);
+      }
+    };
+  } catch (error) {
+    console.warn('Failed to init texture decode worker:', error);
+    textureDecodeWorker = null;
+    textureDecodePending.clear();
+  }
+}
+
+function sliceBuffer(sprite: Uint8Array): ArrayBuffer {
+  return sprite.buffer.slice(sprite.byteOffset, sprite.byteOffset + sprite.byteLength);
+}
 
 type TextureCategory = 'Outfits' | 'Objects' | 'Other';
 
@@ -195,12 +257,40 @@ function createImageLoader(): (index: number, sprites: Uint8Array[], cache: Imag
     if (cache.has(index)) {
       return cache.get(index)!;
     }
-    const base64 = sprites[index];
+    initTextureDecodeWorker();
+    const sprite = sprites[index];
+    const id = `tex-${index}-${Date.now()}`;
+    const buffer = sliceBuffer(sprite);
     const promise = new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = (err) => reject(err);
-      img.src = bufferToObjectUrl(base64);
+      if (!textureDecodeWorker) {
+        reject(new Error('Texture decode worker unavailable'));
+        return;
+      }
+      textureDecodePending.set(id, (dataUrl) => {
+        if (!dataUrl) {
+          reject(new Error('Failed to decode sprite'));
+          return;
+        }
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(dataUrl); // Clean up Blob URL after image loads
+          resolve(img);
+        };
+        img.onerror = (err) => {
+          URL.revokeObjectURL(dataUrl); // Clean up on error too
+          reject(err);
+        };
+        img.src = dataUrl;
+      });
+      textureDecodeWorker.postMessage({ id, sprite: buffer }, [buffer]);
+    }).catch((err) => {
+      console.warn('Falling back to main thread decode for sprite', index, err);
+      return new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = (error) => reject(error);
+        img.src = bufferToObjectUrl(sprite);
+      });
     });
     cache.set(index, promise);
     return promise;

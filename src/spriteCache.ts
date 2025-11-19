@@ -196,7 +196,7 @@ export async function getAppearanceSprites(category: string, appearanceId: numbe
  *
  * @param category - Appearance category (Objects, Outfits, Effects, Missiles)
  * @param appearanceIds - Array of appearance IDs to load
- * @returns Map of appearance ID to first sprite base64 string
+ * @returns Map of appearance ID to first sprite Uint8Array
  */
 export async function getAppearancePreviewSpritesBatch(category: string, appearanceIds: number[]): Promise<Map<number, Uint8Array>> {
   if (!spritesLoaded) {
@@ -237,7 +237,7 @@ export async function getAppearancePreviewSpritesBatch(category: string, appeara
  *
  * @param category - Appearance category
  * @param appearanceIds - Array of appearance IDs to load
- * @returns Map of appearance ID to array of sprite base64 strings
+ * @returns Map of appearance ID to array of sprite Uint8Array
  */
 export async function getAppearanceSpritesBatch(category: string, appearanceIds: number[]): Promise<Map<number, Uint8Array[]>> {
   if (!spritesLoaded) {

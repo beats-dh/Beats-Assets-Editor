@@ -5,19 +5,10 @@ export interface ComposeRequestMessage {
 
 export interface ComposeResponseMessage {
   id: string;
-  dataUrl: string | null;
+  buffer: ArrayBuffer | null;
 }
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-async function composeSprites(spriteBuffers: ArrayBuffer[]): Promise<string | null> {
+async function composeSprites(spriteBuffers: ArrayBuffer[]): Promise<ArrayBuffer | null> {
   if (spriteBuffers.length === 0) return null;
 
   const bitmaps = await Promise.all(
@@ -37,19 +28,17 @@ async function composeSprites(spriteBuffers: ArrayBuffer[]): Promise<string | nu
   bitmaps.forEach((bmp) => ctx.drawImage(bmp, 0, 0));
 
   const blob = await canvas.convertToBlob({ type: 'image/png' });
-  const ab = await blob.arrayBuffer();
-  const base64 = arrayBufferToBase64(ab);
-  return `data:image/png;base64,${base64}`;
+  return await blob.arrayBuffer();
 }
 
 self.onmessage = async (event: MessageEvent<ComposeRequestMessage>) => {
   const { id, spriteBuffers } = event.data;
   try {
-    const dataUrl = await composeSprites(spriteBuffers);
-    const message: ComposeResponseMessage = { id, dataUrl };
+    const buffer = await composeSprites(spriteBuffers);
+    const message: ComposeResponseMessage = { id, buffer };
     (self as unknown as Worker).postMessage(message);
   } catch (_err) {
-    const message: ComposeResponseMessage = { id, dataUrl: null };
+    const message: ComposeResponseMessage = { id, buffer: null };
     (self as unknown as Worker).postMessage(message);
   }
 };

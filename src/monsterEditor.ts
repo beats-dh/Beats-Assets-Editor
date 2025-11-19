@@ -1393,7 +1393,7 @@ type ComposeSpriteParams = {
 };
 
 // Worker de composição de sprites (off-thread)
-interface OutfitComposeResponseMessage { id: string; dataUrl: string | null; }
+interface OutfitComposeResponseMessage { id: string; buffer: ArrayBuffer | null; }
 interface OutfitComposeLayer { sprite: ArrayBuffer; template?: ArrayBuffer; }
 
 let outfitComposeWorker: Worker | null = null;
@@ -1408,9 +1408,10 @@ function initOutfitWorker(): void {
       { type: 'module' }
     );
     outfitComposeWorker.onmessage = (event: MessageEvent<OutfitComposeResponseMessage>) => {
-      const { id, dataUrl } = event.data;
+      const { id, buffer } = event.data;
       const resolve = outfitPending.get(id);
       if (resolve) {
+        const dataUrl = buffer ? URL.createObjectURL(new Blob([buffer], { type: 'image/png' })) : null;
         resolve(dataUrl);
         outfitPending.delete(id);
       }
@@ -1447,17 +1448,17 @@ async function composeOutfitSprite(params: ComposeSpriteParams): Promise<string 
 
   for (const addonLayer of addonLayersToDraw) {
     const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, 0, direction, addonLayer, mountIndex, normalizedPhase);
-    const spriteBase64 = sprites[spriteIdx];
-    if (!spriteBase64) continue;
+    const spriteData = sprites[spriteIdx];
+    if (!spriteData) continue;
 
-    const layer: OutfitComposeLayer = { sprite: bufferSlice(spriteBase64) };
+    const layer: OutfitComposeLayer = { sprite: bufferSlice(spriteData) };
 
     if (hasTemplateLayer) {
       const templateIndex =
         baseOffset + computeSpriteIndex(spriteInfo, 1, direction, addonLayer, mountIndex, normalizedPhase);
-      const templateBase64 = sprites[templateIndex];
-      if (templateBase64) {
-        layer.template = bufferSlice(templateBase64);
+      const templateData = sprites[templateIndex];
+      if (templateData) {
+        layer.template = bufferSlice(templateData);
       }
     }
 

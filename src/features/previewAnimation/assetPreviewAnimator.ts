@@ -39,9 +39,10 @@ function initComposeWorker(): void {
       { type: 'module' }
     );
     composeWorker.onmessage = (event: MessageEvent<ComposeResponseMessage>) => {
-      const { id, dataUrl } = event.data;
+      const { id, buffer } = event.data;
       const resolver = workerPending.get(id);
       if (resolver) {
+        const dataUrl = buffer ? URL.createObjectURL(new Blob([buffer], { type: 'image/png' })) : null;
         resolver(dataUrl);
         workerPending.delete(id);
       }

@@ -16,22 +16,13 @@ export interface OutfitComposeRequestMessage {
 
 export interface OutfitComposeResponseMessage {
   id: string;
-  dataUrl: string | null;
+  buffer: ArrayBuffer | null;
 }
 
 interface RGB { r: number; g: number; b: number; }
 
 function clampByte(value: number): number {
   return Math.max(0, Math.min(255, Math.round(value)));
-}
-
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
 }
 
 async function bufferToBitmap(buffer: ArrayBuffer): Promise<ImageBitmap> {
@@ -77,7 +68,7 @@ async function applyTemplate(
   ctx.putImageData(baseData, 0, 0);
 }
 
-async function composeOutfit(request: OutfitComposeRequestMessage): Promise<string | null> {
+async function composeOutfit(request: OutfitComposeRequestMessage): Promise<ArrayBuffer | null> {
   if (request.layers.length === 0) return null;
 
   const baseBitmap = await bufferToBitmap(request.layers[0].sprite);
@@ -94,19 +85,17 @@ async function composeOutfit(request: OutfitComposeRequestMessage): Promise<stri
   }
 
   const blob = await canvas.convertToBlob({ type: 'image/png' });
-  const buffer = await blob.arrayBuffer();
-  const base64 = arrayBufferToBase64(buffer);
-  return `data:image/png;base64,${base64}`;
+  return await blob.arrayBuffer();
 }
 
 self.onmessage = async (event: MessageEvent<OutfitComposeRequestMessage>) => {
   const { id } = event.data;
   try {
-    const dataUrl = await composeOutfit(event.data);
-    const response: OutfitComposeResponseMessage = { id, dataUrl };
+    const buffer = await composeOutfit(event.data);
+    const response: OutfitComposeResponseMessage = { id, buffer };
     (self as unknown as Worker).postMessage(response);
   } catch (_error) {
-    const response: OutfitComposeResponseMessage = { id, dataUrl: null };
+    const response: OutfitComposeResponseMessage = { id, buffer: null };
     (self as unknown as Worker).postMessage(response);
   }
 };

@@ -1,6 +1,6 @@
 use super::category_types::AppearanceCategory;
 use super::conversion::{clone_with_new_id, complete_flags_to_proto, complete_to_protobuf};
-use super::helpers::{get_items_by_category, get_items_by_category_mut, rebuild_indexes, invalidate_search_cache};
+use super::helpers::{get_items_by_category, get_items_by_category_mut, get_index_for_category, rebuild_indexes, invalidate_search_cache};
 use crate::core::protobuf::Appearance;
 use crate::features::appearances::{CompleteAppearanceItem, CompleteFlags};
 use crate::state::AppState;
@@ -31,8 +31,14 @@ pub async fn export_appearance_to_json(category: AppearanceCategory, id: u32, pa
     };
 
     let items = get_items_by_category(appearances, &category);
+    let index_map = get_index_for_category(&state, &category);
 
-    let appearance = items.iter().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found", id))?;
+    // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
+    let appearance = if let Some(idx) = index_map.get(&id) {
+        items.get(*idx).ok_or_else(|| format!("Appearance with ID {} not found", id))?
+    } else {
+        items.iter().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found", id))?
+    };
 
     let complete = CompleteAppearanceItem::from_protobuf(appearance);
     let json = serde_json::to_string_pretty(&complete).map_err(|e| format!("Failed to serialize appearance: {}", e))?;
@@ -65,20 +71,23 @@ pub async fn import_appearance_from_json(
 
     let mode = mode.unwrap_or_default();
 
-    let items = get_items_by_category_mut(appearances, &category);
-
+    let index_map = get_index_for_category(&state, &category);
+    
     let assigned_id = match mode {
         ImportMode::Replace => {
             let target_id = new_id.unwrap_or(imported.id);
             imported.id = target_id;
-            if !items.iter().any(|app| app.id.unwrap_or(0) == target_id) {
+            // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
+            if !index_map.contains_key(&target_id) {
                 return Err(format!("Cannot replace appearance {}; ID not found in {:?}", target_id, category));
             }
             target_id
         }
         ImportMode::New => {
+            let items = get_items_by_category(appearances, &category);
             let mut candidate = new_id.unwrap_or_else(|| find_next_available_id(items));
-            while items.iter().any(|app| app.id.unwrap_or(0) == candidate) {
+            // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
+            while index_map.contains_key(&candidate) {
                 candidate += 1;
             }
             imported.id = candidate;
@@ -87,29 +96,41 @@ pub async fn import_appearance_from_json(
     };
 
     let proto = complete_to_protobuf(&imported);
-
     let result_id = imported.id;
-    match mode {
+
+    // Use explicit scope to drop mutable borrow before rebuild_indexes
+    let stored_id = match mode {
         ImportMode::Replace => {
-            if let Some(pos) = items.iter().position(|app| app.id.unwrap_or(0) == assigned_id) {
-                items[pos] = proto;
+            let items = get_items_by_category_mut(appearances, &category);
+            // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
+            if let Some(pos) = index_map.get(&assigned_id) {
+                items[*pos] = proto;
             }
             // Replace mode doesn't change indexes, only content
             invalidate_search_cache(&state);
+            result_id
         }
         ImportMode::New => {
-            items.push(proto);
-            sort_by_id(items);
+            {
+                let items = get_items_by_category_mut(appearances, &category);
+                items.push(proto);
+                sort_by_id(items);
+            } // Drop mutable borrow here
             // CRITICAL: Rebuild indexes after inserting and sorting (indexes changed)
-            // Must clone stored result before rebuild to avoid borrow conflicts
-            let stored = items.iter().find(|app| app.id.unwrap_or(0) == result_id).cloned().ok_or_else(|| "Failed to store imported appearance".to_string())?;
             rebuild_indexes(&state, appearances);
             invalidate_search_cache(&state);
-            return Ok(CompleteAppearanceItem::from_protobuf(&stored));
+            result_id
         }
-    }
+    };
 
-    let stored = items.iter().find(|app| app.id.unwrap_or(0) == result_id).cloned().ok_or_else(|| "Failed to store imported appearance".to_string())?;
+    // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
+    let index_map_after = get_index_for_category(&state, &category);
+    let items_after = get_items_by_category(appearances, &category);
+    let stored = if let Some(pos) = index_map_after.get(&stored_id) {
+        items_after.get(*pos).ok_or_else(|| "Failed to store imported appearance".to_string())?.clone()
+    } else {
+        return Err("Failed to store imported appearance".to_string());
+    };
 
     Ok(CompleteAppearanceItem::from_protobuf(&stored))
 }
@@ -119,24 +140,43 @@ pub async fn duplicate_appearance(category: AppearanceCategory, source_id: u32, 
     let mut appearances_lock = state.appearances.write();
     let appearances = appearances_lock.as_mut().ok_or_else(|| "No appearances loaded".to_string())?;
 
-    let items = get_items_by_category_mut(appearances, &category);
+    let index_map = get_index_for_category(&state, &category);
 
-    let source = items.iter().find(|app| app.id.unwrap_or(0) == source_id).cloned().ok_or_else(|| format!("Appearance {} not found in {:?}", source_id, category))?;
+    // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
+    let items = get_items_by_category(appearances, &category);
+    let source = if let Some(pos) = index_map.get(&source_id) {
+        items.get(*pos).ok_or_else(|| format!("Appearance {} not found in {:?}", source_id, category))?.clone()
+    } else {
+        return Err(format!("Appearance {} not found in {:?}", source_id, category));
+    };
 
     let mut candidate = target_id.unwrap_or_else(|| find_next_available_id(items));
-    while items.iter().any(|app| app.id.unwrap_or(0) == candidate) {
+    // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
+    while index_map.contains_key(&candidate) {
         candidate += 1;
     }
 
     let duplicate = clone_with_new_id(&source, candidate);
-    items.push(duplicate);
-    sort_by_id(items);
-
+    let stored_id = candidate;
+    
+    {
+        let items = get_items_by_category_mut(appearances, &category);
+        items.push(duplicate);
+        sort_by_id(items);
+    } // Drop mutable borrow here
+    
     // CRITICAL: Rebuild indexes after inserting and sorting (indexes changed)
-    // Clone stored result before rebuild to avoid borrow conflicts
-    let stored = items.iter().find(|app| app.id.unwrap_or(0) == candidate).cloned().ok_or_else(|| "Failed to duplicate appearance".to_string())?;
     rebuild_indexes(&state, appearances);
     invalidate_search_cache(&state);
+    
+    // OPTIMIZATION: Use O(1) index lookup after rebuild instead of O(n) linear search
+    let index_map_after = get_index_for_category(&state, &category);
+    let items_after = get_items_by_category(appearances, &category);
+    let stored = if let Some(pos) = index_map_after.get(&stored_id) {
+        items_after.get(*pos).ok_or_else(|| "Failed to duplicate appearance".to_string())?.clone()
+    } else {
+        return Err("Failed to duplicate appearance".to_string());
+    };
 
     Ok(CompleteAppearanceItem::from_protobuf(&stored))
 }
@@ -152,10 +192,12 @@ pub async fn create_empty_appearance(
     let mut appearances_lock = state.appearances.write();
     let appearances = appearances_lock.as_mut().ok_or_else(|| "No appearances loaded".to_string())?;
 
-    let items = get_items_by_category_mut(appearances, &category);
+    let index_map = get_index_for_category(&state, &category);
+    let items = get_items_by_category(appearances, &category);
 
     let mut candidate = new_id.unwrap_or_else(|| find_next_available_id(items));
-    while items.iter().any(|app| app.id.unwrap_or(0) == candidate) {
+    // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
+    while index_map.contains_key(&candidate) {
         candidate += 1;
     }
 
@@ -164,14 +206,26 @@ pub async fn create_empty_appearance(
     appearance.name = name.map(|s| s.into_bytes());
     appearance.description = description.map(|s| s.into_bytes());
 
-    items.push(appearance);
-    sort_by_id(items);
+    let stored_id = candidate;
+    
+    {
+        let items = get_items_by_category_mut(appearances, &category);
+        items.push(appearance);
+        sort_by_id(items);
+    } // Drop mutable borrow here
 
     // CRITICAL: Rebuild indexes after inserting and sorting (indexes changed)
-    // Clone stored result before rebuild to avoid borrow conflicts
-    let stored = items.iter().find(|app| app.id.unwrap_or(0) == candidate).cloned().ok_or_else(|| "Failed to create appearance".to_string())?;
     rebuild_indexes(&state, appearances);
     invalidate_search_cache(&state);
+    
+    // OPTIMIZATION: Use O(1) index lookup after rebuild instead of O(n) linear search
+    let index_map_after = get_index_for_category(&state, &category);
+    let items_after = get_items_by_category(appearances, &category);
+    let stored = if let Some(pos) = index_map_after.get(&stored_id) {
+        items_after.get(*pos).ok_or_else(|| "Failed to create appearance".to_string())?.clone()
+    } else {
+        return Err("Failed to create appearance".to_string());
+    };
 
     Ok(CompleteAppearanceItem::from_protobuf(&stored))
 }
@@ -186,7 +240,14 @@ pub async fn copy_appearance_flags(category: AppearanceCategory, id: u32, state:
         };
 
         let items = get_items_by_category(appearances, &category);
-        let appearance = items.iter().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found", id))?;
+        let index_map = get_index_for_category(&state, &category);
+        
+        // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
+        let appearance = if let Some(pos) = index_map.get(&id) {
+            items.get(*pos).ok_or_else(|| format!("Appearance with ID {} not found", id))?
+        } else {
+            items.iter().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found", id))?
+        };
 
         let flags = appearance.flags.as_ref().ok_or_else(|| "Appearance has no flags to copy".to_string())?;
 
@@ -213,7 +274,14 @@ pub async fn paste_appearance_flags(category: AppearanceCategory, id: u32, state
         let appearances = appearances_lock.as_mut().ok_or_else(|| "No appearances loaded".to_string())?;
 
         let items = get_items_by_category_mut(appearances, &category);
-        let appearance = items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found in {:?}", id, category))?;
+        let index_map = get_index_for_category(&state, &category);
+        
+        // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
+        let appearance = if let Some(pos) = index_map.get(&id) {
+            items.get_mut(*pos).ok_or_else(|| format!("Appearance {} not found in {:?}", id, category))?
+        } else {
+            items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found in {:?}", id, category))?
+        };
 
         appearance.flags = Some(complete_flags_to_proto(&flags_to_apply));
     }
@@ -231,8 +299,11 @@ pub async fn delete_appearance(category: AppearanceCategory, id: u32, state: Sta
     let appearances = appearances_lock.as_mut().ok_or_else(|| "No appearances loaded".to_string())?;
 
     let items = get_items_by_category_mut(appearances, &category);
-    if let Some(pos) = items.iter().position(|app| app.id.unwrap_or(0) == id) {
-        items.remove(pos);
+    let index_map = get_index_for_category(&state, &category);
+    
+    // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
+    if let Some(pos) = index_map.get(&id) {
+        items.remove(*pos);
 
         // CRITICAL: Rebuild indexes after deletion (all subsequent indexes are stale)
         rebuild_indexes(&state, appearances);
