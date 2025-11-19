@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { getAppearanceSprites, invalidateAppearanceSpritesCache } from './spriteCache';
+import { getAppearanceSprites, invalidateAppearanceSpritesCache, bufferToObjectUrl } from './spriteCache';
 import { computeSpriteIndex, computeGroupOffsetsFromDetails } from './animation';
 import { showStatus } from './utils';
 import { translate, applyDocumentTranslations, getActiveLanguage } from './i18n';
@@ -190,8 +190,8 @@ function getFrameCount(spriteInfo: CompleteSpriteInfo | undefined): number {
   return 1;
 }
 
-function createImageLoader(): (index: number, sprites: string[], cache: ImageCache) => Promise<HTMLImageElement> {
-  return async (index: number, sprites: string[], cache: ImageCache): Promise<HTMLImageElement> => {
+function createImageLoader(): (index: number, sprites: Uint8Array[], cache: ImageCache) => Promise<HTMLImageElement> {
+  return async (index: number, sprites: Uint8Array[], cache: ImageCache): Promise<HTMLImageElement> => {
     if (cache.has(index)) {
       return cache.get(index)!;
     }
@@ -200,7 +200,7 @@ function createImageLoader(): (index: number, sprites: string[], cache: ImageCac
       const img = new Image();
       img.onload = () => resolve(img);
       img.onerror = (err) => reject(err);
-      img.src = `data:image/png;base64,${base64}`;
+      img.src = bufferToObjectUrl(base64);
     });
     cache.set(index, promise);
     return promise;
@@ -773,7 +773,7 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
       button.dataset.spriteId = String(spriteId);
       button.innerHTML = `
         <div class="texture-sprite-thumb">
-          ${preview ? `<img src="data:image/png;base64,${preview}" alt="Sprite ${spriteId}">` : '<div class="texture-sprite-placeholder">?</div>'}
+          ${preview ? `<img src="${bufferToObjectUrl(preview)}" alt="Sprite ${spriteId}">` : '<div class="texture-sprite-placeholder">?</div>'}
         </div>
         <div class="texture-sprite-meta">
           <span class="texture-sprite-id">#${spriteId}</span>
@@ -1412,7 +1412,7 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
       button.dataset.spriteId = String(spriteId);
       button.innerHTML = `
         <div class="texture-sprite-thumb">
-          ${preview ? `<img src="data:image/png;base64,${preview}" alt="Sprite ${spriteId}">` : '<div class="texture-sprite-placeholder">?</div>'}
+          ${preview ? `<img src="${bufferToObjectUrl(preview)}" alt="Sprite ${spriteId}">` : '<div class="texture-sprite-placeholder">?</div>'}
         </div>
         <div class="texture-sprite-meta">
           <span class="texture-sprite-id">#${spriteId}</span>

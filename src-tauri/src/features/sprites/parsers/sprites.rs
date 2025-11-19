@@ -35,6 +35,13 @@ impl TibiaSprite {
     /// Inline for hot-path performance
     #[inline]
     pub fn to_base64_png(&self) -> Result<String> {
+        let buffer = self.to_png_bytes()?;
+        Ok(general_purpose::STANDARD.encode(buffer))
+    }
+
+    /// Convert sprite to raw PNG bytes
+    #[inline]
+    pub fn to_png_bytes(&self) -> Result<Vec<u8>> {
         let img = self.to_image()?;
         // Pre-allocate buffer with estimated size (PNG typically ~1.5x raw RGBA)
         let estimated_size = (self.width * self.height * 4 * 3 / 2) as usize;
@@ -43,7 +50,7 @@ impl TibiaSprite {
 
         img.write_to(&mut cursor, image::ImageFormat::Png).context("Failed to encode sprite as PNG")?;
 
-        Ok(general_purpose::STANDARD.encode(buffer))
+        Ok(buffer)
     }
 }
 

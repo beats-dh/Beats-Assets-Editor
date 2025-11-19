@@ -23,8 +23,8 @@ pub struct AppState {
     pub tibia_path: Mutex<Option<PathBuf>>,
 
     // Lock-free concurrent caches
-    pub sprite_cache: DashMap<String, Arc<Vec<String>>>, // Lock-free: key -> Arc<base64 sprites>
-    pub preview_cache: DashMap<String, Arc<String>>,     // First-frame cache to avoid recompressing previews
+    pub sprite_cache: DashMap<String, Arc<Vec<Vec<u8>>>>, // Lock-free: key -> Arc<PNG bytes>
+    pub preview_cache: DashMap<String, Arc<Vec<u8>>>,     // First-frame cache to avoid recompressing previews
 
     // O(1) lookup indexes - no more O(n) linear scans!
     // Maps: ID -> index in Vec for instant lookups

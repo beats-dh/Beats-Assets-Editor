@@ -32,7 +32,7 @@ let pageInfo: HTMLElement | null = null;
 let prevPageBtn: HTMLButtonElement | null = null;
 let nextPageBtn: HTMLButtonElement | null = null;
 let pageSizeSelect: HTMLSelectElement | null = null;
-const previewSpriteCaches = new Map<string, Map<number, string>>();
+const previewSpriteCaches = new Map<string, Map<number, Uint8Array>>();
 const assetsQueryCache = new Map<string, { ids: number[]; itemsById: Map<number, any>; total: number | null }>();
 const animationQueue: Array<{ category: string; id: number }> = [];
 const enqueuedAnimations = new Set<string>();
@@ -126,10 +126,10 @@ export function setAutoAnimateGridEnabled(enabled: boolean): void {
   autoAnimateGridEnabled = enabled;
 }
 
-function getPreviewCache(category: string): Map<number, string> {
+function getPreviewCache(category: string): Map<number, Uint8Array> {
   let cache = previewSpriteCaches.get(category);
   if (!cache) {
-    cache = new Map<number, string>();
+    cache = new Map<number, Uint8Array>();
     previewSpriteCaches.set(category, cache);
   }
   return cache;

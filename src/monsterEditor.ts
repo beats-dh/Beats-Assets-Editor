@@ -12,7 +12,7 @@ import type {
   MonsterSummon,
 } from "./monsterTypes";
 import type { CompleteAppearanceItem, CompleteSpriteInfo } from "./types";
-import { getAppearanceSprites } from "./spriteCache";
+import { getAppearanceSprites, bufferToObjectUrl } from "./spriteCache";
 import { computeSpriteIndex, computeGroupOffsetsFromDetails } from "./animation";
 import { ensureAppearancesLoaded } from "./appearanceLoader";
 
@@ -1002,7 +1002,7 @@ function createOutfitPreviewCard(): HTMLElement {
   rotateButton.innerHTML = "⟳";
 
   const setSpriteSource = (frameData: string, directionIndex: number, frameIndex: number) => {
-    spriteImg.src = frameData.startsWith("data:image/") ? frameData : `data:image/png;base64,${frameData}`;
+    spriteImg.src = frameData;
     spriteImg.alt = `Outfit ${currentLookType} (direction ${directionIndex}, frame ${frameIndex + 1})`;
   };
 
@@ -1207,7 +1207,7 @@ function createOutfitPreviewCard(): HTMLElement {
   return createCard("👤 Outfit & Appearance", content);
 }
 
-async function getDirectionalSpritesForOutfit(outfit: MonsterOutfit, sprites: string[]): Promise<DirectionalPreview[]> {
+async function getDirectionalSpritesForOutfit(outfit: MonsterOutfit, sprites: Uint8Array[]): Promise<DirectionalPreview[]> {
   if (sprites.length === 0) return [];
 
   try {
@@ -1271,7 +1271,7 @@ async function getDirectionalSpritesForOutfit(outfit: MonsterOutfit, sprites: st
   return [
     {
       direction: 0,
-      frames: [fallbackSprite],
+      frames: [bufferToObjectUrl(fallbackSprite)],
       durations: [250],
     },
   ];
@@ -1382,7 +1382,7 @@ function computeMountPatternIndex(lookMount: number, patternDepth: number): numb
 }
 
 type ComposeSpriteParams = {
-  sprites: string[];
+  sprites: Uint8Array[];
   spriteInfo: CompleteSpriteInfo;
   baseOffset: number;
   direction: number;
@@ -1391,6 +1391,39 @@ type ComposeSpriteParams = {
   outfit: MonsterOutfit;
   phaseIndex: number;
 };
+
+// Worker de composição de sprites (off-thread)
+interface OutfitComposeResponseMessage { id: string; dataUrl: string | null; }
+interface OutfitComposeLayer { sprite: ArrayBuffer; template?: ArrayBuffer; }
+
+let outfitComposeWorker: Worker | null = null;
+let outfitComposeRequestId = 0;
+const outfitPending = new Map<string, (value: string | null) => void>();
+
+function initOutfitWorker(): void {
+  if (outfitComposeWorker) return;
+  try {
+    outfitComposeWorker = new Worker(
+      new URL('./workers/outfitComposeWorker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    outfitComposeWorker.onmessage = (event: MessageEvent<OutfitComposeResponseMessage>) => {
+      const { id, dataUrl } = event.data;
+      const resolve = outfitPending.get(id);
+      if (resolve) {
+        resolve(dataUrl);
+        outfitPending.delete(id);
+      }
+    };
+  } catch (error) {
+    outfitComposeWorker = null;
+    outfitPending.clear();
+  }
+}
+
+function bufferSlice(sprite: Uint8Array): ArrayBuffer {
+  return sprite.buffer.slice(sprite.byteOffset, sprite.byteOffset + sprite.byteLength);
+}
 
 async function composeOutfitSprite(params: ComposeSpriteParams): Promise<string | null> {
   const { sprites, spriteInfo, baseOffset, direction, addonIndex, mountIndex, outfit, phaseIndex } = params;
@@ -1402,75 +1435,54 @@ async function composeOutfitSprite(params: ComposeSpriteParams): Promise<string 
     baseOffset + computeSpriteIndex(spriteInfo, 0, direction, addonLayersToDraw[0], mountIndex, normalizedPhase);
   if (!sprites[primaryIndex]) return null;
 
-  const baseImage = await loadBase64Image(sprites[primaryIndex]);
-  const canvas = document.createElement("canvas");
-  canvas.width = baseImage.width;
-  canvas.height = baseImage.height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
+  initOutfitWorker();
+  const layers: OutfitComposeLayer[] = [];
+  const totalLayers = spriteInfo.layers ?? spriteInfo.pattern_layers ?? 1;
+  const hasTemplateLayer = totalLayers > 1;
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const layers = spriteInfo.layers ?? spriteInfo.pattern_layers ?? 1;
-  const hasTemplateLayer = layers > 1;
-
-  const applyTemplateLayer = async (addonLayer: number) => {
-    if (!hasTemplateLayer) return;
-    const templateIndex =
-      baseOffset + computeSpriteIndex(spriteInfo, 1, direction, addonLayer, mountIndex, normalizedPhase);
-    const templateBase64 = sprites[templateIndex];
-    if (!templateBase64) return;
-
-    const templateImage = await loadBase64Image(templateBase64);
-    const templateCanvas = document.createElement("canvas");
-    templateCanvas.width = templateImage.width;
-    templateCanvas.height = templateImage.height;
-    const templateCtx = templateCanvas.getContext("2d");
-    if (!templateCtx) return;
-
-    templateCtx.drawImage(templateImage, 0, 0);
-    const templateData = templateCtx.getImageData(0, 0, templateCanvas.width, templateCanvas.height);
-    const baseData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-    const headColor = outfitColorIdToRgb(outfit.lookHead);
-    const bodyColor = outfitColorIdToRgb(outfit.lookBody);
-    const legsColor = outfitColorIdToRgb(outfit.lookLegs);
-    const feetColor = outfitColorIdToRgb(outfit.lookFeet);
-
-    for (let i = 0; i < templateData.data.length; i += 4) {
-      const r = templateData.data[i];
-      const g = templateData.data[i + 1];
-      const b = templateData.data[i + 2];
-      const alpha = templateData.data[i + 3];
-      if (alpha === 0) continue;
-
-      let targetColor: { r: number; g: number; b: number } | null = null;
-      if (r > 0 && g > 0 && b === 0) targetColor = headColor;
-      else if (r > 0 && g === 0 && b === 0) targetColor = bodyColor;
-      else if (r === 0 && g > 0 && b === 0) targetColor = legsColor;
-      else if (r === 0 && g === 0 && b > 0) targetColor = feetColor;
-
-      if (!targetColor) continue;
-
-      baseData.data[i] = clampByte((baseData.data[i] + targetColor.r) / 2);
-      baseData.data[i + 1] = clampByte((baseData.data[i + 1] + targetColor.g) / 2);
-      baseData.data[i + 2] = clampByte((baseData.data[i + 2] + targetColor.b) / 2);
-    }
-
-    ctx.putImageData(baseData, 0, 0);
-  };
+  const headColor = outfitColorIdToRgb(outfit.lookHead);
+  const bodyColor = outfitColorIdToRgb(outfit.lookBody);
+  const legsColor = outfitColorIdToRgb(outfit.lookLegs);
+  const feetColor = outfitColorIdToRgb(outfit.lookFeet);
 
   for (const addonLayer of addonLayersToDraw) {
     const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, 0, direction, addonLayer, mountIndex, normalizedPhase);
     const spriteBase64 = sprites[spriteIdx];
     if (!spriteBase64) continue;
 
-    const layerImage = await loadBase64Image(spriteBase64);
-    ctx.drawImage(layerImage, 0, 0);
-    await applyTemplateLayer(addonLayer);
+    const layer: OutfitComposeLayer = { sprite: bufferSlice(spriteBase64) };
+
+    if (hasTemplateLayer) {
+      const templateIndex =
+        baseOffset + computeSpriteIndex(spriteInfo, 1, direction, addonLayer, mountIndex, normalizedPhase);
+      const templateBase64 = sprites[templateIndex];
+      if (templateBase64) {
+        layer.template = bufferSlice(templateBase64);
+      }
+    }
+
+    layers.push(layer);
   }
 
-  return canvas.toDataURL("image/png");
+  if (!outfitComposeWorker || layers.length === 0) return null;
+
+  const id = `outfit-compose-${Date.now()}-${outfitComposeRequestId++}`;
+  const transferables: ArrayBuffer[] = [];
+  for (const layer of layers) {
+    transferables.push(layer.sprite);
+    if (layer.template) transferables.push(layer.template);
+  }
+
+  const composePromise = new Promise<string | null>((resolve) => {
+    outfitPending.set(id, resolve);
+    outfitComposeWorker!.postMessage({
+      id,
+      layers,
+      colors: { head: headColor, body: bodyColor, legs: legsColor, feet: feetColor }
+    }, transferables);
+  });
+
+  return composePromise;
 }
 
 function outfitColorIdToRgb(colorId: number): { r: number; g: number; b: number } {
@@ -1623,15 +1635,6 @@ function findClosestColorId(rgb: { r: number; g: number; b: number }): number {
     }
   }
   return bestIndex;
-}
-
-function loadBase64Image(base64: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = (error) => reject(error);
-    image.src = base64.startsWith("data:image/") ? base64 : `data:image/png;base64,${base64}`;
-  });
 }
 
 function createCombatStatsCard(): HTMLElement {
@@ -3769,15 +3772,6 @@ async function saveMonster() {
     alert(`Failed to save monster: ${error}`);
   }
 }
-
-
-
-
-
-
-
-
-
 
 
 

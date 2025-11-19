@@ -2,8 +2,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { clearPreviewAnimationCache } from './features/previewAnimation/assetPreviewAnimator';
 
 // Sprite cache to avoid reloading the same sprites
-const spriteCache = new Map<string, string[]>();
-const singleSpriteCache = new Map<number, string>();
+const spriteCache = new Map<string, Uint8Array[]>();
+const singleSpriteCache = new Map<number, Uint8Array>();
+const spriteUrlRegistry = new Set<string>();
+const spriteUrlCache = new WeakMap<Uint8Array, string>();
 
 // Export for cache checking in other modules
 export function hasCachedSprites(category: string, appearanceId: number): boolean {
@@ -28,11 +30,28 @@ export function invalidateAppearanceSpritesCache(category: string, appearanceId:
   spriteCache.delete(cacheKey);
 }
 
-export function getCachedSpriteById(spriteId: number): string | null {
+function normalizeSpriteBuffer(buffer: unknown): Uint8Array | null {
+  if (buffer instanceof Uint8Array) return buffer;
+  if (Array.isArray(buffer)) return new Uint8Array(buffer);
+  if (buffer instanceof ArrayBuffer) return new Uint8Array(buffer);
+  if (ArrayBuffer.isView(buffer)) return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  return null;
+}
+
+export function bufferToObjectUrl(buffer: Uint8Array): string {
+  const cached = spriteUrlCache.get(buffer);
+  if (cached) return cached;
+  const url = URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
+  spriteUrlCache.set(buffer, url);
+  spriteUrlRegistry.add(url);
+  return url;
+}
+
+export function getCachedSpriteById(spriteId: number): Uint8Array | null {
   return singleSpriteCache.get(spriteId) ?? null;
 }
 
-export async function getSpriteById(spriteId: number): Promise<string | null> {
+export async function getSpriteById(spriteId: number): Promise<Uint8Array | null> {
   if (!Number.isFinite(spriteId)) return null;
 
   if (singleSpriteCache.has(spriteId)) {
@@ -48,11 +67,13 @@ export async function getSpriteById(spriteId: number): Promise<string | null> {
   }
 
   try {
-    const sprite = await invoke('get_sprite_by_id', { spriteId }) as string;
-    if (sprite) {
-      singleSpriteCache.set(spriteId, sprite);
+    const sprite = await invoke('get_sprite_by_id', { spriteId }) as number[] | Uint8Array | null;
+    const data = normalizeSpriteBuffer(sprite);
+    if (data) {
+      singleSpriteCache.set(spriteId, data);
+      return data;
     }
-    return sprite ?? null;
+    return null;
   } catch (error) {
     console.error(`Failed to load sprite ${spriteId}:`, error);
     return null;
@@ -61,6 +82,9 @@ export async function getSpriteById(spriteId: number): Promise<string | null> {
 
 export function clearSpritesCache(): void {
   spriteCache.clear();
+  singleSpriteCache.clear();
+  spriteUrlRegistry.forEach((url) => URL.revokeObjectURL(url));
+  spriteUrlRegistry.clear();
   clearPreviewAnimationCache();
 }
 
@@ -126,7 +150,7 @@ export async function loadSprites(): Promise<void> {
   }
 }
 
-export async function getAppearanceSprites(category: string, appearanceId: number): Promise<string[]> {
+export async function getAppearanceSprites(category: string, appearanceId: number): Promise<Uint8Array[]> {
   // Check cache first
   const cacheKey = getSpritesCacheKey(category, appearanceId);
   if (spriteCache.has(cacheKey)) {
@@ -145,12 +169,16 @@ export async function getAppearanceSprites(category: string, appearanceId: numbe
     const sprites = await invoke('get_appearance_sprites', {
       category: category,
       appearanceId: appearanceId
-    }) as string[];
+    }) as Array<Uint8Array | number[] | null>;
+
+    const normalized = sprites
+      .map(sprite => normalizeSpriteBuffer(sprite))
+      .filter((sprite): sprite is Uint8Array => !!sprite);
 
     // Store in cache
-    spriteCache.set(cacheKey, sprites);
+    spriteCache.set(cacheKey, normalized);
 
-    return sprites;
+    return normalized;
   } catch (error) {
     console.error(`Error getting sprites for ${category} ${appearanceId}:`, error);
     return [];
@@ -170,7 +198,7 @@ export async function getAppearanceSprites(category: string, appearanceId: numbe
  * @param appearanceIds - Array of appearance IDs to load
  * @returns Map of appearance ID to first sprite base64 string
  */
-export async function getAppearancePreviewSpritesBatch(category: string, appearanceIds: number[]): Promise<Map<number, string>> {
+export async function getAppearancePreviewSpritesBatch(category: string, appearanceIds: number[]): Promise<Map<number, Uint8Array>> {
   if (!spritesLoaded) {
     await loadSprites();
   }
@@ -184,10 +212,17 @@ export async function getAppearancePreviewSpritesBatch(category: string, appeara
     const result = await invoke('get_appearance_preview_sprites_batch', {
       category: category,
       appearanceIds: appearanceIds
-    }) as Record<number, string>;
+    }) as Record<number, Uint8Array | number[]>;
 
-    // Convert to Map for easier access
-    return new Map(Object.entries(result).map(([id, sprite]) => [Number(id), sprite]));
+    const map = new Map<number, Uint8Array>();
+    for (const [id, sprite] of Object.entries(result)) {
+      const data = normalizeSpriteBuffer(sprite);
+      if (data) {
+        map.set(Number(id), data);
+      }
+    }
+
+    return map;
   } catch (error) {
     console.error(`Error getting batch preview sprites for ${category}:`, error);
     return new Map();
@@ -204,7 +239,7 @@ export async function getAppearancePreviewSpritesBatch(category: string, appeara
  * @param appearanceIds - Array of appearance IDs to load
  * @returns Map of appearance ID to array of sprite base64 strings
  */
-export async function getAppearanceSpritesBatch(category: string, appearanceIds: number[]): Promise<Map<number, string[]>> {
+export async function getAppearanceSpritesBatch(category: string, appearanceIds: number[]): Promise<Map<number, Uint8Array[]>> {
   if (!spritesLoaded) {
     await loadSprites();
   }
@@ -218,25 +253,29 @@ export async function getAppearanceSpritesBatch(category: string, appearanceIds:
     const result = await invoke('get_appearance_sprites_batch', {
       category: category,
       appearanceIds: appearanceIds
-    }) as Record<number, string[]>;
+    }) as Record<number, Array<Uint8Array | number[] | null>>;
 
-    // Store all in frontend cache
+    const normalized = new Map<number, Uint8Array[]>();
     for (const [id, sprites] of Object.entries(result)) {
-      const cacheKey = getSpritesCacheKey(category, Number(id));
-      spriteCache.set(cacheKey, sprites);
+      const safeSprites = sprites
+        .map(sprite => normalizeSpriteBuffer(sprite))
+        .filter((sprite): sprite is Uint8Array => !!sprite);
+      const appearanceId = Number(id);
+      const cacheKey = getSpritesCacheKey(category, appearanceId);
+      spriteCache.set(cacheKey, safeSprites);
+      normalized.set(appearanceId, safeSprites);
     }
 
-    // Convert to Map
-    return new Map(Object.entries(result).map(([id, sprites]) => [Number(id), sprites]));
+    return normalized;
   } catch (error) {
     console.error(`Error getting batch sprites for ${category}:`, error);
     return new Map();
   }
 }
 
-export function createSpriteImage(base64Data: string): HTMLImageElement {
+export function createSpriteImage(data: Uint8Array): HTMLImageElement {
   const img = document.createElement('img');
-  img.src = `data:image/png;base64,${base64Data}`;
+  img.src = bufferToObjectUrl(data);
   img.className = 'sprite-image';
   img.style.imageRendering = 'pixelated';
   return img;

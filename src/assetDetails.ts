@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { openConfirmModal } from './confirmModal';
 import type { CompleteAppearanceItem, CompleteFlags } from './types';
 import { getVocationOptionsHTML, getFlagBool } from './utils';
-import { getAppearanceSprites } from './spriteCache';
+import { getAppearanceSprites, bufferToObjectUrl } from './spriteCache';
 import { stopDetailAnimationPlayers, initAnimationPlayersForDetails, initDetailSpriteCardAnimations } from './animation';
 import { renderTextureTab } from './textureTab';
 import { setSpriteLibraryEnabled } from './spriteLibrary';
@@ -542,7 +542,7 @@ export async function loadDetailSprites(category: string, id: number): Promise<v
         wrapper.dataset.aggIndex = String(i);
 
         const img = document.createElement('img');
-        img.src = `data:image/png;base64,${sprites[i]}`;
+        img.src = bufferToObjectUrl(sprites[i]);
         img.className = 'detail-sprite-image';
         img.alt = `Sprite ${i + 1}`;
 

@@ -1,4 +1,4 @@
-import { getSpriteById, getCachedSpriteById } from './spriteCache';
+import { getSpriteById, getCachedSpriteById, bufferToObjectUrl } from './spriteCache';
 import { translate } from './i18n';
 import { showStatus } from './utils';
 
@@ -20,6 +20,7 @@ let pageStart = 1;
 let pageSize = 100;
 let order: 'asc' | 'desc' = 'asc';
 let hasLoadedSprites = false;
+const spriteUrlCache = new Map<number, string>();
 
 function parseSpriteIdInput(raw: string): number[] {
   if (!raw) return [];
@@ -64,6 +65,16 @@ function getElements() {
   };
 }
 
+function getSpriteUrl(id: number): string | null {
+  const data = getCachedSpriteById(id);
+  if (!data) return null;
+  const cachedUrl = spriteUrlCache.get(id);
+  if (cachedUrl) return cachedUrl;
+  const url = bufferToObjectUrl(data);
+  spriteUrlCache.set(id, url);
+  return url;
+}
+
 function renderList(): void {
   const { list } = getElements();
   if (!list) return;
@@ -76,15 +87,15 @@ function renderList(): void {
   list.innerHTML = '';
   const fragment = document.createDocumentFragment();
   visibleRange.forEach((id) => {
-    const cached = getCachedSpriteById(id);
+    const cachedUrl = getSpriteUrl(id);
     const button = document.createElement('button');
     button.type = 'button';
-    button.draggable = !!cached;
+    button.draggable = !!cachedUrl;
     button.className = 'texture-sprite-chip sprite-library-chip';
     button.dataset.spriteId = String(id);
     button.innerHTML = `
       <div class="texture-sprite-thumb">
-        ${cached ? `<img src="data:image/png;base64,${cached}" alt="Sprite ${id}">` : '<div class="texture-sprite-placeholder">…</div>'}
+        ${cachedUrl ? `<img src="${cachedUrl}" alt="Sprite ${id}">` : '<div class="texture-sprite-placeholder">…</div>'}
       </div>
       <div class="texture-sprite-meta">
         <span class="texture-sprite-id">#${id}</span>
@@ -93,7 +104,7 @@ function renderList(): void {
     `;
 
     button.addEventListener('dragstart', (event) => {
-      if (!event.dataTransfer || !cached) return;
+      if (!event.dataTransfer || !cachedUrl) return;
       const payload = { spriteIds: [id] };
       event.dataTransfer.setData('application/x-asset-sprite', JSON.stringify(payload));
       event.dataTransfer.setData('text/plain', String(id));

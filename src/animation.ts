@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { CompleteAppearanceItem, CompleteSpriteInfo, SpriteDecomposition, GroupMapping } from './types';
-import { getAppearanceSprites } from './spriteCache';
+import { getAppearanceSprites, bufferToObjectUrl } from './spriteCache';
 import { buildAssetPreviewAnimation } from './features/previewAnimation/assetPreviewAnimator';
 
 // Active animation players storage
@@ -147,7 +147,7 @@ export async function initAnimationPlayersForDetails(details: CompleteAppearance
       const draw = () => {
         const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, 0, 0, 0, 0, phase);
         if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+          imgEl.src = bufferToObjectUrl(sprites[spriteIdx]);
           phaseLabel.textContent = `Fase ${phase + 1}`;
         }
       };
@@ -216,7 +216,7 @@ export async function initAnimationPlayersForDetails(details: CompleteAppearance
 
 export function initDetailSpriteCardAnimations(
   appearanceId: number,
-  sprites: string[],
+  sprites: Uint8Array[],
   currentAppearanceDetails: CompleteAppearanceItem | null
 ): void {
   try {
@@ -254,7 +254,7 @@ export function initDetailSpriteCardAnimations(
       const draw = () => {
         const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, dims.layerIndex, dims.x, dims.y, dims.z, phase);
         if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+          imgEl.src = bufferToObjectUrl(sprites[spriteIdx]);
         }
       };
 
@@ -284,7 +284,7 @@ export function initDetailSpriteCardAnimations(
                 el.classList.remove('animating');
                 const spriteIdx = aggIndex;
                 if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-                  imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+                  imgEl.src = bufferToObjectUrl(sprites[spriteIdx]);
                 }
                 return;
               }
@@ -307,7 +307,7 @@ export function initDetailSpriteCardAnimations(
         el.classList.remove('animating');
         const spriteIdx = aggIndex;
         if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+          imgEl.src = bufferToObjectUrl(sprites[spriteIdx]);
         }
       };
 
@@ -364,7 +364,7 @@ export function initAssetCardAutoAnimation(
       const draw = () => {
         const frame = sequence.frames[frameIndex];
         if (frame) {
-          imgEl.src = `data:image/png;base64,${frame}`;
+          imgEl.src = frame;
         }
       };
       draw();
