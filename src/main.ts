@@ -1,10 +1,12 @@
-import { invoke } from "@tauri-apps/api/core";
 import { join } from "@tauri-apps/api/path";
 
 // Import all modules
 import type { AppearanceStats } from './types';
 import { showStatus } from './utils';
 import { debugCache } from './spriteCache';
+import { invoke } from './utils/invoke';
+import { COMMANDS, SELECTORS, CONSTANTS } from './commands';
+import { querySelectorSafe } from './utils/dom';
 import { loadAppearancesForAssetsEditor } from "./appearanceLoader";
 import {
   initAssetUIElements,
@@ -46,10 +48,10 @@ declare global {
   }
 }
 
-// Minimal global state needed for initialization
-const LAST_TIBIA_PATH_KEY = 'lastTibiaPath';
-const THEME_STORAGE_KEY = 'appThemePreference';
-const DEFAULT_THEME = 'default' as const;
+// Use constants from commands module
+const LAST_TIBIA_PATH_KEY = CONSTANTS.LAST_TIBIA_PATH_KEY;
+const THEME_STORAGE_KEY = CONSTANTS.THEME_STORAGE_KEY;
+const DEFAULT_THEME = CONSTANTS.DEFAULT_THEME as 'default';
 const SUPPORTED_THEMES = ['default', 'ocean', 'aurora', 'ember', 'forest', 'dusk'] as const;
 
 type ThemeName = (typeof SUPPORTED_THEMES)[number];
@@ -108,7 +110,7 @@ function displayStats(stats: AppearanceStats): void {
 }
 
 function showAssetsBrowser(): void {
-  const assetsBrowser = document.querySelector('#assets-browser') as HTMLElement;
+  const assetsBrowser = querySelectorSafe<HTMLElement>(SELECTORS.ASSETS_BROWSER);
   if (assetsBrowser) {
     assetsBrowser.style.display = "block";
   }
@@ -127,16 +129,16 @@ function initializeAssetsBrowser(): void {
   setupAssetsPaginationListeners();
 
   // Settings menu
-  const settingsBtn = document.querySelector("#settings-btn") as HTMLButtonElement | null;
-  const settingsMenu = document.getElementById('settings-menu') as HTMLElement | null;
-  const languageSelect = document.getElementById('language-select') as HTMLSelectElement | null;
+  const settingsBtn = querySelectorSafe<HTMLButtonElement>(SELECTORS.SETTINGS_BTN);
+  const settingsMenu = querySelectorSafe<HTMLElement>(SELECTORS.SETTINGS_MENU);
+  const languageSelect = querySelectorSafe<HTMLSelectElement>(SELECTORS.LANGUAGE_SELECT);
   const themeOptionButtons = settingsMenu
     ? Array.from(settingsMenu.querySelectorAll<HTMLButtonElement>('.theme-option'))
     : [];
-  const autoAnimateToggle = document.getElementById('auto-animate-toggle') as HTMLInputElement | null;
-  const clearCacheBtn = document.getElementById('clear-cache-btn') as HTMLButtonElement | null;
-  const refreshBtn = document.getElementById('refresh-btn') as HTMLButtonElement | null;
-  const homeBtn = document.getElementById('home-btn') as HTMLButtonElement | null;
+  const autoAnimateToggle = querySelectorSafe<HTMLInputElement>(SELECTORS.AUTO_ANIMATE_TOGGLE);
+  const clearCacheBtn = querySelectorSafe<HTMLButtonElement>(SELECTORS.CLEAR_CACHE_BTN);
+  const refreshBtn = querySelectorSafe<HTMLButtonElement>(SELECTORS.REFRESH_BTN);
+  const homeBtn = querySelectorSafe<HTMLButtonElement>(SELECTORS.HOME_BTN);
 
   const updateActiveThemeOption = (activeTheme: ThemeName) => {
     themeOptionButtons.forEach(button => {
@@ -245,8 +247,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   initializeAppLauncher({
     onLauncherVisible: () => {
-      const loadingScreen = document.getElementById('loading-screen') as HTMLElement | null;
-      const mainApp = document.getElementById('main-app') as HTMLElement | null;
+      const loadingScreen = querySelectorSafe<HTMLElement>(SELECTORS.LOADING_SCREEN);
+      const mainApp = querySelectorSafe<HTMLElement>(SELECTORS.MAIN_APP);
 
       if (loadingScreen) {
         loadingScreen.style.display = 'none';
@@ -261,7 +263,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
       // Persist path to backend for use between sessions
       try {
-        await invoke("set_tibia_base_path", { tibiaPath });
+        await invoke(COMMANDS.SET_TIBIA_BASE_PATH, { tibiaPath });
       } catch (_) {
         // Ignore errors
       }
@@ -282,7 +284,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           }
 
           // Update sounds count in header (if we have cached stats)
-          const soundsCount = document.getElementById('sounds-count');
+          const soundsCount = querySelectorSafe<HTMLElement>(SELECTORS.SOUNDS_COUNT);
           if (soundsCount) {
             const totalSounds = (window as any).__lastLoadedSoundCount as number | undefined;
             if (typeof totalSounds === 'number') {

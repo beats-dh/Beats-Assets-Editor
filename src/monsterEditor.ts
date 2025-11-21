@@ -1,4 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from './utils/invoke';
+import { COMMANDS } from './commands';
 import type {
   AttackEntry,
   DefenseEntry,
@@ -277,7 +278,7 @@ async function selectNewMonsterDirectory() {
       return;
     }
 
-    await invoke("set_monster_base_path", { monsterPath: selection });
+    await invoke(COMMANDS.SET_MONSTER_BASE_PATH, { monsterPath: selection });
     monstersRootPath = selection;
     showEmptyMonsterEditorState();
     if (monsterSidebarRef) {
@@ -3727,7 +3728,7 @@ async function saveMonster() {
   const previousPath = currentFilePath;
 
   try {
-    await invoke("save_monster_file", {
+    await invoke(COMMANDS.SAVE_MONSTER_FILE, {
       filePath: currentFilePath,
       monster: currentMonster,
     });

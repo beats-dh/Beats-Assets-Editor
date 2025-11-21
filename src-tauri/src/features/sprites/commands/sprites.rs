@@ -4,7 +4,6 @@ use crate::features::sprites::parsers::SpriteLoader;
 use crate::state::AppState;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 use tauri::State;
 use rayon::prelude::*;
 
@@ -103,11 +102,11 @@ pub async fn get_sprite_by_id(sprite_id: u32, state: State<'_, AppState>) -> Res
 /// Optimized: Lock-free cache with Arc for zero-copy sharing
 #[tauri::command]
 pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id: u32, state: State<'_, AppState>) -> Result<Vec<Vec<u8>>, String> {
-    // Check cache first (lock-free read)
+    // Check cache first (LRU cache with Arc internally)
     let cache_key = format!("{:?}:{}", category, appearance_id);
     if let Some(cached_sprites) = state.sprite_cache.get(&cache_key) {
-        // Clone the Vec<String> from Arc without moving out of DashMap guard
-        return Ok(cached_sprites.value().as_ref().clone());
+        // Arc is cloned internally, data is shared
+        return Ok((*cached_sprites).clone());
     }
 
     let appearances_lock = state.appearances.read();
@@ -177,11 +176,10 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
             .collect()
     };
 
-    // Store in cache (lock-free insert with Arc for zero-copy sharing)
-    let sprites_arc = Arc::new(sprite_images);
-    state.sprite_cache.insert(cache_key, sprites_arc.clone());
+    // Store in cache (LRU cache with automatic eviction)
+    state.sprite_cache.insert(cache_key, sprite_images.clone());
 
-    Ok((*sprites_arc).clone())
+    Ok(sprite_images)
 }
 
 /// Get a single preview sprite (first available sprite) for an appearance
@@ -245,7 +243,7 @@ pub async fn clear_sprite_cache(state: State<'_, AppState>) -> Result<usize, Str
 pub async fn get_sprite_cache_stats(state: State<'_, AppState>) -> Result<(usize, usize), String> {
     let total_entries = state.sprite_cache.len();
     // DashMap iteration is already efficient (lock-free), sequential is fine
-    let total_sprites: usize = state.sprite_cache.iter().map(|entry| entry.value().len()).sum();
+    let total_sprites: usize = state.sprite_cache.iter().map(|entry| entry.value().value.len()).sum();
     Ok((total_entries + state.preview_cache.len(), total_sprites + state.preview_cache.len()))
 }
 
@@ -303,8 +301,8 @@ pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearan
 
         // Cache hit - use cached sprites
         if let Some(cached_sprites) = state.sprite_cache.get(&cache_key) {
-            // Clone the Vec<String> from Arc without moving out of DashMap guard
-            result.insert(appearance_id, cached_sprites.value().as_ref().clone());
+            // LRU cache returns Arc internally
+            result.insert(appearance_id, (*cached_sprites).clone());
         } else {
             // Cache miss - need to load
             ids_to_load.push(appearance_id);
@@ -361,8 +359,7 @@ pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearan
     // OPTIMIZATION 3: Cache all loaded sprites and add to result
     for (appearance_id, sprites) in loaded_sprites {
         let cache_key = format!("{:?}:{}", category, appearance_id);
-        let sprites_arc = Arc::new(sprites.clone());
-        state.sprite_cache.insert(cache_key, sprites_arc);
+        state.sprite_cache.insert(cache_key, sprites.clone());
         result.insert(appearance_id, sprites);
     }
 
@@ -422,7 +419,7 @@ pub async fn get_appearance_preview_sprites_batch(category: AppearanceCategory, 
     for &appearance_id in &appearance_ids {
         let cache_key = format!("{:?}:{}", category, appearance_id);
         if let Some(cached) = state.preview_cache.get(&cache_key) {
-            result.insert(appearance_id, cached.value().as_ref().clone());
+            result.insert(appearance_id, (*cached).clone());
         } else {
             ids_to_load.push(appearance_id);
         }
@@ -454,7 +451,7 @@ pub async fn get_appearance_preview_sprites_batch(category: AppearanceCategory, 
     // Cache loaded previews and merge
     for (id, preview) in loaded {
         let cache_key = format!("{:?}:{}", category, id);
-        state.preview_cache.insert(cache_key, Arc::new(preview.clone()));
+        state.preview_cache.insert(cache_key, preview.clone());
         result.insert(id, preview);
     }
 

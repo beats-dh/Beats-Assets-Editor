@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+// ✅ IMPROVED: Using type-safe utilities
 import { join, tempDir } from "@tauri-apps/api/path";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { showStatus } from "./utils";
@@ -10,6 +10,8 @@ import { clearAssetSelection, removeAssetSelection } from "./assetSelection";
 import type { AssetSelectionChangeDetail } from "./assetSelection";
 import { recordAction } from "./history";
 import { openConfirmModal } from "./confirmModal";
+import { invoke } from "./utils/invoke";
+import { COMMANDS } from "./commands";
 
 const ACTION_CONTAINER_ID = "appearance-action-bar";
 const ACTION_BUTTON_IDS = {
@@ -187,7 +189,7 @@ async function handleExport(category: string, id: number): Promise<void> {
       return;
     }
 
-    await invoke("export_appearance_to_json", { category, id, path: destination });
+    await invoke(COMMANDS.EXPORT_APPEARANCE_TO_JSON, { category, id, path: destination });
     showStatus(translate('status.appearanceExported', { id }), "success");
   } catch (error) {
     console.error("Failed to export appearance", error);
@@ -232,7 +234,7 @@ async function handleImport(category: string, _currentId: number): Promise<void>
     });
 
     const imported = result as CompleteAppearanceItem;
-    await invoke("save_appearances_file");
+    await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssets();
     await refreshAssetDetails(category, imported.id);
     showStatus(translate('status.appearanceImported', { id: imported.id }), "success");
@@ -262,7 +264,7 @@ async function handleDuplicate(category: string, id: number): Promise<void> {
     });
 
     const duplicated = result as CompleteAppearanceItem;
-    await invoke("save_appearances_file");
+    await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssets();
     await refreshAssetDetails(category, duplicated.id);
     showStatus(translate('status.appearanceDuplicated', { id: duplicated.id }), "success");
@@ -296,7 +298,7 @@ async function handleCreateNew(category: string): Promise<void> {
     });
 
     const created = result as CompleteAppearanceItem;
-    await invoke("save_appearances_file");
+    await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssets();
     await refreshAssetDetails(category, created.id);
     showStatus(translate('status.appearanceCreated', { id: created.id }), "success");
@@ -308,7 +310,7 @@ async function handleCreateNew(category: string): Promise<void> {
 
 async function handleCopyFlags(category: string, id: number): Promise<void> {
   try {
-    await invoke("copy_appearance_flags", { category, id });
+    await invoke(COMMANDS.COPY_APPEARANCE_FLAGS, { category, id });
     hasClipboard = true;
     updateActionButtonStates();
     showStatus(translate('status.flagsCopied', { id }), "success");
@@ -330,9 +332,9 @@ async function handlePasteFlagsBatch(targets: AssetTarget[]): Promise<void> {
 
   try {
     for (const target of targets) {
-      await invoke("paste_appearance_flags", { category: target.category, id: target.id });
+      await invoke(COMMANDS.PASTE_APPEARANCE_FLAGS, { category: target.category, id: target.id });
     }
-    await invoke("save_appearances_file");
+    await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssets();
 
     const currentDetail = detailTarget;
@@ -396,7 +398,7 @@ async function handleDeleteAppearances(targets: AssetTarget[]): Promise<void> {
     for (const target of uniqueTargets) {
       const uniqueName = `appearance-undo-${target.category}-${target.id}-${Date.now()}-${Math.random().toString(16).slice(2)}.json`;
       const snapshotPath = await join(tmpDir, uniqueName);
-      await invoke("export_appearance_to_json", {
+      await invoke(COMMANDS.EXPORT_APPEARANCE_TO_JSON, {
         category: target.category,
         id: target.id,
         path: snapshotPath
@@ -405,10 +407,10 @@ async function handleDeleteAppearances(targets: AssetTarget[]): Promise<void> {
     }
 
     for (const target of uniqueTargets) {
-      await invoke("delete_appearance", { category: target.category, id: target.id });
+      await invoke(COMMANDS.DELETE_APPEARANCE, { category: target.category, id: target.id });
       removeAssetSelection(target.category, target.id);
     }
-    await invoke("save_appearances_file");
+    await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssets();
     closeAssetDetails();
     clearAssetSelection();
@@ -441,10 +443,10 @@ async function handleDeleteAppearances(targets: AssetTarget[]): Promise<void> {
       },
       redo: async () => {
         for (const snap of snapshots) {
-          await invoke("delete_appearance", { category: snap.category, id: snap.id });
+          await invoke(COMMANDS.DELETE_APPEARANCE, { category: snap.category, id: snap.id });
           removeAssetSelection(snap.category, snap.id);
         }
-        await invoke("save_appearances_file");
+        await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
         await loadAssets();
         closeAssetDetails();
         clearAssetSelection();

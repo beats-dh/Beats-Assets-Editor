@@ -110,6 +110,16 @@ pub async fn append_appearance_sprites(category: AppearanceCategory, id: u32, up
         frame_group.sprite_info = Some(ProtoSpriteInfo::default());
     }
 
+    // Validate sprite IDs exist in sprite loader (if available)
+    if let Some(sprite_loader) = state.sprite_loader.read().as_ref() {
+        for &sprite_id in &update.sprite_ids {
+            if sprite_loader.get_sprite(sprite_id).is_err() {
+                log::warn!("Sprite ID {} not found in sprite loader, but allowing append", sprite_id);
+                // We log a warning but don't fail - sprite might be added later
+            }
+        }
+    }
+
     let sprite_info = frame_group.sprite_info.as_mut().expect("sprite info ensured above");
     sprite_info.sprite_id.extend(update.sprite_ids.iter().copied());
 
@@ -351,6 +361,16 @@ pub async fn replace_appearance_sprites(category: AppearanceCategory, id: u32, u
     for upd in &update.updates {
         if upd.index >= total_slots {
             return Err(format!("Sprite index {} out of bounds. Frame group has {} slots.", upd.index, total_slots));
+        }
+    }
+
+    // Validate sprite IDs exist in sprite loader (if available)
+    if let Some(sprite_loader) = state.sprite_loader.read().as_ref() {
+        for upd in &update.updates {
+            if sprite_loader.get_sprite(upd.sprite_id).is_err() {
+                log::warn!("Sprite ID {} not found in sprite loader, but allowing update", upd.sprite_id);
+                // We log a warning but don't fail - sprite might be added later
+            }
         }
     }
 

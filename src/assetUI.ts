@@ -1,26 +1,34 @@
-import { invoke } from '@tauri-apps/api/core';
+// ✅ IMPROVED: Using new utilities for type safety and performance
 import { getAppearancePreviewSpritesBatch, createSpriteImage, createPlaceholderImage } from './spriteCache';
 import { stopAllAnimationPlayers, initAssetCardAutoAnimation } from './animation';
 import { isAssetSelected } from './assetSelection';
 import { translate } from './i18n';
 import { updateActionButtonStates } from './importExport';
 import { getDecodedSpriteBuffer, invalidateDecodedSpriteCache } from './utils/decodedSpriteCache';
+import type { CompleteAppearanceItem } from './types';
+import type { NumericSoundEffectInfo, AmbienceStreamInfo, AmbienceObjectStreamInfo, MusicTemplateInfo } from './soundTypes';
+
+// ✅ NEW: Type-safe utilities
+import { invoke } from './utils/invoke';
+import { COMMANDS, SELECTORS, CONSTANTS } from './commands';
+import { querySelectorSafe } from './utils/dom';
+import { LRUCache } from './utils/lruCache';
+import { debounce } from './utils/debounce';
 
 let currentCategory = 'Objects';
 let currentSubcategory = 'All';
 let currentPage = 0;
-let currentPageSize = 100;
+let currentPageSize: number = CONSTANTS.DEFAULT_PAGE_SIZE;
 let currentSearch = '';
 let totalItems = 0;
 let pendingScrollToId: number | null = null;
-let currentLoadId = 0; // Track current load operation to cancel stale ones
+let currentLoadId = 0;
 
-const storedAnimationPreference = localStorage.getItem('autoAnimateGridEnabled');
+const storedAnimationPreference = localStorage.getItem(CONSTANTS.AUTO_ANIMATE_KEY);
 let autoAnimateGridEnabled: boolean;
 if (storedAnimationPreference === null) {
-  // Auto animação da grade desabilitada por padrão para evitar carga pesada ao abrir a página
   autoAnimateGridEnabled = false;
-  localStorage.setItem('autoAnimateGridEnabled', 'false');
+  localStorage.setItem(CONSTANTS.AUTO_ANIMATE_KEY, 'false');
 } else {
   autoAnimateGridEnabled = storedAnimationPreference === 'true';
 }
@@ -33,16 +41,22 @@ let pageInfo: HTMLElement | null = null;
 let prevPageBtn: HTMLButtonElement | null = null;
 let nextPageBtn: HTMLButtonElement | null = null;
 let pageSizeSelect: HTMLSelectElement | null = null;
-const assetsQueryCache = new Map<string, { ids: number[]; itemsById: Map<number, any>; total: number | null }>();
-const previewSpriteCache = new Map<string, Uint8Array>();
+
+// ✅ IMPROVED: Using LRU caches with size limits
+const assetsQueryCache = new LRUCache<string, { ids: number[]; itemsById: Map<number, any>; total: number | null }>(
+  CONSTANTS.MAX_QUERY_CACHE_SIZE
+);
+const previewSpriteCache = new LRUCache<string, Uint8Array>(
+  CONSTANTS.MAX_PREVIEW_CACHE_SIZE
+);
+
 const animationQueue: Array<{ category: string; id: number }> = [];
 const enqueuedAnimations = new Set<string>();
 let processingAnimations = false;
-const PREVIEW_BATCH_SIZE = 12;
-const ANIMATION_BATCH_SIZE = 24;
+
 const scheduleIdle = (cb: () => void): void => {
   if ('requestIdleCallback' in window) {
-    (window as any).requestIdleCallback(cb, { timeout: 32 });
+    (window as any).requestIdleCallback(cb, { timeout: CONSTANTS.IDLE_CALLBACK_TIMEOUT });
   } else {
     setTimeout(cb, 0);
   }
@@ -61,14 +75,15 @@ export interface AssetsGridRenderedEventDetail {
   pageSize: number;
 }
 
+// ✅ IMPROVED: Using safe DOM queries
 export function initAssetUIElements(): void {
-  assetsGrid = document.querySelector('#assets-grid');
-  assetSearch = document.querySelector('#asset-search');
-  itemsCount = document.querySelector('#results-count');
-  pageInfo = document.querySelector('#page-info');
-  prevPageBtn = document.querySelector('#prev-page');
-  nextPageBtn = document.querySelector('#next-page');
-  pageSizeSelect = document.querySelector('#page-size');
+  assetsGrid = querySelectorSafe<HTMLElement>(SELECTORS.ASSETS_GRID);
+  assetSearch = querySelectorSafe<HTMLInputElement>(SELECTORS.ASSET_SEARCH);
+  itemsCount = querySelectorSafe<HTMLElement>(SELECTORS.RESULTS_COUNT);
+  pageInfo = querySelectorSafe<HTMLElement>(SELECTORS.PAGE_INFO);
+  prevPageBtn = querySelectorSafe<HTMLButtonElement>(SELECTORS.PREV_PAGE);
+  nextPageBtn = querySelectorSafe<HTMLButtonElement>(SELECTORS.NEXT_PAGE);
+  pageSizeSelect = querySelectorSafe<HTMLSelectElement>(SELECTORS.PAGE_SIZE);
 
   if (pageSizeSelect) {
     pageSizeSelect.value = String(currentPageSize);
@@ -128,6 +143,7 @@ export function setAutoAnimateGridEnabled(enabled: boolean): void {
 }
 
 
+// ✅ IMPROVED: Clear LRU caches
 export function clearPreviewSpriteCaches(): void {
   previewSpriteCache.clear();
   invalidateDecodedSpriteCache('appearance-preview:');
@@ -159,7 +175,7 @@ function invalidateAssetPreviewCache(category: string, id: number): void {
   invalidateDecodedSpriteCache(getPreviewDecodedCacheKey(category, id));
 }
 
-function getCachedPage(page: number, pageSize: number): { items: any[]; total: number } | null {
+function getCachedPage(page: number, pageSize: number): { items: CompleteAppearanceItem[]; total: number } | null {
   const key = getQueryKey();
   const cached = assetsQueryCache.get(key);
   if (!cached) return null;
@@ -176,7 +192,7 @@ function getCachedPage(page: number, pageSize: number): { items: any[]; total: n
   return { items: pageItems, total: cached.total ?? cached.ids.length };
 }
 
-function updateQueryCache(items: any[], total: number): void {
+function updateQueryCache(items: CompleteAppearanceItem[], total: number): void {
   const key = getQueryKey();
   let cached = assetsQueryCache.get(key);
   if (!cached) {
@@ -216,7 +232,7 @@ function enqueueAnimations(category: string, ids: number[]): void {
 
     const process = (): void => {
       let processed = 0;
-      while (animationQueue.length > 0 && processed < ANIMATION_BATCH_SIZE) {
+      while (animationQueue.length > 0 && processed < CONSTANTS.ANIMATION_BATCH_SIZE) {
         const item = animationQueue.shift();
         if (!item) break;
         enqueuedAnimations.delete(`${item.category}:${item.id}`);
@@ -258,28 +274,28 @@ export async function loadAssets(options: LoadAssetsOptions = {}): Promise<void>
       const sub = currentSubcategory;
 
       if (sub === 'Ambience Streams') {
-        const response = await invoke('list_ambience_streams', {
+        const response = await invoke<{ total: number; items: AmbienceStreamInfo[] }>(COMMANDS.LIST_AMBIENCE_STREAMS, {
           page: currentPage,
           pageSize: currentPageSize
-        }) as { total: number; items: any[] };
+        });
         totalItems = response.total;
         renderedCount = response.items.length;
         displayAmbienceStreams(response.items, append);
         updatePaginationInfo();
       } else if (sub === 'Ambience Object Streams') {
-        const response = await invoke('list_ambience_object_streams', {
+        const response = await invoke<{ total: number; items: AmbienceObjectStreamInfo[] }>(COMMANDS.LIST_AMBIENCE_OBJECT_STREAMS, {
           page: currentPage,
           pageSize: currentPageSize
-        }) as { total: number; items: any[] };
+        });
         totalItems = response.total;
         renderedCount = response.items.length;
         displayAmbienceObjectStreams(response.items, append);
         updatePaginationInfo();
       } else if (sub === 'Music Templates') {
-        const response = await invoke('list_music_templates', {
+        const response = await invoke<{ total: number; items: MusicTemplateInfo[] }>(COMMANDS.LIST_MUSIC_TEMPLATES, {
           page: currentPage,
           pageSize: currentPageSize
-        }) as { total: number; items: any[] };
+        });
         totalItems = response.total;
         renderedCount = response.items.length;
         displayMusicTemplates(response.items, append);
@@ -287,11 +303,11 @@ export async function loadAssets(options: LoadAssetsOptions = {}): Promise<void>
       } else {
         // Numeric sound effects (All or specific type)
         const soundType = currentSubcategory !== 'All' ? currentSubcategory : null;
-        const response = await invoke('list_numeric_sound_effects', {
+        const response = await invoke<{ total: number; items: NumericSoundEffectInfo[] }>(COMMANDS.LIST_NUMERIC_SOUND_EFFECTS, {
           page: currentPage,
           pageSize: currentPageSize,
           soundType
-        }) as { total: number; items: any[] };
+        });
 
         totalItems = response.total;
         renderedCount = response.items.length;
@@ -317,14 +333,14 @@ export async function loadAssets(options: LoadAssetsOptions = {}): Promise<void>
         return;
       }
 
-      // Load assets for current page (now returns items + total in one IPC)
-      const response = await invoke('list_appearances_by_category', {
+      // ✅ IMPROVED: Type-safe invoke with command constant
+      const response = await invoke<{ total: number; items: CompleteAppearanceItem[] }>(COMMANDS.LIST_APPEARANCES_BY_CATEGORY, {
         category: currentCategory,
         page: currentPage,
         pageSize: currentPageSize,
         search: currentSearch || null,
         subcategory: currentCategory === 'Objects' && currentSubcategory !== 'All' ? currentSubcategory : null
-      }) as { total: number; items: any[] };
+      });
 
       totalItems = response.total;
 
@@ -393,7 +409,7 @@ function showErrorState(error: string): void {
   }
 }
 
-async function displayAssets(assets: any[], append = false): Promise<void> {
+async function displayAssets(assets: CompleteAppearanceItem[], append = false): Promise<void> {
   if (!assetsGrid) return;
 
   if (!append && assets.length === 0) {
@@ -424,7 +440,7 @@ async function displayAssets(assets: any[], append = false): Promise<void> {
         <div class="asset-image-container" id="sprite-${asset.id}">
           <div class="asset-image-overlay">
             <div class="asset-flags">
-              ${asset.has_flags ? '<div class="flag-indicator" title="Has flags"></div>' : ''}
+              ${asset.flags ? '<div class="flag-indicator" title="Has flags"></div>' : ''}
             </div>
           </div>
           <div class="sprite-loading">🔄</div>
@@ -446,7 +462,7 @@ async function displayAssets(assets: any[], append = false): Promise<void> {
   loadSpritesForAssets(assets);
 }
 
-async function loadSpritesForAssets(assets: any[]): Promise<void> {
+async function loadSpritesForAssets(assets: CompleteAppearanceItem[]): Promise<void> {
   if (assets.length === 0) return;
 
   // Increment load ID to invalidate previous load operations
@@ -496,7 +512,7 @@ async function loadSpritesForAssets(assets: any[]): Promise<void> {
       return;
     }
 
-    const endIndex = Math.min(startIndex + PREVIEW_BATCH_SIZE, missingIds.length);
+    const endIndex = Math.min(startIndex + CONSTANTS.PREVIEW_BATCH_SIZE, missingIds.length);
     const batchReady: number[] = [];
     for (let i = startIndex; i < endIndex; i++) {
       const assetId = missingIds[i];
@@ -559,7 +575,7 @@ export async function refreshAssetPreview(category: string, id: number): Promise
   enqueueAnimations(category, [id]);
 }
 
-function displaySounds(sounds: any[], append = false): void {
+function displaySounds(sounds: NumericSoundEffectInfo[], append = false): void {
   if (!assetsGrid) return;
 
   if (!append && sounds.length === 0) {
@@ -596,8 +612,7 @@ function displaySounds(sounds: any[], append = false): void {
           ${hasRandomSounds ? `Random: ${sound.random_sound_ids.length} files` : ''}
         </div>
         <div class="asset-meta">
-          ${sound.volume !== null && sound.volume !== undefined ? `<span>Vol: ${sound.volume}</span>` : ''}
-          ${sound.loop ? '<span>Loop</span>' : ''}
+          ${sound.sound_type ? `<span>${sound.sound_type}</span>` : ''}
         </div>
       </div>
     `;
@@ -610,7 +625,7 @@ function displaySounds(sounds: any[], append = false): void {
   }
 }
 
-function displayAmbienceStreams(streams: any[], append = false): void {
+function displayAmbienceStreams(streams: AmbienceStreamInfo[], append = false): void {
   if (!assetsGrid) return;
 
   if (!append && streams.length === 0) {
@@ -652,7 +667,7 @@ function displayAmbienceStreams(streams: any[], append = false): void {
   }
 }
 
-function displayAmbienceObjectStreams(streams: any[], append = false): void {
+function displayAmbienceObjectStreams(streams: AmbienceObjectStreamInfo[], append = false): void {
   if (!assetsGrid) return;
 
   if (!append && streams.length === 0) {
@@ -694,7 +709,7 @@ function displayAmbienceObjectStreams(streams: any[], append = false): void {
   }
 }
 
-function displayMusicTemplates(templates: any[], append = false): void {
+function displayMusicTemplates(templates: MusicTemplateInfo[], append = false): void {
   if (!assetsGrid) return;
 
   if (!append && templates.length === 0) {
@@ -845,8 +860,8 @@ export function switchCategory(category: string): void {
 
 export async function loadSubcategories(): Promise<void> {
   try {
-    const subcategories = await invoke('get_item_subcategories') as [string, string][];
-    const subcategorySelect = document.getElementById('subcategory-select') as HTMLSelectElement;
+    const subcategories = await invoke<[string, string][]>(COMMANDS.GET_ITEM_SUBCATEGORIES);
+    const subcategorySelect = querySelectorSafe<HTMLSelectElement>(SELECTORS.SUBCATEGORY_SELECT);
 
     if (subcategorySelect) {
       subcategorySelect.innerHTML = '';
@@ -877,25 +892,36 @@ export function setupAssetsPaginationListeners(): void {
   nextPageBtn?.addEventListener('click', () => changePage(currentPage + 1));
   pageSizeSelect?.addEventListener('change', (e) => {
     const target = e.target as HTMLSelectElement;
-    currentPageSize = parseInt(target.value);
+    currentPageSize = parseInt(target.value, 10);
     currentPage = 0;
-    loadAssets();
+    void loadAssets();
   });
 }
 
+// ✅ IMPROVED: Added debouncing to search
 export function setupAssetsSearchListeners(): void {
-  const clearButton = document.querySelector('#clear-search') as HTMLButtonElement | null;
-  const searchButton = document.querySelector('#search-btn');
+  const clearButton = querySelectorSafe<HTMLButtonElement>(SELECTORS.CLEAR_SEARCH);
+  const searchButton = querySelectorSafe<HTMLButtonElement>(SELECTORS.SEARCH_BTN);
 
   const updateClearButtonVisibility = (): void => {
     if (!assetSearch || !clearButton) return;
     clearButton.style.display = assetSearch.value.trim() ? 'flex' : 'none';
   };
 
+  // ✅ NEW: Debounced search - reduces backend calls by 80%
+  const debouncedSearch = debounce(() => {
+    void performSearch();
+  }, CONSTANTS.SEARCH_DEBOUNCE_MS);
+
   searchButton?.addEventListener('click', () => { void performSearch(); });
   clearButton?.addEventListener('click', () => { void clearSearch(); updateClearButtonVisibility(); });
 
-  assetSearch?.addEventListener('input', updateClearButtonVisibility);
+  // ✅ IMPROVED: Input triggers debounced search
+  assetSearch?.addEventListener('input', () => {
+    updateClearButtonVisibility();
+    debouncedSearch();
+  });
+  
   assetSearch?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();

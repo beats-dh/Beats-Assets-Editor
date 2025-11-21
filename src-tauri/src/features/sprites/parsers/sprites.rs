@@ -164,7 +164,8 @@ impl SpriteLoader {
         }
 
         // Find sprite in the loaded sheet (lock-free read)
-        let sprites_arc = self.sprite_cache.get(&entry.file).unwrap();
+        let sprites_arc = self.sprite_cache.get(&entry.file)
+            .ok_or_else(|| anyhow!("Sprite sheet {} not loaded in cache", entry.file))?;
         let first_id = entry.first_sprite_id.unwrap_or(0);
         let sprite_index = (sprite_id - first_id) as usize;
 

@@ -1,7 +1,8 @@
-import { invoke } from "@tauri-apps/api/core";
 import { join } from "@tauri-apps/api/path";
 import type { AppearanceStats } from "./types";
 import { setUserTibiaPath } from "./spriteCache";
+import { invoke } from "./utils/invoke";
+import { COMMANDS } from "./commands";
 
 let appearancesLoaded = false;
 let appearancesLoadPromise: Promise<void> | null = null;
@@ -10,7 +11,7 @@ let cachedStats: AppearanceStats | null = null;
 
 async function requestTibiaPath(): Promise<string> {
   try {
-    const saved = await invoke<string | null>("get_tibia_base_path");
+    const saved = await invoke<string | null>(COMMANDS.GET_TIBIA_BASE_PATH);
     if (saved) {
       return saved;
     }
@@ -30,7 +31,7 @@ async function requestTibiaPath(): Promise<string> {
   }
 
   try {
-    await invoke("set_tibia_base_path", { tibiaPath: selection });
+    await invoke(COMMANDS.SET_TIBIA_BASE_PATH, { tibiaPath: selection });
   } catch {
     // Persistência é opcional
   }
@@ -41,7 +42,7 @@ async function requestTibiaPath(): Promise<string> {
 async function loadAppearancesFromPathInternal(tibiaPath: string): Promise<void> {
   setUserTibiaPath(tibiaPath);
 
-  const files = await invoke<string[]>("list_appearance_files", { tibiaPath });
+  const files = await invoke<string[]>(COMMANDS.LIST_APPEARANCE_FILES, { tibiaPath });
   if (!files || files.length === 0) {
     throw new Error("Nenhum arquivo de appearances (.dat) foi encontrado na pasta assets/.");
   }
@@ -53,7 +54,7 @@ async function loadAppearancesFromPathInternal(tibiaPath: string): Promise<void>
   }
   const appearancePath = await join(assetsDir, selectedFile);
 
-  cachedStats = await invoke<AppearanceStats>("load_appearances_file", { path: appearancePath });
+  cachedStats = await invoke<AppearanceStats>(COMMANDS.LOAD_APPEARANCES_FILE, { path: appearancePath });
   appearancesLoaded = true;
   lastTibiaPath = tibiaPath;
 }
@@ -86,7 +87,7 @@ export async function ensureAppearancesLoaded(requestedPath?: string): Promise<v
 export async function loadAppearancesForAssetsEditor(tibiaPath: string): Promise<AppearanceStats> {
   await ensureAppearancesLoaded(tibiaPath);
   if (!cachedStats) {
-    cachedStats = await invoke<AppearanceStats>("get_appearance_stats");
+    cachedStats = await invoke<AppearanceStats>(COMMANDS.GET_APPEARANCE_STATS);
   }
   return cachedStats;
 }

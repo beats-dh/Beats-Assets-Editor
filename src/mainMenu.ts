@@ -1,7 +1,8 @@
 ﻿import './mainMenu.css';
 import { createMonsterEditorView } from './monsterEditor';
 import { createNpcEditorView } from './npcEditor';
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from './utils/invoke';
+import { COMMANDS } from './commands';
 import {
   applyDocumentTranslations,
   DEFAULT_LANGUAGE,
@@ -363,7 +364,7 @@ export function initializeAppLauncher(callbacks: LauncherCallbacks = {}): void {
           }
           monsterPath = selection;
           try {
-            await invoke("set_monster_base_path", { monsterPath: selection });
+            await invoke(COMMANDS.SET_MONSTER_BASE_PATH, { monsterPath: selection });
           } catch (persistError) {
             console.warn('Failed to persist monster path:', persistError);
           }
