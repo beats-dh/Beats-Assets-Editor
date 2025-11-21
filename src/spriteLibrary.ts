@@ -1,4 +1,5 @@
-import { getSpriteById, getCachedSpriteById, bufferToObjectUrl } from './spriteCache';
+import { getSpriteById, getCachedSpriteById } from './spriteCache';
+import { getSpriteUrl as getUnifiedSpriteUrl } from './utils/spriteUrlCache';
 import { translate } from './i18n';
 import { showStatus } from './utils';
 
@@ -20,7 +21,25 @@ let pageStart = 1;
 let pageSize = 100;
 let order: 'asc' | 'desc' = 'asc';
 let hasLoadedSprites = false;
-const spriteUrlCache = new Map<number, string>();
+
+// Virtual scrolling state
+let itemHeight = 80; // altura estimada de cada item em px
+let visibleStartIndex = 0;
+let visibleEndIndex = 0;
+let renderTimeout: number | null = null;
+const librarySelection = new Set<number>();
+
+function updateLibrarySelectionStyles(): void {
+  const chips = document.querySelectorAll<HTMLButtonElement>('.sprite-library-chip');
+  chips.forEach((chip) => {
+    const id = Number(chip.dataset.spriteId);
+    if (Number.isFinite(id) && librarySelection.has(id)) {
+      chip.classList.add('is-selected');
+    } else {
+      chip.classList.remove('is-selected');
+    }
+  });
+}
 
 function parseSpriteIdInput(raw: string): number[] {
   if (!raw) return [];
@@ -68,14 +87,17 @@ function getElements() {
 function getSpriteUrl(id: number): string | null {
   const data = getCachedSpriteById(id);
   if (!data) return null;
-  const cachedUrl = spriteUrlCache.get(id);
-  if (cachedUrl) return cachedUrl;
-  const url = bufferToObjectUrl(data);
-  spriteUrlCache.set(id, url);
-  return url;
+  return getUnifiedSpriteUrl(data);
 }
 
-function renderList(): void {
+function calculateVisibleRange(scrollTop: number, containerHeight: number): void {
+  const bufferSize = Math.ceil(containerHeight / itemHeight) * 2; // 2x buffer para smooth scroll
+  visibleStartIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - Math.floor(bufferSize / 4));
+  visibleEndIndex = Math.min(visibleRange.length - 1, visibleStartIndex + bufferSize);
+  visibleStartIndex = Math.max(0, visibleEndIndex - bufferSize);
+}
+
+function renderVirtualList(): void {
   const { list } = getElements();
   if (!list) return;
 
@@ -84,37 +106,124 @@ function renderList(): void {
     return;
   }
 
+  // Se não tiver muitos itens, usa render normal
+  if (visibleRange.length <= 500) {
+    renderNormalList();
+    return;
+  }
+
+  const scrollTop = list.scrollTop;
+  const containerHeight = list.clientHeight;
+  
+  calculateVisibleRange(scrollTop, containerHeight);
+  
+  // Criar container com altura total
+  const totalHeight = visibleRange.length * itemHeight;
+  list.innerHTML = `<div style="height: ${totalHeight}px; position: relative;"></div>`;
+  const container = list.firstElementChild;
+  
+  if (!container) return;
+  
+  // Renderizar apenas itens visíveis
+  const fragment = document.createDocumentFragment();
+  
+  for (let i = visibleStartIndex; i <= visibleEndIndex; i++) {
+    const id = visibleRange[i];
+    const cachedUrl = getSpriteUrl(id);
+    const button = createSpriteButton(id, cachedUrl);
+    button.style.position = 'absolute';
+    button.style.top = `${i * itemHeight}px`;
+    button.style.width = '100%';
+    button.style.height = `${itemHeight}px`;
+    fragment.appendChild(button);
+  }
+  
+  container.appendChild(fragment);
+}
+
+function createSpriteButton(id: number, cachedUrl: string | null): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.draggable = !!cachedUrl;
+  button.className = 'texture-sprite-chip sprite-library-chip';
+  if (librarySelection.has(id)) {
+    button.classList.add('is-selected');
+  }
+  button.dataset.spriteId = String(id);
+  button.innerHTML = `
+    <div class="texture-sprite-thumb">
+      ${cachedUrl ? `<img src="${cachedUrl}" alt="Sprite ${id}">` : '<div class="texture-sprite-placeholder">…</div>'}
+    </div>
+    <div class="texture-sprite-meta">
+      <span class="texture-sprite-id">#${id}</span>
+      <span class="texture-sprite-slot">${translate('texture.spriteList.slotLabel', { value: id })}</span>
+    </div>
+  `;
+
+  button.addEventListener('click', (event) => {
+    const multiSelect = event.ctrlKey || event.metaKey;
+    if (!multiSelect) {
+      librarySelection.clear();
+      librarySelection.add(id);
+      updateLibrarySelectionStyles();
+      return;
+    }
+
+    if (librarySelection.has(id)) {
+      librarySelection.delete(id);
+    } else {
+      librarySelection.add(id);
+    }
+    updateLibrarySelectionStyles();
+  });
+
+  button.addEventListener('dragstart', (event) => {
+    if (!event.dataTransfer || !cachedUrl) return;
+    if (!librarySelection.has(id)) {
+      librarySelection.clear();
+      librarySelection.add(id);
+    }
+    const spriteIds = Array.from(librarySelection).sort((a, b) => a - b);
+    const payload = { spriteIds };
+    event.dataTransfer.setData('application/x-asset-sprite', JSON.stringify(payload));
+    event.dataTransfer.setData('text/plain', spriteIds.join(','));
+    event.dataTransfer.effectAllowed = 'copy';
+    updateLibrarySelectionStyles();
+  });
+
+  return button;
+}
+
+function renderNormalList(): void {
+  const { list } = getElements();
+  if (!list) return;
+
   list.innerHTML = '';
   const fragment = document.createDocumentFragment();
   visibleRange.forEach((id) => {
     const cachedUrl = getSpriteUrl(id);
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.draggable = !!cachedUrl;
-    button.className = 'texture-sprite-chip sprite-library-chip';
-    button.dataset.spriteId = String(id);
-    button.innerHTML = `
-      <div class="texture-sprite-thumb">
-        ${cachedUrl ? `<img src="${cachedUrl}" alt="Sprite ${id}">` : '<div class="texture-sprite-placeholder">…</div>'}
-      </div>
-      <div class="texture-sprite-meta">
-        <span class="texture-sprite-id">#${id}</span>
-        <span class="texture-sprite-slot">${translate('texture.spriteList.slotLabel', { value: id })}</span>
-      </div>
-    `;
-
-    button.addEventListener('dragstart', (event) => {
-      if (!event.dataTransfer || !cachedUrl) return;
-      const payload = { spriteIds: [id] };
-      event.dataTransfer.setData('application/x-asset-sprite', JSON.stringify(payload));
-      event.dataTransfer.setData('text/plain', String(id));
-      event.dataTransfer.effectAllowed = 'copy';
-    });
-
+    const button = createSpriteButton(id, cachedUrl);
     fragment.appendChild(button);
   });
 
   list.appendChild(fragment);
+  updateLibrarySelectionStyles();
+}
+
+function renderList(): void {
+  // Cancelar renderização pendente
+  if (renderTimeout) {
+    cancelAnimationFrame(renderTimeout);
+  }
+  
+  // Usar requestAnimationFrame para performance
+  renderTimeout = requestAnimationFrame(() => {
+    if (visibleRange.length > 500) {
+      renderVirtualList();
+    } else {
+      renderNormalList();
+    }
+  });
 }
 
 function updateButtonVisibility(): void {
@@ -246,10 +355,17 @@ function toggleDrawer(force?: boolean): void {
 }
 
 export function initSpriteLibraryUI(): void {
-  const { backdrop, closeBtn, searchInput, searchBtn, loadBtn, startInput, sizeInput, orderBtn, prevBtn, nextBtn } = getElements();
+  const { backdrop, closeBtn, searchInput, searchBtn, loadBtn, startInput, sizeInput, orderBtn, prevBtn, nextBtn, list } = getElements();
 
   closeBtn?.addEventListener('click', () => toggleDrawer(false));
   backdrop?.addEventListener('click', () => toggleDrawer(false));
+
+  // Virtual scroll listener
+  list?.addEventListener('scroll', () => {
+    if (visibleRange.length > 500) {
+      renderList();
+    }
+  }, { passive: true });
 
   loadBtn?.addEventListener('click', async () => {
     loadInputsFromUI();

@@ -4,6 +4,7 @@ import { stopAllAnimationPlayers, initAssetCardAutoAnimation } from './animation
 import { isAssetSelected } from './assetSelection';
 import { translate } from './i18n';
 import { updateActionButtonStates } from './importExport';
+import { getDecodedSpriteBuffer, invalidateDecodedSpriteCache } from './utils/decodedSpriteCache';
 
 let currentCategory = 'Objects';
 let currentSubcategory = 'All';
@@ -32,8 +33,8 @@ let pageInfo: HTMLElement | null = null;
 let prevPageBtn: HTMLButtonElement | null = null;
 let nextPageBtn: HTMLButtonElement | null = null;
 let pageSizeSelect: HTMLSelectElement | null = null;
-const previewSpriteCaches = new Map<string, Map<number, Uint8Array>>();
 const assetsQueryCache = new Map<string, { ids: number[]; itemsById: Map<number, any>; total: number | null }>();
+const previewSpriteCache = new Map<string, Uint8Array>();
 const animationQueue: Array<{ category: string; id: number }> = [];
 const enqueuedAnimations = new Set<string>();
 let processingAnimations = false;
@@ -126,22 +127,10 @@ export function setAutoAnimateGridEnabled(enabled: boolean): void {
   autoAnimateGridEnabled = enabled;
 }
 
-function getPreviewCache(category: string): Map<number, Uint8Array> {
-  let cache = previewSpriteCaches.get(category);
-  if (!cache) {
-    cache = new Map<number, Uint8Array>();
-    previewSpriteCaches.set(category, cache);
-  }
-  return cache;
-}
 
 export function clearPreviewSpriteCaches(): void {
-  previewSpriteCaches.clear();
-}
-
-export function invalidatePreviewSpriteCache(category: string, id: number): void {
-  const cache = previewSpriteCaches.get(category);
-  cache?.delete(id);
+  previewSpriteCache.clear();
+  invalidateDecodedSpriteCache('appearance-preview:');
 }
 
 export function clearAssetsQueryCaches(): void {
@@ -154,6 +143,20 @@ export function clearAssetsQueryCaches(): void {
 function getQueryKey(): string {
   const subSel = currentCategory === 'Objects' ? currentSubcategory : 'All';
   return `${currentCategory}|${currentSearch}|${subSel}`;
+}
+
+function getPreviewCacheKey(category: string, id: number): string {
+  return `${category}:${id}`;
+}
+
+function getPreviewDecodedCacheKey(category: string, id: number): string {
+  return `appearance-preview:${category}:${id}`;
+}
+
+function invalidateAssetPreviewCache(category: string, id: number): void {
+  const previewKey = getPreviewCacheKey(category, id);
+  previewSpriteCache.delete(previewKey);
+  invalidateDecodedSpriteCache(getPreviewDecodedCacheKey(category, id));
 }
 
 function getCachedPage(page: number, pageSize: number): { items: any[]; total: number } | null {
@@ -448,37 +451,37 @@ async function loadSpritesForAssets(assets: any[]): Promise<void> {
 
   // Increment load ID to invalidate previous load operations
   const thisLoadId = ++currentLoadId;
+  const loadCategory = currentCategory;
 
-  // Pré-visualização: carregar apenas o primeiro sprite por asset (batch + cache backend + cache front)
-  const cache = getPreviewCache(currentCategory);
+  // Pré-visualização: carregar apenas o primeiro sprite por asset (batch + cache backend)
   const missingIds: number[] = [];
   const readyToAnimate: number[] = [];
 
-  // First paint with cached previews immediately; collect misses
-  const animateIds: number[] = [];
   for (const asset of assets) {
     const container = document.getElementById(`sprite-${asset.id}`);
     if (!container) continue;
 
-    const cached = cache.get(asset.id);
     container.innerHTML = '';
-    if (cached) {
-      container.appendChild(createSpriteImage(cached));
+    const cacheKey = getPreviewCacheKey(loadCategory, asset.id);
+    const cachedPreview = previewSpriteCache.get(cacheKey);
+    if (cachedPreview) {
+      container.appendChild(createSpriteImage(cachedPreview));
       readyToAnimate.push(asset.id);
     } else {
       container.appendChild(createPlaceholderImage());
       missingIds.push(asset.id);
     }
+  }
 
-    animateIds.push(asset.id);
+  if (readyToAnimate.length > 0) {
+    enqueueAnimations(loadCategory, readyToAnimate);
   }
 
   if (missingIds.length === 0) {
-    enqueueAnimations(currentCategory, readyToAnimate);
     return;
   }
 
-  const previews = await getAppearancePreviewSpritesBatch(currentCategory, missingIds);
+  const previews = await getAppearancePreviewSpritesBatch(loadCategory, missingIds);
   const assetById = new Map<number, any>();
   assets.forEach(asset => assetById.set(asset.id, asset));
 
@@ -488,7 +491,7 @@ async function loadSpritesForAssets(assets: any[]): Promise<void> {
   }
 
   // Render previews em lotes usando requestIdleCallback para evitar jank na UI
-  const renderBatch = (startIndex: number) => {
+  const renderBatch = async (startIndex: number): Promise<void> => {
     if (thisLoadId !== currentLoadId) {
       return;
     }
@@ -504,9 +507,14 @@ async function loadSpritesForAssets(assets: any[]): Promise<void> {
 
       const previewSprite = previews.get(asset.id);
       if (previewSprite) {
-        cache.set(asset.id, previewSprite);
+        const cacheKey = getPreviewCacheKey(loadCategory, asset.id);
+        const decoded = await getDecodedSpriteBuffer(
+          getPreviewDecodedCacheKey(loadCategory, asset.id),
+          previewSprite
+        );
+        previewSpriteCache.set(cacheKey, decoded);
         container.innerHTML = '';
-        container.appendChild(createSpriteImage(previewSprite));
+        container.appendChild(createSpriteImage(decoded));
         batchReady.push(asset.id);
       } else {
         // Keep placeholder if preview missing
@@ -514,18 +522,41 @@ async function loadSpritesForAssets(assets: any[]): Promise<void> {
     }
 
     if (batchReady.length > 0) {
-      enqueueAnimations(currentCategory, batchReady);
+      enqueueAnimations(loadCategory, batchReady);
     }
 
     if (endIndex < missingIds.length) {
-      scheduleIdle(() => renderBatch(endIndex));
+      scheduleIdle(() => { void renderBatch(endIndex); });
     }
   };
 
-  renderBatch(0);
-  if (readyToAnimate.length > 0) {
-    enqueueAnimations(currentCategory, readyToAnimate);
+  void renderBatch(0);
+}
+
+export async function refreshAssetPreview(category: string, id: number): Promise<void> {
+  if (!assetsGrid) return;
+  const assetItem = assetsGrid.querySelector<HTMLElement>(`.asset-item[data-asset-id="${id}"]`);
+  if (!assetItem) return;
+
+  const spriteContainer = document.getElementById(`sprite-${id}`);
+  if (!spriteContainer) return;
+
+  invalidateAssetPreviewCache(category, id);
+  spriteContainer.innerHTML = '';
+  spriteContainer.appendChild(createPlaceholderImage());
+
+  const previews = await getAppearancePreviewSpritesBatch(category, [id]);
+  const previewSprite = previews.get(id);
+  if (!previewSprite) {
+    return;
   }
+
+  const cacheKey = getPreviewCacheKey(category, id);
+  const decoded = await getDecodedSpriteBuffer(getPreviewDecodedCacheKey(category, id), previewSprite);
+  previewSpriteCache.set(cacheKey, decoded);
+  spriteContainer.innerHTML = '';
+  spriteContainer.appendChild(createSpriteImage(decoded));
+  enqueueAnimations(category, [id]);
 }
 
 function displaySounds(sounds: any[], append = false): void {

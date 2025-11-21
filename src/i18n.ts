@@ -1062,6 +1062,20 @@ const translationEntries = {
     es: 'Error al actualizar los sprites de la textura.',
     ru: 'Не удалось обновить спрайты текстуры.'
   },
+  'status.spriteRemoved': {
+    default: 'Sprite removido da textura.',
+    'pt-BR': 'Sprite removido da textura.',
+    en: 'Sprite removed from texture.',
+    es: 'Sprite eliminado de la textura.',
+    ru: 'Спрайт удалён из текстуры.'
+  },
+  'status.spriteRemoveFailed': {
+    default: 'Falha ao remover sprites da textura.',
+    'pt-BR': 'Falha ao remover sprites da textura.',
+    en: 'Failed to remove sprites from texture.',
+    es: 'Error al eliminar sprites de la textura.',
+    ru: 'Не удалось удалить спрайты из текстуры.'
+  },
   'header.spriteLibrary': {
     default: 'Sprites',
     'pt-BR': 'Sprites',
@@ -1117,6 +1131,13 @@ const translationEntries = {
     en: 'No sprites available for this group.',
     es: 'No hay sprites disponibles para este grupo.',
     ru: 'Для этой группы нет спрайтов.'
+  },
+  'texture.spriteList.removeTooltip': {
+    default: 'Remover sprite selecionado',
+    'pt-BR': 'Remover sprite selecionado',
+    en: 'Remove sprite from slot',
+    es: 'Eliminar sprite del espacio',
+    ru: 'Удалить спрайт из слота'
   },
   'texture.library.title': {
     default: 'Biblioteca de Sprites',

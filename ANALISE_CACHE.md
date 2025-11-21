@@ -343,10 +343,6 @@ monsterEditor.ts {
 #### 1.1. Remover `previewSpriteCaches` de `assetUI.ts`
 **Arquivo**: `src/assetUI.ts`
 **Mudanças**:
-- Remover `previewSpriteCaches` (linha 35)
-- Remover `getPreviewCache()` (linha 129)
-- Remover `clearPreviewSpriteCaches()` (linha 138) ou simplificar
-- Remover `invalidatePreviewSpriteCache()` (linha 142) ou simplificar
 - Linha 463-471: Remover verificação de cache local, sempre chamar backend
 - Linha 490+: Remover armazenamento no cache local
 

@@ -15,6 +15,7 @@ import type { CompleteAppearanceItem, CompleteSpriteInfo } from "./types";
 import { getAppearanceSprites, bufferToObjectUrl } from "./spriteCache";
 import { computeSpriteIndex, computeGroupOffsetsFromDetails } from "./animation";
 import { ensureAppearancesLoaded } from "./appearanceLoader";
+import { getSpriteUrl } from "./utils/spriteUrlCache";
 
 export interface MonsterEditorOptions {
   onBack: () => void;
@@ -1411,7 +1412,7 @@ function initOutfitWorker(): void {
       const { id, buffer } = event.data;
       const resolve = outfitPending.get(id);
       if (resolve) {
-        const dataUrl = buffer ? URL.createObjectURL(new Blob([buffer], { type: 'image/png' })) : null;
+        const dataUrl = buffer ? getSpriteUrl(new Uint8Array(buffer)) : null;
         resolve(dataUrl);
         outfitPending.delete(id);
       }
@@ -1423,7 +1424,8 @@ function initOutfitWorker(): void {
 }
 
 function bufferSlice(sprite: Uint8Array): ArrayBuffer {
-  return sprite.buffer.slice(sprite.byteOffset, sprite.byteOffset + sprite.byteLength);
+  // Usar slice() para garantir ArrayBuffer (evita SharedArrayBuffer)
+  return sprite.slice().buffer;
 }
 
 async function composeOutfitSprite(params: ComposeSpriteParams): Promise<string | null> {

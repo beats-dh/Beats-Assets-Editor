@@ -99,11 +99,17 @@ export function decomposeSpriteIndex(spriteInfo: CompleteSpriteInfo, localIndex:
   return { layerIndex, x, y, z, phaseIndex };
 }
 
-export async function initAnimationPlayersForDetails(details: CompleteAppearanceItem, category: string): Promise<void> {
+type SpriteLoader = () => Promise<Uint8Array[]>;
+
+export async function initAnimationPlayersForDetails(
+  details: CompleteAppearanceItem,
+  category: string,
+  spriteLoader?: SpriteLoader
+): Promise<void> {
   const detailsContent = document.querySelector('#details-content') as HTMLElement | null;
 
   try {
-    const sprites = await getAppearanceSprites(category, details.id);
+    const sprites = spriteLoader ? await spriteLoader() : await getAppearanceSprites(category, details.id);
     const groupOffsets = computeGroupOffsetsFromDetails(details);
 
     details.frame_groups.forEach((fg, index) => {

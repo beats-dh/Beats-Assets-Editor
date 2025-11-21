@@ -1,16 +1,15 @@
 import { invoke } from '@tauri-apps/api/core';
 import { clearPreviewAnimationCache } from './features/previewAnimation/assetPreviewAnimator';
+import { getSpriteUrl, clearSpriteUrlCache } from './utils/spriteUrlCache';
+import { getDecodedSpriteBuffer, invalidateDecodedSpriteCache } from './utils/decodedSpriteCache';
 
-// Sprite cache to avoid reloading the same sprites
-const spriteCache = new Map<string, Uint8Array[]>();
+// Cache para sprites individuais por ID (não duplicado no backend)
 const singleSpriteCache = new Map<number, Uint8Array>();
-const spriteUrlRegistry = new Set<string>();
-const spriteUrlCache = new WeakMap<Uint8Array, string>();
 
-// Export for cache checking in other modules
-export function hasCachedSprites(category: string, appearanceId: number): boolean {
-  const cacheKey = getSpritesCacheKey(category, appearanceId);
-  return spriteCache.has(cacheKey);
+// Export para compatibilidade - agora sempre confia no backend
+export function hasCachedSprites(): boolean {
+  // Backend já gerencia cache, sempre retorna true para permitir chamada
+  return true;
 }
 
 let spritesLoaded = false;
@@ -25,9 +24,8 @@ export function getSpritesCacheKey(category: string, appearanceId: number): stri
   return `${category}:${appearanceId}`;
 }
 
-export function invalidateAppearanceSpritesCache(category: string, appearanceId: number): void {
-  const cacheKey = getSpritesCacheKey(category, appearanceId);
-  spriteCache.delete(cacheKey);
+export function invalidateAppearanceSpritesCache(): void {
+  // Backend já gerencia seu próprio cache
 }
 
 function normalizeSpriteBuffer(buffer: unknown): Uint8Array | null {
@@ -39,12 +37,7 @@ function normalizeSpriteBuffer(buffer: unknown): Uint8Array | null {
 }
 
 export function bufferToObjectUrl(buffer: Uint8Array): string {
-  const cached = spriteUrlCache.get(buffer);
-  if (cached) return cached;
-  const url = URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
-  spriteUrlCache.set(buffer, url);
-  spriteUrlRegistry.add(url);
-  return url;
+  return getSpriteUrl(buffer);
 }
 
 export function getCachedSpriteById(spriteId: number): Uint8Array | null {
@@ -70,8 +63,9 @@ export async function getSpriteById(spriteId: number): Promise<Uint8Array | null
     const sprite = await invoke('get_sprite_by_id', { spriteId }) as number[] | Uint8Array | null;
     const data = normalizeSpriteBuffer(sprite);
     if (data) {
-      singleSpriteCache.set(spriteId, data);
-      return data;
+      const decoded = await getDecodedSpriteBuffer(`sprite:${spriteId}`, data);
+      singleSpriteCache.set(spriteId, decoded);
+      return decoded;
     }
     return null;
   } catch (error) {
@@ -81,20 +75,16 @@ export async function getSpriteById(spriteId: number): Promise<Uint8Array | null
 }
 
 export function clearSpritesCache(): void {
-  spriteCache.clear();
   singleSpriteCache.clear();
-  spriteUrlRegistry.forEach((url) => URL.revokeObjectURL(url));
-  spriteUrlRegistry.clear();
+  invalidateDecodedSpriteCache('sprite:');
+  clearSpriteUrlCache();
   clearPreviewAnimationCache();
 }
 
 export function getSpriteCacheStats(): { totalEntries: number; totalSprites: number } {
-  const totalEntries = spriteCache.size;
-  let totalSprites = 0;
-  for (const sprites of spriteCache.values()) {
-    totalSprites += sprites.length;
-  }
-  return { totalEntries, totalSprites };
+  // Backend já gerencia cache principal, apenas stats do cache local
+  const totalEntries = singleSpriteCache.size;
+  return { totalEntries, totalSprites: totalEntries };
 }
 
 export async function clearBackendSpriteCache(): Promise<number> {
@@ -151,12 +141,7 @@ export async function loadSprites(): Promise<void> {
 }
 
 export async function getAppearanceSprites(category: string, appearanceId: number): Promise<Uint8Array[]> {
-  // Check cache first
-  const cacheKey = getSpritesCacheKey(category, appearanceId);
-  if (spriteCache.has(cacheKey)) {
-    return spriteCache.get(cacheKey)!;
-  }
-
+  // Backend já gerencia cache, sempre buscar direto
   if (!spritesLoaded) {
     await loadSprites();
   }
@@ -166,17 +151,14 @@ export async function getAppearanceSprites(category: string, appearanceId: numbe
   }
 
   try {
-    const sprites = await invoke('get_appearance_sprites', {
-      category: category,
-      appearanceId: appearanceId
-    }) as Array<Uint8Array | number[] | null>;
+    const sprites = await invoke<unknown[][]>('get_appearance_sprites', {
+      category,
+      appearanceId,
+    });
 
     const normalized = sprites
       .map(sprite => normalizeSpriteBuffer(sprite))
       .filter((sprite): sprite is Uint8Array => !!sprite);
-
-    // Store in cache
-    spriteCache.set(cacheKey, normalized);
 
     return normalized;
   } catch (error) {
@@ -261,8 +243,6 @@ export async function getAppearanceSpritesBatch(category: string, appearanceIds:
         .map(sprite => normalizeSpriteBuffer(sprite))
         .filter((sprite): sprite is Uint8Array => !!sprite);
       const appearanceId = Number(id);
-      const cacheKey = getSpritesCacheKey(category, appearanceId);
-      spriteCache.set(cacheKey, safeSprites);
       normalized.set(appearanceId, safeSprites);
     }
 

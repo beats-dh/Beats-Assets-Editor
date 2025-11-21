@@ -3,9 +3,8 @@ import { getAppearanceSprites, invalidateAppearanceSpritesCache, bufferToObjectU
 import { computeSpriteIndex, computeGroupOffsetsFromDetails } from './animation';
 import { showStatus } from './utils';
 import { translate, applyDocumentTranslations, getActiveLanguage } from './i18n';
-import { invalidatePreviewSpriteCache } from './assetUI';
+import { getSpriteUrl } from './utils/spriteUrlCache';
 import type { CompleteAppearanceItem, CompleteSpriteInfo, SpriteAnimation } from './types';
-import type { OutfitComposeResponseMessage, OutfitComposeLayer } from './workers/outfitComposeWorker';
 
 interface OutfitPreviewState {
   frameGroupIndex: number;
@@ -24,6 +23,62 @@ interface OutfitPreviewState {
   backgroundColor: string;
 }
 
+async function removeSpriteSlots(
+  category: string,
+  id: number,
+  frameGroupIndex: number,
+  indices: number[]
+): Promise<boolean> {
+  if (indices.length === 0) return false;
+  try {
+    await invoke('remove_appearance_sprites', {
+      category,
+      id,
+      update: {
+        frame_group_index: frameGroupIndex,
+        indices,
+      },
+    });
+    await invoke('save_appearances_file');
+    document.dispatchEvent(new CustomEvent('texture-settings-saved', {
+      detail: { category, id },
+    }));
+    return true;
+  } catch (error) {
+    console.error('Failed to remove sprite slots', error);
+    showStatus(translate('status.spriteRemoveFailed'), 'error');
+    return false;
+  }
+}
+
+async function appendSpriteIds(
+  category: string,
+  id: number,
+  frameGroupIndex: number,
+  spriteIds: number[]
+): Promise<boolean> {
+  if (spriteIds.length === 0) return false;
+  try {
+    await invoke('append_appearance_sprites', {
+      category,
+      id,
+      update: {
+        frame_group_index: frameGroupIndex,
+        sprite_ids: spriteIds,
+      },
+    });
+    await invoke('save_appearances_file');
+    document.dispatchEvent(new CustomEvent('texture-settings-saved', {
+      detail: { category, id },
+    }));
+    return true;
+  } catch (error) {
+    console.error('Failed to append sprite IDs', error);
+    showStatus(translate('status.spriteReplaceFailed'), 'error');
+    return false;
+  }
+}
+
 interface ObjectPreviewState {
   frameGroupIndex: number;
   patternX: number;
@@ -37,40 +92,8 @@ interface ObjectPreviewState {
 interface RGB { r: number; g: number; b: number; }
 
 type ImageCache = Map<number, Promise<HTMLImageElement>>;
-let outfitComposeWorker: Worker | null = null;
-let outfitComposeRequestId = 0;
-const outfitComposePending = new Map<string, (value: string | null) => void>();
 const textureDecodePending = new Map<string, (value: string | null) => void>();
 let textureDecodeWorker: Worker | null = null;
-
-interface RenderedSprite {
-  image: CanvasImageSource;
-  width: number;
-  height: number;
-}
-
-function initOutfitComposeWorker(): void {
-  if (outfitComposeWorker) return;
-  try {
-    outfitComposeWorker = new Worker(
-      new URL('./workers/outfitComposeWorker.ts', import.meta.url),
-      { type: 'module' }
-    );
-    outfitComposeWorker.onmessage = (event: MessageEvent<OutfitComposeResponseMessage>) => {
-      const { id, buffer } = event.data;
-      const resolver = outfitComposePending.get(id);
-      if (resolver) {
-        const dataUrl = buffer ? URL.createObjectURL(new Blob([buffer], { type: 'image/png' })) : null;
-        resolver(dataUrl);
-        outfitComposePending.delete(id);
-      }
-    };
-  } catch (error) {
-    console.warn('Failed to init outfit compose worker:', error);
-    outfitComposeWorker = null;
-    outfitComposePending.clear();
-  }
-}
 
 function initTextureDecodeWorker(): void {
   if (textureDecodeWorker) return;
@@ -83,11 +106,12 @@ function initTextureDecodeWorker(): void {
       const { id, buffer } = event.data;
       const resolver = textureDecodePending.get(id);
       if (resolver) {
-        const dataUrl = buffer ? URL.createObjectURL(new Blob([buffer], { type: 'image/png' })) : null;
+        const dataUrl = buffer ? getSpriteUrl(new Uint8Array(buffer)) : null;
         resolver(dataUrl);
         textureDecodePending.delete(id);
       }
     };
+
   } catch (error) {
     console.warn('Failed to init texture decode worker:', error);
     textureDecodeWorker = null;
@@ -96,7 +120,8 @@ function initTextureDecodeWorker(): void {
 }
 
 function sliceBuffer(sprite: Uint8Array): ArrayBuffer {
-  return sprite.buffer.slice(sprite.byteOffset, sprite.byteOffset + sprite.byteLength);
+  // Usar slice() para garantir ArrayBuffer (evita SharedArrayBuffer)
+  return sprite.slice().buffer;
 }
 
 type TextureCategory = 'Outfits' | 'Objects' | 'Other';
@@ -119,17 +144,21 @@ interface SpriteDragPayload {
   frameGroupIndex?: number;
 }
 
-function parseSpriteIdsFromEvent(event: DragEvent): number[] {
+function parseSpriteDragPayload(event: DragEvent): SpriteDragPayload | null {
   const data = event.dataTransfer;
-  if (!data) return [];
+  if (!data) return null;
 
   const customPayload = data.getData('application/x-asset-sprite');
   if (customPayload) {
     try {
       const parsed = JSON.parse(customPayload) as SpriteDragPayload;
-      if (Array.isArray(parsed.spriteIds)) {
-        return parsed.spriteIds.map(id => Number(id)).filter(id => Number.isFinite(id));
+      if (parsed && Array.isArray(parsed.spriteIds)) {
+        parsed.spriteIds = parsed.spriteIds.map(id => Number(id)).filter(id => Number.isFinite(id));
       }
+      if (parsed && Array.isArray(parsed.localIndices)) {
+        parsed.localIndices = parsed.localIndices.map(index => Number(index)).filter(index => Number.isFinite(index));
+      }
+      return parsed;
     } catch (error) {
       console.warn('Failed to parse custom sprite drag payload', error);
     }
@@ -137,13 +166,13 @@ function parseSpriteIdsFromEvent(event: DragEvent): number[] {
 
   const plain = data.getData('text/plain');
   if (plain) {
-    return plain
-      .split(',')
-      .map(part => Number(part.trim()))
-      .filter(num => Number.isFinite(num));
+    const ids = plain.split(',').map(part => Number(part.trim())).filter(num => Number.isFinite(num));
+    if (ids.length > 0) {
+      return { spriteIds: ids };
+    }
   }
 
-  return [];
+  return null;
 }
 
 async function applySpriteReplacements(
@@ -168,7 +197,9 @@ async function applySpriteReplacements(
     });
 
     await invoke('save_appearances_file');
-    invalidatePreviewSpriteCache(category, id);
+    document.dispatchEvent(new CustomEvent('texture-settings-saved', {
+      detail: { category, id },
+    }));
     return true;
   } catch (error) {
     console.error('Failed to replace sprite IDs', error);
@@ -806,8 +837,9 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
   let sprites = await getAppearanceSprites(category, details.id);
   const imageCache: ImageCache = new Map();
   const loadImage = createImageLoader();
-  const groupOffsets = computeGroupOffsetsFromDetails(details);
+  let groupOffsets = computeGroupOffsetsFromDetails(details);
   const spriteSelection = new Set<number>();
+  let removalInProgress = false;
 
   const state: OutfitPreviewState = {
     frameGroupIndex: 0,
@@ -869,17 +901,33 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
           <span class="texture-sprite-id">#${spriteId}</span>
           <span class="texture-sprite-slot">${translate('texture.spriteList.slotLabel', { value: localIndex + 1 })}</span>
         </div>
+        <button type="button" class="texture-sprite-remove" title="${translate('texture.spriteList.removeTooltip')}" data-local-index="${localIndex}">
+          <span aria-hidden="true">×</span>
+        </button>
       `;
 
       button.addEventListener('click', (event) => {
+        if ((event.target as HTMLElement).closest('.texture-sprite-remove')) {
+          event.stopPropagation();
+          const indices = (spriteSelection.size > 0 && spriteSelection.has(localIndex))
+            ? Array.from(spriteSelection)
+            : [localIndex];
+          void removeSpritesFromList(indices);
+          return;
+        }
         const isMulti = (event as MouseEvent).ctrlKey || (event as MouseEvent).metaKey;
+        const wasSelected = spriteSelection.has(localIndex);
         if (!isMulti) {
           spriteSelection.clear();
-        }
-        if (spriteSelection.has(localIndex)) {
-          spriteSelection.delete(localIndex);
+          if (!wasSelected) {
+            spriteSelection.add(localIndex);
+          }
         } else {
-          spriteSelection.add(localIndex);
+          if (wasSelected) {
+            spriteSelection.delete(localIndex);
+          } else {
+            spriteSelection.add(localIndex);
+          }
         }
         renderSpriteList();
       });
@@ -903,10 +951,34 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
         event.dataTransfer.effectAllowed = 'copy';
       });
 
+      button.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.dataTransfer!.dropEffect = 'copy';
+      });
+
+      button.addEventListener('drop', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await handleSpriteDrop(event, localIndex);
+      });
+
       fragment.appendChild(button);
     });
 
     listEl.appendChild(fragment);
+    if (!(listEl as HTMLElement).dataset.dropHandlerBound) {
+      listEl.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.dataTransfer!.dropEffect = 'copy';
+      });
+
+      listEl.addEventListener('drop', async (event) => {
+        event.preventDefault();
+        await handleSpriteDrop(event, spriteInfo.sprite_ids.length);
+      });
+
+      (listEl as HTMLElement).dataset.dropHandlerBound = 'true';
+    }
   };
 
   const updateDirectionButtons = (): void => {
@@ -1076,7 +1148,7 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
   };
 
   const refreshSpritesAfterUpdate = async (): Promise<void> => {
-    invalidateAppearanceSpritesCache(category, details.id);
+    invalidateAppearanceSpritesCache();
     const updatedSprites = await getAppearanceSprites(category, details.id);
     sprites = updatedSprites;
     imageCache.clear();
@@ -1084,50 +1156,145 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     await draw();
   };
 
-  const handleSpriteDrop = async (event: DragEvent): Promise<void> => {
-    const incomingIds = parseSpriteIdsFromEvent(event);
+  const removeSpritesFromList = async (indices: number[]): Promise<void> => {
+    if (removalInProgress) return;
+    const spriteInfo = getCurrentSpriteInfo();
+    const slots = spriteInfo?.sprite_ids?.length ?? 0;
+    const unique = Array.from(new Set(indices))
+      .filter(index => Number.isInteger(index) && index >= 0 && index < slots)
+      .sort((a, b) => a - b);
+    if (unique.length === 0) return;
+    removalInProgress = true;
+    try {
+      const success = await removeSpriteSlots(category, details.id, state.frameGroupIndex, unique);
+      if (!success) return;
+      unique.slice().sort((a, b) => b - a).forEach((index) => {
+        spriteInfo?.sprite_ids?.splice(index, 1);
+      });
+      groupOffsets = computeGroupOffsetsFromDetails(details);
+      spriteSelection.clear();
+      await refreshSpritesAfterUpdate();
+      showStatus(translate('status.spriteRemoved'), 'success');
+    } finally {
+      removalInProgress = false;
+    }
+  };
+
+  const reorderSpriteIds = async (selectedIndices: number[], insertIndex: number): Promise<boolean> => {
+    const spriteInfo = getCurrentSpriteInfo();
+    if (!spriteInfo || !spriteInfo.sprite_ids || spriteInfo.sprite_ids.length === 0) {
+      return false;
+    }
+
+    const ids = spriteInfo.sprite_ids.slice();
+    const unique = Array.from(new Set(selectedIndices.filter(index => Number.isInteger(index)))).sort((a, b) => a - b);
+    if (unique.length === 0) {
+      return false;
+    }
+
+    let targetIndex = Math.max(0, Math.min(insertIndex, ids.length));
+    const moved: number[] = [];
+    for (let i = unique.length - 1; i >= 0; i -= 1) {
+      const idx = unique[i];
+      if (idx < 0 || idx >= ids.length) continue;
+      moved.unshift(ids[idx]);
+      ids.splice(idx, 1);
+      if (idx < targetIndex) {
+        targetIndex -= 1;
+      }
+    }
+
+    if (moved.length === 0) {
+      return false;
+    }
+
+    ids.splice(targetIndex, 0, ...moved);
+    const replacements = ids.map((spriteId, index) => ({ localIndex: index, spriteId }));
+    const success = await applySpriteReplacements(category, details.id, state.frameGroupIndex, replacements);
+    if (!success) {
+      return false;
+    }
+    spriteInfo.sprite_ids = ids;
+    await refreshSpritesAfterUpdate();
+    showStatus(translate('status.spriteReplaced'), 'success');
+    return true;
+  };
+
+  const handleSpriteDrop = async (event: DragEvent, targetLocalIndex?: number): Promise<void> => {
+    const payload = parseSpriteDragPayload(event);
+    const incomingIds = payload?.spriteIds ?? [];
     const spriteInfo = getCurrentSpriteInfo();
 
-    if (!spriteInfo || incomingIds.length === 0) {
+    if (!spriteInfo) {
+      showStatus(translate('status.spriteDropInvalid'), 'error');
+      return;
+    }
+
+    if (payload?.frameGroupIndex === state.frameGroupIndex && payload.localIndices && payload.localIndices.length > 0 && typeof targetLocalIndex === 'number') {
+      const reordered = await reorderSpriteIds(payload.localIndices, targetLocalIndex);
+      if (reordered) {
+        return;
+      }
+    }
+
+    if (incomingIds.length === 0) {
       showStatus(translate('status.spriteDropInvalid'), 'error');
       return;
     }
 
     const frameCount = getFrameCount(spriteInfo);
-    const baseLocalIndex = computeSpriteIndex(spriteInfo, 0, state.direction, state.addon, state.mount, state.frame);
     const targets: number[] = [];
+    let baseLocalIndex: number;
 
-    if (event.ctrlKey) {
+    if (typeof targetLocalIndex === 'number') {
+      baseLocalIndex = Math.max(0, Math.min(targetLocalIndex, spriteInfo.sprite_ids.length));
+      for (let i = 0; i < incomingIds.length; i += 1) {
+        targets.push(baseLocalIndex + i);
+      }
+    } else if (event.ctrlKey) {
       for (let i = 0; i < incomingIds.length; i += 1) {
         const frameIndex = clamp(state.frame + i, 0, Math.max(frameCount - 1, 0));
         targets.push(computeSpriteIndex(spriteInfo, 0, state.direction, state.addon, state.mount, frameIndex));
       }
     } else {
+      baseLocalIndex = computeSpriteIndex(spriteInfo, 0, state.direction, state.addon, state.mount, state.frame);
       for (let i = 0; i < incomingIds.length; i += 1) {
         targets.push(baseLocalIndex + i);
       }
     }
 
     const replacements: SpriteReplacement[] = [];
+    const appendIds: number[] = [];
     for (let i = 0; i < targets.length && i < incomingIds.length; i += 1) {
       const localIndex = targets[i];
-      if (localIndex >= spriteInfo.sprite_ids.length) break;
-      replacements.push({ localIndex, spriteId: incomingIds[i] });
+      const spriteId = incomingIds[i];
+      if (localIndex < spriteInfo.sprite_ids.length) {
+        replacements.push({ localIndex, spriteId });
+      } else {
+        appendIds.push(spriteId);
+      }
     }
 
-    if (replacements.length === 0) {
+    if (replacements.length === 0 && appendIds.length === 0) {
       showStatus(translate('status.spriteDropOutOfRange'), 'error');
       return;
     }
 
-    const success = await applySpriteReplacements(category, details.id, state.frameGroupIndex, replacements);
-    if (!success) return;
+    if (replacements.length > 0) {
+      const success = await applySpriteReplacements(category, details.id, state.frameGroupIndex, replacements);
+      if (!success) return;
+      replacements.forEach((replacement) => {
+        if (replacement.localIndex < spriteInfo.sprite_ids.length) {
+          spriteInfo.sprite_ids[replacement.localIndex] = replacement.spriteId;
+        }
+      });
+    }
 
-    replacements.forEach((replacement) => {
-      if (replacement.localIndex < spriteInfo.sprite_ids.length) {
-        spriteInfo.sprite_ids[replacement.localIndex] = replacement.spriteId;
-      }
-    });
+    if (appendIds.length > 0) {
+      const appended = await appendSpriteIds(category, details.id, state.frameGroupIndex, appendIds);
+      if (!appended) return;
+      spriteInfo.sprite_ids.push(...appendIds);
+    }
 
     await refreshSpritesAfterUpdate();
     showStatus(translate('status.spriteReplaced'), 'success');
@@ -1454,8 +1621,9 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
   let sprites = await getAppearanceSprites(category, details.id);
   const imageCache: ImageCache = new Map();
   const loadImage = createImageLoader();
-  const groupOffsets = computeGroupOffsetsFromDetails(details);
+  let groupOffsets = computeGroupOffsetsFromDetails(details);
   const spriteSelection = new Set<number>();
+  let removalInProgress = false;
 
   const state: ObjectPreviewState = {
     frameGroupIndex: 0,
@@ -1508,17 +1676,34 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
           <span class="texture-sprite-id">#${spriteId}</span>
           <span class="texture-sprite-slot">${translate('texture.spriteList.slotLabel', { value: localIndex + 1 })}</span>
         </div>
+        <button type="button" class="texture-sprite-remove" title="${translate('texture.spriteList.removeTooltip')}" data-local-index="${localIndex}">
+          <span aria-hidden="true">×</span>
+        </button>
       `;
 
       button.addEventListener('click', (event) => {
+        if ((event.target as HTMLElement).closest('.texture-sprite-remove')) {
+          event.stopPropagation();
+          const indices = (spriteSelection.size > 0 && spriteSelection.has(localIndex))
+            ? Array.from(spriteSelection)
+            : [localIndex];
+          void removeSpritesFromList(indices);
+          return;
+        }
         const isMulti = (event as MouseEvent).ctrlKey || (event as MouseEvent).metaKey;
+        const wasSelected = spriteSelection.has(localIndex);
         if (!isMulti) {
           spriteSelection.clear();
+          if (!wasSelected) {
+            spriteSelection.add(localIndex);
+          }
         }
-        if (spriteSelection.has(localIndex)) {
-          spriteSelection.delete(localIndex);
-        } else {
-          spriteSelection.add(localIndex);
+        if (isMulti) {
+          if (wasSelected) {
+            spriteSelection.delete(localIndex);
+          } else {
+            spriteSelection.add(localIndex);
+          }
         }
         renderSpriteList();
       });
@@ -1542,10 +1727,36 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
         event.dataTransfer.effectAllowed = 'copy';
       });
 
+      button.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.dataTransfer!.dropEffect = 'copy';
+      });
+
+      button.addEventListener('drop', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await handleSpriteDrop(event, localIndex);
+      });
+
       fragment.appendChild(button);
     });
 
     listEl.appendChild(fragment);
+    if (!(listEl as HTMLElement).dataset.dropHandlerBound) {
+      listEl.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.dataTransfer!.dropEffect = 'copy';
+      });
+
+      listEl.addEventListener('drop', async (event) => {
+        event.preventDefault();
+        const spriteInfo = getCurrentSpriteInfo();
+        const length = spriteInfo?.sprite_ids?.length ?? 0;
+        await handleSpriteDrop(event, length);
+      });
+
+      (listEl as HTMLElement).dataset.dropHandlerBound = 'true';
+    }
   };
 
   const draw = async (): Promise<void> => {
@@ -1613,7 +1824,7 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
   };
 
   const refreshSpritesAfterUpdate = async (): Promise<void> => {
-    invalidateAppearanceSpritesCache(category, details.id);
+    invalidateAppearanceSpritesCache();
     const updatedSprites = await getAppearanceSprites(category, details.id);
     sprites = updatedSprites;
     imageCache.clear();
@@ -1621,28 +1832,102 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
     await draw();
   };
 
-  const handleSpriteDrop = async (event: DragEvent): Promise<void> => {
-    const incomingIds = parseSpriteIdsFromEvent(event);
+  const removeSpritesFromList = async (indices: number[]): Promise<void> => {
+    if (removalInProgress) return;
+    const spriteInfo = getCurrentSpriteInfo();
+    const slots = spriteInfo?.sprite_ids?.length ?? 0;
+    const unique = Array.from(new Set(indices))
+      .filter(index => Number.isInteger(index) && index >= 0 && index < slots)
+      .sort((a, b) => a - b);
+    if (unique.length === 0) return;
+    removalInProgress = true;
+    try {
+      const success = await removeSpriteSlots(category, details.id, state.frameGroupIndex, unique);
+      if (!success) return;
+      unique.slice().sort((a, b) => b - a).forEach((index) => {
+        spriteInfo?.sprite_ids?.splice(index, 1);
+      });
+      groupOffsets = computeGroupOffsetsFromDetails(details);
+      spriteSelection.clear();
+      await refreshSpritesAfterUpdate();
+      showStatus(translate('status.spriteRemoved'), 'success');
+    } finally {
+      removalInProgress = false;
+    }
+  };
+
+  const reorderObjectSpriteIds = async (selectedIndices: number[], insertIndex: number): Promise<boolean> => {
+    const spriteInfo = getCurrentSpriteInfo();
+    if (!spriteInfo || !spriteInfo.sprite_ids || spriteInfo.sprite_ids.length === 0) {
+      return false;
+    }
+
+    const ids = spriteInfo.sprite_ids.slice();
+    const unique = Array.from(new Set(selectedIndices.filter(index => Number.isInteger(index)))).sort((a, b) => a - b);
+    if (unique.length === 0) {
+      return false;
+    }
+
+    let targetIndex = Math.max(0, Math.min(insertIndex, ids.length));
+    const moved: number[] = [];
+    for (let i = unique.length - 1; i >= 0; i -= 1) {
+      const idx = unique[i];
+      if (idx < 0 || idx >= ids.length) continue;
+      moved.unshift(ids[idx]);
+      ids.splice(idx, 1);
+      if (idx < targetIndex) {
+        targetIndex -= 1;
+      }
+    }
+
+    if (moved.length === 0) {
+      return false;
+    }
+
+    ids.splice(targetIndex, 0, ...moved);
+    const replacements = ids.map((spriteId, index) => ({ localIndex: index, spriteId }));
+    const success = await applySpriteReplacements(category, details.id, state.frameGroupIndex, replacements);
+    if (!success) {
+      return false;
+    }
+    spriteInfo.sprite_ids = ids;
+    await refreshSpritesAfterUpdate();
+    showStatus(translate('status.spriteReplaced'), 'success');
+    return true;
+  };
+
+  const handleSpriteDrop = async (event: DragEvent, targetLocalIndex?: number): Promise<void> => {
+    const payload = parseSpriteDragPayload(event);
+    const incomingIds = payload?.spriteIds ?? [];
     const spriteInfo = getCurrentSpriteInfo();
 
-    if (!spriteInfo || incomingIds.length === 0) {
+    if (!spriteInfo) {
+      showStatus(translate('status.spriteDropInvalid'), 'error');
+      return;
+    }
+
+    if (payload?.frameGroupIndex === state.frameGroupIndex && payload.localIndices && payload.localIndices.length > 0 && typeof targetLocalIndex === 'number') {
+      const reordered = await reorderObjectSpriteIds(payload.localIndices, targetLocalIndex);
+      if (reordered) {
+        return;
+      }
+    }
+
+    if (incomingIds.length === 0) {
       showStatus(translate('status.spriteDropInvalid'), 'error');
       return;
     }
 
     const frameCount = getFrameCount(spriteInfo);
-    const baseLocalIndex = computeSpriteIndex(
-      spriteInfo,
-      state.layer,
-      state.patternX,
-      state.patternY,
-      state.patternZ,
-      state.frame
-    );
-
     const targets: number[] = [];
+    let baseLocalIndex: number;
 
-    if (event.ctrlKey) {
+    if (typeof targetLocalIndex === 'number') {
+      baseLocalIndex = Math.max(0, Math.min(targetLocalIndex, spriteInfo.sprite_ids.length));
+      for (let i = 0; i < incomingIds.length; i += 1) {
+        targets.push(baseLocalIndex + i);
+      }
+    } else if (event.ctrlKey) {
       for (let i = 0; i < incomingIds.length; i += 1) {
         const frameIndex = clamp(state.frame + i, 0, Math.max(frameCount - 1, 0));
         targets.push(computeSpriteIndex(
@@ -1655,31 +1940,51 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
         ));
       }
     } else {
+      baseLocalIndex = computeSpriteIndex(
+        spriteInfo,
+        state.layer,
+        state.patternX,
+        state.patternY,
+        state.patternZ,
+        state.frame
+      );
       for (let i = 0; i < incomingIds.length; i += 1) {
         targets.push(baseLocalIndex + i);
       }
     }
 
     const replacements: SpriteReplacement[] = [];
+    const appendIds: number[] = [];
     for (let i = 0; i < targets.length && i < incomingIds.length; i += 1) {
       const localIndex = targets[i];
-      if (localIndex >= spriteInfo.sprite_ids.length) break;
-      replacements.push({ localIndex, spriteId: incomingIds[i] });
+      const spriteId = incomingIds[i];
+      if (localIndex < spriteInfo.sprite_ids.length) {
+        replacements.push({ localIndex, spriteId });
+      } else {
+        appendIds.push(spriteId);
+      }
     }
 
-    if (replacements.length === 0) {
+    if (replacements.length === 0 && appendIds.length === 0) {
       showStatus(translate('status.spriteDropOutOfRange'), 'error');
       return;
     }
 
-    const success = await applySpriteReplacements(category, details.id, state.frameGroupIndex, replacements);
-    if (!success) return;
+    if (replacements.length > 0) {
+      const success = await applySpriteReplacements(category, details.id, state.frameGroupIndex, replacements);
+      if (!success) return;
+      replacements.forEach((replacement) => {
+        if (replacement.localIndex < spriteInfo.sprite_ids.length) {
+          spriteInfo.sprite_ids[replacement.localIndex] = replacement.spriteId;
+        }
+      });
+    }
 
-    replacements.forEach((replacement) => {
-      if (replacement.localIndex < spriteInfo.sprite_ids.length) {
-        spriteInfo.sprite_ids[replacement.localIndex] = replacement.spriteId;
-      }
-    });
+    if (appendIds.length > 0) {
+      const appended = await appendSpriteIds(category, details.id, state.frameGroupIndex, appendIds);
+      if (!appended) return;
+      spriteInfo.sprite_ids.push(...appendIds);
+    }
 
     await refreshSpritesAfterUpdate();
     showStatus(translate('status.spriteReplaced'), 'success');

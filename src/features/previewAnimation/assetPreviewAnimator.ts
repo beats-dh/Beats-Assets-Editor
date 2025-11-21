@@ -9,6 +9,7 @@ import {
   resolveOutfitPreviewDirection,
   resolveOutfitPreviewInterval
 } from './outfit/outfitPreviewSettings';
+import { getSpriteUrl, clearSpriteUrlCache } from '../../utils/spriteUrlCache';
 
 export interface PreviewAnimationSequence {
   frames: string[];
@@ -16,19 +17,12 @@ export interface PreviewAnimationSequence {
 }
 
 const previewCache = new Map<string, PreviewAnimationSequence>();
-let spriteUrlCache = new WeakMap<Uint8Array, string>();
-const previewUrlRegistry = new Set<string>();
 let composeWorker: Worker | null = null;
 let composeRequestId = 0;
 const workerPending = new Map<string, (value: string | null) => void>();
 
 function bufferToUrl(buffer: Uint8Array): string {
-  const cached = spriteUrlCache.get(buffer);
-  if (cached) return cached;
-  const url = URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
-  spriteUrlCache.set(buffer, url);
-  previewUrlRegistry.add(url);
-  return url;
+  return getSpriteUrl(buffer);
 }
 
 function initComposeWorker(): void {
@@ -42,7 +36,7 @@ function initComposeWorker(): void {
       const { id, buffer } = event.data;
       const resolver = workerPending.get(id);
       if (resolver) {
-        const dataUrl = buffer ? URL.createObjectURL(new Blob([buffer], { type: 'image/png' })) : null;
+        const dataUrl = buffer ? getSpriteUrl(new Uint8Array(buffer)) : null;
         resolver(dataUrl);
         workerPending.delete(id);
       }
@@ -255,8 +249,6 @@ async function composeFrame(
 
 export function clearPreviewAnimationCache(): void {
   previewCache.clear();
-  previewUrlRegistry.forEach((url) => URL.revokeObjectURL(url));
-  previewUrlRegistry.clear();
-  spriteUrlCache = new WeakMap<Uint8Array, string>();
+  clearSpriteUrlCache();
   workerPending.clear();
 }
