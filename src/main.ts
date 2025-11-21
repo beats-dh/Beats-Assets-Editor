@@ -25,7 +25,8 @@ import {
 import { initAssetDetailsElements } from './assetDetails';
 import { setupGlobalEventListeners } from './eventListeners';
 import { loadSpecialMeaningIds } from './specialMeaning';
-import { areSoundsLoaded, loadSoundsFile } from "./sounds";
+// ✅ OPTIMIZED: Lazy load sounds module
+// import { areSoundsLoaded, loadSoundsFile } from "./sounds";
 import { setupImportExportFeature } from './importExport';
 import { initSpriteLibraryUI } from './spriteLibrary';
 import {
@@ -274,13 +275,17 @@ window.addEventListener("DOMContentLoaded", async () => {
         // Load special meaning IDs for global access
         await loadSpecialMeaningIds();
 
-        // Load sounds from the sounds directory
+        // ✅ OPTIMIZED: Lazy load sounds module
         try {
           const soundsDir = await join(tibiaPath, "sounds");
+          
+          // Dynamic import for code splitting
+          const { areSoundsLoaded, loadSoundsFile } = await import("./sounds");
+          
           if (!areSoundsLoaded()) {
             const stats = await loadSoundsFile(soundsDir);
             (window as any).__lastLoadedSoundCount = stats.total_sounds;
-            console.log("Sounds loaded successfully");
+            console.log("Sounds loaded successfully (lazy loaded)");
           }
 
           // Update sounds count in header (if we have cached stats)
@@ -315,3 +320,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
 // Expose debugCache globally for console access
 window.debugCache = debugCache;
+
+// ✅ NEW: Expose performance monitor for debugging
+import { performanceMonitor } from './utils/performanceMonitor';
+(window as any).__performanceMonitor = performanceMonitor;

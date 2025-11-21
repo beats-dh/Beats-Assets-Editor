@@ -15,6 +15,10 @@ import { querySelectorSafe } from './utils/dom';
 import { LRUCache } from './utils/lruCache';
 import { debounce } from './utils/debounce';
 
+// ✅ NEW: Performance optimizations
+import { isElementIdInViewport } from './utils/viewportUtils';
+import { performanceMonitor } from './utils/performanceMonitor';
+
 let currentCategory = 'Objects';
 let currentSubcategory = 'All';
 let currentPage = 0;
@@ -221,23 +225,34 @@ function enqueueAnimations(category: string, ids: number[]): void {
 
   if (!processingAnimations && animationQueue.length > 0) {
     processingAnimations = true;
-    const isVisible = (element: HTMLElement): boolean => {
-      const rect = element.getBoundingClientRect();
-      const vh = window.innerHeight || document.documentElement.clientHeight;
-      const vw = window.innerWidth || document.documentElement.clientWidth;
-      const verticallyVisible = rect.top < vh * 0.95 && rect.bottom > vh * 0.05;
-      const horizontallyVisible = rect.left < vw && rect.right > 0;
-      return verticallyVisible && horizontallyVisible;
-    };
 
     const process = (): void => {
+      // ✅ OPTIMIZED: Sort queue by viewport priority before processing
+      animationQueue.sort((a, b) => {
+        const aElement = document.getElementById(`sprite-${a.id}`);
+        const bElement = document.getElementById(`sprite-${b.id}`);
+        
+        if (!aElement && !bElement) return 0;
+        if (!aElement) return 1;
+        if (!bElement) return -1;
+        
+        const aInViewport = isElementIdInViewport(`sprite-${a.id}`, 0.05);
+        const bInViewport = isElementIdInViewport(`sprite-${b.id}`, 0.05);
+        
+        // Prioritize items in viewport
+        if (aInViewport && !bInViewport) return -1;
+        if (!aInViewport && bInViewport) return 1;
+        
+        return 0;
+      });
+
       let processed = 0;
       while (animationQueue.length > 0 && processed < CONSTANTS.ANIMATION_BATCH_SIZE) {
         const item = animationQueue.shift();
         if (!item) break;
         enqueuedAnimations.delete(`${item.category}:${item.id}`);
         const container = document.getElementById(`sprite-${item.id}`);
-        const forceStart = !!(container && isVisible(container));
+        const forceStart = !!(container && isElementIdInViewport(`sprite-${item.id}`, 0.05));
         initAssetCardAutoAnimation(item.category, item.id, autoAnimateGridEnabled, forceStart);
         processed++;
       }
@@ -259,6 +274,9 @@ function resetAnimationQueue(): void {
 
 export async function loadAssets(options: LoadAssetsOptions = {}): Promise<void> {
   if (!assetsGrid) return;
+
+  // ✅ OPTIMIZED: Performance monitoring
+  performanceMonitor.mark('loadAssets');
 
   const append = options.append === true;
   let renderedCount = 0;
@@ -376,6 +394,12 @@ export async function loadAssets(options: LoadAssetsOptions = {}): Promise<void>
       showErrorState(error as string);
     }
     pendingScrollToId = null;
+  } finally {
+    // ✅ OPTIMIZED: Log performance metrics
+    const duration = performanceMonitor.measure('loadAssets');
+    if (duration !== null) {
+      performanceMonitor.trackRender(duration);
+    }
   }
 }
 
@@ -465,6 +489,9 @@ async function displayAssets(assets: CompleteAppearanceItem[], append = false): 
 async function loadSpritesForAssets(assets: CompleteAppearanceItem[]): Promise<void> {
   if (assets.length === 0) return;
 
+  // ✅ OPTIMIZED: Performance monitoring
+  performanceMonitor.mark('loadSprites');
+
   // Increment load ID to invalidate previous load operations
   const thisLoadId = ++currentLoadId;
   const loadCategory = currentCategory;
@@ -493,11 +520,21 @@ async function loadSpritesForAssets(assets: CompleteAppearanceItem[]): Promise<v
     enqueueAnimations(loadCategory, readyToAnimate);
   }
 
+  // ✅ OPTIMIZED: Track cache hit rate
+  const totalRequests = assets.length;
+  const cacheHits = readyToAnimate.length;
+  performanceMonitor.trackCacheHitRate(cacheHits, totalRequests);
+
   if (missingIds.length === 0) {
     return;
   }
 
+  performanceMonitor.mark('batchLoad');
   const previews = await getAppearancePreviewSpritesBatch(loadCategory, missingIds);
+  const batchDuration = performanceMonitor.measure('batchLoad');
+  if (batchDuration !== null) {
+    performanceMonitor.trackBatchLoad(batchDuration);
+  }
   const assetById = new Map<number, any>();
   assets.forEach(asset => assetById.set(asset.id, asset));
 
@@ -543,6 +580,12 @@ async function loadSpritesForAssets(assets: CompleteAppearanceItem[]): Promise<v
 
     if (endIndex < missingIds.length) {
       scheduleIdle(() => { void renderBatch(endIndex); });
+    } else {
+      // ✅ OPTIMIZED: Log performance when batch complete
+      const duration = performanceMonitor.measure('loadSprites');
+      if (duration !== null) {
+        performanceMonitor.trackSpriteLoad(duration);
+      }
     }
   };
 
