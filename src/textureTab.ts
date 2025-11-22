@@ -1,8 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
-import { getAppearanceSprites } from './spriteCache';
+import { getAppearanceSprites, invalidateAppearanceSpritesCache, bufferToObjectUrl } from './spriteCache';
 import { computeSpriteIndex, computeGroupOffsetsFromDetails } from './animation';
 import { showStatus } from './utils';
 import { translate, applyDocumentTranslations, getActiveLanguage } from './i18n';
+import { getSpriteUrl } from './utils/spriteUrlCache';
 import type { CompleteAppearanceItem, CompleteSpriteInfo, SpriteAnimation } from './types';
 
 interface OutfitPreviewState {
@@ -22,6 +23,62 @@ interface OutfitPreviewState {
   backgroundColor: string;
 }
 
+async function removeSpriteSlots(
+  category: string,
+  id: number,
+  frameGroupIndex: number,
+  indices: number[]
+): Promise<boolean> {
+  if (indices.length === 0) return false;
+  try {
+    await invoke('remove_appearance_sprites', {
+      category,
+      id,
+      update: {
+        frame_group_index: frameGroupIndex,
+        indices,
+      },
+    });
+    await invoke('save_appearances_file');
+    document.dispatchEvent(new CustomEvent('texture-settings-saved', {
+      detail: { category, id },
+    }));
+    return true;
+  } catch (error) {
+    console.error('Failed to remove sprite slots', error);
+    showStatus(translate('status.spriteRemoveFailed'), 'error');
+    return false;
+  }
+}
+
+async function appendSpriteIds(
+  category: string,
+  id: number,
+  frameGroupIndex: number,
+  spriteIds: number[]
+): Promise<boolean> {
+  if (spriteIds.length === 0) return false;
+  try {
+    await invoke('append_appearance_sprites', {
+      category,
+      id,
+      update: {
+        frame_group_index: frameGroupIndex,
+        sprite_ids: spriteIds,
+      },
+    });
+    await invoke('save_appearances_file');
+    document.dispatchEvent(new CustomEvent('texture-settings-saved', {
+      detail: { category, id },
+    }));
+    return true;
+  } catch (error) {
+    console.error('Failed to append sprite IDs', error);
+    showStatus(translate('status.spriteReplaceFailed'), 'error');
+    return false;
+  }
+}
+
 interface ObjectPreviewState {
   frameGroupIndex: number;
   patternX: number;
@@ -35,6 +92,37 @@ interface ObjectPreviewState {
 interface RGB { r: number; g: number; b: number; }
 
 type ImageCache = Map<number, Promise<HTMLImageElement>>;
+const textureDecodePending = new Map<string, (value: string | null) => void>();
+let textureDecodeWorker: Worker | null = null;
+
+function initTextureDecodeWorker(): void {
+  if (textureDecodeWorker) return;
+  try {
+    textureDecodeWorker = new Worker(
+      new URL('./workers/imageBitmapWorker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    textureDecodeWorker.onmessage = (event: MessageEvent<{ id: string; buffer: ArrayBuffer | null }>) => {
+      const { id, buffer } = event.data;
+      const resolver = textureDecodePending.get(id);
+      if (resolver) {
+        const dataUrl = buffer ? getSpriteUrl(new Uint8Array(buffer)) : null;
+        resolver(dataUrl);
+        textureDecodePending.delete(id);
+      }
+    };
+
+  } catch (error) {
+    console.warn('Failed to init texture decode worker:', error);
+    textureDecodeWorker = null;
+    textureDecodePending.clear();
+  }
+}
+
+function sliceBuffer(sprite: Uint8Array): ArrayBuffer {
+  // Usar slice() para garantir ArrayBuffer (evita SharedArrayBuffer)
+  return sprite.slice().buffer;
+}
 
 type TextureCategory = 'Outfits' | 'Objects' | 'Other';
 
@@ -45,7 +133,83 @@ interface NormalizedBoundingBox {
   height: number;
 }
 
+interface SpriteReplacement {
+  localIndex: number;
+  spriteId: number;
+}
+
+interface SpriteDragPayload {
+  spriteIds?: number[];
+  localIndices?: number[];
+  frameGroupIndex?: number;
+}
+
+function parseSpriteDragPayload(event: DragEvent): SpriteDragPayload | null {
+  const data = event.dataTransfer;
+  if (!data) return null;
+
+  const customPayload = data.getData('application/x-asset-sprite');
+  if (customPayload) {
+    try {
+      const parsed = JSON.parse(customPayload) as SpriteDragPayload;
+      if (parsed && Array.isArray(parsed.spriteIds)) {
+        parsed.spriteIds = parsed.spriteIds.map(id => Number(id)).filter(id => Number.isFinite(id));
+      }
+      if (parsed && Array.isArray(parsed.localIndices)) {
+        parsed.localIndices = parsed.localIndices.map(index => Number(index)).filter(index => Number.isFinite(index));
+      }
+      return parsed;
+    } catch (error) {
+      console.warn('Failed to parse custom sprite drag payload', error);
+    }
+  }
+
+  const plain = data.getData('text/plain');
+  if (plain) {
+    const ids = plain.split(',').map(part => Number(part.trim())).filter(num => Number.isFinite(num));
+    if (ids.length > 0) {
+      return { spriteIds: ids };
+    }
+  }
+
+  return null;
+}
+
+async function applySpriteReplacements(
+  category: string,
+  id: number,
+  frameGroupIndex: number,
+  updates: SpriteReplacement[]
+): Promise<boolean> {
+  if (updates.length === 0) return false;
+
+  try {
+    await invoke('replace_appearance_sprites', {
+      category,
+      id,
+      update: {
+        frame_group_index: frameGroupIndex,
+        updates: updates.map(update => ({
+          index: update.localIndex,
+          sprite_id: update.spriteId,
+        })),
+      },
+    });
+
+    await invoke('save_appearances_file');
+    document.dispatchEvent(new CustomEvent('texture-settings-saved', {
+      detail: { category, id },
+    }));
+    return true;
+  } catch (error) {
+    console.error('Failed to replace sprite IDs', error);
+    showStatus(translate('status.spriteReplaceFailed'), 'error');
+    return false;
+  }
+}
+
 const LANGUAGE_CHANGE_EVENT = 'app-language-changed';
+const MIN_PREVIEW_DIM = 140; // tamanho mínimo em px para aparecer maior
 
 let outfitLanguageListener: EventListener | null = null;
 let objectLanguageListener: EventListener | null = null;
@@ -119,17 +283,45 @@ function getFrameCount(spriteInfo: CompleteSpriteInfo | undefined): number {
   return 1;
 }
 
-function createImageLoader(): (index: number, sprites: string[], cache: ImageCache) => Promise<HTMLImageElement> {
-  return async (index: number, sprites: string[], cache: ImageCache): Promise<HTMLImageElement> => {
+function createImageLoader(): (index: number, sprites: Uint8Array[], cache: ImageCache) => Promise<HTMLImageElement> {
+  return async (index: number, sprites: Uint8Array[], cache: ImageCache): Promise<HTMLImageElement> => {
     if (cache.has(index)) {
       return cache.get(index)!;
     }
-    const base64 = sprites[index];
+    initTextureDecodeWorker();
+    const sprite = sprites[index];
+    const id = `tex-${index}-${Date.now()}`;
+    const buffer = sliceBuffer(sprite);
     const promise = new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = (err) => reject(err);
-      img.src = `data:image/png;base64,${base64}`;
+      if (!textureDecodeWorker) {
+        reject(new Error('Texture decode worker unavailable'));
+        return;
+      }
+      textureDecodePending.set(id, (dataUrl) => {
+        if (!dataUrl) {
+          reject(new Error('Failed to decode sprite'));
+          return;
+        }
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(dataUrl); // Clean up Blob URL after image loads
+          resolve(img);
+        };
+        img.onerror = (err) => {
+          URL.revokeObjectURL(dataUrl); // Clean up on error too
+          reject(err);
+        };
+        img.src = dataUrl;
+      });
+      textureDecodeWorker.postMessage({ id, sprite: buffer }, [buffer]);
+    }).catch((err) => {
+      console.warn('Falling back to main thread decode for sprite', index, err);
+      return new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = (error) => reject(error);
+        img.src = bufferToObjectUrl(sprite);
+      });
     });
     cache.set(index, promise);
     return promise;
@@ -429,13 +621,20 @@ function computePreviewDimensions(
   return { width, height };
 }
 
-function drawBoundingSquareOverlay(ctx: CanvasRenderingContext2D, boundingSquare: number | null): void {
+function computePreviewScale(width: number, height: number): number {
+  const maxDim = Math.max(width, height);
+  if (maxDim === 0) return 1;
+  return Math.max(1, Math.floor(MIN_PREVIEW_DIM / maxDim));
+}
+
+function drawBoundingSquareOverlay(ctx: CanvasRenderingContext2D, boundingSquare: number | null, scale = 1): void {
   if (!boundingSquare || boundingSquare <= 0) return;
   ctx.save();
   ctx.strokeStyle = '#4caf50';
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 4]);
-  ctx.strokeRect(0, 0, boundingSquare, boundingSquare);
+  const sq = boundingSquare * scale;
+  ctx.strokeRect(0, 0, sq, sq);
   ctx.restore();
 }
 
@@ -562,7 +761,11 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
   container.innerHTML = `
     <div class="texture-layout">
       <div class="texture-preview-column">
-        <div class="texture-preview-card">
+        <div class="texture-preview-card texture-drop-zone" id="texture-drop-zone">
+          <div class="texture-drop-hint">
+            <div class="texture-drop-title" data-i18n="texture.drop.title">${translate('texture.drop.title')}</div>
+            <div class="texture-drop-subtitle" data-i18n="texture.drop.subtitle">${translate('texture.drop.subtitle')}</div>
+          </div>
           <canvas id="outfit-preview-canvas" width="96" height="96"></canvas>
         </div>
         <div class="texture-preview-controls">
@@ -606,6 +809,15 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
             <label id="outfit-mount-wrapper" style="display:none"><input type="checkbox" id="outfit-mount-toggle" /> <span data-i18n="texture.preview.mount">${translate('texture.preview.mount')}</span></label>
           </div>
         </div>
+        <div class="texture-sprite-card">
+          <div class="texture-sprite-card-header">
+            <div>
+              <h4 data-i18n="texture.spriteList.title">${translate('texture.spriteList.title')}</h4>
+              <p class="texture-sprite-card-subtitle" data-i18n="texture.spriteList.subtitle">${translate('texture.spriteList.subtitle')}</p>
+            </div>
+          </div>
+          <div class="texture-sprite-grid" id="texture-sprite-list"></div>
+        </div>
       ${buildBoundingBoxSectionHTML()}
     </div>
     <div class="texture-settings-column">
@@ -620,11 +832,14 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
+  const dropZone = document.getElementById('texture-drop-zone');
 
-  const sprites = await getAppearanceSprites(category, details.id);
+  let sprites = await getAppearanceSprites(category, details.id);
   const imageCache: ImageCache = new Map();
   const loadImage = createImageLoader();
-  const groupOffsets = computeGroupOffsetsFromDetails(details);
+  let groupOffsets = computeGroupOffsetsFromDetails(details);
+  const spriteSelection = new Set<number>();
+  let removalInProgress = false;
 
   const state: OutfitPreviewState = {
     frameGroupIndex: 0,
@@ -646,6 +861,125 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
   let animationTimer: number | null = null;
 
   const getCurrentSpriteInfo = (): CompleteSpriteInfo | undefined => details.frame_groups[state.frameGroupIndex]?.sprite_info;
+
+  const getGroupStartOffset = (): number => groupOffsets[state.frameGroupIndex] ?? 0;
+
+  const renderSpriteList = (): void => {
+    const listEl = document.getElementById('texture-sprite-list') as HTMLElement | null;
+    if (!listEl) return;
+
+    const spriteInfo = getCurrentSpriteInfo();
+    if (!spriteInfo) {
+      listEl.innerHTML = `<div class="texture-sprite-empty" data-i18n="texture.spriteList.empty">${translate('texture.spriteList.empty')}</div>`;
+      return;
+    }
+
+    const ids = spriteInfo.sprite_ids ?? [];
+    if (ids.length === 0) {
+      listEl.innerHTML = `<div class="texture-sprite-empty" data-i18n="texture.spriteList.empty">${translate('texture.spriteList.empty')}</div>`;
+      return;
+    }
+
+    const startOffset = getGroupStartOffset();
+    listEl.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+
+    ids.forEach((spriteId, localIndex) => {
+      const aggIndex = startOffset + localIndex;
+      const preview = sprites[aggIndex];
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.draggable = true;
+      button.className = `texture-sprite-chip${spriteSelection.has(localIndex) ? ' is-selected' : ''}`;
+      button.dataset.localIndex = String(localIndex);
+      button.dataset.spriteId = String(spriteId);
+      button.innerHTML = `
+        <div class="texture-sprite-thumb">
+          ${preview ? `<img src="${bufferToObjectUrl(preview)}" alt="Sprite ${spriteId}">` : '<div class="texture-sprite-placeholder">?</div>'}
+        </div>
+        <div class="texture-sprite-meta">
+          <span class="texture-sprite-id">#${spriteId}</span>
+          <span class="texture-sprite-slot">${translate('texture.spriteList.slotLabel', { value: localIndex + 1 })}</span>
+        </div>
+        <button type="button" class="texture-sprite-remove" title="${translate('texture.spriteList.removeTooltip')}" data-local-index="${localIndex}">
+          <span aria-hidden="true">×</span>
+        </button>
+      `;
+
+      button.addEventListener('click', (event) => {
+        if ((event.target as HTMLElement).closest('.texture-sprite-remove')) {
+          event.stopPropagation();
+          const indices = (spriteSelection.size > 0 && spriteSelection.has(localIndex))
+            ? Array.from(spriteSelection)
+            : [localIndex];
+          void removeSpritesFromList(indices);
+          return;
+        }
+        const isMulti = (event as MouseEvent).ctrlKey || (event as MouseEvent).metaKey;
+        const wasSelected = spriteSelection.has(localIndex);
+        if (!isMulti) {
+          spriteSelection.clear();
+          if (!wasSelected) {
+            spriteSelection.add(localIndex);
+          }
+        } else {
+          if (wasSelected) {
+            spriteSelection.delete(localIndex);
+          } else {
+            spriteSelection.add(localIndex);
+          }
+        }
+        renderSpriteList();
+      });
+
+      button.addEventListener('dragstart', (event) => {
+        const indices = (spriteSelection.size > 0 && spriteSelection.has(localIndex))
+          ? Array.from(spriteSelection)
+          : [localIndex];
+        const sorted = indices.sort((a, b) => a - b);
+        const draggedIds = sorted
+          .map(index => ids[index])
+          .filter(id => typeof id === 'number') as number[];
+        if (!event.dataTransfer || draggedIds.length === 0) return;
+        const payload: SpriteDragPayload = {
+          spriteIds: draggedIds,
+          localIndices: sorted,
+          frameGroupIndex: state.frameGroupIndex,
+        };
+        event.dataTransfer.setData('application/x-asset-sprite', JSON.stringify(payload));
+        event.dataTransfer.setData('text/plain', draggedIds.join(','));
+        event.dataTransfer.effectAllowed = 'copy';
+      });
+
+      button.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.dataTransfer!.dropEffect = 'copy';
+      });
+
+      button.addEventListener('drop', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await handleSpriteDrop(event, localIndex);
+      });
+
+      fragment.appendChild(button);
+    });
+
+    listEl.appendChild(fragment);
+    if (!(listEl as HTMLElement).dataset.dropHandlerBound) {
+      listEl.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.dataTransfer!.dropEffect = 'copy';
+      });
+
+      listEl.addEventListener('drop', async (event) => {
+        event.preventDefault();
+        await handleSpriteDrop(event, spriteInfo.sprite_ids.length);
+      });
+
+      (listEl as HTMLElement).dataset.dropHandlerBound = 'true';
+    }
+  };
 
   const updateDirectionButtons = (): void => {
     const container = document.getElementById('outfit-direction-controls');
@@ -672,7 +1006,7 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     }
   };
 
-  const drawBoundingBoxes = (boxes: NormalizedBoundingBox[]): void => {
+  const drawBoundingBoxes = (boxes: NormalizedBoundingBox[], scale = 1): void => {
     if (!boxes.length) return;
     const directionIndex = clamp(state.direction, 0, boxes.length - 1);
     const box = boxes[directionIndex] || boxes[0];
@@ -680,10 +1014,10 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     ctx.save();
     ctx.strokeStyle = '#ff9800';
     ctx.lineWidth = 1;
-    const x = ensureNumber(box.x, 0);
-    const y = ensureNumber(box.y, 0);
-    const w = ensureNumber(box.width, 0);
-    const h = ensureNumber(box.height, 0);
+    const x = ensureNumber(box.x, 0) * scale;
+    const y = ensureNumber(box.y, 0) * scale;
+    const w = ensureNumber(box.width, 0) * scale;
+    const h = ensureNumber(box.height, 0) * scale;
     if (w > 0 && h > 0) {
       ctx.strokeRect(x, y, w, h);
     }
@@ -757,8 +1091,11 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     const spriteInfo = getCurrentSpriteInfo();
     if (!spriteInfo) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      dropZone?.classList.remove('has-preview');
       return;
     }
+    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = false;
     const frameCount = getFrameCount(spriteInfo);
     const boxes = getPreviewBoundingBoxes(spriteInfo);
     const boundingSquare = getBoundingSquareValue();
@@ -788,23 +1125,181 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     ctx.fillStyle = `rgb(${background.r}, ${background.g}, ${background.b})`;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    let scale = 1;
     for (const addon of variants) {
       const rendered = await renderSpriteVariant(spriteInfo, baseOffset, direction, addon, mount, state.frame);
       if (!initialized) {
         const { width, height } = computePreviewDimensions(rendered.width, rendered.height, boxes, boundingSquare);
-        canvas.width = width;
-        canvas.height = height;
+        scale = computePreviewScale(width, height);
+        canvas.width = width * scale;
+        canvas.height = height * scale;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         initialized = true;
       }
-      ctx.drawImage(rendered, 0, 0);
+      ctx.drawImage(rendered, 0, 0, rendered.width, rendered.height, 0, 0, rendered.width * scale, rendered.height * scale);
     }
 
     if (state.showBoundingBoxes) {
-      drawBoundingSquareOverlay(ctx, boundingSquare);
-      drawBoundingBoxes(boxes);
+      drawBoundingSquareOverlay(ctx, boundingSquare, scale);
+      drawBoundingBoxes(boxes, scale);
+    }
+
+    dropZone?.classList.add('has-preview');
+  };
+
+  const refreshSpritesAfterUpdate = async (): Promise<void> => {
+    invalidateAppearanceSpritesCache();
+    const updatedSprites = await getAppearanceSprites(category, details.id);
+    sprites = updatedSprites;
+    imageCache.clear();
+    renderSpriteList();
+    await draw();
+  };
+
+  const removeSpritesFromList = async (indices: number[]): Promise<void> => {
+    if (removalInProgress) return;
+    const spriteInfo = getCurrentSpriteInfo();
+    const slots = spriteInfo?.sprite_ids?.length ?? 0;
+    const unique = Array.from(new Set(indices))
+      .filter(index => Number.isInteger(index) && index >= 0 && index < slots)
+      .sort((a, b) => a - b);
+    if (unique.length === 0) return;
+    removalInProgress = true;
+    try {
+      const success = await removeSpriteSlots(category, details.id, state.frameGroupIndex, unique);
+      if (!success) return;
+      unique.slice().sort((a, b) => b - a).forEach((index) => {
+        spriteInfo?.sprite_ids?.splice(index, 1);
+      });
+      groupOffsets = computeGroupOffsetsFromDetails(details);
+      spriteSelection.clear();
+      await refreshSpritesAfterUpdate();
+      showStatus(translate('status.spriteRemoved'), 'success');
+    } finally {
+      removalInProgress = false;
     }
   };
+
+  const reorderSpriteIds = async (selectedIndices: number[], insertIndex: number): Promise<boolean> => {
+    const spriteInfo = getCurrentSpriteInfo();
+    if (!spriteInfo || !spriteInfo.sprite_ids || spriteInfo.sprite_ids.length === 0) {
+      return false;
+    }
+
+    const ids = spriteInfo.sprite_ids.slice();
+    const unique = Array.from(new Set(selectedIndices.filter(index => Number.isInteger(index)))).sort((a, b) => a - b);
+    if (unique.length === 0) {
+      return false;
+    }
+
+    let targetIndex = Math.max(0, Math.min(insertIndex, ids.length));
+    const moved: number[] = [];
+    for (let i = unique.length - 1; i >= 0; i -= 1) {
+      const idx = unique[i];
+      if (idx < 0 || idx >= ids.length) continue;
+      moved.unshift(ids[idx]);
+      ids.splice(idx, 1);
+      if (idx < targetIndex) {
+        targetIndex -= 1;
+      }
+    }
+
+    if (moved.length === 0) {
+      return false;
+    }
+
+    ids.splice(targetIndex, 0, ...moved);
+    const replacements = ids.map((spriteId, index) => ({ localIndex: index, spriteId }));
+    const success = await applySpriteReplacements(category, details.id, state.frameGroupIndex, replacements);
+    if (!success) {
+      return false;
+    }
+    spriteInfo.sprite_ids = ids;
+    await refreshSpritesAfterUpdate();
+    showStatus(translate('status.spriteReplaced'), 'success');
+    return true;
+  };
+
+  const handleSpriteDrop = async (event: DragEvent, targetLocalIndex?: number): Promise<void> => {
+    const payload = parseSpriteDragPayload(event);
+    const incomingIds = payload?.spriteIds ?? [];
+    const spriteInfo = getCurrentSpriteInfo();
+
+    if (!spriteInfo) {
+      showStatus(translate('status.spriteDropInvalid'), 'error');
+      return;
+    }
+
+    if (payload?.frameGroupIndex === state.frameGroupIndex && payload.localIndices && payload.localIndices.length > 0 && typeof targetLocalIndex === 'number') {
+      const reordered = await reorderSpriteIds(payload.localIndices, targetLocalIndex);
+      if (reordered) {
+        return;
+      }
+    }
+
+    if (incomingIds.length === 0) {
+      showStatus(translate('status.spriteDropInvalid'), 'error');
+      return;
+    }
+
+    const frameCount = getFrameCount(spriteInfo);
+    const targets: number[] = [];
+    let baseLocalIndex: number;
+
+    if (typeof targetLocalIndex === 'number') {
+      baseLocalIndex = Math.max(0, Math.min(targetLocalIndex, spriteInfo.sprite_ids.length));
+      for (let i = 0; i < incomingIds.length; i += 1) {
+        targets.push(baseLocalIndex + i);
+      }
+    } else if (event.ctrlKey) {
+      for (let i = 0; i < incomingIds.length; i += 1) {
+        const frameIndex = clamp(state.frame + i, 0, Math.max(frameCount - 1, 0));
+        targets.push(computeSpriteIndex(spriteInfo, 0, state.direction, state.addon, state.mount, frameIndex));
+      }
+    } else {
+      baseLocalIndex = computeSpriteIndex(spriteInfo, 0, state.direction, state.addon, state.mount, state.frame);
+      for (let i = 0; i < incomingIds.length; i += 1) {
+        targets.push(baseLocalIndex + i);
+      }
+    }
+
+    const replacements: SpriteReplacement[] = [];
+    const appendIds: number[] = [];
+    for (let i = 0; i < targets.length && i < incomingIds.length; i += 1) {
+      const localIndex = targets[i];
+      const spriteId = incomingIds[i];
+      if (localIndex < spriteInfo.sprite_ids.length) {
+        replacements.push({ localIndex, spriteId });
+      } else {
+        appendIds.push(spriteId);
+      }
+    }
+
+    if (replacements.length === 0 && appendIds.length === 0) {
+      showStatus(translate('status.spriteDropOutOfRange'), 'error');
+      return;
+    }
+
+    if (replacements.length > 0) {
+      const success = await applySpriteReplacements(category, details.id, state.frameGroupIndex, replacements);
+      if (!success) return;
+      replacements.forEach((replacement) => {
+        if (replacement.localIndex < spriteInfo.sprite_ids.length) {
+          spriteInfo.sprite_ids[replacement.localIndex] = replacement.spriteId;
+        }
+      });
+    }
+
+    if (appendIds.length > 0) {
+      const appended = await appendSpriteIds(category, details.id, state.frameGroupIndex, appendIds);
+      if (!appended) return;
+      spriteInfo.sprite_ids.push(...appendIds);
+    }
+
+    await refreshSpritesAfterUpdate();
+    showStatus(translate('status.spriteReplaced'), 'success');
+  };
+
 
   const refreshPreviewControls = (): void => {
     const spriteInfo = getCurrentSpriteInfo();
@@ -851,6 +1346,24 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     await draw();
   };
 
+  const clearDropState = (): void => dropZone?.classList.remove('is-drag-over');
+
+  dropZone?.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    dropZone.classList.add('is-drag-over');
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  });
+
+  dropZone?.addEventListener('dragleave', clearDropState);
+
+  dropZone?.addEventListener('drop', async (event) => {
+    event.preventDefault();
+    clearDropState();
+    await handleSpriteDrop(event);
+  });
+
   const frameGroupSelect = document.getElementById('texture-frame-group-select') as HTMLSelectElement | null;
   frameGroupSelect?.addEventListener('change', async () => {
     state.frameGroupIndex = parseInt(frameGroupSelect.value, 10) || 0;
@@ -858,6 +1371,8 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     state.addon = 0;
     state.mount = 0;
     state.frame = 0;
+    spriteSelection.clear();
+    renderSpriteList();
     refreshPreviewControls();
     populateCommonForm(getCurrentSpriteInfo());
     populateAnimationForm(getCurrentSpriteInfo());
@@ -885,6 +1400,7 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
     updateFrameGroupOptionLabels();
     refreshPreviewControls();
     refreshAnimationPhaseLabels();
+    renderSpriteList();
   };
 
   document.addEventListener(LANGUAGE_CHANGE_EVENT, outfitLanguageListener);
@@ -1038,6 +1554,7 @@ async function renderOutfitTextureTab(container: HTMLElement, details: CompleteA
   populateCommonForm(getCurrentSpriteInfo());
   populateAnimationForm(getCurrentSpriteInfo());
   populateBoundingBoxes(getCurrentSpriteInfo());
+  renderSpriteList();
   refreshAnimationPhaseLabels();
   refreshPreviewControls();
   await draw();
@@ -1047,7 +1564,11 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
   container.innerHTML = `
     <div class="texture-layout">
       <div class="texture-preview-column">
-        <div class="texture-preview-card">
+        <div class="texture-preview-card texture-drop-zone" id="texture-drop-zone">
+          <div class="texture-drop-hint">
+            <div class="texture-drop-title" data-i18n="texture.drop.title">${translate('texture.drop.title')}</div>
+            <div class="texture-drop-subtitle" data-i18n="texture.drop.subtitle">${translate('texture.drop.subtitle')}</div>
+          </div>
           <canvas id="object-preview-canvas" width="96" height="96"></canvas>
         </div>
         <div class="texture-preview-controls">
@@ -1072,6 +1593,15 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
             <label class="texture-checkbox"><input type="checkbox" id="object-preview-show-bboxes" checked /> <span data-i18n="texture.preview.showBoundingBoxes">${translate('texture.preview.showBoundingBoxes')}</span></label>
           </div>
         </div>
+        <div class="texture-sprite-card">
+          <div class="texture-sprite-card-header">
+            <div>
+              <h4 data-i18n="texture.spriteList.title">${translate('texture.spriteList.title')}</h4>
+              <p class="texture-sprite-card-subtitle" data-i18n="texture.spriteList.subtitle">${translate('texture.spriteList.subtitle')}</p>
+            </div>
+          </div>
+          <div class="texture-sprite-grid" id="texture-sprite-list"></div>
+        </div>
         ${buildBoundingBoxSectionHTML()}
       </div>
       <div class="texture-settings-column">
@@ -1086,11 +1616,14 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
+  const dropZone = document.getElementById('texture-drop-zone');
 
-  const sprites = await getAppearanceSprites(category, details.id);
+  let sprites = await getAppearanceSprites(category, details.id);
   const imageCache: ImageCache = new Map();
   const loadImage = createImageLoader();
-  const groupOffsets = computeGroupOffsetsFromDetails(details);
+  let groupOffsets = computeGroupOffsetsFromDetails(details);
+  const spriteSelection = new Set<number>();
+  let removalInProgress = false;
 
   const state: ObjectPreviewState = {
     frameGroupIndex: 0,
@@ -1104,12 +1637,136 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
 
   const getCurrentSpriteInfo = (): CompleteSpriteInfo | undefined => details.frame_groups[state.frameGroupIndex]?.sprite_info;
 
+  const getGroupStartOffset = (): number => groupOffsets[state.frameGroupIndex] ?? 0;
+
+  const renderSpriteList = (): void => {
+    const listEl = document.getElementById('texture-sprite-list') as HTMLElement | null;
+    if (!listEl) return;
+
+    const spriteInfo = getCurrentSpriteInfo();
+    if (!spriteInfo) {
+      listEl.innerHTML = `<div class="texture-sprite-empty" data-i18n="texture.spriteList.empty">${translate('texture.spriteList.empty')}</div>`;
+      return;
+    }
+
+    const ids = spriteInfo.sprite_ids ?? [];
+    if (ids.length === 0) {
+      listEl.innerHTML = `<div class="texture-sprite-empty" data-i18n="texture.spriteList.empty">${translate('texture.spriteList.empty')}</div>`;
+      return;
+    }
+
+    const startOffset = getGroupStartOffset();
+    listEl.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+
+    ids.forEach((spriteId, localIndex) => {
+      const aggIndex = startOffset + localIndex;
+      const preview = sprites[aggIndex];
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.draggable = true;
+      button.className = `texture-sprite-chip${spriteSelection.has(localIndex) ? ' is-selected' : ''}`;
+      button.dataset.localIndex = String(localIndex);
+      button.dataset.spriteId = String(spriteId);
+      button.innerHTML = `
+        <div class="texture-sprite-thumb">
+          ${preview ? `<img src="${bufferToObjectUrl(preview)}" alt="Sprite ${spriteId}">` : '<div class="texture-sprite-placeholder">?</div>'}
+        </div>
+        <div class="texture-sprite-meta">
+          <span class="texture-sprite-id">#${spriteId}</span>
+          <span class="texture-sprite-slot">${translate('texture.spriteList.slotLabel', { value: localIndex + 1 })}</span>
+        </div>
+        <button type="button" class="texture-sprite-remove" title="${translate('texture.spriteList.removeTooltip')}" data-local-index="${localIndex}">
+          <span aria-hidden="true">×</span>
+        </button>
+      `;
+
+      button.addEventListener('click', (event) => {
+        if ((event.target as HTMLElement).closest('.texture-sprite-remove')) {
+          event.stopPropagation();
+          const indices = (spriteSelection.size > 0 && spriteSelection.has(localIndex))
+            ? Array.from(spriteSelection)
+            : [localIndex];
+          void removeSpritesFromList(indices);
+          return;
+        }
+        const isMulti = (event as MouseEvent).ctrlKey || (event as MouseEvent).metaKey;
+        const wasSelected = spriteSelection.has(localIndex);
+        if (!isMulti) {
+          spriteSelection.clear();
+          if (!wasSelected) {
+            spriteSelection.add(localIndex);
+          }
+        }
+        if (isMulti) {
+          if (wasSelected) {
+            spriteSelection.delete(localIndex);
+          } else {
+            spriteSelection.add(localIndex);
+          }
+        }
+        renderSpriteList();
+      });
+
+      button.addEventListener('dragstart', (event) => {
+        const indices = (spriteSelection.size > 0 && spriteSelection.has(localIndex))
+          ? Array.from(spriteSelection)
+          : [localIndex];
+        const sorted = indices.sort((a, b) => a - b);
+        const draggedIds = sorted
+          .map(index => ids[index])
+          .filter(id => typeof id === 'number') as number[];
+        if (!event.dataTransfer || draggedIds.length === 0) return;
+        const payload: SpriteDragPayload = {
+          spriteIds: draggedIds,
+          localIndices: sorted,
+          frameGroupIndex: state.frameGroupIndex,
+        };
+        event.dataTransfer.setData('application/x-asset-sprite', JSON.stringify(payload));
+        event.dataTransfer.setData('text/plain', draggedIds.join(','));
+        event.dataTransfer.effectAllowed = 'copy';
+      });
+
+      button.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.dataTransfer!.dropEffect = 'copy';
+      });
+
+      button.addEventListener('drop', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await handleSpriteDrop(event, localIndex);
+      });
+
+      fragment.appendChild(button);
+    });
+
+    listEl.appendChild(fragment);
+    if (!(listEl as HTMLElement).dataset.dropHandlerBound) {
+      listEl.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.dataTransfer!.dropEffect = 'copy';
+      });
+
+      listEl.addEventListener('drop', async (event) => {
+        event.preventDefault();
+        const spriteInfo = getCurrentSpriteInfo();
+        const length = spriteInfo?.sprite_ids?.length ?? 0;
+        await handleSpriteDrop(event, length);
+      });
+
+      (listEl as HTMLElement).dataset.dropHandlerBound = 'true';
+    }
+  };
+
   const draw = async (): Promise<void> => {
     const spriteInfo = getCurrentSpriteInfo();
     if (!spriteInfo) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      dropZone?.classList.remove('has-preview');
       return;
     }
+    ctx.imageSmoothingEnabled = false; // keep pixels crisp
     const baseOffset = groupOffsets[state.frameGroupIndex] ?? 0;
     const patternWidth = Math.max(1, ensureNumber(spriteInfo.pattern_width, 1));
     const patternHeight = Math.max(1, ensureNumber(spriteInfo.pattern_height, 1));
@@ -1136,13 +1793,14 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
     const boxes = getPreviewBoundingBoxes(spriteInfo);
     const boundingSquare = getBoundingSquareValue();
     const { width, height } = computePreviewDimensions(image.width, image.height, boxes, boundingSquare);
-    canvas.width = width;
-    canvas.height = height;
+    const scale = computePreviewScale(width, height);
+    canvas.width = width * scale;
+    canvas.height = height * scale;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(image, 0, 0);
+    ctx.drawImage(image, 0, 0, image.width, image.height, 0, 0, image.width * scale, image.height * scale);
 
     if (state.showBoundingBoxes) {
-      drawBoundingSquareOverlay(ctx, boundingSquare);
+      drawBoundingSquareOverlay(ctx, boundingSquare, scale);
       if (boxes.length > 0) {
         const directionIndex = clamp(state.patternX, 0, boxes.length - 1);
         const box = boxes[directionIndex] || boxes[0];
@@ -1150,10 +1808,10 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
           ctx.save();
           ctx.strokeStyle = '#00bcd4';
           ctx.lineWidth = 1;
-          const x = ensureNumber(box.x, 0);
-          const y = ensureNumber(box.y, 0);
-          const w = ensureNumber(box.width, 0);
-          const h = ensureNumber(box.height, 0);
+          const x = ensureNumber(box.x, 0) * scale;
+          const y = ensureNumber(box.y, 0) * scale;
+          const w = ensureNumber(box.width, 0) * scale;
+          const h = ensureNumber(box.height, 0) * scale;
           if (w > 0 && h > 0) {
             ctx.strokeRect(x, y, w, h);
           }
@@ -1161,6 +1819,175 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
         }
       }
     }
+
+    dropZone?.classList.add('has-preview');
+  };
+
+  const refreshSpritesAfterUpdate = async (): Promise<void> => {
+    invalidateAppearanceSpritesCache();
+    const updatedSprites = await getAppearanceSprites(category, details.id);
+    sprites = updatedSprites;
+    imageCache.clear();
+    renderSpriteList();
+    await draw();
+  };
+
+  const removeSpritesFromList = async (indices: number[]): Promise<void> => {
+    if (removalInProgress) return;
+    const spriteInfo = getCurrentSpriteInfo();
+    const slots = spriteInfo?.sprite_ids?.length ?? 0;
+    const unique = Array.from(new Set(indices))
+      .filter(index => Number.isInteger(index) && index >= 0 && index < slots)
+      .sort((a, b) => a - b);
+    if (unique.length === 0) return;
+    removalInProgress = true;
+    try {
+      const success = await removeSpriteSlots(category, details.id, state.frameGroupIndex, unique);
+      if (!success) return;
+      unique.slice().sort((a, b) => b - a).forEach((index) => {
+        spriteInfo?.sprite_ids?.splice(index, 1);
+      });
+      groupOffsets = computeGroupOffsetsFromDetails(details);
+      spriteSelection.clear();
+      await refreshSpritesAfterUpdate();
+      showStatus(translate('status.spriteRemoved'), 'success');
+    } finally {
+      removalInProgress = false;
+    }
+  };
+
+  const reorderObjectSpriteIds = async (selectedIndices: number[], insertIndex: number): Promise<boolean> => {
+    const spriteInfo = getCurrentSpriteInfo();
+    if (!spriteInfo || !spriteInfo.sprite_ids || spriteInfo.sprite_ids.length === 0) {
+      return false;
+    }
+
+    const ids = spriteInfo.sprite_ids.slice();
+    const unique = Array.from(new Set(selectedIndices.filter(index => Number.isInteger(index)))).sort((a, b) => a - b);
+    if (unique.length === 0) {
+      return false;
+    }
+
+    let targetIndex = Math.max(0, Math.min(insertIndex, ids.length));
+    const moved: number[] = [];
+    for (let i = unique.length - 1; i >= 0; i -= 1) {
+      const idx = unique[i];
+      if (idx < 0 || idx >= ids.length) continue;
+      moved.unshift(ids[idx]);
+      ids.splice(idx, 1);
+      if (idx < targetIndex) {
+        targetIndex -= 1;
+      }
+    }
+
+    if (moved.length === 0) {
+      return false;
+    }
+
+    ids.splice(targetIndex, 0, ...moved);
+    const replacements = ids.map((spriteId, index) => ({ localIndex: index, spriteId }));
+    const success = await applySpriteReplacements(category, details.id, state.frameGroupIndex, replacements);
+    if (!success) {
+      return false;
+    }
+    spriteInfo.sprite_ids = ids;
+    await refreshSpritesAfterUpdate();
+    showStatus(translate('status.spriteReplaced'), 'success');
+    return true;
+  };
+
+  const handleSpriteDrop = async (event: DragEvent, targetLocalIndex?: number): Promise<void> => {
+    const payload = parseSpriteDragPayload(event);
+    const incomingIds = payload?.spriteIds ?? [];
+    const spriteInfo = getCurrentSpriteInfo();
+
+    if (!spriteInfo) {
+      showStatus(translate('status.spriteDropInvalid'), 'error');
+      return;
+    }
+
+    if (payload?.frameGroupIndex === state.frameGroupIndex && payload.localIndices && payload.localIndices.length > 0 && typeof targetLocalIndex === 'number') {
+      const reordered = await reorderObjectSpriteIds(payload.localIndices, targetLocalIndex);
+      if (reordered) {
+        return;
+      }
+    }
+
+    if (incomingIds.length === 0) {
+      showStatus(translate('status.spriteDropInvalid'), 'error');
+      return;
+    }
+
+    const frameCount = getFrameCount(spriteInfo);
+    const targets: number[] = [];
+    let baseLocalIndex: number;
+
+    if (typeof targetLocalIndex === 'number') {
+      baseLocalIndex = Math.max(0, Math.min(targetLocalIndex, spriteInfo.sprite_ids.length));
+      for (let i = 0; i < incomingIds.length; i += 1) {
+        targets.push(baseLocalIndex + i);
+      }
+    } else if (event.ctrlKey) {
+      for (let i = 0; i < incomingIds.length; i += 1) {
+        const frameIndex = clamp(state.frame + i, 0, Math.max(frameCount - 1, 0));
+        targets.push(computeSpriteIndex(
+          spriteInfo,
+          state.layer,
+          state.patternX,
+          state.patternY,
+          state.patternZ,
+          frameIndex
+        ));
+      }
+    } else {
+      baseLocalIndex = computeSpriteIndex(
+        spriteInfo,
+        state.layer,
+        state.patternX,
+        state.patternY,
+        state.patternZ,
+        state.frame
+      );
+      for (let i = 0; i < incomingIds.length; i += 1) {
+        targets.push(baseLocalIndex + i);
+      }
+    }
+
+    const replacements: SpriteReplacement[] = [];
+    const appendIds: number[] = [];
+    for (let i = 0; i < targets.length && i < incomingIds.length; i += 1) {
+      const localIndex = targets[i];
+      const spriteId = incomingIds[i];
+      if (localIndex < spriteInfo.sprite_ids.length) {
+        replacements.push({ localIndex, spriteId });
+      } else {
+        appendIds.push(spriteId);
+      }
+    }
+
+    if (replacements.length === 0 && appendIds.length === 0) {
+      showStatus(translate('status.spriteDropOutOfRange'), 'error');
+      return;
+    }
+
+    if (replacements.length > 0) {
+      const success = await applySpriteReplacements(category, details.id, state.frameGroupIndex, replacements);
+      if (!success) return;
+      replacements.forEach((replacement) => {
+        if (replacement.localIndex < spriteInfo.sprite_ids.length) {
+          spriteInfo.sprite_ids[replacement.localIndex] = replacement.spriteId;
+        }
+      });
+    }
+
+    if (appendIds.length > 0) {
+      const appended = await appendSpriteIds(category, details.id, state.frameGroupIndex, appendIds);
+      if (!appended) return;
+      spriteInfo.sprite_ids.push(...appendIds);
+    }
+
+    await refreshSpritesAfterUpdate();
+    showStatus(translate('status.spriteReplaced'), 'success');
   };
 
   const clampInput = (input: HTMLInputElement, max: number): number => {
@@ -1172,6 +1999,24 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
     return clamped;
   };
 
+  const clearDropState = (): void => dropZone?.classList.remove('is-drag-over');
+
+  dropZone?.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    dropZone.classList.add('is-drag-over');
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  });
+
+  dropZone?.addEventListener('dragleave', clearDropState);
+
+  dropZone?.addEventListener('drop', async (event) => {
+    event.preventDefault();
+    clearDropState();
+    await handleSpriteDrop(event);
+  });
+
   const frameGroupSelect = document.getElementById('texture-frame-group-select') as HTMLSelectElement | null;
   frameGroupSelect?.addEventListener('change', async () => {
     state.frameGroupIndex = parseInt(frameGroupSelect.value, 10) || 0;
@@ -1180,6 +2025,8 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
     state.patternZ = 0;
     state.layer = 0;
     state.frame = 0;
+    spriteSelection.clear();
+    renderSpriteList();
     populateCommonForm(getCurrentSpriteInfo());
     populateAnimationForm(getCurrentSpriteInfo());
     populateBoundingBoxes(getCurrentSpriteInfo());
@@ -1205,6 +2052,7 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
   objectLanguageListener = () => {
     updateFrameGroupOptionLabels();
     refreshAnimationPhaseLabels();
+    renderSpriteList();
   };
 
   document.addEventListener(LANGUAGE_CHANGE_EVENT, objectLanguageListener);
@@ -1289,7 +2137,7 @@ async function renderObjectTextureTab(container: HTMLElement, details: CompleteA
   populateCommonForm(getCurrentSpriteInfo());
   populateAnimationForm(getCurrentSpriteInfo());
   populateBoundingBoxes(getCurrentSpriteInfo());
+  renderSpriteList();
   refreshAnimationPhaseLabels();
   await draw();
 }
-

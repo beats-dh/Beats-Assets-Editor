@@ -1,11 +1,27 @@
+use crate::core::protobuf::Appearance;
 use crate::features::appearances::AppearanceCategory;
 use crate::features::sprites::parsers::SpriteLoader;
 use crate::state::AppState;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 use tauri::State;
 use rayon::prelude::*;
+
+#[inline(always)]
+fn resolve_appearance<'a>(state: &'a AppState, items: &'a [Appearance], category: &AppearanceCategory, appearance_id: u32) -> Option<&'a Appearance> {
+    let index_map = match category {
+        AppearanceCategory::Objects => &state.object_index,
+        AppearanceCategory::Outfits => &state.outfit_index,
+        AppearanceCategory::Effects => &state.effect_index,
+        AppearanceCategory::Missiles => &state.missile_index,
+    };
+
+    if let Some(idx) = index_map.get(&appearance_id) {
+        items.get(*idx)
+    } else {
+        items.iter().find(|app| app.id.unwrap_or(0) == appearance_id)
+    }
+}
 
 #[tauri::command]
 pub async fn load_sprites_catalog(catalog_path: String, assets_dir: String, state: State<'_, AppState>) -> Result<usize, String> {
@@ -66,17 +82,17 @@ pub async fn auto_load_sprites(tibia_path: String, state: State<'_, AppState>) -
     Ok(sprite_count)
 }
 
-/// Get sprite by ID as base64 PNG
+/// Get sprite by ID as PNG bytes (no base64 overhead)
 /// Optimized: SpriteLoader now uses lock-free cache internally
 #[tauri::command]
-pub async fn get_sprite_by_id(sprite_id: u32, state: State<'_, AppState>) -> Result<String, String> {
+pub async fn get_sprite_by_id(sprite_id: u32, state: State<'_, AppState>) -> Result<Vec<u8>, String> {
     let sprite_loader_lock = state.sprite_loader.read();
 
     match &*sprite_loader_lock {
         Some(loader) => {
             let sprite = loader.get_sprite(sprite_id).map_err(|e| format!("Failed to get sprite {}: {}", sprite_id, e))?;
 
-            sprite.to_base64_png().map_err(|e| format!("Failed to convert sprite to PNG: {}", e))
+            sprite.to_png_bytes().map_err(|e| format!("Failed to convert sprite to PNG: {}", e))
         }
         None => Err("No sprites loaded".to_string()),
     }
@@ -85,12 +101,12 @@ pub async fn get_sprite_by_id(sprite_id: u32, state: State<'_, AppState>) -> Res
 /// Get sprites for an appearance (from sprite IDs in frame groups)
 /// Optimized: Lock-free cache with Arc for zero-copy sharing
 #[tauri::command]
-pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id: u32, state: State<'_, AppState>) -> Result<Vec<String>, String> {
-    // Check cache first (lock-free read)
+pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id: u32, state: State<'_, AppState>) -> Result<Vec<Vec<u8>>, String> {
+    // Check cache first (LRU cache with Arc internally)
     let cache_key = format!("{:?}:{}", category, appearance_id);
     if let Some(cached_sprites) = state.sprite_cache.get(&cache_key) {
-        // Clone the Vec<String> from Arc without moving out of DashMap guard
-        return Ok(cached_sprites.value().as_ref().clone());
+        // Arc is cloned internally, data is shared
+        return Ok((*cached_sprites).clone());
     }
 
     let appearances_lock = state.appearances.read();
@@ -106,6 +122,7 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
         None => return Err("No sprites loaded".to_string()),
     };
 
+    let app_state = state.inner();
     let items = match category {
         AppearanceCategory::Objects => &appearances.object,
         AppearanceCategory::Outfits => &appearances.outfit,
@@ -113,7 +130,7 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
         AppearanceCategory::Missiles => &appearances.missile,
     };
 
-    let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", appearance_id, category))?;
+    let appearance = resolve_appearance(app_state, items, &category, appearance_id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", appearance_id, category))?;
 
     // Collect all sprite IDs from all frame groups
     let all_sprite_ids: Vec<u32> = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()).collect();
@@ -121,13 +138,13 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
     // CRITICAL OPTIMIZATION: Process sprites in PARALLEL
     // Each sprite's decompression + PNG encoding runs on a separate thread
     // Significant speedup when appearance has many sprites (10+ sprites = 10x faster on 10+ cores)
-    let sprite_images: Vec<String> = if all_sprite_ids.len() > 5 {
+    let sprite_images: Vec<Vec<u8>> = if all_sprite_ids.len() > 5 {
         // Use parallel processing for appearances with many sprites
         all_sprite_ids
             .par_iter()
             .filter_map(|&sprite_id| match sprite_loader.get_sprite(sprite_id) {
-                Ok(sprite) => match sprite.to_base64_png() {
-                    Ok(base64_png) => Some(base64_png),
+                Ok(sprite) => match sprite.to_png_bytes() {
+                    Ok(bytes) => Some(bytes),
                     Err(e) => {
                         log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
                         None
@@ -144,8 +161,8 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
         all_sprite_ids
             .iter()
             .filter_map(|&sprite_id| match sprite_loader.get_sprite(sprite_id) {
-                Ok(sprite) => match sprite.to_base64_png() {
-                    Ok(base64_png) => Some(base64_png),
+                Ok(sprite) => match sprite.to_png_bytes() {
+                    Ok(bytes) => Some(bytes),
                     Err(e) => {
                         log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
                         None
@@ -159,17 +176,16 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
             .collect()
     };
 
-    // Store in cache (lock-free insert with Arc for zero-copy sharing)
-    let sprites_arc = Arc::new(sprite_images);
-    state.sprite_cache.insert(cache_key, sprites_arc.clone());
+    // Store in cache (LRU cache with automatic eviction)
+    state.sprite_cache.insert(cache_key, sprite_images.clone());
 
-    Ok((*sprites_arc).clone())
+    Ok(sprite_images)
 }
 
 /// Get a single preview sprite (first available sprite) for an appearance
 /// Optimized: SpriteLoader uses lock-free cache
 #[tauri::command]
-pub async fn get_appearance_preview_sprite(category: AppearanceCategory, appearance_id: u32, state: State<'_, AppState>) -> Result<Option<String>, String> {
+pub async fn get_appearance_preview_sprite(category: AppearanceCategory, appearance_id: u32, state: State<'_, AppState>) -> Result<Option<Vec<u8>>, String> {
     let appearances_lock = state.appearances.read();
     let sprite_loader_lock = state.sprite_loader.read();
 
@@ -183,6 +199,7 @@ pub async fn get_appearance_preview_sprite(category: AppearanceCategory, appeara
         None => return Err("No sprites loaded".to_string()),
     };
 
+    let app_state = state.inner();
     let items = match category {
         AppearanceCategory::Objects => &appearances.object,
         AppearanceCategory::Outfits => &appearances.outfit,
@@ -190,7 +207,7 @@ pub async fn get_appearance_preview_sprite(category: AppearanceCategory, appeara
         AppearanceCategory::Missiles => &appearances.missile,
     };
 
-    let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", appearance_id, category))?;
+    let appearance = resolve_appearance(app_state, items, &category, appearance_id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", appearance_id, category))?;
 
     let first_sprite_id = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter()).copied().next();
 
@@ -201,7 +218,7 @@ pub async fn get_appearance_preview_sprite(category: AppearanceCategory, appeara
 
     let sprite = sprite_loader.get_sprite(sprite_id).map_err(|e| format!("Failed to get sprite {}: {}", sprite_id, e))?;
 
-    let preview = sprite.to_base64_png().map_err(|e| format!("Failed to convert sprite to PNG: {}", e))?;
+    let preview = sprite.to_png_bytes().map_err(|e| format!("Failed to convert sprite to PNG: {}", e))?;
 
     Ok(Some(preview))
 }
@@ -211,18 +228,23 @@ pub async fn get_appearance_preview_sprite(category: AppearanceCategory, appeara
 #[tauri::command]
 pub async fn clear_sprite_cache(state: State<'_, AppState>) -> Result<usize, String> {
     let cache_size = state.sprite_cache.len();
+    let preview_size = state.preview_cache.len();
     state.sprite_cache.clear();
-    log::info!("Cleared sprite cache ({} entries)", cache_size);
-    Ok(cache_size)
+    state.preview_cache.clear();
+    log::info!("Cleared sprite cache ({} entries) and preview cache ({})", cache_size, preview_size);
+    Ok(cache_size + preview_size)
 }
 
 /// Get sprite cache statistics
 /// Optimized: Lock-free cache statistics
+/// NOTE: DashMap doesn't implement IntoParallelRefIterator, so we use sequential iteration
+/// which is still fast due to DashMap's lock-free design
 #[tauri::command]
 pub async fn get_sprite_cache_stats(state: State<'_, AppState>) -> Result<(usize, usize), String> {
     let total_entries = state.sprite_cache.len();
-    let total_sprites: usize = state.sprite_cache.iter().map(|entry| entry.value().len()).sum();
-    Ok((total_entries, total_sprites))
+    // DashMap iteration is already efficient (lock-free), sequential is fine
+    let total_sprites: usize = state.sprite_cache.iter().map(|entry| entry.value().value.len()).sum();
+    Ok((total_entries + state.preview_cache.len(), total_sprites + state.preview_cache.len()))
 }
 
 /// BATCH SPRITE LOADING - MASSIVE PERFORMANCE BOOST for preview grids
@@ -240,7 +262,7 @@ pub async fn get_sprite_cache_stats(state: State<'_, AppState>) -> Result<(usize
 ///
 /// USAGE: Frontend calls this with all visible appearance IDs at once
 #[tauri::command]
-pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearance_ids: Vec<u32>, state: State<'_, AppState>) -> Result<HashMap<u32, Vec<String>>, String> {
+pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearance_ids: Vec<u32>, state: State<'_, AppState>) -> Result<HashMap<u32, Vec<Vec<u8>>>, String> {
     log::info!("BATCH SPRITE LOAD: Loading sprites for {} appearances in {:?}", appearance_ids.len(), category);
 
     // Early return if no IDs requested
@@ -262,6 +284,7 @@ pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearan
         None => return Err("No sprites loaded".to_string()),
     };
 
+    let app_state = state.inner();
     let items = match category {
         AppearanceCategory::Objects => &appearances.object,
         AppearanceCategory::Outfits => &appearances.outfit,
@@ -270,7 +293,7 @@ pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearan
     };
 
     // OPTIMIZATION 1: Check cache first, collect IDs that need loading
-    let mut result: HashMap<u32, Vec<String>> = HashMap::with_capacity(appearance_ids.len());
+    let mut result: HashMap<u32, Vec<Vec<u8>>> = HashMap::with_capacity(appearance_ids.len());
     let mut ids_to_load: Vec<u32> = Vec::new();
 
     for &appearance_id in &appearance_ids {
@@ -278,8 +301,8 @@ pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearan
 
         // Cache hit - use cached sprites
         if let Some(cached_sprites) = state.sprite_cache.get(&cache_key) {
-            // Clone the Vec<String> from Arc without moving out of DashMap guard
-            result.insert(appearance_id, cached_sprites.value().as_ref().clone());
+            // LRU cache returns Arc internally
+            result.insert(appearance_id, (*cached_sprites).clone());
         } else {
             // Cache miss - need to load
             ids_to_load.push(appearance_id);
@@ -296,11 +319,11 @@ pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearan
 
     // OPTIMIZATION 2: Load all non-cached appearances in PARALLEL
     // Each appearance processes its sprites in parallel too (nested parallelism)
-    let loaded_sprites: Vec<(u32, Vec<String>)> = ids_to_load
+    let loaded_sprites: Vec<(u32, Vec<Vec<u8>>)> = ids_to_load
         .par_iter()
         .filter_map(|&appearance_id| {
-            // Find appearance
-            let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id)?;
+            // Find appearance (O(1) via índices pré-construídos)
+            let appearance = resolve_appearance(app_state, items, &category, appearance_id)?;
 
             // Collect all sprite IDs from all frame groups
             let all_sprite_ids: Vec<u32> = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()).collect();
@@ -312,11 +335,11 @@ pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearan
 
             // NESTED PARALLELISM: Process this appearance's sprites in parallel
             // Always use parallel for batch loading (already in parallel context)
-            let sprite_images: Vec<String> = all_sprite_ids
+            let sprite_images: Vec<Vec<u8>> = all_sprite_ids
                 .par_iter()
                 .filter_map(|&sprite_id| match sprite_loader.get_sprite(sprite_id) {
-                    Ok(sprite) => match sprite.to_base64_png() {
-                        Ok(base64_png) => Some(base64_png),
+                    Ok(sprite) => match sprite.to_png_bytes() {
+                        Ok(bytes) => Some(bytes),
                         Err(e) => {
                             log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
                             None
@@ -336,8 +359,7 @@ pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearan
     // OPTIMIZATION 3: Cache all loaded sprites and add to result
     for (appearance_id, sprites) in loaded_sprites {
         let cache_key = format!("{:?}:{}", category, appearance_id);
-        let sprites_arc = Arc::new(sprites.clone());
-        state.sprite_cache.insert(cache_key, sprites_arc);
+        state.sprite_cache.insert(cache_key, sprites.clone());
         result.insert(appearance_id, sprites);
     }
 
@@ -360,7 +382,7 @@ pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearan
 ///
 /// USAGE: Frontend calls this for list/grid views
 #[tauri::command]
-pub async fn get_appearance_preview_sprites_batch(category: AppearanceCategory, appearance_ids: Vec<u32>, state: State<'_, AppState>) -> Result<HashMap<u32, String>, String> {
+pub async fn get_appearance_preview_sprites_batch(category: AppearanceCategory, appearance_ids: Vec<u32>, state: State<'_, AppState>) -> Result<HashMap<u32, Vec<u8>>, String> {
     log::info!("BATCH PREVIEW LOAD: Loading preview sprites for {} appearances in {:?}", appearance_ids.len(), category);
 
     // Early return if no IDs requested
@@ -382,6 +404,7 @@ pub async fn get_appearance_preview_sprites_batch(category: AppearanceCategory, 
         None => return Err("No sprites loaded".to_string()),
     };
 
+    let app_state = state.inner();
     let items = match category {
         AppearanceCategory::Objects => &appearances.object,
         AppearanceCategory::Outfits => &appearances.outfit,
@@ -389,23 +412,48 @@ pub async fn get_appearance_preview_sprites_batch(category: AppearanceCategory, 
         AppearanceCategory::Missiles => &appearances.missile,
     };
 
-    // OPTIMIZATION: Load all previews in PARALLEL
-    let result: HashMap<u32, String> = appearance_ids
+    // OPTIMIZATION: First check preview cache, collect misses
+    let mut result: HashMap<u32, Vec<u8>> = HashMap::with_capacity(appearance_ids.len());
+    let mut ids_to_load: Vec<u32> = Vec::new();
+
+    for &appearance_id in &appearance_ids {
+        let cache_key = format!("{:?}:{}", category, appearance_id);
+        if let Some(cached) = state.preview_cache.get(&cache_key) {
+            result.insert(appearance_id, (*cached).clone());
+        } else {
+            ids_to_load.push(appearance_id);
+        }
+    }
+
+    if ids_to_load.is_empty() {
+        log::info!("BATCH PREVIEW LOAD: all {} previews cached", result.len());
+        return Ok(result);
+    }
+
+    // OPTIMIZATION: Load remaining previews in PARALLEL
+    let loaded: HashMap<u32, Vec<u8>> = ids_to_load
         .par_iter()
         .filter_map(|&appearance_id| {
             // Find appearance
-            let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id)?;
+            let appearance = resolve_appearance(app_state, items, &category, appearance_id)?;
 
             // Get first sprite ID
             let first_sprite_id = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter()).copied().next()?;
 
             // Load and encode sprite
             let sprite = sprite_loader.get_sprite(first_sprite_id).ok()?;
-            let preview = sprite.to_base64_png().ok()?;
+            let preview = sprite.to_png_bytes().ok()?;
 
             Some((appearance_id, preview))
         })
         .collect();
+
+    // Cache loaded previews and merge
+    for (id, preview) in loaded {
+        let cache_key = format!("{:?}:{}", category, id);
+        state.preview_cache.insert(cache_key, preview.clone());
+        result.insert(id, preview);
+    }
 
     log::info!("BATCH PREVIEW LOAD: Successfully loaded {} previews", result.len());
     Ok(result)

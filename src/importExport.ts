@@ -1,4 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
+// ✅ IMPROVED: Using type-safe utilities
+import { join, tempDir } from "@tauri-apps/api/path";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { showStatus } from "./utils";
 import { translate, type TranslationKey } from "./i18n";
@@ -7,6 +8,10 @@ import { getCurrentCategory, loadAssets } from "./assetUI";
 import type { CompleteAppearanceItem } from "./types";
 import { clearAssetSelection, removeAssetSelection } from "./assetSelection";
 import type { AssetSelectionChangeDetail } from "./assetSelection";
+import { recordAction } from "./history";
+import { openConfirmModal } from "./confirmModal";
+import { invoke } from "./utils/invoke";
+import { COMMANDS } from "./commands";
 
 const ACTION_CONTAINER_ID = "appearance-action-bar";
 const ACTION_BUTTON_IDS = {
@@ -184,7 +189,7 @@ async function handleExport(category: string, id: number): Promise<void> {
       return;
     }
 
-    await invoke("export_appearance_to_json", { category, id, path: destination });
+    await invoke(COMMANDS.EXPORT_APPEARANCE_TO_JSON, { category, id, path: destination });
     showStatus(translate('status.appearanceExported', { id }), "success");
   } catch (error) {
     console.error("Failed to export appearance", error);
@@ -229,7 +234,7 @@ async function handleImport(category: string, _currentId: number): Promise<void>
     });
 
     const imported = result as CompleteAppearanceItem;
-    await invoke("save_appearances_file");
+    await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssets();
     await refreshAssetDetails(category, imported.id);
     showStatus(translate('status.appearanceImported', { id: imported.id }), "success");
@@ -259,7 +264,7 @@ async function handleDuplicate(category: string, id: number): Promise<void> {
     });
 
     const duplicated = result as CompleteAppearanceItem;
-    await invoke("save_appearances_file");
+    await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssets();
     await refreshAssetDetails(category, duplicated.id);
     showStatus(translate('status.appearanceDuplicated', { id: duplicated.id }), "success");
@@ -293,7 +298,7 @@ async function handleCreateNew(category: string): Promise<void> {
     });
 
     const created = result as CompleteAppearanceItem;
-    await invoke("save_appearances_file");
+    await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssets();
     await refreshAssetDetails(category, created.id);
     showStatus(translate('status.appearanceCreated', { id: created.id }), "success");
@@ -305,7 +310,7 @@ async function handleCreateNew(category: string): Promise<void> {
 
 async function handleCopyFlags(category: string, id: number): Promise<void> {
   try {
-    await invoke("copy_appearance_flags", { category, id });
+    await invoke(COMMANDS.COPY_APPEARANCE_FLAGS, { category, id });
     hasClipboard = true;
     updateActionButtonStates();
     showStatus(translate('status.flagsCopied', { id }), "success");
@@ -327,9 +332,9 @@ async function handlePasteFlagsBatch(targets: AssetTarget[]): Promise<void> {
 
   try {
     for (const target of targets) {
-      await invoke("paste_appearance_flags", { category: target.category, id: target.id });
+      await invoke(COMMANDS.PASTE_APPEARANCE_FLAGS, { category: target.category, id: target.id });
     }
-    await invoke("save_appearances_file");
+    await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssets();
 
     const currentDetail = detailTarget;
@@ -369,24 +374,43 @@ async function handleDeleteAppearances(targets: AssetTarget[]): Promise<void> {
     return;
   }
 
-  if (uniqueTargets.length === 1) {
-    const target = uniqueTargets[0];
-    if (!window.confirm(translate('confirm.deleteSingle', { id: target.id }))) {
-      return;
-    }
-  } else {
-    const ids = uniqueTargets.map((target) => `#${target.id}`).join(", ");
-    if (!window.confirm(translate('confirm.deleteMultiple', { count: uniqueTargets.length, ids }))) {
-      return;
-    }
+  const confirmed = uniqueTargets.length === 1
+    ? await openConfirmModal(
+      translate('confirm.deleteSingle', { id: uniqueTargets[0].id }),
+      translate('action.verb.delete')
+    )
+    : await openConfirmModal(
+      translate('confirm.deleteMultiple', {
+        count: uniqueTargets.length,
+        ids: uniqueTargets.map((target) => `#${target.id}`).join(", ")
+      }),
+      translate('action.verb.delete')
+    );
+
+  if (!confirmed) {
+    return;
   }
 
   try {
+    const tmpDir = await tempDir();
+    const snapshots: { category: string; id: number; path: string }[] = [];
+
     for (const target of uniqueTargets) {
-      await invoke("delete_appearance", { category: target.category, id: target.id });
+      const uniqueName = `appearance-undo-${target.category}-${target.id}-${Date.now()}-${Math.random().toString(16).slice(2)}.json`;
+      const snapshotPath = await join(tmpDir, uniqueName);
+      await invoke(COMMANDS.EXPORT_APPEARANCE_TO_JSON, {
+        category: target.category,
+        id: target.id,
+        path: snapshotPath
+      });
+      snapshots.push({ ...target, path: snapshotPath });
+    }
+
+    for (const target of uniqueTargets) {
+      await invoke(COMMANDS.DELETE_APPEARANCE, { category: target.category, id: target.id });
       removeAssetSelection(target.category, target.id);
     }
-    await invoke("save_appearances_file");
+    await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssets();
     closeAssetDetails();
     clearAssetSelection();
@@ -396,6 +420,39 @@ async function handleDeleteAppearances(targets: AssetTarget[]): Promise<void> {
         ? translate('status.appearanceDeletedSingle', { id: uniqueTargets[0].id })
         : translate('status.appearanceDeletedMultiple', { count: uniqueTargets.length });
     showStatus(message, "success");
+
+    recordAction({
+      description: uniqueTargets.length === 1
+        ? translate('status.appearanceDeletedSingle', { id: uniqueTargets[0].id })
+        : translate('status.appearanceDeletedMultiple', { count: uniqueTargets.length }),
+      undo: async () => {
+        for (const snap of snapshots) {
+          await invoke<CompleteAppearanceItem>("import_appearance_from_json", {
+            category: snap.category,
+            path: snap.path,
+            // Use "new" to reintroduce the deleted ID even if it no longer exists
+            mode: "new",
+            newId: snap.id
+          });
+        }
+        await invoke("save_appearances_file");
+        await loadAssets();
+        if (snapshots.length === 1) {
+          await refreshAssetDetails(snapshots[0].category, snapshots[0].id);
+        }
+      },
+      redo: async () => {
+        for (const snap of snapshots) {
+          await invoke(COMMANDS.DELETE_APPEARANCE, { category: snap.category, id: snap.id });
+          removeAssetSelection(snap.category, snap.id);
+        }
+        await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
+        await loadAssets();
+        closeAssetDetails();
+        clearAssetSelection();
+        setActionSelection(resolveCategory(null), null);
+      }
+    });
   } catch (error) {
     console.error("Failed to delete appearance", error);
     showStatus(translate('status.appearanceDeleteFailed'), "error");

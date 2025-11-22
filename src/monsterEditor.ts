@@ -1,0 +1,3787 @@
+import { invoke } from './utils/invoke';
+import { COMMANDS } from './commands';
+import type {
+  AttackEntry,
+  DefenseEntry,
+  LuaProperty,
+  Monster,
+  MonsterBestiary,
+  MonsterBosstiary,
+  MonsterListEntry,
+  MonsterMeta,
+  MonsterOutfit,
+  MonsterSummon,
+} from "./monsterTypes";
+import type { CompleteAppearanceItem, CompleteSpriteInfo } from "./types";
+import { getAppearanceSprites, bufferToObjectUrl } from "./spriteCache";
+import { computeSpriteIndex, computeGroupOffsetsFromDetails } from "./animation";
+import { ensureAppearancesLoaded } from "./appearanceLoader";
+import { getSpriteUrl } from "./utils/spriteUrlCache";
+
+export interface MonsterEditorOptions {
+  onBack: () => void;
+  monstersPath: string;
+}
+
+// Alias for backward compatibility with NPC editor
+export interface EditorViewOptions {
+  onBack: () => void;
+}
+
+let currentMonster: Monster | null = null;
+let currentFilePath: string | null = null;
+let monsterList: MonsterListEntry[] = [];
+let lastEditorArea: HTMLElement | null = null;
+let monsterListContainer: HTMLElement | null = null;
+let monsterEditorAreaRef: HTMLElement | null = null;
+let monsterSearchInput: HTMLInputElement | null = null;
+let monstersRootPath: string | null = null;
+let originalMonsterName: string | null = null;
+let monsterSidebarRef: HTMLElement | null = null;
+let bestiaryClassOrder: string[] = [];
+const outfitSpriteMetadataCache = new Map<number, { spriteInfo: CompleteSpriteInfo; baseOffset: number }>();
+const OUTFIT_COLOR_COUNT = 19 * 7;
+const outfitColorHexCache = Array.from({ length: OUTFIT_COLOR_COUNT }, (_, id) => rgbToCss(outfitColorIdToRgb(id)));
+const outfitColorRgbCache = Array.from({ length: OUTFIT_COLOR_COUNT }, (_, id) => outfitColorIdToRgb(id));
+const MAX_OUTFIT_ADDONS = 3;
+const UNKNOWN_CLASS_NAME = "Unknown";
+
+type DirectionalPreview = {
+  direction: number;
+  frames: string[];
+  durations: number[];
+};
+
+function createDefaultBestiary(): MonsterBestiary {
+  return {
+    class: "",
+    race: "",
+    toKill: 0,
+    firstUnlock: 0,
+    secondUnlock: 0,
+    charmsPoints: 0,
+    stars: 0,
+    occurrence: 0,
+    locations: "",
+  };
+}
+
+function createDefaultBosstiary(): MonsterBosstiary {
+  return {
+    bossRaceId: 0,
+    bossRace: "",
+  };
+}
+
+function createDefaultSummon(): MonsterSummon {
+  return {
+    maxSummons: 0,
+    summons: [],
+  };
+}
+
+function ensureMonsterMeta(monster: Monster): MonsterMeta {
+  if (!monster.meta) {
+    monster.meta = { missingFields: [], touchedFields: [] };
+  } else {
+    if (!monster.meta.missingFields) {
+      monster.meta.missingFields = [];
+    }
+    if (!monster.meta.touchedFields) {
+      monster.meta.touchedFields = [];
+    }
+  }
+  return monster.meta!;
+}
+
+function markFieldTouched(field: string) {
+  if (!currentMonster) return;
+  const meta = ensureMonsterMeta(currentMonster);
+  if (!meta.touchedFields.includes(field)) {
+    meta.touchedFields.push(field);
+  }
+}
+
+export function createMonsterEditorView({ onBack, monstersPath }: MonsterEditorOptions): HTMLElement {
+  const container = document.createElement("div");
+  container.className = "monster-editor-container";
+  monstersRootPath = monstersPath;
+
+  // Header
+  const header = createHeader(onBack);
+  container.appendChild(header);
+
+  // Main content with sidebar and editor
+  const mainContent = document.createElement("div");
+  mainContent.className = "monster-editor-main";
+
+  // Sidebar with monster list
+  const sidebar = createSidebar();
+  mainContent.appendChild(sidebar);
+
+  // Editor area
+  const editorArea = createEditorArea();
+  mainContent.appendChild(editorArea);
+
+  container.appendChild(mainContent);
+
+  // Load monster list
+  loadMonsterList(monstersPath, sidebar);
+
+  return container;
+}
+
+function createHeader(onBack: () => void): HTMLElement {
+  const header = document.createElement("header");
+  header.className = "monster-editor-header";
+
+  const backButton = document.createElement("button");
+  backButton.className = "editor-back-button";
+  backButton.innerHTML = '<span class="btn-icon">🏠</span><span>Back to Home</span>';
+  backButton.onclick = onBack;
+
+  const title = document.createElement("h1");
+  title.textContent = "Monster Editor";
+
+  const actions = document.createElement("div");
+  actions.className = "monster-header-actions";
+
+  const reloadButton = document.createElement("button");
+  reloadButton.type = "button";
+  reloadButton.className = "editor-icon-button";
+  reloadButton.innerHTML = '<span class="btn-icon">🔄</span><span>Reload</span>';
+  reloadButton.title = "Recarregar diretório atual";
+  reloadButton.addEventListener("click", () => {
+    reloadCurrentMonsterDirectory();
+  });
+
+  const changeDirButton = document.createElement("button");
+  changeDirButton.type = "button";
+  changeDirButton.className = "editor-icon-button";
+  changeDirButton.innerHTML = '<span class="btn-icon">📁</span><span>Mudar pasta</span>';
+  changeDirButton.title = "Escolher um novo diretório de monstros";
+  changeDirButton.addEventListener("click", () => {
+    selectNewMonsterDirectory();
+  });
+
+  actions.append(reloadButton, changeDirButton);
+
+  header.appendChild(backButton);
+  header.appendChild(title);
+  header.appendChild(actions);
+
+  return header;
+}
+
+function createSidebar(): HTMLElement {
+  const sidebar = document.createElement("aside");
+  sidebar.className = "monster-sidebar";
+  monsterSidebarRef = sidebar;
+
+  const searchBox = document.createElement("input");
+  searchBox.type = "text";
+  searchBox.className = "monster-search";
+  searchBox.placeholder = "Search monsters...";
+
+  const monsterListEl = document.createElement("div");
+  monsterListEl.className = "monster-list";
+
+  monsterListContainer = monsterListEl;
+  monsterSearchInput = searchBox;
+
+  searchBox.addEventListener("input", () => {
+    renderMonsterList(monsterListEl, searchBox.value);
+  });
+
+  sidebar.appendChild(searchBox);
+  sidebar.appendChild(monsterListEl);
+
+  return sidebar;
+}
+
+function createEditorArea(): HTMLElement {
+  const editorArea = document.createElement("div");
+  editorArea.className = "monster-editor-area";
+  monsterEditorAreaRef = editorArea;
+
+  const emptyState = document.createElement("div");
+  emptyState.className = "monster-editor-empty";
+  emptyState.textContent = "Select a monster to edit";
+  editorArea.appendChild(emptyState);
+
+  return editorArea;
+}
+
+function showEmptyMonsterEditorState() {
+  if (!monsterEditorAreaRef) return;
+  monsterEditorAreaRef.innerHTML = "";
+  const emptyState = document.createElement("div");
+  emptyState.className = "monster-editor-empty";
+  emptyState.textContent = "Select a monster to edit";
+  monsterEditorAreaRef.appendChild(emptyState);
+}
+
+async function loadMonsterList(monstersPath: string, sidebar: HTMLElement) {
+  monstersRootPath = monstersPath;
+  const listEl = sidebar.querySelector(".monster-list") as HTMLElement;
+  listEl.innerHTML = "<div class='loading'>Carregando assets...</div>";
+
+  try {
+    await ensureAppearancesLoaded();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    listEl.innerHTML = `<div class='error'>${message}</div>`;
+    return;
+  }
+
+  listEl.innerHTML = "<div class='loading'>Loading monsters...</div>";
+
+  try {
+    const [monsterEntries, classOrder] = await Promise.all([
+      invoke<MonsterListEntry[]>("list_monster_files", { monstersPath }),
+      invoke<string[]>("list_bestiary_classes", { monstersPath }).catch(() => []),
+    ]);
+    monsterList = monsterEntries;
+    bestiaryClassOrder = normalizeBestiaryOrder(classOrder);
+    renderMonsterList(listEl);
+  } catch (error) {
+    listEl.innerHTML = `<div class='error'>Failed to load monsters: ${error}</div>`;
+  }
+}
+
+async function reloadCurrentMonsterDirectory() {
+  if (!monsterSidebarRef) {
+    alert("Sidebar não está disponível para recarregar.");
+    return;
+  }
+
+  if (!monstersRootPath) {
+    await selectNewMonsterDirectory();
+    return;
+  }
+
+  try {
+    await loadMonsterList(monstersRootPath, monsterSidebarRef);
+    if (currentFilePath && monsterEditorAreaRef) {
+      await loadMonster(currentFilePath, monsterEditorAreaRef);
+    }
+  } catch (error) {
+    alert(`Falha ao recarregar monstros: ${error}`);
+  }
+}
+
+async function selectNewMonsterDirectory() {
+  try {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const selection = await open({ directory: true, multiple: false });
+    if (typeof selection !== "string" || !selection) {
+      return;
+    }
+
+    await invoke(COMMANDS.SET_MONSTER_BASE_PATH, { monsterPath: selection });
+    monstersRootPath = selection;
+    showEmptyMonsterEditorState();
+    if (monsterSidebarRef) {
+      await loadMonsterList(selection, monsterSidebarRef);
+    }
+  } catch (error) {
+    console.error("Failed to select monster directory:", error);
+    alert("Não foi possível selecionar a nova pasta de monstros.");
+  }
+}
+
+type MonsterCategoryNode = {
+  name: string;
+  path: string;
+  children: Map<string, MonsterCategoryNode>;
+  monsters: MonsterListEntry[];
+};
+
+const CATEGORY_ICON_MAP: Record<string, string> = {
+  amphibic: "🐸",
+  amphibics: "🐸",
+  aquatic: "🐠",
+  aquatics: "🐠",
+  animal: "🐾",
+  animals: "🐾",
+  bird: "🐦",
+  birds: "🐦",
+  boss: "👑",
+  bosses: "👑",
+  construct: "🏗️",
+  constructs: "🏗️",
+  custom: "❓",
+  dawnport: "🌅",
+  demon: "😈",
+  demons: "😈",
+  dragon: "🐉",
+  dragons: "🐉",
+  elemental: "🔥",
+  elementals: "🔥",
+  event_creatures: "🎉",
+  event: "🎊",
+  extra_dimensional: "🌀",
+  familiars: "🧿",
+  familiars_event: "🎭",
+  fey: "🧚",
+  giant: "🗿",
+  giants: "🗿",
+  humanoid: "🧍",
+  humanoids: "🧍",
+  human: "🧑",
+  humans: "🧑",
+  inkborn: "🦑",
+  insect: "🐞",
+  insects: "🐞",
+  lycanthrope: "🐺",
+  lycanthropes: "🐺",
+  machine: "⚙️",
+  machines: "⚙️",
+  magical: "✨",
+  mammal: "🦬",
+  mammals: "🦬",
+  mutant: "🧬",
+  mutants: "🧬",
+  orc: "🪓",
+  orcs: "🪓",
+  plant: "🌿",
+  plants: "🌿",
+  reptile: "🐍",
+  reptiles: "🐍",
+  slime: "🟢",
+  slimes: "🟢",
+  undead: "💀",
+  vampire: "🩸",
+  vampires: "🩸",
+  vermin: "🐀",
+  unknown: "❔",
+};
+function getCategoryIcon(categoryName: string): string {
+  const normalized = categoryName.toLowerCase().replace(/\s+/g, "_");
+  return CATEGORY_ICON_MAP[normalized] ?? "??";
+}
+
+function formatBestiaryClassName(raw?: string | null): string | null {
+  if (!raw) return null;
+  const cleaned = raw.replace(/_/g, " ").trim();
+  if (!cleaned) return null;
+
+  return cleaned
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function getBestiaryClassLabel(entry: MonsterListEntry): string {
+  return formatBestiaryClassName(entry.bestiaryClass) ?? UNKNOWN_CLASS_NAME;
+}
+
+function normalizeBestiaryOrder(order?: string[]): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+
+  (order ?? []).forEach((name) => {
+    const formatted = formatBestiaryClassName(name);
+    if (!formatted) return;
+    const key = formatted.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      normalized.push(formatted);
+    }
+  });
+
+  if (!seen.has(UNKNOWN_CLASS_NAME.toLowerCase())) {
+    normalized.push(UNKNOWN_CLASS_NAME);
+  }
+
+  return normalized;
+}
+
+function sortCategoryNodes(nodes: MonsterCategoryNode[]): MonsterCategoryNode[] {
+  if (nodes.length === 0) return nodes;
+  const orderMap = new Map<string, number>(
+    bestiaryClassOrder.map((name, index) => [name.toLowerCase(), index]),
+  );
+
+  return nodes.sort((a, b) => {
+    const aIndex = getCategoryOrderIndex(a.name, orderMap);
+    const bIndex = getCategoryOrderIndex(b.name, orderMap);
+    if (aIndex !== bIndex) {
+      return aIndex - bIndex;
+    }
+    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  });
+}
+
+function getCategoryOrderIndex(name: string, orderMap: Map<string, number>): number {
+  const normalized = name.toLowerCase();
+  if (normalized === "bosses") {
+    return Number.MAX_SAFE_INTEGER - 1;
+  }
+  return orderMap.get(normalized) ?? Number.MAX_SAFE_INTEGER;
+}
+
+function renderMonsterList(target?: HTMLElement, filterText?: string) {
+  const listEl = target ?? monsterListContainer;
+  if (!listEl) return;
+
+  const normalizedFilter = (filterText ?? monsterSearchInput?.value ?? "").trim().toLowerCase();
+  const entries =
+    normalizedFilter.length === 0
+      ? [...monsterList]
+      : monsterList.filter((entry) => {
+          const nameMatch = entry.name.toLowerCase().includes(normalizedFilter);
+          const relativePath = entry.relativePath ?? entry.filePath;
+          const pathMatch = relativePath.toLowerCase().includes(normalizedFilter);
+          const categoryMatch = (entry.categories ?? []).some((cat) => cat.toLowerCase().includes(normalizedFilter));
+          const classMatch = getBestiaryClassLabel(entry).toLowerCase().includes(normalizedFilter);
+          return nameMatch || pathMatch || categoryMatch || classMatch;
+        });
+
+  if (entries.length === 0) {
+    listEl.innerHTML = "<div class='empty'>No monsters found</div>";
+    return;
+  }
+
+  const classificationEntries = entries
+    .filter((entry) => !entry.isBoss)
+    .map((entry) => ({
+      ...entry,
+      categories: [getBestiaryClassLabel(entry)],
+    }));
+  const tree = buildMonsterTree(classificationEntries);
+  listEl.innerHTML = "";
+  const forceExpanded = normalizedFilter.length > 0;
+
+  const rootMonsters = [...tree.monsters].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  rootMonsters.forEach((entry) => {
+    listEl.appendChild(createMonsterListItem(entry, 0));
+  });
+
+  const categoryNodes = sortCategoryNodes(Array.from(tree.children.values()));
+  categoryNodes.forEach((node) => {
+    listEl.appendChild(createMonsterCategoryElement(node, 0, forceExpanded));
+  });
+
+  const bossEntries = entries.filter((entry) => entry.isBoss);
+  if (bossEntries.length > 0) {
+    const bossTreeEntries = bossEntries.map((entry) => {
+      const label = getBestiaryClassLabel(entry);
+      const categories =
+        label === UNKNOWN_CLASS_NAME ? ["Bosses"] : ["Bosses", label];
+      return {
+        ...entry,
+        categories,
+      };
+    });
+    const bossTree = buildMonsterTree(bossTreeEntries);
+    const bossNode = bossTree.children.get("Bosses");
+    if (bossNode) {
+      listEl.appendChild(createMonsterCategoryElement(bossNode, 0, forceExpanded));
+    }
+  }
+
+  if (currentFilePath) {
+    const activeItem = findMonsterListItemByPath(currentFilePath);
+    if (activeItem) {
+      highlightActiveMonsterItem(activeItem);
+    }
+  }
+}
+
+function buildMonsterTree(entries: MonsterListEntry[]): MonsterCategoryNode {
+  const root: MonsterCategoryNode = {
+    name: "__root__",
+    path: "",
+    children: new Map(),
+    monsters: [],
+  };
+
+  entries.forEach((entry) => {
+    const categories = Array.isArray(entry.categories) ? entry.categories : [];
+    let cursor = root;
+    categories.forEach((category) => {
+      if (!cursor.children.has(category)) {
+        const nextPath = cursor.path ? `${cursor.path}/${category}` : category;
+        cursor.children.set(category, {
+          name: category,
+          path: nextPath,
+          children: new Map(),
+          monsters: [],
+        });
+      }
+      cursor = cursor.children.get(category)!;
+    });
+    cursor.monsters.push(entry);
+  });
+
+  return root;
+}
+
+function countMonstersInNode(node: MonsterCategoryNode): number {
+  let total = node.monsters.length;
+  node.children.forEach((child) => {
+    total += countMonstersInNode(child);
+  });
+  return total;
+}
+
+function createMonsterCategoryElement(node: MonsterCategoryNode, depth: number, forceExpanded: boolean): HTMLElement {
+  const details = document.createElement("details");
+  details.className = "monster-category";
+  if (forceExpanded) {
+    details.open = true;
+  }
+
+  const summary = document.createElement("summary");
+  summary.className = "monster-category-header";
+  summary.style.paddingLeft = `${depth * 12 + 8}px`;
+
+  const icon = document.createElement("span");
+  icon.className = "category-icon";
+  icon.textContent = getCategoryIcon(node.name);
+
+  const title = document.createElement("span");
+  title.className = "category-name";
+  title.textContent = node.name;
+
+  const count = document.createElement("span");
+  count.className = "category-count";
+  count.textContent = countMonstersInNode(node).toString();
+
+  summary.append(icon, title, count);
+  details.appendChild(summary);
+
+  const childrenContainer = document.createElement("div");
+  childrenContainer.className = "monster-category-children";
+  details.appendChild(childrenContainer);
+
+  const childCategories = sortCategoryNodes(Array.from(node.children.values()));
+  childCategories.forEach((child) => {
+    childrenContainer.appendChild(createMonsterCategoryElement(child, depth + 1, forceExpanded));
+  });
+
+  const sortedMonsters = [...node.monsters].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  sortedMonsters.forEach((entry) => {
+    childrenContainer.appendChild(createMonsterListItem(entry, depth + 1));
+  });
+
+  return details;
+}
+
+function createMonsterListItem(entry: MonsterListEntry, depth: number): HTMLElement {
+  const item = document.createElement("div");
+  item.className = "monster-list-item";
+  item.dataset.path = entry.filePath;
+  item.textContent = entry.name;
+  item.style.paddingLeft = `${depth * 12 + 24}px`;
+
+  if (entry.filePath === currentFilePath) {
+    item.classList.add("active");
+  }
+
+  item.onclick = () => {
+    if (!monsterEditorAreaRef) return;
+    loadMonster(entry.filePath, monsterEditorAreaRef);
+    highlightActiveMonsterItem(item);
+  };
+
+  return item;
+}
+
+function highlightActiveMonsterItem(activeItem: HTMLElement) {
+  if (!monsterListContainer) return;
+  monsterListContainer.querySelectorAll(".monster-list-item").forEach((item) => item.classList.remove("active"));
+  activeItem.classList.add("active");
+
+  let parent: HTMLElement | null = activeItem.parentElement as HTMLElement | null;
+  while (parent && parent !== monsterListContainer) {
+    if (parent.tagName.toLowerCase() === "details") {
+      (parent as HTMLDetailsElement).open = true;
+    }
+    parent = parent.parentElement as HTMLElement | null;
+  }
+
+  activeItem.scrollIntoView({ block: "nearest" });
+}
+
+function findMonsterListItemByPath(path: string): HTMLElement | null {
+  if (!monsterListContainer) return null;
+  const items = monsterListContainer.querySelectorAll<HTMLElement>(".monster-list-item");
+  for (const item of items) {
+    if ((item.dataset.path || "") === path) {
+      return item;
+    }
+  }
+  return null;
+}
+
+async function loadMonster(filePath: string, editorArea: HTMLElement) {
+  editorArea.innerHTML = "<div class='loading'>Loading monster...</div>";
+
+  try {
+    currentMonster = await invoke<Monster>("load_monster_file", { filePath });
+    currentFilePath = filePath;
+    if (currentMonster) {
+      ensureMonsterMeta(currentMonster);
+      currentMonster.events = currentMonster.events ?? [];
+      originalMonsterName = currentMonster.name;
+    }
+    renderMonsterEditor(editorArea);
+  } catch (error) {
+    editorArea.innerHTML = `<div class='error'>Failed to load monster: ${error}</div>`;
+  }
+}
+
+function renderMonsterEditor(editorArea: HTMLElement) {
+  if (!currentMonster) return;
+
+  lastEditorArea = editorArea;
+  editorArea.innerHTML = "";
+
+  // Save button at top
+  const toolbar = document.createElement("div");
+  toolbar.className = "monster-editor-toolbar";
+
+  const saveButton = document.createElement("button");
+  saveButton.className = "btn-primary";
+  saveButton.textContent = "Save Monster";
+  saveButton.onclick = saveMonster;
+
+  toolbar.appendChild(saveButton);
+  editorArea.appendChild(toolbar);
+
+  // Single scrollable content area with all cards
+  const contentArea = document.createElement("div");
+  contentArea.className = "monster-content-area";
+  editorArea.appendChild(contentArea);
+
+  // Render all sections as cards
+  renderAllSections(contentArea);
+}
+
+function refreshMonsterEditorView() {
+  if (lastEditorArea && currentMonster) {
+    renderMonsterEditor(lastEditorArea);
+  }
+}
+
+function renderAllSections(container: HTMLElement) {
+  if (!currentMonster) return;
+
+  const cardsStack = document.createElement("div");
+  cardsStack.className = "monster-cards-grid";
+  container.appendChild(cardsStack);
+
+  const appendCard = (card: HTMLElement | null) => {
+    if (!card) return;
+    cardsStack.appendChild(card);
+  };
+
+  appendCard(createOutfitPreviewCard());
+  appendCard(createBasicInfoCard());
+  appendCard(createClassificationCard());
+  appendCard(createCombatStatsCard());
+  appendCard(createEventsCard());
+  appendCard(createSummonsCard());
+  appendCard(createVoicesCard());
+  appendCard(createAttacksCard());
+  appendCard(createElementsImmunitiesCard());
+  appendCard(createLootCard());
+  appendCard(createFlagsCard());
+  appendCard(createAdvancedSettingsCard());
+}
+
+// Card creation functions
+function createCard(title: string, content: HTMLElement): HTMLElement {
+  const card = document.createElement("div");
+  card.className = "monster-card";
+
+  const header = document.createElement("div");
+  header.className = "monster-card-header";
+  header.textContent = title;
+
+  const body = document.createElement("div");
+  body.className = "monster-card-body";
+  body.appendChild(content);
+
+  card.appendChild(header);
+  card.appendChild(body);
+
+  return card;
+}
+
+function createBasicInfoCard(): HTMLElement {
+  if (!currentMonster) return document.createElement("div");
+
+  const content = document.createElement("div");
+  content.className = "card-content";
+
+  content.appendChild(createFormGroup("Name", "text", currentMonster.name, (value) => {
+    if (currentMonster) currentMonster.name = value;
+  }));
+
+  content.appendChild(createFormGroup("Description", "textarea", currentMonster.description, (value) => {
+    if (currentMonster) currentMonster.description = value;
+    markFieldTouched("description");
+  }));
+
+  const statsRow = document.createElement("div");
+  statsRow.className = "form-row";
+
+  statsRow.appendChild(createFormGroup("Experience", "number", currentMonster.experience.toString(), (value) => {
+    if (currentMonster) currentMonster.experience = parseInt(value) || 0;
+    markFieldTouched("experience");
+  }));
+
+  statsRow.appendChild(createFormGroup("Health", "number", currentMonster.health.toString(), (value) => {
+    if (currentMonster) currentMonster.health = parseInt(value) || 0;
+    markFieldTouched("health");
+  }));
+
+  statsRow.appendChild(createFormGroup("Max Health", "number", currentMonster.maxHealth.toString(), (value) => {
+    if (currentMonster) currentMonster.maxHealth = parseInt(value) || 0;
+    markFieldTouched("maxHealth");
+  }));
+
+  content.appendChild(statsRow);
+
+  const detailsRow = document.createElement("div");
+  detailsRow.className = "form-row";
+
+  detailsRow.appendChild(createFormGroup("Speed", "number", currentMonster.speed.toString(), (value) => {
+    if (currentMonster) currentMonster.speed = parseInt(value) || 0;
+    markFieldTouched("speed");
+  }));
+
+  detailsRow.appendChild(createFormGroup("Mana Cost", "number", currentMonster.manaCost.toString(), (value) => {
+    if (currentMonster) currentMonster.manaCost = parseInt(value) || 0;
+    markFieldTouched("manaCost");
+  }));
+
+  detailsRow.appendChild(createFormGroup("Race", "text", currentMonster.race, (value) => {
+    if (currentMonster) currentMonster.race = value;
+    markFieldTouched("race");
+  }));
+
+  content.appendChild(detailsRow);
+
+  const idsRow = document.createElement("div");
+  idsRow.className = "form-row";
+  idsRow.appendChild(createFormGroup("Corpse ID", "number", currentMonster.corpse.toString(), (value) => {
+    if (currentMonster) currentMonster.corpse = parseInt(value) || 0;
+    markFieldTouched("corpse");
+  }));
+
+  content.appendChild(idsRow);
+
+  return createCard("📋 Basic Information", content);
+}
+
+function createClassificationCard(): HTMLElement {
+  if (!currentMonster) return document.createElement("div");
+
+  const buildSection = (
+    title: string,
+    enabled: boolean,
+    description: string,
+    onToggle: ((nextEnabled: boolean) => void) | null,
+    renderContent: (container: HTMLElement) => void,
+    options?: { showToggle?: boolean },
+  ): HTMLElement => {
+    const section = document.createElement("div");
+    section.className = "classification-section";
+
+    const header = document.createElement("div");
+    header.className = "classification-section-header";
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "classification-section-title";
+    titleEl.textContent = title;
+
+    header.appendChild(titleEl);
+
+    const showToggle = options?.showToggle !== false && Boolean(onToggle);
+    if (showToggle && onToggle) {
+      const toggleBtn = document.createElement("button");
+      toggleBtn.type = "button";
+      toggleBtn.className = `classification-toggle ${enabled ? "is-active" : ""}`;
+      toggleBtn.textContent = enabled ? "Enabled" : "Disabled";
+      let currentState = enabled;
+      toggleBtn.addEventListener("click", () => {
+        currentState = !currentState;
+        onToggle(currentState);
+      });
+      header.appendChild(toggleBtn);
+    }
+
+    section.appendChild(header);
+
+    const descriptionEl = document.createElement("p");
+    descriptionEl.className = "classification-section-description";
+    descriptionEl.textContent = description;
+    section.appendChild(descriptionEl);
+
+    const body = document.createElement("div");
+    body.className = "classification-section-body";
+    const shouldRenderContent = !showToggle || enabled;
+    if (shouldRenderContent) {
+      renderContent(body);
+    } else {
+      const placeholder = document.createElement("p");
+      placeholder.className = "classification-placeholder";
+      placeholder.textContent = "Disabled for this monster.";
+      body.appendChild(placeholder);
+    }
+    section.appendChild(body);
+
+    return section;
+  };
+
+  const content = document.createElement("div");
+  content.className = "card-content classification-card";
+
+  const raceIdRow = document.createElement("div");
+  raceIdRow.className = "form-row";
+  raceIdRow.appendChild(
+    createFormGroup("Race ID", "number", currentMonster.raceId.toString(), (value) => {
+      if (!currentMonster) return;
+      currentMonster.raceId = parseInt(value, 10) || 0;
+      markFieldTouched("raceId");
+    }),
+  );
+  content.appendChild(raceIdRow);
+
+  if (!currentMonster.bestiary) {
+    currentMonster.bestiary = createDefaultBestiary();
+  }
+  content.appendChild(
+    buildSection(
+      "Bestiary",
+      true,
+      "Controls monster.Bestiary table: lore, stars, unlock thresholds and locations.",
+      null,
+      (container) => {
+        if (!currentMonster?.bestiary) return;
+        const metaRow = document.createElement("div");
+        metaRow.className = "form-row";
+        metaRow.append(
+          createFormGroup("Class", "text", currentMonster.bestiary.class, (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.class = value;
+            markFieldTouched("bestiary");
+          }),
+          createFormGroup("Race", "text", currentMonster.bestiary.race, (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.race = value;
+            markFieldTouched("bestiary");
+          }),
+          createFormGroup("Stars", "number", currentMonster.bestiary.stars.toString(), (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.stars = parseInt(value, 10) || 0;
+            markFieldTouched("bestiary");
+          }),
+          createFormGroup("Occurrence", "number", currentMonster.bestiary.occurrence.toString(), (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.occurrence = parseInt(value, 10) || 0;
+            markFieldTouched("bestiary");
+          }),
+        );
+        container.appendChild(metaRow);
+
+        const unlockRow = document.createElement("div");
+        unlockRow.className = "form-row";
+        unlockRow.append(
+          createFormGroup("To Kill", "number", currentMonster.bestiary.toKill.toString(), (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.toKill = parseInt(value, 10) || 0;
+            markFieldTouched("bestiary");
+          }),
+          createFormGroup("First Unlock", "number", currentMonster.bestiary.firstUnlock.toString(), (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.firstUnlock = parseInt(value, 10) || 0;
+            markFieldTouched("bestiary");
+          }),
+          createFormGroup("Second Unlock", "number", currentMonster.bestiary.secondUnlock.toString(), (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.secondUnlock = parseInt(value, 10) || 0;
+            markFieldTouched("bestiary");
+          }),
+          createFormGroup("Charms Points", "number", currentMonster.bestiary.charmsPoints.toString(), (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.charmsPoints = parseInt(value, 10) || 0;
+            markFieldTouched("bestiary");
+          }),
+        );
+        container.appendChild(unlockRow);
+
+        container.appendChild(
+          createFormGroup("Locations", "textarea", currentMonster.bestiary.locations, (value) => {
+            if (!currentMonster || !currentMonster.bestiary) return;
+            currentMonster.bestiary.locations = value;
+            markFieldTouched("bestiary");
+          }),
+        );
+      },
+      { showToggle: false },
+    ),
+  );
+
+  const bosstiaryEnabled = Boolean(currentMonster.bosstiary) || currentMonster.flags.rewardBoss;
+  content.appendChild(
+    buildSection(
+      "Bosstiary",
+      bosstiaryEnabled,
+      "Boss rarity information exported in monster.bosstiary.",
+      (enabled) => {
+        if (!currentMonster) return;
+        if (enabled) {
+          currentMonster.bosstiary = currentMonster.bosstiary ?? createDefaultBosstiary();
+        } else {
+          currentMonster.bosstiary = undefined;
+        }
+        markFieldTouched("bosstiary");
+        refreshMonsterEditorView();
+      },
+      (container) => {
+        if (!currentMonster?.bosstiary) return;
+        const row = document.createElement("div");
+        row.className = "form-row";
+        row.append(
+          createFormGroup("Boss Race ID", "number", currentMonster.bosstiary.bossRaceId.toString(), (value) => {
+            if (!currentMonster || !currentMonster.bosstiary) return;
+            currentMonster.bosstiary.bossRaceId = parseInt(value, 10) || 0;
+            markFieldTouched("bosstiary");
+          }),
+          createFormGroup("Boss Race Constant", "text", currentMonster.bosstiary.bossRace, (value) => {
+            if (!currentMonster || !currentMonster.bosstiary) return;
+            currentMonster.bosstiary.bossRace = value;
+            markFieldTouched("bosstiary");
+          })
+        );
+        container.appendChild(row);
+      }
+    )
+  );
+
+  return createCard("?? Lore & Classification", content);
+}
+function createOutfitPreviewCard(): HTMLElement {
+  if (!currentMonster) return document.createElement("div");
+
+  const outfit = currentMonster.outfit;
+  const content = document.createElement("div");
+  content.className = "card-content";
+  let previewDirections: DirectionalPreview[] = [];
+  let currentDirectionIndex = 0;
+  let animationFrameIndex = 0;
+  let animationTimer: number | null = null;
+  let currentLookType = outfit.lookType;
+
+  // Outfit Preview
+  const previewContainer = document.createElement("div");
+  previewContainer.className = "outfit-preview";
+
+  const spriteContainer = document.createElement("div");
+  spriteContainer.className = "outfit-sprite-container";
+
+  // Create sprite image element
+  const spriteImg = document.createElement("img");
+  spriteImg.className = "outfit-sprite-image";
+  spriteImg.style.imageRendering = "pixelated";
+  spriteImg.style.width = "80%";
+  spriteImg.style.height = "80%";
+  spriteImg.style.objectFit = "contain";
+
+  const spritePlaceholder = document.createElement("div");
+  spritePlaceholder.className = "sprite-placeholder-text";
+  spritePlaceholder.textContent = "?";
+
+  const rotateButton = document.createElement("button");
+  rotateButton.type = "button";
+  rotateButton.className = "sprite-rotate-button";
+  rotateButton.title = "Rotacionar sprite";
+  rotateButton.innerHTML = "⟳";
+
+  const setSpriteSource = (frameData: string, directionIndex: number, frameIndex: number) => {
+    spriteImg.src = frameData;
+    spriteImg.alt = `Outfit ${currentLookType} (direction ${directionIndex}, frame ${frameIndex + 1})`;
+  };
+
+  const stopAnimation = () => {
+    if (animationTimer !== null) {
+      window.clearTimeout(animationTimer);
+      animationTimer = null;
+    }
+  };
+
+  const startAnimation = () => {
+    stopAnimation();
+
+    if (previewDirections.length === 0) {
+      spriteImg.style.display = "none";
+      spritePlaceholder.style.display = "flex";
+      rotateButton.disabled = true;
+      return;
+    }
+
+    const directionPreview = previewDirections[currentDirectionIndex];
+    if (!directionPreview || directionPreview.frames.length === 0) {
+      spriteImg.style.display = "none";
+      spritePlaceholder.style.display = "flex";
+      rotateButton.disabled = true;
+      return;
+    }
+
+    spriteImg.style.display = "block";
+    spritePlaceholder.style.display = "none";
+    rotateButton.disabled = previewDirections.length <= 1;
+
+    const playFrame = () => {
+      const frame = directionPreview.frames[animationFrameIndex];
+      if (frame) {
+        setSpriteSource(frame, directionPreview.direction, animationFrameIndex);
+      }
+      const duration = directionPreview.durations[animationFrameIndex] ?? 150;
+      animationTimer = window.setTimeout(() => {
+        animationFrameIndex = (animationFrameIndex + 1) % directionPreview.frames.length;
+        playFrame();
+      }, Math.max(60, duration));
+    };
+
+    animationFrameIndex = 0;
+    playFrame();
+  };
+
+  const rotateSprite = () => {
+    if (previewDirections.length <= 1) return;
+    currentDirectionIndex = (currentDirectionIndex + 1) % previewDirections.length;
+    animationFrameIndex = 0;
+    startAnimation();
+  };
+
+  rotateButton.addEventListener("click", rotateSprite);
+
+  // Function to load and display outfit sprite
+  const loadOutfitSprite = async (outfitState: MonsterOutfit, preserveDirection = false) => {
+    stopAnimation();
+    if (!preserveDirection) {
+      currentDirectionIndex = 0;
+    }
+
+    try {
+      currentLookType = outfitState.lookType;
+      const sprites = await getAppearanceSprites("Outfits", outfitState.lookType);
+      const newDirections = await getDirectionalSpritesForOutfit(outfitState, sprites);
+      previewDirections = newDirections;
+      if (!preserveDirection) {
+        const preferredIndex = Math.min(previewDirections.length - 1, 2);
+        currentDirectionIndex = preferredIndex >= 0 ? preferredIndex : 0;
+      } else if (previewDirections.length > 0) {
+        currentDirectionIndex = Math.min(currentDirectionIndex, previewDirections.length - 1);
+      } else {
+        currentDirectionIndex = 0;
+      }
+      if (previewDirections.length === 0) {
+        spritePlaceholder.textContent = "—";
+      }
+      animationFrameIndex = 0;
+      startAnimation();
+    } catch (error) {
+      console.error("Failed to load outfit sprite:", error);
+      stopAnimation();
+      previewDirections = [];
+      currentDirectionIndex = 0;
+      spritePlaceholder.textContent = "!";
+      spriteImg.style.display = "none";
+      spritePlaceholder.style.display = "flex";
+    }
+  };
+
+  // Load initial sprite
+  loadOutfitSprite(outfit);
+
+  spriteContainer.append(spriteImg, spritePlaceholder, rotateButton);
+
+  const outfitInfo = document.createElement("div");
+  outfitInfo.className = "outfit-info";
+
+  const createInfoItem = (label: string, value: string | number) => {
+    const item = document.createElement("div");
+    item.className = "outfit-info-item";
+
+    const labelEl = document.createElement("div");
+    labelEl.className = "outfit-info-label";
+    labelEl.textContent = label;
+
+    const valueEl = document.createElement("div");
+    valueEl.className = "outfit-info-value";
+    valueEl.textContent = value.toString();
+
+    item.append(labelEl, valueEl);
+    return item;
+  };
+
+  outfitInfo.appendChild(createInfoItem("Type", outfit.lookType));
+  outfitInfo.appendChild(createInfoItem("Head", outfit.lookHead));
+  outfitInfo.appendChild(createInfoItem("Body", outfit.lookBody));
+  outfitInfo.appendChild(createInfoItem("Legs", outfit.lookLegs));
+  outfitInfo.appendChild(createInfoItem("Feet", outfit.lookFeet));
+  outfitInfo.appendChild(createInfoItem("Addons", outfit.lookAddons));
+
+  const updateInfoValue = (index: number, value: number) => {
+    const infoItem = outfitInfo.children[index] as HTMLElement | undefined;
+    const valueEl = infoItem?.querySelector(".outfit-info-value") as HTMLElement | null;
+    if (valueEl) valueEl.textContent = value.toString();
+  };
+
+  previewContainer.append(spriteContainer, outfitInfo);
+  content.appendChild(previewContainer);
+
+  // Outfit Edit Fields
+  const editRow1 = document.createElement("div");
+  editRow1.className = "form-row";
+
+  editRow1.appendChild(createFormGroup("Look Type", "number", outfit.lookType.toString(), (value) => {
+    if (currentMonster) {
+      const newLookType = parseInt(value) || 0;
+      currentMonster.outfit.lookType = newLookType;
+      updateInfoValue(0, newLookType);
+      loadOutfitSprite(currentMonster.outfit, false);
+    }
+  }, { min: 0 }));
+
+  editRow1.appendChild(createFormGroup("Look Mount", "number", outfit.lookMount.toString(), (value) => {
+    if (currentMonster) {
+      currentMonster.outfit.lookMount = parseInt(value) || 0;
+      loadOutfitSprite(currentMonster.outfit, true);
+    }
+  }, { min: 0, max: 1 }));
+
+  content.appendChild(editRow1);
+
+  const colorRow = document.createElement("div");
+  colorRow.className = "form-row color-row";
+
+  colorRow.appendChild(createColorField("Head", outfit.lookHead, (colorId) => {
+    if (!currentMonster) return;
+    currentMonster.outfit.lookHead = colorId;
+    updateInfoValue(1, colorId);
+    loadOutfitSprite(currentMonster.outfit, true);
+  }));
+
+  colorRow.appendChild(createColorField("Body", outfit.lookBody, (colorId) => {
+    if (!currentMonster) return;
+    currentMonster.outfit.lookBody = colorId;
+    updateInfoValue(2, colorId);
+    loadOutfitSprite(currentMonster.outfit, true);
+  }));
+
+  colorRow.appendChild(createColorField("Legs", outfit.lookLegs, (colorId) => {
+    if (!currentMonster) return;
+    currentMonster.outfit.lookLegs = colorId;
+    updateInfoValue(3, colorId);
+    loadOutfitSprite(currentMonster.outfit, true);
+  }));
+
+  colorRow.appendChild(createColorField("Feet", outfit.lookFeet, (colorId) => {
+    if (!currentMonster) return;
+    currentMonster.outfit.lookFeet = colorId;
+    updateInfoValue(4, colorId);
+    loadOutfitSprite(currentMonster.outfit, true);
+  }));
+
+  content.appendChild(colorRow);
+
+  const editRow3 = document.createElement("div");
+  editRow3.className = "form-row";
+
+  editRow3.appendChild(createFormGroup("Addons", "number", outfit.lookAddons.toString(), (value) => {
+    if (currentMonster) {
+      currentMonster.outfit.lookAddons = parseInt(value) || 0;
+      updateInfoValue(5, currentMonster.outfit.lookAddons);
+      loadOutfitSprite(currentMonster.outfit, true);
+    }
+  }, { min: 0, max: MAX_OUTFIT_ADDONS }));
+
+  content.appendChild(editRow3);
+
+  return createCard("👤 Outfit & Appearance", content);
+}
+
+async function getDirectionalSpritesForOutfit(outfit: MonsterOutfit, sprites: Uint8Array[]): Promise<DirectionalPreview[]> {
+  if (sprites.length === 0) return [];
+
+  try {
+    const metadata = await getOutfitSpriteMetadata(outfit.lookType);
+    if (metadata) {
+      const { spriteInfo, baseOffset } = metadata;
+      const directionCount = Math.max(1, Math.min(4, spriteInfo.pattern_width ?? 4));
+      const addonCount = Math.max(1, spriteInfo.pattern_height ?? 1);
+      const mountCount = Math.max(1, spriteInfo.pattern_depth ?? 1);
+      const addonIndex = computeAddonPatternIndex(outfit.lookAddons, addonCount);
+      const mountIndex = computeMountPatternIndex(outfit.lookMount, mountCount);
+      const frameCount = computeFrameCount(spriteInfo);
+      const phaseDurations = getAnimationDurations(spriteInfo, frameCount);
+
+      const previews: DirectionalPreview[] = [];
+      for (let direction = 0; direction < directionCount; direction++) {
+        const renderResults = await Promise.all(
+          Array.from({ length: frameCount }, (_, phaseIndex) =>
+            composeOutfitSprite({
+              sprites,
+              spriteInfo,
+              baseOffset,
+              direction,
+              addonIndex,
+              mountIndex,
+              outfit,
+              phaseIndex,
+            }),
+          ),
+        );
+
+        const frames: string[] = [];
+        const durations: number[] = [];
+        renderResults.forEach((result, index) => {
+          if (result) {
+            frames.push(result);
+            durations.push(phaseDurations[index] ?? 200);
+          }
+        });
+        if (frames.length > 0) {
+          previews.push({
+            direction,
+            frames,
+            durations,
+          });
+        }
+      }
+
+      if (previews.length > 0) {
+        return previews;
+      }
+    }
+  } catch (error) {
+    console.warn("Failed to load outfit metadata for preview:", error);
+  }
+
+  const fallbackSprite = sprites[0];
+  if (!fallbackSprite) {
+    return [];
+  }
+  return [
+    {
+      direction: 0,
+      frames: [bufferToObjectUrl(fallbackSprite)],
+      durations: [250],
+    },
+  ];
+}
+
+function computeFrameCount(spriteInfo: CompleteSpriteInfo): number {
+  const layers = spriteInfo.layers ?? spriteInfo.pattern_layers ?? 1;
+  const pw = spriteInfo.pattern_width ?? 1;
+  const ph = spriteInfo.pattern_height ?? 1;
+  const pd = spriteInfo.pattern_depth ?? 1;
+  const spritesPerFrame = Math.max(1, layers * pw * ph * pd);
+  const totalSprites = spriteInfo.sprite_ids?.length ?? spritesPerFrame;
+  const inferredFrames = Math.max(1, Math.floor(totalSprites / spritesPerFrame));
+  const metadataFrames =
+    spriteInfo.animation?.phases?.length ?? spriteInfo.pattern_frames ?? inferredFrames;
+  return Math.max(1, metadataFrames, inferredFrames);
+}
+
+function getAnimationDurations(spriteInfo: CompleteSpriteInfo, frameCountOverride?: number): number[] {
+  const frames = frameCountOverride ?? computeFrameCount(spriteInfo);
+  return Array.from({ length: frames }, () => 100);
+}
+
+async function getOutfitSpriteMetadata(
+  lookType: number,
+): Promise<{ spriteInfo: CompleteSpriteInfo; baseOffset: number } | null> {
+  if (outfitSpriteMetadataCache.has(lookType)) {
+    return outfitSpriteMetadataCache.get(lookType)!;
+  }
+
+  try {
+    const details = await invoke<CompleteAppearanceItem>("get_complete_appearance", {
+      category: "Outfits",
+      id: lookType,
+    });
+    if (!details || !details.frame_groups?.length) {
+      return null;
+    }
+
+    const groupOffsets = computeGroupOffsetsFromDetails(details);
+    const targetIndex = selectOutfitPreviewGroup(details);
+    if (targetIndex < 0) {
+      return null;
+    }
+
+    const spriteInfo = details.frame_groups[targetIndex]?.sprite_info;
+    if (!spriteInfo) {
+      return null;
+    }
+
+    const metadata = {
+      spriteInfo,
+      baseOffset: groupOffsets[targetIndex] ?? 0,
+    };
+    outfitSpriteMetadataCache.set(lookType, metadata);
+    return metadata;
+  } catch (error) {
+    console.warn("Failed to retrieve outfit sprite metadata:", error);
+    return null;
+  }
+}
+
+function selectOutfitPreviewGroup(details: CompleteAppearanceItem): number {
+  if (!details.frame_groups || details.frame_groups.length === 0) {
+    return -1;
+  }
+
+  // Prefer animated frame group that matches how the asset editor behaves
+  if (details.frame_groups.length > 1 && hasAnimatedSprite(details.frame_groups[1]?.sprite_info)) {
+    return 1;
+  }
+
+  for (let i = 0; i < details.frame_groups.length; i++) {
+    if (hasAnimatedSprite(details.frame_groups[i]?.sprite_info)) {
+      return i;
+    }
+  }
+
+  // Fallback to first available frame group
+  return 0;
+}
+
+function hasAnimatedSprite(spriteInfo: CompleteSpriteInfo | undefined): boolean {
+  if (!spriteInfo) return false;
+  const phaseCount = spriteInfo.animation?.phases?.length ?? spriteInfo.pattern_frames ?? 1;
+  return phaseCount > 1;
+}
+
+function computeAddonPatternIndex(addons: number, patternHeight: number): number {
+  if (patternHeight <= 1) return 0;
+
+  if (patternHeight >= 4) {
+    const hasAddon1 = (addons & 1) !== 0;
+    const hasAddon2 = (addons & 2) !== 0;
+    if (hasAddon1 && hasAddon2) return Math.min(patternHeight - 1, 3);
+    if (hasAddon1) return 1;
+    if (hasAddon2) return Math.min(patternHeight - 1, 2);
+    return 0;
+  }
+
+  return Math.min(patternHeight - 1, Math.max(0, addons));
+}
+
+function computeMountPatternIndex(lookMount: number, patternDepth: number): number {
+  if (patternDepth <= 1) return 0;
+  if (lookMount <= 0) return 0;
+  return 1;
+}
+
+type ComposeSpriteParams = {
+  sprites: Uint8Array[];
+  spriteInfo: CompleteSpriteInfo;
+  baseOffset: number;
+  direction: number;
+  addonIndex: number;
+  mountIndex: number;
+  outfit: MonsterOutfit;
+  phaseIndex: number;
+};
+
+// Worker de composição de sprites (off-thread)
+interface OutfitComposeResponseMessage { id: string; buffer: ArrayBuffer | null; }
+interface OutfitComposeLayer { sprite: ArrayBuffer; template?: ArrayBuffer; }
+
+let outfitComposeWorker: Worker | null = null;
+let outfitComposeRequestId = 0;
+const outfitPending = new Map<string, (value: string | null) => void>();
+
+function initOutfitWorker(): void {
+  if (outfitComposeWorker) return;
+  try {
+    outfitComposeWorker = new Worker(
+      new URL('./workers/outfitComposeWorker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    outfitComposeWorker.onmessage = (event: MessageEvent<OutfitComposeResponseMessage>) => {
+      const { id, buffer } = event.data;
+      const resolve = outfitPending.get(id);
+      if (resolve) {
+        const dataUrl = buffer ? getSpriteUrl(new Uint8Array(buffer)) : null;
+        resolve(dataUrl);
+        outfitPending.delete(id);
+      }
+    };
+  } catch (error) {
+    outfitComposeWorker = null;
+    outfitPending.clear();
+  }
+}
+
+function bufferSlice(sprite: Uint8Array): ArrayBuffer {
+  // Usar slice() para garantir ArrayBuffer (evita SharedArrayBuffer)
+  return sprite.slice().buffer;
+}
+
+async function composeOutfitSprite(params: ComposeSpriteParams): Promise<string | null> {
+  const { sprites, spriteInfo, baseOffset, direction, addonIndex, mountIndex, outfit, phaseIndex } = params;
+
+  const addonLayersToDraw = addonIndex > 0 ? [0, addonIndex] : [0];
+  const frameCount = computeFrameCount(spriteInfo);
+  const normalizedPhase = ((phaseIndex % frameCount) + frameCount) % frameCount;
+  const primaryIndex =
+    baseOffset + computeSpriteIndex(spriteInfo, 0, direction, addonLayersToDraw[0], mountIndex, normalizedPhase);
+  if (!sprites[primaryIndex]) return null;
+
+  initOutfitWorker();
+  const layers: OutfitComposeLayer[] = [];
+  const totalLayers = spriteInfo.layers ?? spriteInfo.pattern_layers ?? 1;
+  const hasTemplateLayer = totalLayers > 1;
+
+  const headColor = outfitColorIdToRgb(outfit.lookHead);
+  const bodyColor = outfitColorIdToRgb(outfit.lookBody);
+  const legsColor = outfitColorIdToRgb(outfit.lookLegs);
+  const feetColor = outfitColorIdToRgb(outfit.lookFeet);
+
+  for (const addonLayer of addonLayersToDraw) {
+    const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, 0, direction, addonLayer, mountIndex, normalizedPhase);
+    const spriteData = sprites[spriteIdx];
+    if (!spriteData) continue;
+
+    const layer: OutfitComposeLayer = { sprite: bufferSlice(spriteData) };
+
+    if (hasTemplateLayer) {
+      const templateIndex =
+        baseOffset + computeSpriteIndex(spriteInfo, 1, direction, addonLayer, mountIndex, normalizedPhase);
+      const templateData = sprites[templateIndex];
+      if (templateData) {
+        layer.template = bufferSlice(templateData);
+      }
+    }
+
+    layers.push(layer);
+  }
+
+  if (!outfitComposeWorker || layers.length === 0) return null;
+
+  const id = `outfit-compose-${Date.now()}-${outfitComposeRequestId++}`;
+  const transferables: ArrayBuffer[] = [];
+  for (const layer of layers) {
+    transferables.push(layer.sprite);
+    if (layer.template) transferables.push(layer.template);
+  }
+
+  const composePromise = new Promise<string | null>((resolve) => {
+    outfitPending.set(id, resolve);
+    outfitComposeWorker!.postMessage({
+      id,
+      layers,
+      colors: { head: headColor, body: bodyColor, legs: legsColor, feet: feetColor }
+    }, transferables);
+  });
+
+  return composePromise;
+}
+
+function outfitColorIdToRgb(colorId: number): { r: number; g: number; b: number } {
+  const HSI_SI_VALUES = 7;
+  const HSI_H_STEPS = 19;
+
+  let color = Math.max(0, Math.floor(colorId));
+  if (color >= HSI_H_STEPS * HSI_SI_VALUES) {
+    color = 0;
+  }
+
+  let loc1 = 0;
+  let loc2 = 0;
+  let loc3 = 0;
+
+  if (color % HSI_H_STEPS !== 0) {
+    loc1 = (color % HSI_H_STEPS) / 18;
+    loc2 = 1;
+    loc3 = 1;
+
+    switch (Math.floor(color / HSI_H_STEPS)) {
+      case 0:
+        loc2 = 0.25;
+        loc3 = 1.0;
+        break;
+      case 1:
+        loc2 = 0.25;
+        loc3 = 0.75;
+        break;
+      case 2:
+        loc2 = 0.5;
+        loc3 = 0.75;
+        break;
+      case 3:
+        loc2 = 2 / 3;
+        loc3 = 0.75;
+        break;
+      case 4:
+        loc2 = 1.0;
+        loc3 = 1.0;
+        break;
+      case 5:
+        loc2 = 1.0;
+        loc3 = 0.75;
+        break;
+      case 6:
+        loc2 = 1.0;
+        loc3 = 0.5;
+        break;
+      default:
+        break;
+    }
+  } else {
+    loc1 = 0;
+    loc2 = 0;
+    loc3 = 1 - color / HSI_H_STEPS / HSI_SI_VALUES;
+  }
+
+  if (loc3 === 0) {
+    return { r: 0, g: 0, b: 0 };
+  }
+
+  if (loc2 === 0) {
+    const grey = clampByte(loc3 * 255);
+    return { r: grey, g: grey, b: grey };
+  }
+
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+
+  if (loc1 < 1 / 6) {
+    red = loc3;
+    blue = loc3 * (1 - loc2);
+    green = blue + (loc3 - blue) * 6 * loc1;
+  } else if (loc1 < 2 / 6) {
+    green = loc3;
+    blue = loc3 * (1 - loc2);
+    red = green - (loc3 - blue) * (6 * loc1 - 1);
+  } else if (loc1 < 3 / 6) {
+    green = loc3;
+    red = loc3 * (1 - loc2);
+    blue = red + (loc3 - red) * (6 * loc1 - 2);
+  } else if (loc1 < 4 / 6) {
+    blue = loc3;
+    red = loc3 * (1 - loc2);
+    green = blue - (loc3 - red) * (6 * loc1 - 3);
+  } else if (loc1 < 5 / 6) {
+    blue = loc3;
+    green = loc3 * (1 - loc2);
+    red = green + (loc3 - green) * (6 * loc1 - 4);
+  } else {
+    red = loc3;
+    green = loc3 * (1 - loc2);
+    blue = red - (loc3 - green) * (6 * loc1 - 5);
+  }
+
+  return {
+    r: clampByte(red * 255),
+    g: clampByte(green * 255),
+    b: clampByte(blue * 255),
+  };
+}
+
+function clampByte(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function clampColorId(value: number): number {
+  if (Number.isNaN(value)) return 0;
+  return Math.max(0, Math.min(OUTFIT_COLOR_COUNT - 1, Math.round(value)));
+}
+
+function rgbToCss(color: { r: number; g: number; b: number }): string {
+  const toHex = (component: number) => clampByte(component).toString(16).padStart(2, "0");
+  return `#${toHex(color.r)}${toHex(color.g)}${toHex(color.b)}`;
+}
+
+function normalizeHex(hex: string): string {
+  let value = hex.trim().toLowerCase();
+  if (!value.startsWith("#")) {
+    value = `#${value}`;
+  }
+  if (value.length === 4) {
+    value = `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`;
+  }
+  return value;
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const normalized = normalizeHex(hex).slice(1);
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  return { r, g, b };
+}
+
+function findClosestColorId(rgb: { r: number; g: number; b: number }): number {
+  let bestIndex = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < outfitColorRgbCache.length; i += 1) {
+    const color = outfitColorRgbCache[i];
+    const dr = color.r - rgb.r;
+    const dg = color.g - rgb.g;
+    const db = color.b - rgb.b;
+    const distance = dr * dr + dg * dg + db * db;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = i;
+    }
+  }
+  return bestIndex;
+}
+
+function createCombatStatsCard(): HTMLElement {
+  if (!currentMonster) return document.createElement("div");
+
+  const content = document.createElement("div");
+  content.className = "card-content";
+
+  const row = document.createElement("div");
+  row.className = "form-row";
+
+  row.appendChild(createFormGroup("Defense", "number", currentMonster.defenses.defense.toString(), (value) => {
+    if (currentMonster) currentMonster.defenses.defense = parseInt(value) || 0;
+  }));
+
+  row.appendChild(createFormGroup("Armor", "number", currentMonster.defenses.armor.toString(), (value) => {
+    if (currentMonster) currentMonster.defenses.armor = parseInt(value) || 0;
+  }));
+
+  row.appendChild(createFormGroup("Mitigation", "number", currentMonster.defenses.mitigation.toString(), (value) => {
+    if (currentMonster) currentMonster.defenses.mitigation = parseFloat(value) || 0;
+  }));
+
+  content.appendChild(row);
+
+  return createCard("🛡️ Combat Stats", content);
+}
+
+function createEventsCard(): HTMLElement {
+  if (!currentMonster) return document.createElement("div");
+
+  const content = document.createElement("div");
+  content.className = "card-content";
+
+  if (!currentMonster.events || currentMonster.events.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "No Lua events linked to this monster.";
+    content.appendChild(empty);
+
+    const quickAdd = document.createElement("button");
+    quickAdd.type = "button";
+    quickAdd.className = "btn-secondary";
+    quickAdd.textContent = "Adicionar Evento";
+    quickAdd.onclick = () => openEventsModal();
+    content.appendChild(quickAdd);
+  } else {
+    const list = document.createElement("div");
+    list.className = "events-list";
+    currentMonster.events.forEach((eventName) => {
+      const chip = document.createElement("span");
+      chip.className = "event-pill";
+      chip.textContent = eventName;
+      list.appendChild(chip);
+    });
+    content.appendChild(list);
+  }
+
+  const card = createCard("?? Monster Events", content);
+  attachCardEditButton(card, () => openEventsModal());
+  return card;
+}
+function createAttacksCard(): HTMLElement {
+
+  if (!currentMonster) return document.createElement("div");
+
+
+
+  const content = document.createElement("div");
+
+  content.className = "card-content";
+
+
+
+  type SpellEntry = AttackEntry | DefenseEntry;
+
+
+
+  const formatLuaDisplayValue = (raw: string): string => {
+
+  const trimmed = raw.trim();
+
+
+
+  if ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+
+    return trimmed.slice(1, -1);
+
+  }
+
+
+
+  if (trimmed === "true") return "Yes";
+
+  if (trimmed === "false") return "No";
+
+  return trimmed;
+
+};
+
+
+
+const renderSpellEntry = (entry: SpellEntry, category: "attack" | "defense"): HTMLElement => {
+
+    const container = document.createElement("div");
+
+    container.className = "attack-item";
+
+
+
+    const header = document.createElement("div");
+
+    header.className = "attack-item-header";
+
+
+
+    const nameEl = document.createElement("strong");
+
+    nameEl.textContent = entry.name || "(Unnamed)";
+
+    header.appendChild(nameEl);
+
+
+
+    const badge = document.createElement("span");
+
+    badge.className = `attack-badge ${category === "attack" ? "attack-badge-offense" : "attack-badge-defense"}`;
+
+    badge.textContent = category === "attack" ? "Attack" : "Defense";
+
+    header.appendChild(badge);
+
+
+
+    container.appendChild(header);
+
+
+
+    const metaEntries: Array<{ label: string; value: string }> = [];
+
+    const addMeta = (label: string, value?: string | null) => {
+      if (value && value.trim().length > 0) {
+        metaEntries.push({ label, value });
+      }
+    };
+
+
+
+    if ("interval" in entry && entry.interval > 0) {
+
+      addMeta("Interval", `${entry.interval} ms`);
+
+    }
+
+
+
+    addMeta("Chance", `${entry.chance}%`);
+
+
+
+    const minDamage = "minDamage" in entry ? entry.minDamage : undefined;
+
+    const maxDamage = "maxDamage" in entry ? entry.maxDamage : undefined;
+
+    if (minDamage !== undefined || maxDamage !== undefined) {
+
+      if (minDamage !== undefined && maxDamage !== undefined) {
+
+        addMeta("Damage", `${minDamage} to ${maxDamage}`);
+
+      } else if (minDamage !== undefined) {
+
+        addMeta("Damage", `${minDamage}`);
+
+      } else if (maxDamage !== undefined) {
+
+        addMeta("Damage", `${maxDamage}`);
+
+      }
+
+    }
+
+
+
+    if ("range" in entry && entry.range !== undefined) {
+
+      addMeta("Range", `${entry.range} tile${entry.range === 1 ? "" : "s"}`);
+
+    }
+
+
+
+    if ("radius" in entry && entry.radius !== undefined) {
+
+      addMeta("Radius", `${entry.radius}`);
+
+    }
+
+
+
+    if ("length" in entry && entry.length !== undefined) {
+
+      addMeta("Length", `${entry.length}`);
+
+    }
+
+
+
+    if ("spread" in entry && entry.spread !== undefined) {
+
+      addMeta("Spread", `${entry.spread}`);
+
+    }
+
+
+
+    if (entry.target !== undefined) {
+
+      addMeta("Target", entry.target ? "Yes" : "No");
+
+    }
+
+
+
+    if (entry.effect) {
+
+      addMeta("Effect", formatLuaDisplayValue(entry.effect));
+
+    }
+
+
+
+    if ("shootEffect" in entry && entry.shootEffect) {
+
+      addMeta("Shoot Effect", formatLuaDisplayValue(entry.shootEffect));
+
+    }
+
+
+
+    if (entry.combatType) {
+
+      addMeta("Combat Type", formatLuaDisplayValue(entry.combatType));
+
+    }
+
+
+
+    if (entry.speedChange !== undefined) {
+
+      addMeta("Speed Change", `${entry.speedChange}`);
+
+    }
+
+
+
+    if (entry.duration !== undefined) {
+
+      addMeta("Duration", `${entry.duration} ms`);
+
+    }
+
+
+
+    if (metaEntries.length > 0) {
+
+      const metaGrid = document.createElement("div");
+
+      metaGrid.className = "attack-meta-grid";
+
+
+
+      metaEntries.forEach(({ label, value }) => {
+
+        const metaCell = document.createElement("div");
+
+        metaCell.className = "attack-meta-entry";
+
+
+
+        const labelEl = document.createElement("span");
+
+        labelEl.className = "attack-meta-label";
+
+        labelEl.textContent = label;
+
+
+
+        const valueEl = document.createElement("span");
+
+        valueEl.className = "attack-meta-value";
+
+        valueEl.textContent = value;
+
+
+
+        metaCell.append(labelEl, valueEl);
+
+        metaGrid.appendChild(metaCell);
+
+      });
+
+
+
+      container.appendChild(metaGrid);
+
+    }
+
+
+
+    const appendPropertiesSection = (title: string, props?: LuaProperty[] | null) => {
+      if (!props || props.length === 0) return;
+
+
+
+      const section = document.createElement("div");
+
+      section.className = "attack-subsection";
+
+
+
+      const titleEl = document.createElement("div");
+
+      titleEl.className = "attack-subsection-title";
+
+      titleEl.textContent = title;
+
+      section.appendChild(titleEl);
+
+
+
+      const list = document.createElement("div");
+
+      list.className = "attack-property-list";
+
+
+
+      props.forEach((property) => {
+
+        const row = document.createElement("div");
+
+        row.className = "attack-property-row";
+
+
+
+        const keyEl = document.createElement("span");
+
+        keyEl.className = "attack-meta-label";
+
+        keyEl.textContent = property.key;
+
+
+
+        const valueEl = document.createElement("span");
+
+        valueEl.className = "attack-meta-value";
+
+        valueEl.textContent = formatLuaDisplayValue(property.value);
+
+
+
+        row.append(keyEl, valueEl);
+
+        list.appendChild(row);
+
+      });
+
+
+
+      section.appendChild(list);
+
+      container.appendChild(section);
+
+    };
+
+
+
+    appendPropertiesSection("Condition", entry.condition);
+
+    appendPropertiesSection("Extra Fields", entry.extraFields);
+
+
+
+    return container;
+
+  };
+
+
+
+  const createSectionHeading = (title: string) => {
+
+    const heading = document.createElement("h4");
+
+    heading.textContent = title;
+
+    heading.style.marginTop = "var(--space-lg)";
+
+    heading.style.marginBottom = "var(--space-md)";
+
+    heading.style.fontSize = "0.875rem";
+
+    heading.style.fontWeight = "600";
+
+    heading.style.color = "var(--text-secondary)";
+
+    heading.style.textTransform = "uppercase";
+
+    heading.style.letterSpacing = "0.05em";
+
+    return heading;
+
+  };
+
+
+
+  const sections: Array<{ title: string; items: SpellEntry[]; category: "attack" | "defense" }> = [
+
+    { title: "Offensive Spells", items: currentMonster.attacks, category: "attack" },
+
+    { title: "Defensive Spells", items: currentMonster.defenses.entries, category: "defense" },
+
+  ];
+
+
+
+    let renderedSections = 0;
+
+  sections.forEach(({ title, items, category }) => {
+
+    if (items.length === 0) return;
+
+
+
+    const heading = createSectionHeading(title);
+
+    if (renderedSections === 0) {
+
+      heading.style.marginTop = "0";
+
+    }
+
+    content.appendChild(heading);
+
+    renderedSections += 1;
+
+
+
+    const list = document.createElement("div");
+
+    list.className = category === "attack" ? "attacks-list" : "defenses-list";
+
+
+
+    items.forEach((entry) => {
+
+      list.appendChild(renderSpellEntry(entry, category));
+
+    });
+
+
+
+    content.appendChild(list);
+
+  });
+
+
+
+  if (renderedSections === 0) {
+
+    const empty = document.createElement("div");
+
+    empty.className = "empty-state";
+
+    empty.textContent = "No attacks or defenses configured";
+
+    content.appendChild(empty);
+
+  }
+
+
+
+  const card = createCard("⚔️ Attacks & Defenses", content);
+  attachCardEditButton(card, () => openSpellsEditorModal());
+  return card;
+
+}
+
+
+function createElementsImmunitiesCard(): HTMLElement {
+  if (!currentMonster) return document.createElement("div");
+
+  const content = document.createElement("div");
+  content.className = "card-content";
+
+  // Elements
+  if (currentMonster.elements.length > 0) {
+    const elementsTitle = document.createElement("h4");
+    elementsTitle.textContent = "Elements";
+    elementsTitle.style.marginTop = "0";
+    elementsTitle.style.marginBottom = "var(--space-md)";
+    elementsTitle.style.fontSize = "0.875rem";
+    elementsTitle.style.fontWeight = "600";
+    elementsTitle.style.color = "var(--text-secondary)";
+    elementsTitle.style.textTransform = "uppercase";
+    elementsTitle.style.letterSpacing = "0.05em";
+    content.appendChild(elementsTitle);
+
+    const elementsList = document.createElement("div");
+    elementsList.className = "elements-list";
+
+    currentMonster.elements.forEach((element) => {
+      const elementItem = document.createElement("div");
+      elementItem.className = "element-item";
+      elementItem.innerHTML = `<strong>${element.elementType}</strong>: ${element.percent}%`;
+      elementsList.appendChild(elementItem);
+    });
+
+    content.appendChild(elementsList);
+  }
+
+  // Immunities
+  if (currentMonster.immunities.length > 0) {
+    const immunitiesTitle = document.createElement("h4");
+    immunitiesTitle.textContent = "Immunities";
+    immunitiesTitle.style.marginTop = "var(--space-lg)";
+    immunitiesTitle.style.marginBottom = "var(--space-md)";
+    immunitiesTitle.style.fontSize = "0.875rem";
+    immunitiesTitle.style.fontWeight = "600";
+    immunitiesTitle.style.color = "var(--text-secondary)";
+    immunitiesTitle.style.textTransform = "uppercase";
+    immunitiesTitle.style.letterSpacing = "0.05em";
+    content.appendChild(immunitiesTitle);
+
+    const immunitiesList = document.createElement("div");
+    immunitiesList.className = "immunities-list";
+
+    currentMonster.immunities.forEach((immunity) => {
+      const immunityItem = document.createElement("div");
+      immunityItem.className = "immunity-item";
+      immunityItem.innerHTML = `<strong>${immunity.immunityType}</strong>: ${immunity.condition ? "Yes" : "No"}`;
+      immunitiesList.appendChild(immunityItem);
+    });
+
+    content.appendChild(immunitiesList);
+  }
+
+  if (currentMonster.elements.length === 0 && currentMonster.immunities.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "No elements or immunities configured";
+    content.appendChild(empty);
+  }
+
+  const card = createCard("🧪 Elements & Immunities", content);
+  attachCardEditButton(card, () => openElementsModal());
+  return card;
+}
+
+function createLootCard(): HTMLElement {
+  if (!currentMonster) return document.createElement("div");
+
+  const content = document.createElement("div");
+  content.className = "card-content";
+
+  const lootList = document.createElement("div");
+  lootList.className = "loot-list";
+
+  if (currentMonster.loot.length === 0) {
+    const emptyState = document.createElement("div");
+    emptyState.className = "empty-state";
+    emptyState.innerHTML = `
+      <div class="empty-state-icon">🤷</div>
+      <div>No loot items found for this monster</div>
+    `;
+    lootList.appendChild(emptyState);
+  } else {
+    const sortedLoot = [...currentMonster.loot].sort((a, b) => b.chance - a.chance);
+
+    sortedLoot.forEach((item) => {
+      const lootItem = document.createElement("div");
+      lootItem.className = "loot-item";
+
+      const itemName = item.name || (item.id ? `Item ID: ${item.id}` : "Unknown Item");
+      const count = item.minCount || item.maxCount
+        ? `<span style="color: var(--text-secondary)">x${item.minCount || 1}${item.maxCount && item.maxCount !== item.minCount ? `-${item.maxCount}` : ""}</span>`
+        : "";
+
+      lootItem.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong>${itemName}</strong> ${count}
+          </div>
+          <span class="loot-chance">${(item.chance / 1000).toFixed(2)}%</span>
+        </div>
+      `;
+
+      lootList.appendChild(lootItem);
+    });
+  }
+
+  content.appendChild(lootList);
+
+  const card = createCard(`💰 Loot (${currentMonster.loot.length})`, content);
+  attachCardEditButton(card, () => openLootEditorModal());
+  return card;
+}
+
+function createSummonsCard(): HTMLElement {
+  if (!currentMonster) return document.createElement("div");
+
+  const content = document.createElement("div");
+  content.className = "card-content";
+
+  if (!currentMonster.summon) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "Summons desativados para este monstro.";
+    content.appendChild(empty);
+
+    const enableBtn = document.createElement("button");
+    enableBtn.type = "button";
+    enableBtn.className = "btn-secondary";
+    enableBtn.textContent = "Ativar Summons";
+    enableBtn.onclick = () => {
+      if (!currentMonster) return;
+      currentMonster.summon = createDefaultSummon();
+      markFieldTouched("summon");
+      refreshMonsterEditorView();
+    };
+    content.appendChild(enableBtn);
+  } else {
+    content.appendChild(createFormGroup("Max Summons", "number", currentMonster.summon.maxSummons.toString(), (value) => {
+      if (currentMonster && currentMonster.summon) {
+        currentMonster.summon.maxSummons = parseInt(value) || 0;
+        markFieldTouched("summon");
+      }
+    }));
+
+    const summonsList = document.createElement("div");
+    summonsList.className = "summons-list";
+
+    if (currentMonster.summon.summons.length === 0) {
+      const emptyState = document.createElement("div");
+      emptyState.className = "empty-state";
+      emptyState.textContent = "Nenhum summon configurado.";
+      summonsList.appendChild(emptyState);
+    } else {
+      currentMonster.summon.summons.forEach((summon) => {
+        const summonItem = document.createElement("div");
+        summonItem.className = "summon-item";
+        summonItem.innerHTML = `
+          <strong>${summon.name}</strong> -
+          Count: ${summon.count},
+          Chance: ${summon.chance}%,
+          Interval: ${summon.interval}ms
+        `;
+        summonsList.appendChild(summonItem);
+      });
+    }
+
+    content.appendChild(summonsList);
+  }
+
+  const card = createCard("?? Summons", content);
+  attachCardEditButton(card, () => openSummonsModal());
+  return card;
+}
+
+function createVoicesCard(): HTMLElement {
+  if (!currentMonster) return document.createElement("div");
+
+  const content = document.createElement("div");
+  content.className = "card-content";
+
+  if (!currentMonster.voices) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "Falas desativadas.";
+    content.appendChild(empty);
+
+    const enableBtn = document.createElement("button");
+    enableBtn.type = "button";
+    enableBtn.className = "btn-secondary";
+    enableBtn.textContent = "Ativar Falas";
+    enableBtn.onclick = () => {
+      if (!currentMonster) return;
+      currentMonster.voices = { interval: 5000, chance: 10, entries: [] };
+      markFieldTouched("voices");
+      refreshMonsterEditorView();
+    };
+    content.appendChild(enableBtn);
+  } else {
+    const settingsRow = document.createElement("div");
+    settingsRow.className = "form-row";
+
+    settingsRow.appendChild(createFormGroup("Voice Interval", "number", currentMonster.voices.interval.toString(), (value) => {
+      if (currentMonster && currentMonster.voices) {
+        currentMonster.voices.interval = parseInt(value) || 0;
+      }
+    }));
+
+    settingsRow.appendChild(createFormGroup("Voice Chance", "number", currentMonster.voices.chance.toString(), (value) => {
+      if (currentMonster && currentMonster.voices) {
+        currentMonster.voices.chance = parseInt(value) || 0;
+      }
+    }));
+
+    content.appendChild(settingsRow);
+
+    const voicesList = document.createElement("div");
+    voicesList.className = "voices-list";
+
+    if (currentMonster.voices.entries.length === 0) {
+      const emptyState = document.createElement("div");
+      emptyState.className = "empty-state";
+      emptyState.textContent = "Nenhuma fala configurada.";
+      voicesList.appendChild(emptyState);
+    } else {
+      currentMonster.voices.entries.forEach((voice) => {
+        const voiceItem = document.createElement("div");
+        voiceItem.className = "voice-item";
+        voiceItem.innerHTML = `"${voice.text}" ${voice.yell ? "(yell)" : "(say)"}`;
+        voicesList.appendChild(voiceItem);
+      });
+    }
+
+    content.appendChild(voicesList);
+  }
+
+  const card = createCard("?? Voices", content);
+  attachCardEditButton(card, () => openVoicesModal());
+  return card;
+}
+
+function createFlagsCard(): HTMLElement {
+  if (!currentMonster) return document.createElement("div");
+
+  const content = document.createElement("div");
+  content.className = "card-content";
+
+  const flags = currentMonster.flags;
+
+  const flagsGrid = document.createElement("div");
+  flagsGrid.style.display = "grid";
+  flagsGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(200px, 1fr))";
+  flagsGrid.style.gap = "var(--space-sm)";
+
+  flagsGrid.appendChild(createCheckboxGroup("Summonable", flags.summonable, (value) => {
+    if (currentMonster) currentMonster.flags.summonable = value;
+  }));
+
+  flagsGrid.appendChild(createCheckboxGroup("Attackable", flags.attackable, (value) => {
+    if (currentMonster) currentMonster.flags.attackable = value;
+  }));
+
+  flagsGrid.appendChild(createCheckboxGroup("Hostile", flags.hostile, (value) => {
+    if (currentMonster) currentMonster.flags.hostile = value;
+  }));
+
+  flagsGrid.appendChild(createCheckboxGroup("Convinceable", flags.convinceable, (value) => {
+    if (currentMonster) currentMonster.flags.convinceable = value;
+  }));
+
+  flagsGrid.appendChild(createCheckboxGroup("Pushable", flags.pushable, (value) => {
+    if (currentMonster) currentMonster.flags.pushable = value;
+  }));
+
+  flagsGrid.appendChild(createCheckboxGroup("Reward Boss", flags.rewardBoss, (value) => {
+    if (currentMonster) currentMonster.flags.rewardBoss = value;
+  }));
+
+  flagsGrid.appendChild(createCheckboxGroup("Illusionable", flags.illusionable, (value) => {
+    if (currentMonster) currentMonster.flags.illusionable = value;
+  }));
+
+  flagsGrid.appendChild(createCheckboxGroup("Can Push Items", flags.canPushItems, (value) => {
+    if (currentMonster) currentMonster.flags.canPushItems = value;
+  }));
+
+  flagsGrid.appendChild(createCheckboxGroup("Can Push Creatures", flags.canPushCreatures, (value) => {
+    if (currentMonster) currentMonster.flags.canPushCreatures = value;
+  }));
+
+  flagsGrid.appendChild(createCheckboxGroup("Health Hidden", flags.healthHidden, (value) => {
+    if (currentMonster) currentMonster.flags.healthHidden = value;
+  }));
+
+  flagsGrid.appendChild(createCheckboxGroup("Is Blockable", flags.isBlockable, (value) => {
+    if (currentMonster) currentMonster.flags.isBlockable = value;
+  }));
+
+  flagsGrid.appendChild(createCheckboxGroup("Can Walk On Energy", flags.canWalkOnEnergy, (value) => {
+    if (currentMonster) currentMonster.flags.canWalkOnEnergy = value;
+  }));
+
+  flagsGrid.appendChild(createCheckboxGroup("Can Walk On Fire", flags.canWalkOnFire, (value) => {
+    if (currentMonster) currentMonster.flags.canWalkOnFire = value;
+  }));
+
+  flagsGrid.appendChild(createCheckboxGroup("Can Walk On Poison", flags.canWalkOnPoison, (value) => {
+    if (currentMonster) currentMonster.flags.canWalkOnPoison = value;
+  }));
+
+  content.appendChild(flagsGrid);
+
+  const numericRow = document.createElement("div");
+  numericRow.className = "form-row";
+  numericRow.style.marginTop = "var(--space-md)";
+
+  numericRow.appendChild(createFormGroup("Static Attack Chance", "number", flags.staticAttackChance.toString(), (value) => {
+    if (currentMonster) currentMonster.flags.staticAttackChance = parseInt(value) || 0;
+  }));
+
+  numericRow.appendChild(createFormGroup("Target Distance", "number", flags.targetDistance.toString(), (value) => {
+    if (currentMonster) currentMonster.flags.targetDistance = parseInt(value) || 0;
+  }));
+
+  numericRow.appendChild(createFormGroup("Run Health", "number", flags.runHealth.toString(), (value) => {
+    if (currentMonster) currentMonster.flags.runHealth = parseInt(value) || 0;
+  }));
+
+  content.appendChild(numericRow);
+
+  return createCard("⚙️ Flags", content);
+}
+
+function createAdvancedSettingsCard(): HTMLElement {
+  if (!currentMonster) return document.createElement("div");
+
+  const content = document.createElement("div");
+  content.className = "card-content";
+
+  // Light
+  const lightTitle = document.createElement("h4");
+  lightTitle.textContent = "Light";
+  lightTitle.style.marginTop = "0";
+  lightTitle.style.marginBottom = "var(--space-md)";
+  lightTitle.style.fontSize = "0.875rem";
+  lightTitle.style.fontWeight = "600";
+  lightTitle.style.color = "var(--text-secondary)";
+  lightTitle.style.textTransform = "uppercase";
+  lightTitle.style.letterSpacing = "0.05em";
+  content.appendChild(lightTitle);
+
+  const lightRow = document.createElement("div");
+  lightRow.className = "form-row";
+
+  lightRow.appendChild(createFormGroup("Light Level", "number", currentMonster.light.level.toString(), (value) => {
+    if (currentMonster) currentMonster.light.level = parseInt(value) || 0;
+  }));
+
+  lightRow.appendChild(createFormGroup("Light Color", "number", currentMonster.light.color.toString(), (value) => {
+    if (currentMonster) currentMonster.light.color = parseInt(value) || 0;
+  }));
+
+  content.appendChild(lightRow);
+
+  // Change Target
+  const targetTitle = document.createElement("h4");
+  targetTitle.textContent = "Change Target";
+  targetTitle.style.marginTop = "var(--space-lg)";
+  targetTitle.style.marginBottom = "var(--space-md)";
+  targetTitle.style.fontSize = "0.875rem";
+  targetTitle.style.fontWeight = "600";
+  targetTitle.style.color = "var(--text-secondary)";
+  targetTitle.style.textTransform = "uppercase";
+  targetTitle.style.letterSpacing = "0.05em";
+  content.appendChild(targetTitle);
+
+  const targetRow = document.createElement("div");
+  targetRow.className = "form-row";
+
+  targetRow.appendChild(createFormGroup("Interval", "number", currentMonster.changeTarget.interval.toString(), (value) => {
+    if (currentMonster) currentMonster.changeTarget.interval = parseInt(value) || 0;
+  }));
+
+  targetRow.appendChild(createFormGroup("Chance", "number", currentMonster.changeTarget.chance.toString(), (value) => {
+    if (currentMonster) currentMonster.changeTarget.chance = parseInt(value) || 0;
+  }));
+
+  content.appendChild(targetRow);
+
+  // Strategies
+  const strategiesTitle = document.createElement("h4");
+  strategiesTitle.textContent = "Target Strategies";
+  strategiesTitle.style.marginTop = "var(--space-lg)";
+  strategiesTitle.style.marginBottom = "var(--space-md)";
+  strategiesTitle.style.fontSize = "0.875rem";
+  strategiesTitle.style.fontWeight = "600";
+  strategiesTitle.style.color = "var(--text-secondary)";
+  strategiesTitle.style.textTransform = "uppercase";
+  strategiesTitle.style.letterSpacing = "0.05em";
+  content.appendChild(strategiesTitle);
+
+  const strategiesRow = document.createElement("div");
+  strategiesRow.className = "form-row";
+
+  strategiesRow.appendChild(createFormGroup("Nearest", "number", currentMonster.strategiesTarget.nearest.toString(), (value) => {
+    if (currentMonster) currentMonster.strategiesTarget.nearest = parseInt(value) || 0;
+  }));
+
+  strategiesRow.appendChild(createFormGroup("Health", "number", currentMonster.strategiesTarget.health.toString(), (value) => {
+    if (currentMonster) currentMonster.strategiesTarget.health = parseInt(value) || 0;
+  }));
+
+  strategiesRow.appendChild(createFormGroup("Damage", "number", currentMonster.strategiesTarget.damage.toString(), (value) => {
+    if (currentMonster) currentMonster.strategiesTarget.damage = parseInt(value) || 0;
+  }));
+
+  strategiesRow.appendChild(createFormGroup("Random", "number", currentMonster.strategiesTarget.random.toString(), (value) => {
+    if (currentMonster) currentMonster.strategiesTarget.random = parseInt(value) || 0;
+  }));
+
+  content.appendChild(strategiesRow);
+
+  return createCard("🔧 Advanced Settings", content);
+}
+
+type FormGroupOptions = {
+  min?: number;
+  max?: number;
+  step?: number;
+  clampValue?: boolean;
+};
+
+function createFormGroup(
+  label: string,
+  type: string,
+  value: string,
+  onChange: (value: string) => void,
+  options?: FormGroupOptions,
+): HTMLElement {
+  const group = document.createElement("div");
+  group.className = "form-group";
+
+  const labelEl = document.createElement("label");
+  labelEl.textContent = label;
+  group.appendChild(labelEl);
+
+  if (type === "textarea") {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.addEventListener("input", () => onChange(textarea.value));
+    group.appendChild(textarea);
+  } else {
+    const input = document.createElement("input");
+    input.type = type;
+    input.value = value;
+
+    if (type === "number") {
+      if (options?.min !== undefined) input.min = String(options.min);
+      if (options?.max !== undefined) input.max = String(options.max);
+      if (options?.step !== undefined) input.step = String(options.step);
+    }
+
+    const shouldClamp = type === "number" && (options?.min !== undefined || options?.max !== undefined);
+    input.addEventListener("input", () => {
+      let nextValue = input.value;
+      if (shouldClamp && nextValue.trim() !== "") {
+        let parsed = parseFloat(nextValue);
+        if (Number.isNaN(parsed)) {
+          parsed = options?.min ?? 0;
+        }
+        if (options?.min !== undefined) parsed = Math.max(options.min, parsed);
+        if (options?.max !== undefined) parsed = Math.min(options.max, parsed);
+        nextValue = String(parsed);
+        input.value = nextValue;
+      }
+      onChange(nextValue);
+    });
+
+    group.appendChild(input);
+  }
+
+  return group;
+}
+
+function createColorField(label: string, initialValue: number, onValueChange: (value: number) => void): HTMLElement {
+  const field = document.createElement("div");
+  field.className = "monster-color-field";
+
+  const fieldId = `monster-color-${label.toLowerCase().replace(/[^a-z0-9]+/gi, "-")}`;
+
+  const labelElement = document.createElement("label");
+  labelElement.className = "monster-color-label";
+  labelElement.textContent = label;
+  labelElement.setAttribute("for", `${fieldId}-number`);
+  field.appendChild(labelElement);
+
+  const controls = document.createElement("div");
+  controls.className = "monster-color-controls";
+  field.appendChild(controls);
+
+  const numberInput = document.createElement("input");
+  numberInput.type = "number";
+  numberInput.id = `${fieldId}-number`;
+  numberInput.min = "0";
+  numberInput.max = String(OUTFIT_COLOR_COUNT - 1);
+  numberInput.className = "monster-color-number";
+  controls.appendChild(numberInput);
+
+  const colorInput = document.createElement("input");
+  colorInput.type = "color";
+  colorInput.className = "monster-color-input";
+  colorInput.title = `Selecionar cor para ${label}`;
+  controls.appendChild(colorInput);
+
+  let currentColorId = clampColorId(initialValue);
+
+  const updateVisualState = () => {
+    const hex = outfitColorHexCache[currentColorId];
+    numberInput.value = String(currentColorId);
+    colorInput.value = hex;
+  };
+
+  const commitColor = (colorId: number, forceEmit = false) => {
+    const normalized = clampColorId(colorId);
+    const changed = normalized !== currentColorId;
+    currentColorId = normalized;
+    updateVisualState();
+    if (changed || forceEmit) {
+      onValueChange(currentColorId);
+    }
+  };
+
+  numberInput.addEventListener("input", () => {
+    const parsed = parseInt(numberInput.value, 10);
+    if (Number.isNaN(parsed)) {
+      numberInput.value = String(currentColorId);
+      return;
+    }
+    commitColor(parsed, true);
+  });
+
+  colorInput.addEventListener("input", () => {
+    const normalized = normalizeHex(colorInput.value);
+    let targetIndex = outfitColorHexCache.indexOf(normalized);
+    if (targetIndex === -1) {
+      const rgb = hexToRgb(normalized);
+      targetIndex = findClosestColorId(rgb);
+    }
+    commitColor(targetIndex, true);
+  });
+
+  updateVisualState();
+
+  return field;
+}
+
+function attachCardEditButton(card: HTMLElement, onClick: () => void) {
+  const header = card.querySelector(".monster-card-header");
+  if (!header) return;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "card-edit-button";
+  button.textContent = "Editar";
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    try {
+      onClick();
+    } catch (error) {
+      console.error("Failed to open monster editor modal:", error);
+      alert("Nao foi possivel abrir o editor. Verifique o console para mais detalhes.");
+    }
+  });
+  header.appendChild(button);
+}
+
+let activeMonsterModal: {
+  element: HTMLElement;
+  restoreFocus: HTMLElement | null;
+  keyHandler: (event: KeyboardEvent) => void;
+} | null = null;
+
+function closeMonsterModal() {
+  if (!activeMonsterModal) return;
+  document.removeEventListener("keydown", activeMonsterModal.keyHandler);
+  activeMonsterModal.element.remove();
+  activeMonsterModal.restoreFocus?.focus();
+  activeMonsterModal = null;
+}
+
+type MonsterModalRenderHelpers = {
+  addAction: (action: HTMLElement) => void;
+};
+
+function showMonsterModal(
+  title: string,
+  render: (body: HTMLElement, helpers: MonsterModalRenderHelpers) => (() => boolean | void) | void,
+): void {
+  closeMonsterModal();
+
+  const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const backdrop = document.createElement("div");
+  backdrop.className = "monster-modal-backdrop";
+
+  const modal = document.createElement("div");
+  modal.className = "monster-modal";
+
+  const header = document.createElement("div");
+  header.className = "monster-modal-header";
+
+  const titleEl = document.createElement("h3");
+  titleEl.textContent = title;
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "monster-modal-toolbar";
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "modal-close-button";
+  closeBtn.innerHTML = "&times;";
+  closeBtn.onclick = () => closeMonsterModal();
+
+  header.append(titleEl, toolbar, closeBtn);
+
+  const body = document.createElement("div");
+  body.className = "monster-modal-body";
+
+  const footer = document.createElement("div");
+  footer.className = "monster-modal-footer";
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.className = "btn-secondary";
+  cancelBtn.textContent = "Cancelar";
+  cancelBtn.onclick = () => closeMonsterModal();
+
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "btn-primary";
+  saveBtn.textContent = "Salvar";
+
+  footer.append(cancelBtn, saveBtn);
+
+  modal.append(header, body, footer);
+  backdrop.appendChild(modal);
+
+  const keyHandler = (event: KeyboardEvent) => {
+    if (event.key === "Escape" && activeMonsterModal) {
+      event.preventDefault();
+      closeMonsterModal();
+    }
+  };
+  document.addEventListener("keydown", keyHandler);
+
+  const host = document.querySelector(".monster-editor-container") || document.body;
+  host.appendChild(backdrop);
+  activeMonsterModal = { element: backdrop, restoreFocus: previousFocus, keyHandler };
+
+  const helpers: MonsterModalRenderHelpers = {
+    addAction: (action: HTMLElement) => {
+      action.classList.add("monster-modal-action");
+      toolbar.appendChild(action);
+    },
+  };
+
+  const saveHandler = render(body, helpers);
+
+  const handleSave = () => {
+    if (typeof saveHandler === "function") {
+      const result = saveHandler();
+      if (result === false) {
+        return;
+      }
+    }
+    closeMonsterModal();
+    refreshMonsterEditorView();
+  };
+
+  saveBtn.onclick = handleSave;
+  backdrop.addEventListener("click", (event) => {
+    if (event.target === backdrop) {
+      closeMonsterModal();
+    }
+  });
+}
+
+function createModalField(labelText: string, input: HTMLElement): HTMLElement {
+  const wrapper = document.createElement("label");
+  wrapper.className = "monster-modal-field";
+
+  const label = document.createElement("span");
+  label.textContent = labelText;
+  wrapper.append(label, input);
+  return wrapper;
+}
+
+function createModalSection(title: string): HTMLElement {
+  const section = document.createElement("div");
+  section.className = "monster-modal-section";
+
+  const heading = document.createElement("h4");
+  heading.textContent = title;
+  section.appendChild(heading);
+  return section;
+}
+
+function openSummonsModal() {
+  if (!currentMonster) return;
+
+  const summonData = currentMonster.summon
+    ? {
+        maxSummons: currentMonster.summon.maxSummons,
+        summons: currentMonster.summon.summons.map((summon) => ({ ...summon })),
+      }
+    : createDefaultSummon();
+  let enabled = Boolean(currentMonster.summon);
+
+  showMonsterModal("Editar Summons", (body, helpers) => {
+    const configSection = createModalSection("Configuracoes");
+    const listSection = createModalSection("Criaturas");
+    body.append(configSection, listSection);
+
+    const toggleWrapper = document.createElement("label");
+    toggleWrapper.className = "monster-modal-field checkbox";
+    const toggle = document.createElement("input");
+    toggle.type = "checkbox";
+    toggle.checked = enabled;
+    const toggleText = document.createElement("span");
+    toggleText.textContent = "Ativar Summons";
+    toggleWrapper.append(toggle, toggleText);
+    configSection.appendChild(toggleWrapper);
+
+    const maxInput = document.createElement("input");
+    maxInput.type = "number";
+    maxInput.value = summonData.maxSummons.toString();
+    maxInput.oninput = () => {
+      summonData.maxSummons = parseInt(maxInput.value, 10) || 0;
+    };
+    configSection.appendChild(createModalField("Max Summons", maxInput));
+
+    const list = document.createElement("div");
+    list.className = "modal-list";
+    listSection.appendChild(list);
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "btn-secondary";
+    addBtn.textContent = "Adicionar Summon";
+    addBtn.onclick = () => {
+      if (!enabled) return;
+      summonData.summons.push({ name: "", chance: 0, interval: 2000, count: 1 });
+      renderList();
+    };
+    helpers.addAction(addBtn);
+
+    const updateControls = () => {
+      maxInput.disabled = !enabled;
+      addBtn.disabled = !enabled;
+      renderList();
+    };
+
+    toggle.addEventListener("change", () => {
+      enabled = toggle.checked;
+      updateControls();
+    });
+
+    function renderList() {
+      list.innerHTML = "";
+      if (!enabled) {
+        const disabledState = document.createElement("div");
+        disabledState.className = "empty-state";
+        disabledState.textContent = "Summons desativados.";
+        list.appendChild(disabledState);
+        return;
+      }
+
+      if (summonData.summons.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = "Nenhum summon configurado.";
+        list.appendChild(empty);
+        return;
+      }
+
+      summonData.summons.forEach((entry, index) => {
+        const row = document.createElement("div");
+        row.className = "modal-list-item";
+
+        const header = document.createElement("div");
+        header.className = "modal-list-item-header";
+        header.textContent = `Summon ${index + 1}`;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn-icon";
+        removeBtn.innerHTML = "&times;";
+        removeBtn.onclick = () => {
+          summonData.summons.splice(index, 1);
+          renderList();
+        };
+        header.appendChild(removeBtn);
+
+        const grid = document.createElement("div");
+        grid.className = "modal-grid";
+
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.value = entry.name;
+        nameInput.oninput = () => {
+          entry.name = nameInput.value;
+        };
+
+        const chanceInput = document.createElement("input");
+        chanceInput.type = "number";
+        chanceInput.value = entry.chance.toString();
+        chanceInput.oninput = () => {
+          entry.chance = parseInt(chanceInput.value, 10) || 0;
+        };
+
+        const intervalInput = document.createElement("input");
+        intervalInput.type = "number";
+        intervalInput.value = entry.interval.toString();
+        intervalInput.oninput = () => {
+          entry.interval = parseInt(intervalInput.value, 10) || 0;
+        };
+
+        const countInput = document.createElement("input");
+        countInput.type = "number";
+        countInput.value = entry.count.toString();
+        countInput.oninput = () => {
+          entry.count = parseInt(countInput.value, 10) || 0;
+        };
+
+        grid.append(
+          createModalField("Name", nameInput),
+          createModalField("Chance (%)", chanceInput),
+          createModalField("Interval (ms)", intervalInput),
+          createModalField("Count", countInput),
+        );
+
+        row.append(header, grid);
+        list.appendChild(row);
+      });
+    }
+
+    updateControls();
+
+    return () => {
+      if (!currentMonster) return false;
+      if (!enabled) {
+        currentMonster.summon = undefined;
+      } else {
+        currentMonster.summon = {
+          maxSummons: Math.max(0, summonData.maxSummons),
+          summons: summonData.summons.filter((summon) => summon.name.trim().length > 0),
+        };
+      }
+      markFieldTouched("summon");
+      return true;
+    };
+  });
+}
+
+function openEventsModal() {
+  if (!currentMonster) return;
+
+  const events = [...(currentMonster.events || [])];
+
+  showMonsterModal("Editar Eventos", (body, helpers) => {
+    const section = createModalSection("Eventos Registrados");
+    body.appendChild(section);
+
+    const list = document.createElement("div");
+    list.className = "modal-list";
+    section.appendChild(list);
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "btn-secondary";
+    addBtn.textContent = "Adicionar Evento";
+    addBtn.onclick = () => {
+      events.push("");
+      renderList();
+    };
+    helpers.addAction(addBtn);
+
+    function renderList() {
+      list.innerHTML = "";
+      if (events.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = "Nenhum evento vinculado.";
+        list.appendChild(empty);
+        return;
+      }
+
+      events.forEach((eventName, index) => {
+        const row = document.createElement("div");
+        row.className = "modal-list-item";
+
+        const header = document.createElement("div");
+        header.className = "modal-list-item-header";
+        header.textContent = `Evento ${index + 1}`;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn-icon";
+        removeBtn.innerHTML = "&times;";
+        removeBtn.onclick = () => {
+          events.splice(index, 1);
+          renderList();
+        };
+        header.appendChild(removeBtn);
+
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.value = eventName;
+        nameInput.placeholder = "Ex.: RottenBloodBakragoreDeath";
+        nameInput.oninput = () => {
+          events[index] = nameInput.value;
+        };
+
+        row.append(header, createModalField("Nome do Evento", nameInput));
+        list.appendChild(row);
+      });
+    }
+
+    renderList();
+
+    return () => {
+      if (!currentMonster) return false;
+      currentMonster.events = events.map((name) => name.trim()).filter((name) => name.length > 0);
+      markFieldTouched("events");
+      return true;
+    };
+  });
+}
+
+function openLootEditorModal() {
+  if (!currentMonster) return;
+
+  const lootEntries = currentMonster.loot.map((item) => ({ ...item }));
+
+  showMonsterModal("Editar Loot", (body, helpers) => {
+    const section = createModalSection("Itens de Loot");
+    body.appendChild(section);
+
+    const list = document.createElement("div");
+    list.className = "modal-list";
+    section.appendChild(list);
+
+    const addButton = document.createElement("button");
+    addButton.type = "button";
+    addButton.className = "btn-secondary";
+    addButton.textContent = "Adicionar Item";
+    addButton.onclick = () => {
+      lootEntries.push({
+        name: "",
+        chance: 0,
+      });
+      renderList();
+    };
+    helpers.addAction(addButton);
+
+    function renderList() {
+      list.innerHTML = "";
+      if (lootEntries.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = "Nenhum item configurado";
+        list.appendChild(empty);
+        return;
+      }
+
+      lootEntries.forEach((entry, index) => {
+        const row = document.createElement("div");
+        row.className = "modal-list-item";
+
+        const header = document.createElement("div");
+        header.className = "modal-list-item-header";
+        header.textContent = `Item ${index + 1}`;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn-icon";
+        removeBtn.innerHTML = "&times;";
+        removeBtn.title = "Remover";
+        removeBtn.onclick = () => {
+          lootEntries.splice(index, 1);
+          renderList();
+        };
+        header.appendChild(removeBtn);
+
+        const grid = document.createElement("div");
+        grid.className = "modal-grid";
+
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.value = entry.name ?? "";
+        nameInput.placeholder = "Nome do item";
+        nameInput.oninput = () => {
+          entry.name = nameInput.value || undefined;
+        };
+
+        const idInput = document.createElement("input");
+        idInput.type = "number";
+        idInput.value = entry.id?.toString() ?? "";
+        idInput.placeholder = "ID (opcional)";
+        idInput.oninput = () => {
+          const value = parseInt(idInput.value, 10);
+          entry.id = Number.isNaN(value) ? undefined : value;
+        };
+
+        const chanceInput = document.createElement("input");
+        chanceInput.type = "number";
+        chanceInput.min = "0";
+        chanceInput.value = entry.chance.toString();
+        chanceInput.oninput = () => {
+          entry.chance = parseInt(chanceInput.value, 10) || 0;
+        };
+
+        const minInput = document.createElement("input");
+        minInput.type = "number";
+        minInput.min = "0";
+        minInput.value = entry.minCount?.toString() ?? "";
+        minInput.oninput = () => {
+          const value = parseInt(minInput.value, 10);
+          entry.minCount = Number.isNaN(value) ? undefined : value;
+        };
+
+        const maxInput = document.createElement("input");
+        maxInput.type = "number";
+        maxInput.min = "0";
+        maxInput.value = entry.maxCount?.toString() ?? "";
+        maxInput.oninput = () => {
+          const value = parseInt(maxInput.value, 10);
+          entry.maxCount = Number.isNaN(value) ? undefined : value;
+        };
+
+        grid.append(
+          createModalField("Nome", nameInput),
+          createModalField("ID", idInput),
+          createModalField("Chance (0-100000)", chanceInput),
+          createModalField("Qtd. Minima", minInput),
+          createModalField("Qtd. Maxima", maxInput),
+        );
+
+        row.append(header, grid);
+        list.appendChild(row);
+      });
+    }
+
+    renderList();
+
+    return () => {
+      if (!currentMonster) return false;
+      currentMonster.loot = lootEntries
+        .map((entry) => ({
+          id: entry.id,
+          name: entry.name?.trim() || undefined,
+          chance: entry.chance || 0,
+          minCount: entry.minCount,
+          maxCount: entry.maxCount,
+        }))
+        .filter((entry) => (entry.id !== undefined || entry.name) && entry.chance >= 0);
+      return true;
+    };
+  });
+}
+
+type SpellFieldConfig = {
+  key: string;
+  label: string;
+  type: "text" | "number" | "checkbox";
+};
+
+function buildSpellFields(category: "attack" | "defense"): SpellFieldConfig[] {
+  const shared: SpellFieldConfig[] = [
+    { key: "name", label: "Nome", type: "text" },
+    { key: "interval", label: "Intervalo (ms)", type: "number" },
+    { key: "chance", label: "Chance (%)", type: "number" },
+    { key: "minDamage", label: "Dano minimo", type: "number" },
+    { key: "maxDamage", label: "Dano maximo", type: "number" },
+    { key: "combatType", label: "Tipo", type: "text" },
+    { key: "target", label: "Precisa alvo", type: "checkbox" },
+    { key: "effect", label: "Efeito", type: "text" },
+    { key: "speedChange", label: "Alteracao velocidade", type: "number" },
+    { key: "duration", label: "Duracao (ms)", type: "number" },
+  ];
+
+  if (category === "attack") {
+    return [
+      ...shared,
+      { key: "range", label: "Alcance", type: "number" },
+      { key: "radius", label: "Raio", type: "number" },
+      { key: "length", label: "Comprimento", type: "number" },
+      { key: "spread", label: "Abertura", type: "number" },
+      { key: "shootEffect", label: "Efeito projetil", type: "text" },
+    ];
+  }
+
+  return shared;
+}
+
+function renderPropertyEditor(title: string, properties: LuaProperty[] | undefined, onChange: (values: LuaProperty[]) => void) {
+  const container = document.createElement("div");
+  container.className = "attack-subsection";
+
+  const heading = document.createElement("div");
+  heading.className = "attack-subsection-title";
+  heading.textContent = title;
+
+  const list = document.createElement("div");
+  list.className = "attack-property-list";
+
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "btn-secondary btn-compact";
+  addBtn.textContent = "Adicionar propriedade";
+
+  container.append(heading, list, addBtn);
+
+  const values = properties ?? [];
+  if (!properties) {
+    onChange(values);
+  }
+
+  const renderList = () => {
+    list.innerHTML = "";
+    if (values.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.textContent = "Nenhuma propriedade";
+      list.appendChild(empty);
+      return;
+    }
+
+    values.forEach((prop, index) => {
+      const row = document.createElement("div");
+      row.className = "attack-property-row";
+
+      const keyInput = document.createElement("input");
+      keyInput.type = "text";
+      keyInput.value = prop.key;
+      keyInput.placeholder = "Chave";
+      keyInput.oninput = () => {
+        prop.key = keyInput.value;
+      };
+
+      const valueInput = document.createElement("input");
+      valueInput.type = "text";
+      valueInput.value = prop.value;
+      valueInput.placeholder = "Valor";
+      valueInput.oninput = () => {
+        prop.value = valueInput.value;
+      };
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "btn-icon";
+      remove.innerHTML = "&times;";
+      remove.title = "Remover";
+      remove.onclick = () => {
+        values.splice(index, 1);
+        onChange(values);
+        renderList();
+      };
+
+      row.append(keyInput, valueInput, remove);
+      list.appendChild(row);
+    });
+  };
+
+  addBtn.onclick = () => {
+    values.push({ key: "", value: "" });
+    onChange(values);
+    renderList();
+  };
+
+  renderList();
+
+  return {
+    element: container,
+  };
+}
+
+function openSpellsEditorModal() {
+  if (!currentMonster) return;
+
+  const attacks = currentMonster.attacks.map((attack) => JSON.parse(JSON.stringify(attack)));
+  const defenses = currentMonster.defenses.entries.map((defense) => JSON.parse(JSON.stringify(defense)));
+
+  showMonsterModal("Editar Ataques & Defesas", (body, helpers) => {
+    const sectionsWrapper = document.createElement("div");
+    sectionsWrapper.className = "modal-sections-wrapper";
+    body.appendChild(sectionsWrapper);
+
+    const buildSection = (title: string, entries: (AttackEntry | DefenseEntry)[], category: "attack" | "defense") => {
+      const section = createModalSection(title);
+      section.classList.add("modal-spell-section");
+      sectionsWrapper.appendChild(section);
+
+      const list = document.createElement("div");
+      list.className = "modal-list";
+      section.appendChild(list);
+
+      const addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "btn-secondary";
+      addBtn.textContent = category === "attack" ? "Adicionar Ataque" : "Adicionar Defesa";
+      addBtn.onclick = () => {
+        if (category === "attack") {
+          entries.push({
+            name: "",
+            interval: 2000,
+            chance: 100,
+          } as AttackEntry);
+        } else {
+          entries.push({
+            name: "",
+            interval: 2000,
+            chance: 100,
+          } as DefenseEntry);
+        }
+        renderList();
+      };
+      helpers.addAction(addBtn);
+
+      const fieldConfig = buildSpellFields(category);
+
+      const renderList = () => {
+        list.innerHTML = "";
+        if (entries.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Nenhum registro";
+          list.appendChild(empty);
+          return;
+        }
+
+        entries.forEach((entry, index) => {
+          const row = document.createElement("div");
+          row.className = "modal-list-item";
+
+          const header = document.createElement("div");
+          header.className = "modal-list-item-header";
+          header.textContent = `${title} ${index + 1}`;
+
+          const removeBtn = document.createElement("button");
+          removeBtn.type = "button";
+          removeBtn.className = "btn-icon";
+          removeBtn.innerHTML = "&times;";
+          removeBtn.title = "Remover";
+          removeBtn.onclick = () => {
+            entries.splice(index, 1);
+            renderList();
+          };
+          header.appendChild(removeBtn);
+
+          const grid = document.createElement("div");
+          grid.className = "modal-grid";
+
+          fieldConfig.forEach((field) => {
+            const input = document.createElement("input");
+            if (field.type === "checkbox") {
+              input.type = "checkbox";
+              input.checked = Boolean((entry as any)[field.key]);
+              input.onchange = () => {
+                (entry as any)[field.key] = input.checked;
+              };
+            } else {
+              input.type = "number" === field.type ? "number" : "text";
+              const value = (entry as any)[field.key];
+              input.value = value !== undefined && value !== null ? value.toString() : "";
+              input.oninput = () => {
+                const val = input.value.trim();
+                if (field.type === "number") {
+                  if (val === "") {
+                    (entry as any)[field.key] = undefined;
+                    return;
+                  }
+                  const num = Number(val);
+                  (entry as any)[field.key] = Number.isNaN(num) ? undefined : num;
+                } else {
+                  (entry as any)[field.key] = val || undefined;
+                }
+              };
+            }
+            grid.appendChild(createModalField(field.label, input));
+          });
+
+          const conditionEditor = renderPropertyEditor("Condicao", (entry as any).condition, (values) => {
+            (entry as any).condition = values;
+          });
+          const extrasEditor = renderPropertyEditor("Propriedades extras", (entry as any).extra_fields || (entry as any).extraFields, (values) => {
+            (entry as any).extra_fields = values;
+            (entry as any).extraFields = values;
+          });
+
+          row.append(header, grid, conditionEditor.element, extrasEditor.element);
+          list.appendChild(row);
+        });
+      };
+
+      renderList();
+    };
+
+    buildSection("Ataques", attacks, "attack");
+    buildSection("Defesas", defenses, "defense");
+
+    return () => {
+      if (!currentMonster) return false;
+      currentMonster.attacks = attacks;
+      currentMonster.defenses.entries = defenses;
+      return true;
+    };
+  });
+}
+
+function openElementsModal() {
+  if (!currentMonster) return;
+
+  const elements = currentMonster.elements.map((element) => ({ ...element }));
+  const immunities = currentMonster.immunities.map((immunity) => ({ ...immunity }));
+
+  showMonsterModal("Editar Elementos & Imunidades", (body, helpers) => {
+    const elementsSection = createModalSection("Elementos");
+    const immunitySection = createModalSection("Imunidades");
+    body.append(elementsSection, immunitySection);
+
+    const renderSimpleList = (
+      section: HTMLElement,
+      entries: Array<Record<string, any>>,
+      fields: Array<{ key: string; label: string; type: "text" | "number" | "checkbox" }>,
+      addDefaults: () => Record<string, any>,
+      addButtonLabel: string,
+    ) => {
+      const list = document.createElement("div");
+      list.className = "modal-list";
+      section.appendChild(list);
+
+      const addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "btn-secondary";
+      addBtn.textContent = addButtonLabel;
+      addBtn.onclick = () => {
+        entries.push(addDefaults());
+        render();
+      };
+      helpers.addAction(addBtn);
+
+      const render = () => {
+        list.innerHTML = "";
+        if (entries.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Nenhum registro";
+          list.appendChild(empty);
+          return;
+        }
+
+        entries.forEach((entry, index) => {
+          const row = document.createElement("div");
+          row.className = "modal-list-item";
+
+          const header = document.createElement("div");
+          header.className = "modal-list-item-header";
+          header.textContent = `${section.querySelector("h4")?.textContent || "Item"} ${index + 1}`;
+
+          const removeBtn = document.createElement("button");
+          removeBtn.type = "button";
+          removeBtn.className = "btn-icon";
+          removeBtn.innerHTML = "&times;";
+          removeBtn.title = "Remover";
+          removeBtn.onclick = () => {
+            entries.splice(index, 1);
+            render();
+          };
+          header.appendChild(removeBtn);
+
+          const grid = document.createElement("div");
+          grid.className = "modal-grid";
+
+          fields.forEach((field) => {
+            const input = document.createElement("input");
+            input.type = field.type === "checkbox" ? "checkbox" : field.type;
+
+            if (field.type === "checkbox") {
+              input.checked = Boolean(entry[field.key]);
+              input.onchange = () => {
+                entry[field.key] = input.checked;
+              };
+            } else {
+              input.value = entry[field.key]?.toString() ?? "";
+              input.oninput = () => {
+                const val = input.value.trim();
+                if (field.type === "number") {
+                  const num = Number(val);
+                  entry[field.key] = val === "" || Number.isNaN(num) ? undefined : num;
+                } else {
+                  entry[field.key] = val;
+                }
+              };
+            }
+
+            grid.appendChild(createModalField(field.label, input));
+          });
+
+          row.append(header, grid);
+          list.appendChild(row);
+        });
+      };
+
+      render();
+    };
+
+    renderSimpleList(
+      elementsSection,
+      elements,
+      [
+        { key: "elementType", label: "Tipo", type: "text" },
+        { key: "percent", label: "%", type: "number" },
+      ],
+      () => ({ elementType: "", percent: 0 }),
+      "Adicionar Elemento",
+    );
+
+    renderSimpleList(
+      immunitySection,
+      immunities,
+      [
+        { key: "immunityType", label: "Tipo", type: "text" },
+        { key: "condition", label: "Immune", type: "checkbox" },
+      ],
+      () => ({ immunityType: "", condition: false }),
+      "Adicionar Imunidade",
+    );
+
+    return () => {
+      if (!currentMonster) return false;
+      currentMonster.elements = elements.filter((el) => el.elementType.trim().length > 0);
+      currentMonster.immunities = immunities.filter((imm) => imm.immunityType.trim().length > 0);
+      return true;
+    };
+  });
+}
+
+function openVoicesModal() {
+  if (!currentMonster) return;
+
+  const voices = currentMonster.voices
+    ? {
+        interval: currentMonster.voices.interval,
+        chance: currentMonster.voices.chance,
+        entries: currentMonster.voices.entries.map((voice) => ({ ...voice })),
+      }
+    : {
+        interval: 5000,
+        chance: 10,
+        entries: [],
+      };
+
+  showMonsterModal("Editar Falas", (body, helpers) => {
+    const metaSection = createModalSection("Configuracoes");
+    const listSection = createModalSection("Falas");
+    body.append(metaSection, listSection);
+
+    const intervalInput = document.createElement("input");
+    intervalInput.type = "number";
+    intervalInput.value = voices.interval.toString();
+    intervalInput.oninput = () => {
+      voices.interval = parseInt(intervalInput.value, 10) || 0;
+    };
+
+    const chanceInput = document.createElement("input");
+    chanceInput.type = "number";
+    chanceInput.value = voices.chance.toString();
+    chanceInput.oninput = () => {
+      voices.chance = parseInt(chanceInput.value, 10) || 0;
+    };
+
+    const grid = document.createElement("div");
+    grid.className = "modal-grid";
+    grid.append(createModalField("Intervalo (ms)", intervalInput), createModalField("Chance (%)", chanceInput));
+    metaSection.appendChild(grid);
+
+    const list = document.createElement("div");
+    list.className = "modal-list";
+    listSection.appendChild(list);
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "btn-secondary";
+    addBtn.textContent = "Adicionar fala";
+    addBtn.onclick = () => {
+      voices.entries.push({ text: "", yell: false });
+      renderVoices();
+    };
+    helpers.addAction(addBtn);
+
+    function renderVoices() {
+      list.innerHTML = "";
+      if (voices.entries.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = "Nenhuma fala cadastrada";
+        list.appendChild(empty);
+        return;
+      }
+
+      voices.entries.forEach((voice, index) => {
+        const row = document.createElement("div");
+        row.className = "modal-list-item";
+
+        const header = document.createElement("div");
+        header.className = "modal-list-item-header";
+        header.textContent = `Fala ${index + 1}`;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn-icon";
+        removeBtn.innerHTML = "&times;";
+        removeBtn.title = "Remover";
+        removeBtn.onclick = () => {
+          voices.entries.splice(index, 1);
+          renderVoices();
+        };
+
+        header.appendChild(removeBtn);
+
+        const textInput = document.createElement("textarea");
+        textInput.value = voice.text;
+        textInput.rows = 2;
+        textInput.oninput = () => {
+          voice.text = textInput.value;
+        };
+
+        const yellLabel = document.createElement("label");
+        yellLabel.className = "monster-modal-field checkbox";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = voice.yell;
+        checkbox.onchange = () => {
+          voice.yell = checkbox.checked;
+        };
+        const span = document.createElement("span");
+        span.textContent = "Gritar";
+        yellLabel.append(checkbox, span);
+
+        row.append(header, createModalField("Texto", textInput), yellLabel);
+        list.appendChild(row);
+      });
+    }
+
+    renderVoices();
+
+    return () => {
+      if (!currentMonster) return false;
+      currentMonster.voices = voices;
+      markFieldTouched("voices");
+      return true;
+    };
+  });
+}
+
+function createCheckboxGroup(label: string, checked: boolean, onChange: (value: boolean) => void): HTMLElement {
+  const group = document.createElement("div");
+  group.className = "form-group checkbox-group";
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = checked;
+  checkbox.id = `checkbox-${label.replace(/\s+/g, "-")}`;
+  checkbox.addEventListener("change", () => onChange(checkbox.checked));
+
+  const labelEl = document.createElement("label");
+  labelEl.textContent = label;
+  labelEl.htmlFor = checkbox.id;
+
+  group.appendChild(checkbox);
+  group.appendChild(labelEl);
+
+  return group;
+}
+
+async function saveMonster() {
+  if (!currentMonster || !currentFilePath) {
+    alert("No monster loaded");
+    return;
+  }
+
+  ensureMonsterMeta(currentMonster);
+  const previousName = originalMonsterName;
+  const previousPath = currentFilePath;
+
+  try {
+    await invoke(COMMANDS.SAVE_MONSTER_FILE, {
+      filePath: currentFilePath,
+      monster: currentMonster,
+    });
+
+    let needsListRefresh = false;
+    const trimmedCurrentName = currentMonster.name.trim();
+    const nameChanged = Boolean(previousName && trimmedCurrentName && trimmedCurrentName !== previousName.trim());
+
+    if (nameChanged && monstersRootPath) {
+      try {
+        const renameResult = await invoke<any>("rename_monster_file", {
+          oldPath: previousPath,
+          newName: trimmedCurrentName,
+          monstersRoot: monstersRootPath,
+        });
+
+        const listEntry = monsterList.find((entry) => entry.filePath === previousPath);
+        if (listEntry) {
+          listEntry.name = trimmedCurrentName;
+          listEntry.filePath = renameResult.filePath;
+          listEntry.relativePath = renameResult.relativePath;
+        }
+
+        currentFilePath = renameResult.filePath;
+        originalMonsterName = trimmedCurrentName;
+        needsListRefresh = true;
+      } catch (renameError) {
+        alert(`Monster saved, but failed to rename file: ${renameError}`);
+      }
+    } else if (nameChanged) {
+      const listEntry = monsterList.find((entry) => entry.filePath === previousPath);
+      if (listEntry) {
+        listEntry.name = trimmedCurrentName;
+        needsListRefresh = true;
+      }
+      originalMonsterName = trimmedCurrentName;
+    }
+
+    if (needsListRefresh) {
+      renderMonsterList();
+    }
+
+    alert("Monster saved successfully!");
+  } catch (error) {
+    alert(`Failed to save monster: ${error}`);
+  }
+}
+
+
+
+
+
+
+
+
+

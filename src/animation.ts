@@ -1,10 +1,19 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { CompleteAppearanceItem, CompleteSpriteInfo, SpriteDecomposition, GroupMapping } from './types';
-import { getAppearanceSprites } from './spriteCache';
+import { getAppearanceSprites, bufferToObjectUrl } from './spriteCache';
 import { buildAssetPreviewAnimation } from './features/previewAnimation/assetPreviewAnimator';
 
 // Active animation players storage
 const activeAnimationPlayers = new Map<string, number>();
+const detailCache = new Map<string, CompleteAppearanceItem>();
+const MAX_AUTO_ANIMATIONS = 10_000;
+const runWhenIdle = (cb: () => void): void => {
+  if ('requestIdleCallback' in window) {
+    (window as any).requestIdleCallback(cb, { timeout: 500 });
+  } else {
+    setTimeout(cb, 0);
+  }
+};
 
 export function stopAllAnimationPlayers(): void {
   activeAnimationPlayers.forEach((timerId) => {
@@ -90,11 +99,17 @@ export function decomposeSpriteIndex(spriteInfo: CompleteSpriteInfo, localIndex:
   return { layerIndex, x, y, z, phaseIndex };
 }
 
-export async function initAnimationPlayersForDetails(details: CompleteAppearanceItem, category: string): Promise<void> {
+type SpriteLoader = () => Promise<Uint8Array[]>;
+
+export async function initAnimationPlayersForDetails(
+  details: CompleteAppearanceItem,
+  category: string,
+  spriteLoader?: SpriteLoader
+): Promise<void> {
   const detailsContent = document.querySelector('#details-content') as HTMLElement | null;
 
   try {
-    const sprites = await getAppearanceSprites(category, details.id);
+    const sprites = spriteLoader ? await spriteLoader() : await getAppearanceSprites(category, details.id);
     const groupOffsets = computeGroupOffsetsFromDetails(details);
 
     details.frame_groups.forEach((fg, index) => {
@@ -138,7 +153,7 @@ export async function initAnimationPlayersForDetails(details: CompleteAppearance
       const draw = () => {
         const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, 0, 0, 0, 0, phase);
         if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+          imgEl.src = bufferToObjectUrl(sprites[spriteIdx]);
           phaseLabel.textContent = `Fase ${phase + 1}`;
         }
       };
@@ -207,7 +222,7 @@ export async function initAnimationPlayersForDetails(details: CompleteAppearance
 
 export function initDetailSpriteCardAnimations(
   appearanceId: number,
-  sprites: string[],
+  sprites: Uint8Array[],
   currentAppearanceDetails: CompleteAppearanceItem | null
 ): void {
   try {
@@ -231,6 +246,8 @@ export function initDetailSpriteCardAnimations(
       if (!spriteInfo) return;
       const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_frames ?? 1);
       if (frames <= 1) return;
+      if (el.dataset.animReady === 'true') return;
+      el.dataset.animReady = 'true';
 
       const imgEl = el.querySelector('img.detail-sprite-image') as HTMLImageElement | null;
       if (!imgEl) return;
@@ -243,7 +260,7 @@ export function initDetailSpriteCardAnimations(
       const draw = () => {
         const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, dims.layerIndex, dims.x, dims.y, dims.z, phase);
         if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+          imgEl.src = bufferToObjectUrl(sprites[spriteIdx]);
         }
       };
 
@@ -273,7 +290,7 @@ export function initDetailSpriteCardAnimations(
                 el.classList.remove('animating');
                 const spriteIdx = aggIndex;
                 if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-                  imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+                  imgEl.src = bufferToObjectUrl(sprites[spriteIdx]);
                 }
                 return;
               }
@@ -296,7 +313,7 @@ export function initDetailSpriteCardAnimations(
         el.classList.remove('animating');
         const spriteIdx = aggIndex;
         if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+          imgEl.src = bufferToObjectUrl(sprites[spriteIdx]);
         }
       };
 
@@ -316,17 +333,27 @@ export function initDetailSpriteCardAnimations(
 export function initAssetCardAutoAnimation(
   category: string,
   appearanceId: number,
-  sprites: string[],
-  autoAnimateGridEnabled: boolean
+  autoAnimateGridEnabled: boolean,
+  forceStart = false
 ): void {
-  (async () => {
-    try {
-      const container = document.getElementById(`sprite-${appearanceId}`) as HTMLElement | null;
-      const imgEl = container?.querySelector('img') as HTMLImageElement | null;
-      if (!container || !imgEl) return;
+  const container = document.getElementById(`sprite-${appearanceId}`) as HTMLElement | null;
+  const imgEl = container?.querySelector('img') as HTMLImageElement | null;
+  if (!container || !imgEl) return;
 
-      const details = await invoke('get_complete_appearance', { category, id: appearanceId }) as CompleteAppearanceItem;
+  const cacheKey = `${category}:${appearanceId}`;
+
+  const startAnimation = async (): Promise<void> => {
+    try {
       if (!autoAnimateGridEnabled) return;
+      if (activeAnimationPlayers.has(`asset:${category}:${appearanceId}`)) return;
+      if (activeAnimationPlayers.size >= MAX_AUTO_ANIMATIONS) return;
+
+      const details = detailCache.has(cacheKey)
+        ? detailCache.get(cacheKey)!
+        : await invoke('get_complete_appearance', { category, id: appearanceId }) as CompleteAppearanceItem;
+      detailCache.set(cacheKey, details);
+
+      const sprites = await getAppearanceSprites(category, appearanceId);
 
       const sequence = await buildAssetPreviewAnimation(category, appearanceId, details, sprites);
       if (!sequence || sequence.frames.length === 0) {
@@ -334,10 +361,8 @@ export function initAssetCardAutoAnimation(
       }
 
       const key = `asset:${category}:${appearanceId}`;
-
-      // CRITICAL: Check if animation already exists to prevent duplicate timers
       if (activeAnimationPlayers.has(key)) {
-        return; // Already animating, don't create duplicate timer
+        return;
       }
 
       let frameIndex = 0;
@@ -345,7 +370,7 @@ export function initAssetCardAutoAnimation(
       const draw = () => {
         const frame = sequence.frames[frameIndex];
         if (frame) {
-          imgEl.src = `data:image/png;base64,${frame}`;
+          imgEl.src = frame;
         }
       };
       draw();
@@ -354,18 +379,30 @@ export function initAssetCardAutoAnimation(
         return;
       }
 
-      const start = () => {
-        const timerId = window.setInterval(() => {
-          frameIndex = (frameIndex + 1) % sequence.frames.length;
-          draw();
-        }, sequence.interval);
-        activeAnimationPlayers.set(key, timerId);
-        container.classList.add('animating');
-      };
-
-      start();
+      const timerId = window.setInterval(() => {
+        frameIndex = (frameIndex + 1) % sequence.frames.length;
+        draw();
+      }, sequence.interval);
+      activeAnimationPlayers.set(key, timerId);
+      container.classList.add('animating');
     } catch (e) {
       console.warn('Failed to init auto animation for asset card:', e);
     }
-  })();
+  };
+
+  if ('IntersectionObserver' in window) {
+    if (forceStart) {
+      runWhenIdle(() => { void startAnimation(); });
+    } else {
+      const observer = new IntersectionObserver((entries) => {
+        if (entries.some(entry => entry.isIntersecting)) {
+          observer.disconnect();
+          runWhenIdle(() => { void startAnimation(); });
+        }
+      }, { threshold: 0.25 });
+      observer.observe(container);
+    }
+  } else {
+    runWhenIdle(() => { void startAnimation(); });
+  }
 }

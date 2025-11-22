@@ -82,13 +82,6 @@ const translationEntries = {
     es: '🎯 Configura tu cliente de Tibia',
     ru: '🎯 Настройте клиент Tibia'
   },
-  'setup.tibiaPathLabel': {
-    default: 'Tibia Client Path:',
-    'pt-BR': 'Caminho do cliente Tibia:',
-    en: 'Tibia Client Path:',
-    es: 'Ruta del cliente de Tibia:',
-    ru: 'Путь к клиенту Tibia:'
-  },
   'setup.tibiaPathPlaceholder': {
     default: 'C:\\Path\\To\\Tibia',
     'pt-BR': 'C:\\Caminho\\Para\\Tibia',
@@ -109,6 +102,13 @@ const translationEntries = {
     en: 'Load assets',
     es: 'Cargar recursos',
     ru: 'Загрузить ресурсы'
+  },
+  'setup.returnToMenu': {
+    default: 'Main menu',
+    'pt-BR': 'Menu principal',
+    en: 'Main menu',
+    es: 'Menú principal',
+    ru: 'Главное меню'
   },
   'select.placeholder': {
     default: 'Selecione',
@@ -1033,6 +1033,216 @@ const translationEntries = {
     en: 'Saving...',
     es: 'Guardando...',
     ru: 'Сохранение...'
+  },
+  'status.spriteReplaced': {
+    default: 'Sprite atualizado na textura.',
+    'pt-BR': 'Sprite atualizado na textura.',
+    en: 'Sprite replaced on texture.',
+    es: 'Sprite reemplazado en la textura.',
+    ru: 'Спрайт заменен в текстуре.'
+  },
+  'status.spriteDropInvalid': {
+    default: 'Nenhum sprite válido encontrado para soltar.',
+    'pt-BR': 'Nenhum sprite válido encontrado para soltar.',
+    en: 'No valid sprite found in the drop data.',
+    es: 'No se encontró un sprite válido en el arrastre.',
+    ru: 'Не удалось определить перетаскиваемый спрайт.'
+  },
+  'status.spriteDropOutOfRange': {
+    default: 'Não há slots suficientes para aplicar esses sprites.',
+    'pt-BR': 'Não há slots suficientes para aplicar esses sprites.',
+    en: 'Not enough slots to apply these sprites.',
+    es: 'No hay ranuras suficientes para aplicar estos sprites.',
+    ru: 'Недостаточно слотов, чтобы применить эти спрайты.'
+  },
+  'status.spriteReplaceFailed': {
+    default: 'Falha ao atualizar sprites da textura.',
+    'pt-BR': 'Falha ao atualizar sprites da textura.',
+    en: 'Failed to update texture sprites.',
+    es: 'Error al actualizar los sprites de la textura.',
+    ru: 'Не удалось обновить спрайты текстуры.'
+  },
+  'status.spriteRemoved': {
+    default: 'Sprite removido da textura.',
+    'pt-BR': 'Sprite removido da textura.',
+    en: 'Sprite removed from texture.',
+    es: 'Sprite eliminado de la textura.',
+    ru: 'Спрайт удалён из текстуры.'
+  },
+  'status.spriteRemoveFailed': {
+    default: 'Falha ao remover sprites da textura.',
+    'pt-BR': 'Falha ao remover sprites da textura.',
+    en: 'Failed to remove sprites from texture.',
+    es: 'Error al eliminar sprites de la textura.',
+    ru: 'Не удалось удалить спрайты из текстуры.'
+  },
+  'header.spriteLibrary': {
+    default: 'Sprites',
+    'pt-BR': 'Sprites',
+    en: 'Sprites',
+    es: 'Sprites',
+    ru: 'Спрайты'
+  },
+  'status.spriteLibraryLoaded': {
+    default: '{{count}} sprites carregados na biblioteca.',
+    'pt-BR': '{{count}} sprites carregados na biblioteca.',
+    en: '{{count}} sprites loaded into the library.',
+    es: '{{count}} sprites cargados en la biblioteca.',
+    ru: '{{count}} спрайтов загружено в библиотеку.'
+  },
+  'texture.drop.title': {
+    default: 'Arraste sprites aqui',
+    'pt-BR': 'Arraste sprites aqui',
+    en: 'Drag sprites here',
+    es: 'Arrastra sprites aquí',
+    ru: 'Перетащите спрайты сюда'
+  },
+  'texture.drop.subtitle': {
+    default: 'Solte para substituir. Use Ctrl para preencher quadros em sequência.',
+    'pt-BR': 'Solte para substituir. Use Ctrl para preencher quadros em sequência.',
+    en: 'Drop to replace. Hold Ctrl to fill subsequent frames.',
+    es: 'Suelta para reemplazar. Usa Ctrl para llenar cuadros en secuencia.',
+    ru: 'Отпустите, чтобы заменить. Удерживайте Ctrl, чтобы заполнить кадры по порядку.'
+  },
+  'texture.spriteList.title': {
+    default: 'Lista de Sprites',
+    'pt-BR': 'Lista de Sprites',
+    en: 'Sprite List',
+    es: 'Lista de sprites',
+    ru: 'Список спрайтов'
+  },
+  'texture.spriteList.subtitle': {
+    default: 'Arraste um sprite para a pré-visualização para trocá-lo rapidamente.',
+    'pt-BR': 'Arraste um sprite para a pré-visualização para trocá-lo rapidamente.',
+    en: 'Drag a sprite onto the preview to swap it quickly.',
+    es: 'Arrastra un sprite a la vista previa para reemplazarlo rápidamente.',
+    ru: 'Перетащите спрайт на превью, чтобы быстро заменить его.'
+  },
+  'texture.spriteList.slotLabel': {
+    default: 'Slot {{value}}',
+    'pt-BR': 'Slot {{value}}',
+    en: 'Slot {{value}}',
+    es: 'Ranura {{value}}',
+    ru: 'Слот {{value}}'
+  },
+  'texture.spriteList.empty': {
+    default: 'Nenhum sprite disponível para este grupo.',
+    'pt-BR': 'Nenhum sprite disponível para este grupo.',
+    en: 'No sprites available for this group.',
+    es: 'No hay sprites disponibles para este grupo.',
+    ru: 'Для этой группы нет спрайтов.'
+  },
+  'texture.spriteList.removeTooltip': {
+    default: 'Remover sprite selecionado',
+    'pt-BR': 'Remover sprite selecionado',
+    en: 'Remove sprite from slot',
+    es: 'Eliminar sprite del espacio',
+    ru: 'Удалить спрайт из слота'
+  },
+  'texture.library.title': {
+    default: 'Biblioteca de Sprites',
+    'pt-BR': 'Biblioteca de Sprites',
+    en: 'Sprite Library',
+    es: 'Biblioteca de sprites',
+    ru: 'Библиотека спрайтов'
+  },
+  'texture.library.searchPlaceholder': {
+    default: 'IDs ou intervalos (ex: 100,120-130)',
+    'pt-BR': 'IDs ou intervalos (ex: 100,120-130)',
+    en: 'IDs or ranges (e.g. 100,120-130)',
+    es: 'IDs o rangos (ej: 100,120-130)',
+    ru: 'ID или диапазон (например 100,120-130)'
+  },
+  'texture.library.button.load': {
+    default: 'Carregar',
+    'pt-BR': 'Carregar',
+    en: 'Load',
+    es: 'Cargar',
+    ru: 'Загрузить'
+  },
+  'texture.library.button.search': {
+    default: 'Buscar IDs',
+    'pt-BR': 'Buscar IDs',
+    en: 'Search IDs',
+    es: 'Buscar IDs',
+    ru: 'Поиск ID'
+  },
+  'texture.library.button.open': {
+    default: 'Abrir biblioteca de sprites',
+    'pt-BR': 'Abrir biblioteca de sprites',
+    en: 'Open sprite library',
+    es: 'Abrir biblioteca de sprites',
+    ru: 'Открыть библиотеку спрайтов'
+  },
+  'texture.library.button.close': {
+    default: 'Fechar biblioteca',
+    'pt-BR': 'Fechar biblioteca',
+    en: 'Close library',
+    es: 'Cerrar biblioteca',
+    ru: 'Закрыть библиотеку'
+  },
+  'texture.library.hint': {
+    default: 'Use vírgulas para múltiplos IDs ou intervalos com hífen (ex: 45, 80-90).',
+    'pt-BR': 'Use vírgulas para múltiplos IDs ou intervalos com hífen (ex: 45, 80-90).',
+    en: 'Use commas for multiple IDs or hyphenated ranges (e.g. 45, 80-90).',
+    es: 'Usa comas para múltiples IDs o rangos con guión (ej: 45, 80-90).',
+    ru: 'Используйте запятые для нескольких ID или диапазоны через дефис (например 45, 80-90).'
+  },
+  'texture.library.empty': {
+    default: 'Nenhum sprite carregado ainda.',
+    'pt-BR': 'Nenhum sprite carregado ainda.',
+    en: 'No sprites loaded yet.',
+    es: 'Aún no hay sprites cargados.',
+    ru: 'Спрайты еще не загружены.'
+  },
+  'texture.library.start': {
+    default: 'Início',
+    'pt-BR': 'Início',
+    en: 'Start',
+    es: 'Inicio',
+    ru: 'Начало'
+  },
+  'texture.library.pageSize': {
+    default: 'Qtd',
+    'pt-BR': 'Qtd',
+    en: 'Count',
+    es: 'Cant.',
+    ru: 'Кол-во'
+  },
+  'texture.library.order': {
+    default: 'Ordem',
+    'pt-BR': 'Ordem',
+    en: 'Order',
+    es: 'Orden',
+    ru: 'Порядок'
+  },
+  'texture.library.order.asc': {
+    default: '1 → 9',
+    'pt-BR': '1 → 9',
+    en: '1 → 9',
+    es: '1 → 9',
+    ru: '1 → 9'
+  },
+  'texture.library.order.desc': {
+    default: '9 → 1',
+    'pt-BR': '9 → 1',
+    en: '9 → 1',
+    es: '9 → 1',
+    ru: '9 → 1'
+  },
+  'texture.library.prev': {
+    default: 'Página anterior',
+    'pt-BR': 'Página anterior',
+    en: 'Previous page',
+    es: 'Página anterior',
+    ru: 'Предыдущая страница'
+  },
+  'texture.library.next': {
+    default: 'Próxima página',
+    'pt-BR': 'Próxima página',
+    en: 'Next page',
+    es: 'Página siguiente',
+    ru: 'Следующая страница'
   },
   'texture.animation.empty': {
     default: 'Nenhuma fase de animação definida.',

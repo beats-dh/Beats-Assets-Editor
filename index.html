@@ -5,6 +5,7 @@
     <link rel="stylesheet" href="/src/styles/main.css" />
     <link rel="stylesheet" href="/src/features/layout/headerSpacing.css" />
     <link rel="stylesheet" href="/src/features/assetGrid/assetSelectionLayout.css" />
+    <link rel="stylesheet" href="/src/monsterEditor.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tibia Assets Editor</title>
     <script type="module" src="/src/main.ts" defer></script>
@@ -31,7 +32,6 @@
           <div class="setup-card">
             <h2 data-i18n="setup.heading">🎯 Setup Your Tibia Client</h2>
             <div class="input-group">
-              <label for="tibia-path" data-i18n="setup.tibiaPathLabel">Tibia Client Path:</label>
               <div class="input-row">
                 <input
                   type="text"
@@ -448,6 +448,45 @@
               <button id="confirm-cancel" class="btn-save" aria-label="Cancelar">Cancelar</button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Sprite Library Drawer -->
+      <div id="sprite-library-drawer" aria-hidden="true">
+        <div class="sprite-library-backdrop"></div>
+        <div class="sprite-library-panel" role="dialog" aria-label="Sprite Library">
+          <div class="sprite-library-header">
+            <div>
+              <h3 data-i18n="texture.library.title">Biblioteca de Sprites</h3>
+            </div>
+            <button type="button" class="icon-btn" id="sprite-library-close" aria-label="Close" data-i18n-aria-label="texture.library.button.close">✕</button>
+          </div>
+          <div class="sprite-library-controls sprite-library-controls--grid">
+            <label class="sprite-library-control">
+              <span data-i18n="texture.library.start">Início</span>
+              <input id="sprite-library-start" type="number" min="1" value="1" />
+            </label>
+            <label class="sprite-library-control">
+              <span data-i18n="texture.library.pageSize">Qtd</span>
+              <input id="sprite-library-size" type="number" min="1" max="500" value="100" />
+            </label>
+            <label class="sprite-library-control order-control">
+              <span data-i18n="texture.library.order">Ordem</span>
+              <div class="sprite-library-order-row">
+                <button type="button" id="sprite-library-order" class="btn-secondary sprite-library-order-btn" data-order="asc" data-i18n="texture.library.order.asc">1 → 9</button>
+                <div class="sprite-library-pager">
+                  <button type="button" id="sprite-library-prev" class="btn-secondary" title="Anterior" data-i18n-title="texture.library.prev">◀</button>
+                  <button type="button" id="sprite-library-next" class="btn-secondary" title="Próximo" data-i18n-title="texture.library.next">▶</button>
+                </div>
+              </div>
+            </label>
+          </div>
+          <div class="sprite-library-controls">
+            <input id="sprite-library-search" type="text" placeholder="IDs ou intervalos (ex: 100,120-130)" data-i18n-placeholder="texture.library.searchPlaceholder" />
+            <button type="button" id="sprite-library-search-btn" class="btn-secondary" data-i18n="texture.library.button.search">Buscar IDs</button>
+          </div>
+          <p class="sprite-library-hint" data-i18n="texture.library.hint">Use vírgulas para múltiplos IDs ou intervalos com hífen (ex: 45, 80-90).</p>
+          <div class="sprite-library-list" id="sprite-library-list"></div>
         </div>
       </div>
 

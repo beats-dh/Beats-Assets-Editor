@@ -2,12 +2,28 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::State;
+use serde::Serialize;
 
 // Add base64 engine for proper encoding to string
 use base64::{engine::general_purpose, Engine as _};
 
 use super::helpers::paginate;
 use crate::features::sounds::parsers::{AmbienceObjectStreamInfo, AmbienceStreamInfo, MusicTemplateInfo, NumericSoundEffectInfo, SoundInfo, SoundStats, SoundsParser};
+
+#[derive(Serialize)]
+pub struct PagedResponse<T> {
+    pub total: usize,
+    pub items: Vec<T>,
+}
+
+fn page_vec<T: Clone>(items: &mut Vec<T>, page: Option<usize>, page_size: Option<usize>) -> PagedResponse<T> {
+    let total = items.len();
+    let sliced = paginate(items, page, page_size);
+    PagedResponse {
+        total,
+        items: sliced,
+    }
+}
 
 pub struct SoundsState {
     pub parser: Mutex<SoundsParser>,
@@ -100,7 +116,12 @@ pub async fn list_all_sounds(state: State<'_, SoundsState>) -> Result<Vec<SoundI
 }
 
 #[tauri::command]
-pub async fn list_numeric_sound_effects(page: Option<usize>, page_size: Option<usize>, sound_type: Option<String>, state: State<'_, SoundsState>) -> Result<Vec<NumericSoundEffectInfo>, String> {
+pub async fn list_numeric_sound_effects(
+    page: Option<usize>,
+    page_size: Option<usize>,
+    sound_type: Option<String>,
+    state: State<'_, SoundsState>,
+) -> Result<PagedResponse<NumericSoundEffectInfo>, String> {
     let parser = state.parser.lock().map_err(|e| e.to_string())?;
 
     let mut effects: Vec<NumericSoundEffectInfo> = if let Some(st) = sound_type {
@@ -112,8 +133,7 @@ pub async fn list_numeric_sound_effects(page: Option<usize>, page_size: Option<u
     // Sort by ID for consistent pagination
     effects.sort_by_key(|e| e.id);
 
-    // Pagination
-    Ok(paginate(&effects, page, page_size))
+    Ok(page_vec(&mut effects, page, page_size))
 }
 
 #[tauri::command]
@@ -125,13 +145,12 @@ pub async fn get_sound_effect_count(state: State<'_, SoundsState>) -> Result<usi
 
 // Ambience Streams
 #[tauri::command]
-pub async fn list_ambience_streams(page: Option<usize>, page_size: Option<usize>, state: State<'_, SoundsState>) -> Result<Vec<AmbienceStreamInfo>, String> {
+pub async fn list_ambience_streams(page: Option<usize>, page_size: Option<usize>, state: State<'_, SoundsState>) -> Result<PagedResponse<AmbienceStreamInfo>, String> {
     let parser = state.parser.lock().map_err(|e| e.to_string())?;
     let mut items = parser.get_sounds_data().ok_or("No sounds loaded".to_string())?.ambience_streams.clone();
     items.sort_by_key(|e| e.id);
 
-    // Pagination
-    Ok(paginate(&items, page, page_size))
+    Ok(page_vec(&mut items, page, page_size))
 }
 
 #[tauri::command]
@@ -149,13 +168,12 @@ pub async fn get_ambience_stream_count(state: State<'_, SoundsState>) -> Result<
 
 // Ambience Object Streams
 #[tauri::command]
-pub async fn list_ambience_object_streams(page: Option<usize>, page_size: Option<usize>, state: State<'_, SoundsState>) -> Result<Vec<AmbienceObjectStreamInfo>, String> {
+pub async fn list_ambience_object_streams(page: Option<usize>, page_size: Option<usize>, state: State<'_, SoundsState>) -> Result<PagedResponse<AmbienceObjectStreamInfo>, String> {
     let parser = state.parser.lock().map_err(|e| e.to_string())?;
     let mut items = parser.get_sounds_data().ok_or("No sounds loaded".to_string())?.ambience_object_streams.clone();
     items.sort_by_key(|e| e.id);
 
-    // Pagination
-    Ok(paginate(&items, page, page_size))
+    Ok(page_vec(&mut items, page, page_size))
 }
 
 #[tauri::command]
@@ -173,13 +191,12 @@ pub async fn get_ambience_object_stream_count(state: State<'_, SoundsState>) -> 
 
 // Music Templates
 #[tauri::command]
-pub async fn list_music_templates(page: Option<usize>, page_size: Option<usize>, state: State<'_, SoundsState>) -> Result<Vec<MusicTemplateInfo>, String> {
+pub async fn list_music_templates(page: Option<usize>, page_size: Option<usize>, state: State<'_, SoundsState>) -> Result<PagedResponse<MusicTemplateInfo>, String> {
     let parser = state.parser.lock().map_err(|e| e.to_string())?;
     let mut items = parser.get_sounds_data().ok_or("No sounds loaded".to_string())?.music_templates.clone();
     items.sort_by_key(|e| e.id);
 
-    // Pagination
-    Ok(paginate(&items, page, page_size))
+    Ok(page_vec(&mut items, page, page_size))
 }
 
 #[tauri::command]

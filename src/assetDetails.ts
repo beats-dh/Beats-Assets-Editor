@@ -2,11 +2,14 @@ import { invoke } from '@tauri-apps/api/core';
 import { openConfirmModal } from './confirmModal';
 import type { CompleteAppearanceItem, CompleteFlags } from './types';
 import { getVocationOptionsHTML, getFlagBool } from './utils';
-import { getAppearanceSprites } from './spriteCache';
+import { getAppearanceSprites, bufferToObjectUrl } from './spriteCache';
 import { stopDetailAnimationPlayers, initAnimationPlayersForDetails, initDetailSpriteCardAnimations } from './animation';
 import { renderTextureTab } from './textureTab';
-import { loadAssets, getCurrentPage, setCurrentPage, getCurrentPageSize, getTotalItemsCount, getCurrentCategory } from './assetUI';
+import { setSpriteLibraryEnabled } from './spriteLibrary';
+import { modalOpened, modalClosed } from './modalState';
+import { loadAssets, getCurrentPage, setCurrentPage, getCurrentPageSize, getTotalItemsCount, getCurrentCategory, refreshAssetPreview } from './assetUI';
 import { translate } from './i18n';
+import { getDecodedSpriteBuffer, invalidateDecodedSpriteCache } from './utils/decodedSpriteCache';
 
 // Current appearance being displayed
 let currentAppearanceDetails: CompleteAppearanceItem | null = null;
@@ -17,6 +20,77 @@ let highlightedAssetItem: HTMLElement | null = null;
 let navigationListenersInitialized = false;
 let isNavigatingBetweenAssets = false;
 let currentActiveTab: 'details' | 'edit' | 'texture' = 'details';
+let currentDetailsLoading: { category: string; id: number } | null = null;
+let lastRenderedDetails: { category: string; id: number; details: CompleteAppearanceItem } | null = null;
+const INITIAL_SPRITE_RENDER_COUNT = 48;
+const SPRITE_RENDER_CHUNK = 24;
+const scheduleIdle = (cb: () => void): void => {
+  if ('requestIdleCallback' in window) {
+    (window as any).requestIdleCallback(cb, { timeout: 300 });
+  } else {
+    setTimeout(cb, 0);
+  }
+};
+
+type SpriteLoader = () => Promise<Uint8Array[]>;
+
+const detailSpriteCache = new Map<string, Uint8Array[]>();
+const detailSpritePromises = new Map<string, Promise<Uint8Array[]>>();
+
+function getDetailSpriteCacheKey(category: string, id: number): string {
+  return `${category}:${id}`;
+}
+
+function getDetailSprites(category: string, id: number): Promise<Uint8Array[]> {
+  const key = getDetailSpriteCacheKey(category, id);
+  const cached = detailSpriteCache.get(key);
+  if (cached) {
+    return Promise.resolve(cached);
+  }
+
+  const inflight = detailSpritePromises.get(key);
+  if (inflight) {
+    return inflight;
+  }
+
+  const promise = getAppearanceSprites(category, id)
+    .then((sprites) => {
+      detailSpriteCache.set(key, sprites);
+      detailSpritePromises.delete(key);
+      return sprites;
+    })
+    .catch((error) => {
+      detailSpritePromises.delete(key);
+      throw error;
+    });
+
+  detailSpritePromises.set(key, promise);
+  return promise;
+}
+
+function createDetailSpriteLoader(category: string, id: number): SpriteLoader {
+  const spritesPromise = getDetailSprites(category, id)
+    .then(async (sprites) => {
+      const decodedSprites = await Promise.all(
+        sprites.map((sprite, index) =>
+          getDecodedSpriteBuffer(getDecodedSpriteCacheKey(category, id, index), sprite)
+        )
+      );
+      return decodedSprites;
+    });
+  return () => spritesPromise;
+}
+
+function getDecodedSpriteCacheKey(category: string, id: number, spriteIndex: number): string {
+  return `appearance:${category}:${id}:${spriteIndex}`;
+}
+
+function invalidateDetailSpriteCache(category: string, id: number): void {
+  const key = getDetailSpriteCacheKey(category, id);
+  detailSpriteCache.delete(key);
+  detailSpritePromises.delete(key);
+  invalidateDecodedSpriteCache(`appearance:${category}:${id}:`);
+}
 
 // DOM references
 let assetDetails: HTMLElement | null = null;
@@ -90,14 +164,17 @@ function restoreActiveTab(category: string): void {
   if (currentActiveTab === 'edit') {
     if (editContainer) editContainer.style.display = 'block';
     tabEdit?.classList.add('active');
+    setSpriteLibraryEnabled(false);
   } else if (currentActiveTab === 'texture' && (category === 'Objects' || category === 'Outfits')) {
     if (textureContainer) textureContainer.style.display = 'block';
     tabTexture?.classList.add('active');
+    setSpriteLibraryEnabled(true);
   } else {
     // Default to details
     if (detailsContainer) detailsContainer.style.display = 'block';
     tabDetails?.classList.add('active');
     currentActiveTab = 'details';
+    setSpriteLibraryEnabled(false);
   }
 }
 
@@ -281,6 +358,51 @@ document.addEventListener('assets-grid-rendered', () => {
 export async function showAssetDetails(category: string, id: number): Promise<void> {
   console.log(`showAssetDetails called with category: ${category}, id: ${id}`);
 
+  const modalIsOpen = assetDetails?.classList.contains('show') ?? false;
+  if (modalIsOpen && currentDetailCategory === category && currentDetailId === id) {
+    // Já aberto e nos mesmos dados; não refaz nada
+    return;
+  }
+
+  // Reabre o modal reutilizando o conteúdo já renderizado se nada mudou
+  if (assetDetails && detailsContent && !assetDetails.classList.contains('show')) {
+    const cachedDetails = lastRenderedDetails
+      && lastRenderedDetails.category === category
+      && lastRenderedDetails.id === id
+      ? lastRenderedDetails.details
+      : null;
+
+    if (cachedDetails) {
+      currentDetailCategory = category;
+      currentDetailId = id;
+      currentAppearanceDetails = cachedDetails;
+
+      restoreActiveTab(category);
+
+      const modal = assetDetails as HTMLElement;
+      modal.style.display = 'flex';
+      modal.classList.add('show');
+      modalOpened();
+
+      updateNavigationButtons(category, id);
+
+      // Reinicia animações e sprites caso tenham sido paradas no fechamento
+      const spriteLoader = createDetailSpriteLoader(category, id);
+      scheduleIdle(() => { void initAnimationPlayersForDetails(cachedDetails, category, spriteLoader); });
+      const spritesLoaded = document.querySelector(`#detail-sprites-${id} .detail-sprite-item`);
+      if (!spritesLoaded) {
+        scheduleIdle(() => { void loadDetailSprites(category, id, spriteLoader); });
+      }
+      return;
+    }
+  }
+
+  if (currentDetailsLoading && currentDetailsLoading.category === category && currentDetailsLoading.id === id) {
+    // Evita chamadas duplicadas enquanto o mesmo detalhe ainda está carregando
+    return;
+  }
+  currentDetailsLoading = { category, id };
+
   // Ensure modal elements are initialized
   if (!assetDetails || !detailsContent) {
     initAssetDetailsElements();
@@ -288,16 +410,40 @@ export async function showAssetDetails(category: string, id: number): Promise<vo
 
   if (!assetDetails || !detailsContent) {
     console.error('assetDetails or detailsContent is null');
+    currentDetailsLoading = null;
     return;
   }
 
-  if (category === 'Sounds') {
-    await showSoundDetails(id);
-  } else {
-    await showAppearanceDetails(category, id);
+  // Show modal immediately with placeholder
+  const modal = assetDetails as HTMLElement;
+  modal.style.display = 'flex';
+  modal.classList.add('show');
+  modalOpened();
+
+  if (detailsContent) {
+    detailsContent.innerHTML = `
+      <div class="details-loading-state">
+        <div class="loading-spinner">
+          <div>🔄 ${translate('loading.subtitle')}</div>
+        </div>
+      </div>
+    `;
   }
 
-  updateNavigationButtons(category, id);
+  try {
+    if (category === 'Sounds') {
+      await showSoundDetails(id);
+    } else {
+      await showAppearanceDetails(category, id);
+      if (currentAppearanceDetails) {
+        lastRenderedDetails = { category, id, details: currentAppearanceDetails };
+      }
+    }
+
+    updateNavigationButtons(category, id);
+  } finally {
+    currentDetailsLoading = null;
+  }
 }
 
 document.addEventListener('texture-settings-saved', async (event: Event) => {
@@ -305,7 +451,9 @@ document.addEventListener('texture-settings-saved', async (event: Event) => {
   const detail = custom.detail;
   if (!detail) return;
   try {
+    invalidateDetailSpriteCache(detail.category, detail.id);
     await showAssetDetails(detail.category, detail.id);
+    await refreshAssetPreview(detail.category, detail.id);
   } catch (err) {
     console.error('Failed to refresh asset details after texture save', err);
   }
@@ -369,6 +517,7 @@ async function showSoundDetails(id: number): Promise<void> {
     const modal = assetDetails as HTMLElement;
     modal.style.display = 'flex';
     modal.classList.add('show');
+    modalOpened();
     console.log('Sound modal should now be visible');
   } catch (error) {
     console.error('Error loading sound details:', error);
@@ -381,6 +530,8 @@ async function showAppearanceDetails(category: string, id: number): Promise<void
       console.error('assetDetails or detailsContent is null');
       return;
     }
+    const spriteLoader = createDetailSpriteLoader(category, id);
+
     // Handle appearances (existing logic)
     console.log('Invoking get_complete_appearance...');
     const completeData = await invoke('get_complete_appearance', {
@@ -408,62 +559,123 @@ async function showAppearanceDetails(category: string, id: number): Promise<void
       // Only show Texture tab for Objects and Outfits
       if (category === 'Objects' || category === 'Outfits') {
         tabTexture.style.display = '';
+        setSpriteLibraryEnabled(true);
       } else {
         tabTexture.style.display = 'none';
         // If we were on texture tab but this category doesn't support it, switch to details
         if (currentActiveTab === 'texture') {
           currentActiveTab = 'details';
         }
+        setSpriteLibraryEnabled(false);
       }
     }
 
     // Restore the previously active tab
     restoreActiveTab(category);
 
-    // Force display the modal
-    const modal = assetDetails as HTMLElement;
-    modal.style.display = 'flex';
-    modal.classList.add('show');
-    console.log('Modal display:', window.getComputedStyle(modal).display);
-    console.log('Modal should now be visible');
-
-    // Initialize animation players per frame group
-    await initAnimationPlayersForDetails(completeData, category);
-
-    // Load sprites for this specific item
-    await loadDetailSprites(category, id);
+    // Carregamento pesado fica desacoplado para não travar a abertura do modal
+    scheduleIdle(() => {
+      void initAnimationPlayersForDetails(completeData, category, spriteLoader);
+    });
+    scheduleIdle(() => {
+      void loadDetailSprites(category, id, spriteLoader);
+    });
   } catch (error) {
     console.error('Error loading appearance details:', error);
   }
 }
 
-export async function loadDetailSprites(category: string, id: number): Promise<void> {
+export async function loadDetailSprites(category: string, id: number, spriteLoader?: SpriteLoader): Promise<void> {
   try {
-    const sprites = await getAppearanceSprites(category, id);
     const container = document.getElementById(`detail-sprites-${id}`);
+    if (!container) return;
+    container.innerHTML = `<div class="sprite-loading">🔄 Loading sprites...</div>`;
 
-    if (container) {
-      if (sprites.length > 0) {
-        container.innerHTML = `
-          <div class="detail-sprites-grid">
-            ${sprites.map((sprite, index) => `
-              <div class="detail-sprite-item" data-agg-index="${index}">
-                <img src="data:image/png;base64,${sprite}" class="detail-sprite-image" alt="Sprite ${index + 1}">
-                <span class="sprite-index">#${index + 1}</span>
-              </div>
-            `).join('')}
-          </div>
-        `;
-        // Initialize click-to-animate on sprite cards
-        initDetailSpriteCardAnimations(id, sprites, currentAppearanceDetails);
-      } else {
-        container.innerHTML = `
-          <div class="no-sprites">
-            <div class="sprite-placeholder"></div>
-            <span>No sprites available</span>
-          </div>
-        `;
+    const loader = spriteLoader ?? createDetailSpriteLoader(category, id);
+    const sprites = await loader();
+    if (!container.isConnected) return;
+
+    if (sprites.length === 0) {
+      container.innerHTML = `
+        <div class="no-sprites">
+          <div class="sprite-placeholder"></div>
+          <span>No sprites available</span>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = '';
+    const grid = document.createElement('div');
+    grid.className = 'detail-sprites-grid';
+    container.appendChild(grid);
+
+    const totalSprites = sprites.length;
+    let rendered = 0;
+
+    const renderRange = (start: number, end: number) => {
+      const fragment = document.createDocumentFragment();
+      for (let i = start; i < end; i++) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'detail-sprite-item';
+        wrapper.dataset.aggIndex = String(i);
+
+        const img = document.createElement('img');
+        img.src = bufferToObjectUrl(sprites[i]);
+        img.className = 'detail-sprite-image';
+        img.alt = `Sprite ${i + 1}`;
+
+        const indexTag = document.createElement('span');
+        indexTag.className = 'sprite-index';
+        indexTag.textContent = `#${i + 1}`;
+
+        wrapper.appendChild(img);
+        wrapper.appendChild(indexTag);
+        fragment.appendChild(wrapper);
       }
+      grid.appendChild(fragment);
+      initDetailSpriteCardAnimations(id, sprites, currentAppearanceDetails);
+    };
+
+    const initialCount = Math.min(totalSprites, INITIAL_SPRITE_RENDER_COUNT);
+    renderRange(0, initialCount);
+    rendered = initialCount;
+
+    const controls = document.createElement('div');
+    controls.className = 'sprite-preview-meta';
+    controls.textContent = `Mostrando ${rendered} de ${totalSprites} sprites.`;
+
+    if (rendered < totalSprites) {
+      const loadMoreBtn = document.createElement('button');
+      loadMoreBtn.className = 'btn-secondary';
+      loadMoreBtn.textContent = `Carregar restantes (${totalSprites - rendered})`;
+      loadMoreBtn.addEventListener('click', () => {
+        loadMoreBtn.disabled = true;
+        loadMoreBtn.textContent = 'Carregando sprites...';
+
+        const renderNextChunk = () => {
+          const next = Math.min(rendered + SPRITE_RENDER_CHUNK, totalSprites);
+          renderRange(rendered, next);
+          rendered = next;
+          controls.textContent = `Mostrando ${rendered} de ${totalSprites} sprites.`;
+          if (rendered < totalSprites) {
+            scheduleIdle(renderNextChunk);
+          } else {
+            controls.textContent = `Mostrando todos ${totalSprites} sprites.`;
+            loadMoreBtn.remove();
+          }
+        };
+
+        scheduleIdle(renderNextChunk);
+      });
+
+      const controlRow = document.createElement('div');
+      controlRow.className = 'sprite-load-controls';
+      controlRow.appendChild(loadMoreBtn);
+      controlRow.appendChild(controls);
+      container.appendChild(controlRow);
+    } else {
+      container.appendChild(controls);
     }
   } catch (error) {
     console.error(`Failed to load detail sprites for ${category} ${id}:`, error);
@@ -1331,7 +1543,7 @@ export async function displayCompleteAssetDetails(details: CompleteAppearanceIte
     editContent.innerHTML = editFormHTML;
   }
 
-  await renderTextureTab(details, category);
+  scheduleIdle(() => { void renderTextureTab(details, category); });
 
   document.dispatchEvent(new CustomEvent('appearance-details-rendered', {
     detail: { category, id: details.id }
@@ -2704,19 +2916,27 @@ export function closeAssetDetails(): void {
     assetDetails.classList.remove('show');
     assetDetails.style.display = 'none';
   }
+  setSpriteLibraryEnabled(false);
   resetNavigationState();
-  currentAppearanceDetails = null;
   document.dispatchEvent(new CustomEvent('appearance-details-closed'));
+  modalClosed();
 }
+
+// Mantém compatibilidade com handlers inline do HTML legacy (onclick="closeAssetDetails()")
+// Evita ReferenceError quando o botão de fechar usa o atributo onclick.
+(window as any).closeAssetDetails = closeAssetDetails;
 
 export async function refreshAssetDetails(category: string, id: number): Promise<void> {
   try {
     stopDetailAnimationPlayers();
     const updated = await invoke('get_complete_appearance', { category, id }) as CompleteAppearanceItem;
     currentAppearanceDetails = updated;
+    lastRenderedDetails = { category, id, details: updated };
+    invalidateDetailSpriteCache(category, id);
+    const spriteLoader = createDetailSpriteLoader(category, id);
     await displayCompleteAssetDetails(updated, category);
-    await initAnimationPlayersForDetails(updated, category);
-    await loadDetailSprites(category, id);
+    await initAnimationPlayersForDetails(updated, category, spriteLoader);
+    await loadDetailSprites(category, id, spriteLoader);
     updateNavigationButtons(category, id);
   } catch (err) {
     console.error('Falha ao atualizar detalhes do item:', err);

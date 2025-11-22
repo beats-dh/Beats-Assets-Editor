@@ -6,7 +6,8 @@ use std::io::Cursor;
 use std::path::Path;
 use std::sync::Arc;
 
-use base64::{engine::general_purpose, Engine as _};
+use rayon::prelude::*;
+
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 
@@ -31,10 +32,9 @@ impl TibiaSprite {
         Ok(DynamicImage::ImageRgba8(img))
     }
 
-    /// Convert sprite to base64 PNG
-    /// Inline for hot-path performance
+    /// Convert sprite to raw PNG bytes
     #[inline]
-    pub fn to_base64_png(&self) -> Result<String> {
+    pub fn to_png_bytes(&self) -> Result<Vec<u8>> {
         let img = self.to_image()?;
         // Pre-allocate buffer with estimated size (PNG typically ~1.5x raw RGBA)
         let estimated_size = (self.width * self.height * 4 * 3 / 2) as usize;
@@ -43,7 +43,7 @@ impl TibiaSprite {
 
         img.write_to(&mut cursor, image::ImageFormat::Png).context("Failed to encode sprite as PNG")?;
 
-        Ok(general_purpose::STANDARD.encode(buffer))
+        Ok(buffer)
     }
 }
 
@@ -118,7 +118,7 @@ impl SpriteCatalog {
     /// Get all sprite IDs available in the catalog
     pub fn get_all_sprite_ids(&self) -> Vec<u32> {
         let mut ids: Vec<u32> = self.sprite_map.keys().copied().collect();
-        ids.sort();
+        ids.par_sort_unstable();
         ids
     }
 
@@ -164,7 +164,7 @@ impl SpriteLoader {
         }
 
         // Find sprite in the loaded sheet (lock-free read)
-        let sprites_arc = self.sprite_cache.get(&entry.file).unwrap();
+        let sprites_arc = self.sprite_cache.get(&entry.file).ok_or_else(|| anyhow!("Sprite sheet {} not loaded in cache", entry.file))?;
         let first_id = entry.first_sprite_id.unwrap_or(0);
         let sprite_index = (sprite_id - first_id) as usize;
 
@@ -294,25 +294,25 @@ impl SpriteLoader {
         // Calcular número de sprites
         let sprites_per_row = width / tile_width;
         let sprite_rows = height / tile_height;
-        let total_sprites = sprites_per_row * sprite_rows;
+        let total_sprites = (sprites_per_row * sprite_rows) as usize;
 
-        // Pre-allocate with exact capacity
-        let mut sprites = Vec::with_capacity(total_sprites as usize);
+        let sprites: Vec<TibiaSprite> = (0..total_sprites)
+            .into_par_iter()
+            .map(|sprite_index| {
+                let sprite_index = sprite_index as u32;
+                let row = sprite_index / sprites_per_row;
+                let col = sprite_index % sprites_per_row;
 
-        for sprite_index in 0..total_sprites {
-            let row = sprite_index / sprites_per_row;
-            let col = sprite_index % sprites_per_row;
-
-            let sprite = self.extract_sprite_from_sheet_rgba(sheet_data, col * tile_width, row * tile_height, tile_width, tile_height, sprite_index, bytes_per_pixel, stride)?;
-
-            sprites.push(sprite);
-        }
+                self.extract_sprite_from_sheet_rgba(sheet_data, col * tile_width, row * tile_height, tile_width, tile_height, sprite_index, bytes_per_pixel, stride)
+            })
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(sprites)
     }
 
     /// Extract a single sprite from the sprite sheet
     /// Optimized with unsafe for performance-critical pixel copying
+    /// OPTIMIZATION: Pre-allocate with exact size to avoid reallocations
     #[inline]
     fn extract_sprite_from_sheet_rgba(
         &self,
@@ -325,10 +325,16 @@ impl SpriteLoader {
         bytes_per_pixel: usize,
         stride: usize,
     ) -> Result<TibiaSprite> {
+        // OPTIMIZATION: Pre-allocate with exact size (tile_width * tile_height * 4 bytes RGBA)
         let capacity = (tile_width * tile_height * 4) as usize;
         let mut sprite_data: Vec<u8> = Vec::with_capacity(capacity);
+        unsafe {
+            // Set length to capacity to avoid bounds checks in the loop
+            sprite_data.set_len(capacity);
+        }
 
-        // Optimized pixel extraction
+        // OPTIMIZATION: Optimized pixel extraction with pre-allocated buffer
+        let mut dst_offset = 0;
         for y in 0..tile_height {
             let row_offset = ((start_y + y) as usize) * stride;
             let row_start_x = (start_x as usize) * bytes_per_pixel;
@@ -336,25 +342,39 @@ impl SpriteLoader {
             let row_len = (tile_width as usize) * bytes_per_pixel;
 
             // Bounds check once per row, then use unsafe for speed
-            if src_offset + row_len <= sheet_data.len() {
-                // Safe: we verified bounds above
+            if src_offset + row_len <= sheet_data.len() && dst_offset + row_len <= sprite_data.len() {
+                // Safe: we verified bounds above and buffer is pre-allocated
                 unsafe {
                     let src_ptr = sheet_data.as_ptr().add(src_offset);
-                    let dst_len = sprite_data.len();
-                    sprite_data.set_len(dst_len + row_len);
-                    std::ptr::copy_nonoverlapping(src_ptr, sprite_data.as_mut_ptr().add(dst_len), row_len);
+                    let dst_ptr = sprite_data.as_mut_ptr().add(dst_offset);
+                    std::ptr::copy_nonoverlapping(src_ptr, dst_ptr, row_len);
                 }
+                dst_offset += row_len;
             } else {
                 // Fallback: copy available bytes + pad with zeros
                 for x in 0..tile_width {
                     let pixel_offset = row_offset + (((start_x + x) as usize) * bytes_per_pixel);
-                    if pixel_offset + 3 < sheet_data.len() {
-                        sprite_data.extend_from_slice(&sheet_data[pixel_offset..pixel_offset + 4]);
-                    } else {
-                        sprite_data.extend_from_slice(&[0, 0, 0, 0]);
+                    if pixel_offset + 3 < sheet_data.len() && dst_offset + 4 <= sprite_data.len() {
+                        unsafe {
+                            let src_ptr = sheet_data.as_ptr().add(pixel_offset);
+                            let dst_ptr = sprite_data.as_mut_ptr().add(dst_offset);
+                            std::ptr::copy_nonoverlapping(src_ptr, dst_ptr, 4);
+                        }
+                        dst_offset += 4;
+                    } else if dst_offset + 4 <= sprite_data.len() {
+                        unsafe {
+                            let dst_ptr = sprite_data.as_mut_ptr().add(dst_offset);
+                            std::ptr::write_bytes(dst_ptr, 0, 4);
+                        }
+                        dst_offset += 4;
                     }
                 }
             }
+        }
+
+        // Ensure length is correct (in case of fallback path)
+        unsafe {
+            sprite_data.set_len(dst_offset);
         }
 
         Ok(TibiaSprite {

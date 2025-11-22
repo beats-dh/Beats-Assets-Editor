@@ -1,4 +1,5 @@
 import type { CompleteAppearanceItem, CompleteSpriteInfo } from '../../types';
+import type { ComposeResponseMessage } from '../../workers/animationWorker';
 import {
   computeGroupOffsetsFromDetails,
   computeSpriteIndex,
@@ -8,6 +9,7 @@ import {
   resolveOutfitPreviewDirection,
   resolveOutfitPreviewInterval
 } from './outfit/outfitPreviewSettings';
+import { getSpriteUrl, clearSpriteUrlCache } from '../../utils/spriteUrlCache';
 
 export interface PreviewAnimationSequence {
   frames: string[];
@@ -15,12 +17,64 @@ export interface PreviewAnimationSequence {
 }
 
 const previewCache = new Map<string, PreviewAnimationSequence>();
+let composeWorker: Worker | null = null;
+let composeRequestId = 0;
+const workerPending = new Map<string, (value: string | null) => void>();
+
+function bufferToUrl(buffer: Uint8Array): string {
+  return getSpriteUrl(buffer);
+}
+
+function initComposeWorker(): void {
+  if (composeWorker) return;
+  try {
+    composeWorker = new Worker(
+      new URL('../../workers/animationWorker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    composeWorker.onmessage = (event: MessageEvent<ComposeResponseMessage>) => {
+      const { id, buffer } = event.data;
+      const resolver = workerPending.get(id);
+      if (resolver) {
+        const dataUrl = buffer ? getSpriteUrl(new Uint8Array(buffer)) : null;
+        resolver(dataUrl);
+        workerPending.delete(id);
+      }
+    };
+  } catch (error) {
+    composeWorker = null;
+    workerPending.clear();
+  }
+}
+
+async function composeFrameWithWorker(indices: number[], sprites: Uint8Array[]): Promise<string | null> {
+  initComposeWorker();
+  if (!composeWorker || indices.length === 0) return null;
+
+  const id = `compose-${Date.now()}-${composeRequestId++}`;
+  const buffers = indices
+    .map((idx) => {
+      if (idx < 0 || idx >= sprites.length) return null;
+      const sprite = sprites[idx];
+      if (!sprite) return null;
+      return sprite.buffer.slice(sprite.byteOffset, sprite.byteOffset + sprite.byteLength);
+    })
+    .filter((buf): buf is ArrayBuffer => !!buf);
+
+  if (buffers.length === 0) return null;
+
+  const result = new Promise<string | null>((resolve) => {
+    workerPending.set(id, resolve);
+    composeWorker!.postMessage({ id, spriteBuffers: buffers }, buffers);
+  });
+  return await result;
+}
 
 export async function buildAssetPreviewAnimation(
   category: string,
   appearanceId: number,
   details: CompleteAppearanceItem,
-  sprites: string[]
+  sprites: Uint8Array[]
 ): Promise<PreviewAnimationSequence | null> {
   const cacheKey = `${category}:${appearanceId}`;
   if (previewCache.has(cacheKey)) {
@@ -75,7 +129,7 @@ function hasAnimatedSprite(spriteInfo: CompleteSpriteInfo | undefined): boolean 
 async function buildSequence(
   category: string,
   details: CompleteAppearanceItem,
-  sprites: string[]
+  sprites: Uint8Array[]
 ): Promise<PreviewAnimationSequence | null> {
   const groupIndex = selectFrameGroupIndex(category, details);
   if (groupIndex < 0) {
@@ -122,7 +176,7 @@ async function buildSequence(
 function buildGenericFrames(
   spriteInfo: CompleteSpriteInfo,
   baseOffset: number,
-  sprites: string[],
+  sprites: Uint8Array[],
   frameCount: number
 ): string[] {
   const frames: string[] = [];
@@ -138,7 +192,7 @@ function buildGenericFrames(
     );
     const sprite = sprites[spriteIndex];
     if (sprite) {
-      frames.push(sprite);
+      frames.push(bufferToUrl(sprite));
     }
   }
   return frames;
@@ -151,7 +205,7 @@ function ensureNumber(value: number | undefined, fallback: number): number {
 async function buildOutfitFrames(
   spriteInfo: CompleteSpriteInfo,
   baseOffset: number,
-  sprites: string[],
+  sprites: Uint8Array[],
   frameCount: number,
   directionIndex: number,
   maxFrames = frameCount
@@ -163,8 +217,6 @@ async function buildOutfitFrames(
   const safeDirectionIndex = Math.min(Math.max(0, directionIndex), directionCount - 1);
   const addonMax = Math.max(addonCount - 1, 0);
   const mountIndex = Math.min(0, mountCount - 1);
-  const imageCache = new Map<number, Promise<HTMLImageElement>>();
-
   const totalFrames = Math.min(frameCount, Math.max(1, maxFrames));
 
   for (let frame = 0; frame < totalFrames; frame++) {
@@ -180,7 +232,7 @@ async function buildOutfitFrames(
       );
       aggregatedIndexes.push(spriteIndex);
     }
-    const composed = await composeFrame(aggregatedIndexes, sprites, imageCache);
+    const composed = await composeFrame(aggregatedIndexes, sprites);
     if (composed) {
       frames.push(composed);
     }
@@ -190,58 +242,13 @@ async function buildOutfitFrames(
 
 async function composeFrame(
   indices: number[],
-  sprites: string[],
-  cache: Map<number, Promise<HTMLImageElement>>
+  sprites: Uint8Array[]
 ): Promise<string | null> {
-  const images: HTMLImageElement[] = [];
-  for (const index of indices) {
-    if (index < 0 || index >= sprites.length) {
-      continue;
-    }
-    const base64 = sprites[index];
-    if (!base64) {
-      continue;
-    }
-    images.push(await loadImage(index, base64, cache));
-  }
-  if (images.length === 0) {
-    return null;
-  }
-  const width = Math.max(...images.map(img => img.width));
-  const height = Math.max(...images.map(img => img.height));
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext('2d');
-  if (!context) {
-    return null;
-  }
-  images.forEach(image => {
-    context.drawImage(image, 0, 0);
-  });
-  const dataUrl = canvas.toDataURL('image/png');
-  const [, base64] = dataUrl.split(',');
-  return base64 || null;
-}
-
-function loadImage(
-  index: number,
-  base64: string,
-  cache: Map<number, Promise<HTMLImageElement>>
-): Promise<HTMLImageElement> {
-  if (cache.has(index)) {
-    return cache.get(index)!;
-  }
-  const promise = new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = (error) => reject(error);
-    image.src = `data:image/png;base64,${base64}`;
-  });
-  cache.set(index, promise);
-  return promise;
+  return composeFrameWithWorker(indices, sprites);
 }
 
 export function clearPreviewAnimationCache(): void {
   previewCache.clear();
+  clearSpriteUrlCache();
+  workerPending.clear();
 }

@@ -2,10 +2,8 @@ pub mod core;
 pub mod features;
 pub mod state;
 
-use dashmap::DashMap;
 use features::sounds::commands::SoundsState;
 use state::AppState;
-use parking_lot::{Mutex, RwLock};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -17,24 +15,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(AppState {
-            // parking_lot locks: 3x faster than std::sync
-            appearances: RwLock::new(None),
-            sprite_loader: RwLock::new(None),
-            tibia_path: Mutex::new(None),
-            sprite_cache: DashMap::new(),
-
-            // O(1) lookup indexes (no more linear scans!)
-            object_index: DashMap::with_hasher(ahash::RandomState::new()),
-            outfit_index: DashMap::with_hasher(ahash::RandomState::new()),
-            effect_index: DashMap::with_hasher(ahash::RandomState::new()),
-            missile_index: DashMap::with_hasher(ahash::RandomState::new()),
-
-            // Search result cache
-            search_cache: DashMap::with_hasher(ahash::RandomState::new()),
-
-            flags_clipboard: Mutex::new(None),
-        })
+        .manage(AppState::new()) // ✅ OPTIMIZED: Uses LRU caches with bounds
         .manage(SoundsState::new())
         .invoke_handler(tauri::generate_handler![
             // Appearances API
@@ -73,6 +54,9 @@ pub fn run() {
             features::appearances::commands::update_appearance_transparency_level,
             features::appearances::commands::update_appearance_weapon_type,
             features::appearances::commands::update_appearance_texture_settings,
+            features::appearances::commands::replace_appearance_sprites,
+            features::appearances::commands::remove_appearance_sprites,
+            features::appearances::commands::append_appearance_sprites,
             features::appearances::commands::save_appearances_file,
             features::appearances::commands::export_appearance_to_json,
             features::appearances::commands::import_appearance_from_json,
@@ -124,9 +108,17 @@ pub fn run() {
             features::sounds::commands::add_numeric_sound_effect,
             features::sounds::commands::delete_numeric_sound_effect,
             features::sounds::commands::import_and_add_sound,
+            // Monsters API
+            features::monsters::commands::list_monster_files,
+            features::monsters::commands::load_monster_file,
+            features::monsters::commands::save_monster_file,
+            features::monsters::commands::rename_monster_file,
+            features::monsters::commands::list_bestiary_classes,
             // Settings API
             features::settings::set_tibia_base_path,
             features::settings::get_tibia_base_path,
+            features::settings::set_monster_base_path,
+            features::settings::get_monster_base_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -10,6 +10,7 @@ use crate::features::appearances::{
     FlagImbueable, FlagLenshelp, FlagLight, FlagNPC, FlagProficiency, FlagShift, FlagSkillWheelGem, FlagUpgradeClassification, FlagWrite, FlagWriteOnce, SpriteAnimation,
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use rayon::prelude::*;
 
 /// Convert a [`CompleteAppearanceItem`] back into the protobuf [`Appearance`]
 /// representation used by the Tibia client files.
@@ -19,23 +20,46 @@ pub fn complete_to_protobuf(item: &CompleteAppearanceItem) -> Appearance {
     appearance.name = item.name.as_ref().map(|s| s.clone().into_bytes());
     appearance.description = item.description.as_ref().map(|s| s.clone().into_bytes());
     appearance.appearance_type = item.appearance_type;
-    appearance.sprite_data = item
-        .sprite_data
-        .iter()
-        .map(|encoded| {
-            if encoded.is_empty() {
-                Vec::new()
-            } else {
-                match STANDARD.decode(encoded) {
-                    Ok(bytes) => bytes,
-                    Err(err) => {
-                        log::warn!("Failed to decode sprite data for appearance {}: {}", item.id, err);
-                        Vec::new()
+    // OPTIMIZATION: Parallelize Base64 decoding for large sprite_data arrays (>=100 items)
+    // This significantly speeds up import of appearances with many sprites
+    // Using >= instead of > because loads are typically in batches of 100
+    let sprite_data_len = item.sprite_data.len();
+    appearance.sprite_data = if sprite_data_len >= 100 {
+        item.sprite_data
+            .par_iter()
+            .map(|encoded| {
+                if encoded.is_empty() {
+                    Vec::new()
+                } else {
+                    match STANDARD.decode(encoded) {
+                        Ok(bytes) => bytes,
+                        Err(err) => {
+                            log::warn!("Failed to decode sprite data for appearance {}: {}", item.id, err);
+                            Vec::new()
+                        }
                     }
                 }
-            }
-        })
-        .collect();
+            })
+            .collect()
+    } else {
+        // Sequential for small arrays (avoid parallelism overhead)
+        item.sprite_data
+            .iter()
+            .map(|encoded| {
+                if encoded.is_empty() {
+                    Vec::new()
+                } else {
+                    match STANDARD.decode(encoded) {
+                        Ok(bytes) => bytes,
+                        Err(err) => {
+                            log::warn!("Failed to decode sprite data for appearance {}: {}", item.id, err);
+                            Vec::new()
+                        }
+                    }
+                }
+            })
+            .collect()
+    };
 
     appearance.frame_group = item.frame_groups.iter().map(complete_frame_group_to_proto).collect();
 
