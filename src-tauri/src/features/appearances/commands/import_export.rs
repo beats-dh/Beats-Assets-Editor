@@ -72,7 +72,7 @@ pub async fn import_appearance_from_json(
     let mode = mode.unwrap_or_default();
 
     let index_map = get_index_for_category(&state, &category);
-    
+
     let assigned_id = match mode {
         ImportMode::Replace => {
             let target_id = new_id.unwrap_or(imported.id);
@@ -116,7 +116,7 @@ pub async fn import_appearance_from_json(
                 items.push(proto);
                 sort_by_id(items);
             } // Drop mutable borrow here
-            // CRITICAL: Rebuild indexes after inserting and sorting (indexes changed)
+              // CRITICAL: Rebuild indexes after inserting and sorting (indexes changed)
             rebuild_indexes(&state, appearances);
             invalidate_search_cache(&state);
             result_id
@@ -158,17 +158,17 @@ pub async fn duplicate_appearance(category: AppearanceCategory, source_id: u32, 
 
     let duplicate = clone_with_new_id(&source, candidate);
     let stored_id = candidate;
-    
+
     {
         let items = get_items_by_category_mut(appearances, &category);
         items.push(duplicate);
         sort_by_id(items);
     } // Drop mutable borrow here
-    
+
     // CRITICAL: Rebuild indexes after inserting and sorting (indexes changed)
     rebuild_indexes(&state, appearances);
     invalidate_search_cache(&state);
-    
+
     // OPTIMIZATION: Use O(1) index lookup after rebuild instead of O(n) linear search
     let index_map_after = get_index_for_category(&state, &category);
     let items_after = get_items_by_category(appearances, &category);
@@ -207,7 +207,7 @@ pub async fn create_empty_appearance(
     appearance.description = description.map(|s| s.into_bytes());
 
     let stored_id = candidate;
-    
+
     {
         let items = get_items_by_category_mut(appearances, &category);
         items.push(appearance);
@@ -217,7 +217,7 @@ pub async fn create_empty_appearance(
     // CRITICAL: Rebuild indexes after inserting and sorting (indexes changed)
     rebuild_indexes(&state, appearances);
     invalidate_search_cache(&state);
-    
+
     // OPTIMIZATION: Use O(1) index lookup after rebuild instead of O(n) linear search
     let index_map_after = get_index_for_category(&state, &category);
     let items_after = get_items_by_category(appearances, &category);
@@ -241,7 +241,7 @@ pub async fn copy_appearance_flags(category: AppearanceCategory, id: u32, state:
 
         let items = get_items_by_category(appearances, &category);
         let index_map = get_index_for_category(&state, &category);
-        
+
         // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
         let appearance = if let Some(pos) = index_map.get(&id) {
             items.get(*pos).ok_or_else(|| format!("Appearance with ID {} not found", id))?
@@ -275,7 +275,7 @@ pub async fn paste_appearance_flags(category: AppearanceCategory, id: u32, state
 
         let items = get_items_by_category_mut(appearances, &category);
         let index_map = get_index_for_category(&state, &category);
-        
+
         // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
         let appearance = if let Some(pos) = index_map.get(&id) {
             items.get_mut(*pos).ok_or_else(|| format!("Appearance {} not found in {:?}", id, category))?
@@ -300,7 +300,7 @@ pub async fn delete_appearance(category: AppearanceCategory, id: u32, state: Sta
 
     let items = get_items_by_category_mut(appearances, &category);
     let index_map = get_index_for_category(&state, &category);
-    
+
     // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
     if let Some(pos) = index_map.get(&id) {
         items.remove(*pos);

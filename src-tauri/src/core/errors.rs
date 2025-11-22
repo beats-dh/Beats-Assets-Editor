@@ -16,7 +16,10 @@ pub enum AppError {
     InvalidAppearanceId(u32),
 
     #[error("Appearance not found: category={category}, id={id}")]
-    AppearanceNotFound { category: String, id: u32 },
+    AppearanceNotFound {
+        category: String,
+        id: u32,
+    },
 
     #[error("Invalid sprite ID: {0}")]
     InvalidSpriteId(u32),
@@ -37,10 +40,16 @@ pub enum AppError {
     FrameGroupValidation(String),
 
     #[error("Sprite count mismatch: expected {expected}, got {actual}")]
-    SpriteCountMismatch { expected: usize, actual: usize },
+    SpriteCountMismatch {
+        expected: usize,
+        actual: usize,
+    },
 
     #[error("Invalid enum value: {field}={value}")]
-    InvalidEnumValue { field: String, value: i32 },
+    InvalidEnumValue {
+        field: String,
+        value: i32,
+    },
 
     #[error("File not found: {0}")]
     FileNotFound(String),
@@ -117,10 +126,7 @@ mod tests {
     #[test]
     fn test_error_messages() {
         let err = AppError::AppearancesNotLoaded;
-        assert_eq!(
-            err.to_string(),
-            "Appearances not loaded. Please load an appearances file first."
-        );
+        assert_eq!(err.to_string(), "Appearances not loaded. Please load an appearances file first.");
 
         let err = AppError::InvalidAppearanceId(123);
         assert_eq!(err.to_string(), "Invalid appearance ID: 123");
@@ -129,10 +135,7 @@ mod tests {
             category: "Objects".to_string(),
             id: 456,
         };
-        assert_eq!(
-            err.to_string(),
-            "Appearance not found: category=Objects, id=456"
-        );
+        assert_eq!(err.to_string(), "Appearance not found: category=Objects, id=456");
     }
 
     #[test]

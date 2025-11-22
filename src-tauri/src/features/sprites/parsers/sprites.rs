@@ -164,8 +164,7 @@ impl SpriteLoader {
         }
 
         // Find sprite in the loaded sheet (lock-free read)
-        let sprites_arc = self.sprite_cache.get(&entry.file)
-            .ok_or_else(|| anyhow!("Sprite sheet {} not loaded in cache", entry.file))?;
+        let sprites_arc = self.sprite_cache.get(&entry.file).ok_or_else(|| anyhow!("Sprite sheet {} not loaded in cache", entry.file))?;
         let first_id = entry.first_sprite_id.unwrap_or(0);
         let sprite_index = (sprite_id - first_id) as usize;
 
@@ -304,16 +303,7 @@ impl SpriteLoader {
                 let row = sprite_index / sprites_per_row;
                 let col = sprite_index % sprites_per_row;
 
-                self.extract_sprite_from_sheet_rgba(
-                    sheet_data,
-                    col * tile_width,
-                    row * tile_height,
-                    tile_width,
-                    tile_height,
-                    sprite_index,
-                    bytes_per_pixel,
-                    stride,
-                )
+                self.extract_sprite_from_sheet_rgba(sheet_data, col * tile_width, row * tile_height, tile_width, tile_height, sprite_index, bytes_per_pixel, stride)
             })
             .collect::<Result<Vec<_>>>()?;
 
@@ -381,7 +371,7 @@ impl SpriteLoader {
                 }
             }
         }
-        
+
         // Ensure length is correct (in case of fallback path)
         unsafe {
             sprite_data.set_len(dst_offset);

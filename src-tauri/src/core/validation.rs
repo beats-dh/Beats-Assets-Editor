@@ -16,22 +16,16 @@ pub fn validate_sprite_ids(sprite_ids: &[u32], sprite_loader: &SpriteLoader) -> 
 }
 
 /// Validate frame group dimensions match sprite count
-pub fn validate_frame_group_dimensions(
-    pattern_width: u32,
-    pattern_height: u32,
-    pattern_depth: u32,
-    layers: u32,
-    sprite_count: usize,
-) -> AppResult<()> {
+pub fn validate_frame_group_dimensions(pattern_width: u32, pattern_height: u32, pattern_depth: u32, layers: u32, sprite_count: usize) -> AppResult<()> {
     let expected = (pattern_width * pattern_height * pattern_depth * layers) as usize;
-    
+
     if sprite_count != expected {
         return Err(AppError::SpriteCountMismatch {
             expected,
             actual: sprite_count,
         });
     }
-    
+
     Ok(())
 }
 
@@ -40,13 +34,11 @@ pub fn validate_animation_phases(phase_count: usize, sprite_count: usize) -> App
     if phase_count == 0 {
         return Err(AppError::frame_group_validation("Animation must have at least one phase"));
     }
-    
+
     if sprite_count % phase_count != 0 {
-        return Err(AppError::frame_group_validation(
-            format!("Sprite count ({}) must be divisible by phase count ({})", sprite_count, phase_count)
-        ));
+        return Err(AppError::frame_group_validation(format!("Sprite count ({}) must be divisible by phase count ({})", sprite_count, phase_count)));
     }
-    
+
     Ok(())
 }
 
@@ -73,9 +65,7 @@ pub fn validate_enum_value(field: &str, value: i32, min: i32, max: i32) -> AppRe
 pub fn validate_brightness(brightness: u32) -> AppResult<()> {
     const MAX_BRIGHTNESS: u32 = 255;
     if brightness > MAX_BRIGHTNESS {
-        return Err(AppError::Validation(
-            format!("Brightness must be <= {}, got {}", MAX_BRIGHTNESS, brightness)
-        ));
+        return Err(AppError::Validation(format!("Brightness must be <= {}, got {}", MAX_BRIGHTNESS, brightness)));
     }
     Ok(())
 }
@@ -84,9 +74,7 @@ pub fn validate_brightness(brightness: u32) -> AppResult<()> {
 pub fn validate_color(color: u32) -> AppResult<()> {
     const MAX_COLOR: u32 = 0xFFFFFF; // 24-bit RGB
     if color > MAX_COLOR {
-        return Err(AppError::Validation(
-            format!("Color must be <= 0x{:X}, got 0x{:X}", MAX_COLOR, color)
-        ));
+        return Err(AppError::Validation(format!("Color must be <= 0x{:X}, got 0x{:X}", MAX_COLOR, color)));
     }
     Ok(())
 }
@@ -94,9 +82,7 @@ pub fn validate_color(color: u32) -> AppResult<()> {
 /// Validate string length
 pub fn validate_string_length(s: &str, max_length: usize, field_name: &str) -> AppResult<()> {
     if s.len() > max_length {
-        return Err(AppError::Validation(
-            format!("{} exceeds maximum length of {} characters", field_name, max_length)
-        ));
+        return Err(AppError::Validation(format!("{} exceeds maximum length of {} characters", field_name, max_length)));
     }
     Ok(())
 }

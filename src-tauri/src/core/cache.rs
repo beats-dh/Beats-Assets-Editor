@@ -131,10 +131,7 @@ pub struct CacheStats {
 
 /// Get current timestamp in milliseconds
 fn current_timestamp() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64
 }
 
 #[cfg(test)]
@@ -162,11 +159,11 @@ mod tests {
         cache.insert("a", 1);
         std::thread::sleep(std::time::Duration::from_millis(10));
         cache.insert("b", 2);
-        
+
         // Access "a" to make it more recently used
         std::thread::sleep(std::time::Duration::from_millis(10));
         let _ = cache.get(&"a");
-        
+
         // Insert "c", should evict "b" (least recently used)
         std::thread::sleep(std::time::Duration::from_millis(10));
         cache.insert("c", 3);

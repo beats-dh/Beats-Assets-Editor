@@ -24,8 +24,8 @@ pub struct AppState {
     pub tibia_path: Mutex<Option<PathBuf>>,
 
     // ✅ OPTIMIZED: Bounded LRU caches (prevents memory exhaustion)
-    pub sprite_cache: LRUCache<String, Vec<Vec<u8>>>,     // Max 1000 entries
-    pub preview_cache: LRUCache<String, Vec<u8>>,         // Max 500 entries
+    pub sprite_cache: LRUCache<String, Vec<Vec<u8>>>, // Max 1000 entries
+    pub preview_cache: LRUCache<String, Vec<u8>>,     // Max 500 entries
 
     // O(1) lookup indexes - no more O(n) linear scans!
     // Maps: ID -> index in Vec for instant lookups
@@ -48,24 +48,24 @@ impl AppState {
             appearances: RwLock::new(None),
             sprite_loader: RwLock::new(None),
             tibia_path: Mutex::new(None),
-            
+
             // LRU caches with size limits
-            sprite_cache: LRUCache::new(1000),   // ~100MB max
-            preview_cache: LRUCache::new(500),   // ~25MB max
-            
+            sprite_cache: LRUCache::new(1000), // ~100MB max
+            preview_cache: LRUCache::new(500), // ~25MB max
+
             // Indexes
             object_index: DashMap::with_hasher(ahash::RandomState::new()),
             outfit_index: DashMap::with_hasher(ahash::RandomState::new()),
             effect_index: DashMap::with_hasher(ahash::RandomState::new()),
             missile_index: DashMap::with_hasher(ahash::RandomState::new()),
-            
+
             // Search cache
             search_cache: DashMap::with_hasher(ahash::RandomState::new()),
-            
+
             flags_clipboard: Mutex::new(None),
         }
     }
-    
+
     /// Get cache statistics for monitoring
     pub fn cache_stats(&self) -> CacheStatistics {
         CacheStatistics {
@@ -74,7 +74,7 @@ impl AppState {
             search_cache_size: self.search_cache.len(),
         }
     }
-    
+
     /// Clear all caches
     pub fn clear_caches(&self) {
         self.sprite_cache.clear();
