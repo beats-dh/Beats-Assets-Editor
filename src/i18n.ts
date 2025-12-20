@@ -852,12 +852,82 @@ const translationEntries = {
     es: 'La importación reemplazará la apariencia actual. Haz clic en Cancelar para importar como nuevo objeto.',
     ru: 'Импорт заменит текущую внешность. Нажмите «Отмена», чтобы импортировать как новый объект.'
   },
+  'prompt.enterExportId': {
+    default: 'Informe o ID da aparÇ¦ncia para exportar',
+    'pt-BR': 'Informe o ID da aparÇ¦ncia para exportar',
+    en: 'Enter the appearance ID to export',
+    es: 'Introduce el ID de la apariencia para exportar',
+    ru: "Ñ'ÑýÑæÑïÑ÷¥'Ñæ ID ÑýÑ«Ñæ¥^Ñ«Ñó¥?¥'¥O, ÑúÑøÑ¬ÑæÑ«Ñ÷¥'¥O ¥?Ñ§¥?Ñ¨Ñó¥?¥'Ñ÷¥?ÑóÑýÑø¥'¥O"
+  },
+  'prompt.enterImportStartId': {
+    default: 'Informe o ID inicial para importar (deixe em branco para usar o ID do arquivo)',
+    'pt-BR': 'Informe o ID inicial para importar (deixe em branco para usar o ID do arquivo)',
+    en: 'Enter the start ID to import (leave blank to use the file ID)',
+    es: 'Introduce el ID inicial para importar (dÇ¸jalo en blanco para usar el ID del archivo)',
+    ru: "Ñ'ÑýÑæÑïÑ÷¥'Ñæ ÑýÑó¥?Ñû¥?Ñ¢ÑóÑýÑùÑý Ñ«ÑóÑý¥<Ñû ID ÑïÑ¯¥? Ñ÷Ñ¬Ñ¨Ñó¥?¥'Ñ÷¥?ÑóÑýÑø¥'¥O (Ñó¥?¥'ÑøÑý¥O¥'Ñæ Ñ¨¥Ÿ¥?¥'¥<Ñ¬ ÑïÑ¯¥? ÑøÑý¥'ÑóÑ¬Ñø¥'Ñ÷¥ÎÑæ¥?Ñ§ÑóÑüÑó Ñ«ÑøÑúÑ«Ñø¥ÎÑæÑ«Ñ÷¥?)"
+  },
   'prompt.enterNewObjectId': {
     default: 'Insira um novo ID de objeto (deixe em branco para atribuição automática)',
     'pt-BR': 'Insira um novo ID de objeto (deixe em branco para atribuição automática)',
     en: 'Enter a new object ID (leave blank to auto assign)',
     es: 'Introduce un nuevo ID de objeto (déjalo en blanco para asignación automática)',
     ru: 'Введите новый ID объекта (оставьте пустым для автоматического назначения)'
+  },
+  'importStartIds.title': {
+    default: 'Importar IDs iniciais',
+    'pt-BR': 'Importar IDs iniciais',
+    en: 'Import start IDs',
+    es: 'Importar IDs iniciales',
+    ru: 'Import start IDs'
+  },
+  'importStartIds.description': {
+    default: 'Defina o ID inicial por categoria. Deixe em branco para usar o ID do arquivo.',
+    'pt-BR': 'Defina o ID inicial por categoria. Deixe em branco para usar o ID do arquivo.',
+    en: 'Set the start ID per category. Leave blank to use the file IDs.',
+    es: 'Define el ID inicial por categoria. Deja en blanco para usar el ID del archivo.',
+    ru: 'Set the start ID per category. Leave blank to use the file IDs.'
+  },
+  'importStartIds.header.category': {
+    default: 'Categoria',
+    'pt-BR': 'Categoria',
+    en: 'Category',
+    es: 'Categoria',
+    ru: 'Category'
+  },
+  'importStartIds.header.latest': {
+    default: 'Ultimo ID',
+    'pt-BR': 'Ultimo ID',
+    en: 'Latest ID',
+    es: 'Ultimo ID',
+    ru: 'Latest ID'
+  },
+  'importStartIds.header.start': {
+    default: 'ID inicial',
+    'pt-BR': 'ID inicial',
+    en: 'Start ID',
+    es: 'ID inicial',
+    ru: 'Start ID'
+  },
+  'importStartIds.placeholder': {
+    default: 'Use o ID do arquivo',
+    'pt-BR': 'Use o ID do arquivo',
+    en: 'Use file ID',
+    es: 'Usar ID del archivo',
+    ru: 'Use file ID'
+  },
+  'importStartIds.notInImport': {
+    default: 'Nao esta no import',
+    'pt-BR': 'Nao esta no import',
+    en: 'Not in import',
+    es: 'No esta en la importacion',
+    ru: 'Not in import'
+  },
+  'importStartIds.notApplicable': {
+    default: 'N/A',
+    'pt-BR': 'N/A',
+    en: 'N/A',
+    es: 'N/D',
+    ru: 'N/A'
   },
   'status.invalidIdAuto': {
     default: 'ID inválido fornecido. Usando atribuição automática.',
@@ -866,12 +936,33 @@ const translationEntries = {
     es: 'ID inválido. Se usará la asignación automática.',
     ru: 'Указан неверный ID. Используется автоматическое назначение.'
   },
+  'status.invalidId': {
+    default: 'ID invÇ­lido fornecido.',
+    'pt-BR': 'ID invÇ­lido fornecido.',
+    en: 'Invalid ID provided.',
+    es: 'ID invÇ­lido.',
+    ru: 'ÑœÑ§ÑøÑúÑøÑ« Ñ«ÑæÑýÑæ¥?Ñ«¥<Ñû ID.'
+  },
   'status.appearanceImported': {
     default: 'Aparência importada como #{{id}}',
     'pt-BR': 'Aparência importada como #{{id}}',
     en: 'Appearance imported as #{{id}}',
     es: 'Apariencia importada como #{{id}}',
     ru: 'Внешность импортирована как №{{id}}'
+  },
+  'status.appearanceImportBatch': {
+    default: 'AparÇ¦ncias importadas: {{count}}',
+    'pt-BR': 'AparÇ¦ncias importadas: {{count}}',
+    en: 'Imported appearances: {{count}}',
+    es: 'Apariencias importadas: {{count}}',
+    ru: "Ñ'Ñ«Ñæ¥^Ñ«Ñó¥?¥'¥O Ñ÷Ñ¬Ñ¨Ñó¥?¥'Ñ÷¥?ÑóÑýÑøÑ«¥'Ñø: {{count}}"
+  },
+  'status.appearanceImportSummary': {
+    default: 'AparÇ¦ncias importadas: {{imported}} | Duplicadas ignoradas: {{skipped}}',
+    'pt-BR': 'AparÇ¦ncias importadas: {{imported}} | Duplicadas ignoradas: {{skipped}}',
+    en: 'Imported appearances: {{imported}} | Duplicates skipped: {{skipped}}',
+    es: 'Apariencias importadas: {{imported}} | Duplicadas omitidas: {{skipped}}',
+    ru: "Ñ'Ñ«Ñæ¥^Ñ«Ñó¥?¥'¥O Ñ÷Ñ¬Ñ¨Ñó¥?¥'Ñ÷¥?ÑóÑýÑøÑ«¥'Ñø: {{imported}} | Ñ|¥?Ñ«¥?Ñø¥?Ñõ¥?Ñ÷Ñ<Ñ<ÑçÑæÑ«¥'Ñø: {{skipped}}"
   },
   'status.appearanceImportFailed': {
     default: 'Falha ao importar aparência',
@@ -1629,6 +1720,13 @@ const translationEntries = {
     es: 'Importar',
     ru: 'Импорт'
   },
+  'action.button.cancel': {
+    default: 'Cancelar',
+    'pt-BR': 'Cancelar',
+    en: 'Cancel',
+    es: 'Cancelar',
+    ru: 'Cancel'
+  },
   'action.button.export': {
     default: 'Exportar',
     'pt-BR': 'Exportar',
@@ -1818,3 +1916,7 @@ export function getLanguageOptionLabel(language: LanguageCode, displayLanguage: 
 export function getThemeLabel(themeKey: 'default' | 'ocean' | 'aurora' | 'ember' | 'forest' | 'dusk', language: LanguageCode = activeLanguage): string {
   return translate(`theme.${themeKey}` as TranslationKey, undefined, language);
 }
+
+
+
+

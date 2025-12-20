@@ -3,13 +3,15 @@ use image::{DynamicImage, ImageBuffer, Rgba};
 use std::collections::HashMap;
 use std::fs;
 use std::io::Cursor;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use rayon::prelude::*;
 
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
+
+use super::legacy::LegacySpriteLoader;
 
 /// Represents a sprite from Tibia
 /// Uses Arc for zero-copy sharing of sprite data
@@ -129,71 +131,58 @@ impl SpriteCatalog {
     }
 }
 
-/// LZMA sprite loader for Tibia 12+
-/// Uses DashMap for lock-free concurrent caching
-pub struct SpriteLoader {
+struct CatalogBackend {
     catalog: SpriteCatalog,
-    assets_dir: std::path::PathBuf,
-    sprite_cache: DashMap<String, Arc<Vec<TibiaSprite>>>, // Lock-free cache: filename -> sprites
+    assets_dir: PathBuf,
+    sprite_cache: DashMap<String, Arc<Vec<TibiaSprite>>>, // filename -> sprites
 }
 
-impl SpriteLoader {
-    /// Create a new sprite loader with catalog and assets directory
-    pub fn new<P: AsRef<Path>>(catalog_path: P, assets_dir: P) -> Result<Self> {
-        let catalog = SpriteCatalog::load(catalog_path)?;
-        let assets_dir = assets_dir.as_ref().to_path_buf();
-
-        Ok(SpriteLoader {
-            catalog,
-            assets_dir,
-            sprite_cache: DashMap::new(),
-        })
-    }
-
-    /// Get sprite by ID (lock-free implementation)
+impl CatalogBackend {
     #[inline]
     pub fn get_sprite(&self, sprite_id: u32) -> Result<TibiaSprite> {
-        let entry = self.catalog.get_entry_for_sprite(sprite_id).ok_or_else(|| anyhow!("Sprite ID {} not found in catalog", sprite_id))?;
+        let entry = self
+            .catalog
+            .get_entry_for_sprite(sprite_id)
+            .ok_or_else(|| anyhow!("Sprite ID {} not found in catalog", sprite_id))?;
 
-        // Load sprite sheet if not cached (lock-free check and insert)
         if !self.sprite_cache.contains_key(&entry.file) {
             let sprites = self.load_sprite_sheet_for_entry(entry)?;
             let sprites_arc = Arc::new(sprites);
-            // entry() provides lock-free insert-if-absent
             self.sprite_cache.entry(entry.file.clone()).or_insert(sprites_arc);
         }
 
-        // Find sprite in the loaded sheet (lock-free read)
-        let sprites_arc = self.sprite_cache.get(&entry.file).ok_or_else(|| anyhow!("Sprite sheet {} not loaded in cache", entry.file))?;
+        let sprites_arc = self
+            .sprite_cache
+            .get(&entry.file)
+            .ok_or_else(|| anyhow!("Sprite sheet {} not loaded in cache", entry.file))?;
         let first_id = entry.first_sprite_id.unwrap_or(0);
         let sprite_index = (sprite_id - first_id) as usize;
 
-        sprites_arc.get(sprite_index).cloned().ok_or_else(|| anyhow!("Sprite {} not found in sheet {}", sprite_id, entry.file))
+        sprites_arc
+            .get(sprite_index)
+            .cloned()
+            .ok_or_else(|| anyhow!("Sprite {} not found in sheet {}", sprite_id, entry.file))
     }
 
-    /// Load an entire sprite sheet from LZMA file using entry context
     fn load_sprite_sheet_for_entry(&self, entry: &SpriteCatalogEntry) -> Result<Vec<TibiaSprite>> {
         let file_path = self.assets_dir.join(&entry.file);
 
         let compressed_data = fs::read(&file_path).context(format!("Failed to read sprite file: {:?}", file_path))?;
 
-        // Decompress LZMA data
         let bitmap_data = self.decompress_lzma(&compressed_data)?;
 
-        // Decodificar BMP com image crate, como o .NET faz
         let dyn_img = image::load_from_memory_with_format(&bitmap_data, image::ImageFormat::Bmp).context("Falha ao decodificar BMP da folha de sprites")?;
         let rgba_img = dyn_img.to_rgba8();
         let (width, height) = rgba_img.dimensions();
         let sheet_data = rgba_img.into_raw(); // RGBA top-down
 
-        // Inferir tamanho do sprite pela contagem do catálogo e dimensões da imagem
         let first_id = entry.first_sprite_id.unwrap_or(0);
         let last_id = entry.last_sprite_id.unwrap_or(first_id);
         let total_count = (last_id - first_id + 1) as u32;
         if total_count == 0 {
             return Err(anyhow!("Catálogo inválido: contagem de sprites é zero para {}", entry.file));
         }
-        // Definir dimensões do tile com base no spritetype (quando disponível) ou inferência pelo área
+
         let (tile_width, tile_height) = if let Some(t) = entry.sprite_type {
             match t {
                 0 => (32, 32),
@@ -206,7 +195,6 @@ impl SpriteLoader {
             match tile_area {
                 1024 => (32, 32),
                 2048 => {
-                    // Orientação: escolher a que divide igualmente largura/altura
                     if width % 32 == 0 && height % 64 == 0 {
                         (32, 64)
                     } else {
@@ -215,17 +203,8 @@ impl SpriteLoader {
                 }
                 4096 => (64, 64),
                 _ => {
-                    // Fallback: tentar 64/32 conforme múltiplos da folha
-                    let tw = if width % 64 == 0 {
-                        64
-                    } else {
-                        32
-                    };
-                    let th = if height % 64 == 0 {
-                        64
-                    } else {
-                        32
-                    };
+                    let tw = if width % 64 == 0 { 64 } else { 32 };
+                    let th = if height % 64 == 0 { 64 } else { 32 };
                     (tw, th)
                 }
             }
@@ -234,7 +213,6 @@ impl SpriteLoader {
         self.parse_sprite_sheet_from_rgba(&sheet_data, width, height, tile_width, tile_height)
     }
 
-    /// Decompress LZMA data with CipSoft's custom header
     fn decompress_lzma(&self, data: &[u8]) -> Result<Vec<u8>> {
         if data.len() < 32 {
             return Err(anyhow!("LZMA file too small"));
@@ -259,7 +237,6 @@ impl SpriteLoader {
         while offset < data.len() {
             let b = data[offset];
             offset += 1;
-            // MSB=1 means more bytes
             if (b & 0x80) == 0 {
                 break;
             }
@@ -274,24 +251,20 @@ impl SpriteLoader {
             return Err(anyhow!("LZMA header/data muito curto"));
         }
 
-        // Use our custom LZMA module which corrects the 8-byte size to unknown
         match crate::core::lzma::decompress(lzma_data) {
             Ok(decompressed) => Ok(decompressed),
             Err(e) => {
                 log::error!("Falha na descompressão LZMA após cabeçalho CIP (offset {}): {}", offset, e);
-                // Fallback: try original data (some files may have no CIP header/padding)
                 crate::core::lzma::decompress(data).map_err(|e2| anyhow!("Falha ao descomprimir LZMA: {}", e2))
             }
         }
     }
 
-    /// Parse sprite sheet from RGBA buffer and extract individual sprites
     #[inline]
     fn parse_sprite_sheet_from_rgba(&self, sheet_data: &[u8], width: u32, height: u32, tile_width: u32, tile_height: u32) -> Result<Vec<TibiaSprite>> {
         let bytes_per_pixel = 4usize; // RGBA
         let stride = (width * 4) as usize;
 
-        // Calcular número de sprites
         let sprites_per_row = width / tile_width;
         let sprite_rows = height / tile_height;
         let total_sprites = (sprites_per_row * sprite_rows) as usize;
@@ -310,9 +283,6 @@ impl SpriteLoader {
         Ok(sprites)
     }
 
-    /// Extract a single sprite from the sprite sheet
-    /// Optimized with unsafe for performance-critical pixel copying
-    /// OPTIMIZATION: Pre-allocate with exact size to avoid reallocations
     #[inline]
     fn extract_sprite_from_sheet_rgba(
         &self,
@@ -325,15 +295,12 @@ impl SpriteLoader {
         bytes_per_pixel: usize,
         stride: usize,
     ) -> Result<TibiaSprite> {
-        // OPTIMIZATION: Pre-allocate with exact size (tile_width * tile_height * 4 bytes RGBA)
         let capacity = (tile_width * tile_height * 4) as usize;
         let mut sprite_data: Vec<u8> = Vec::with_capacity(capacity);
         unsafe {
-            // Set length to capacity to avoid bounds checks in the loop
             sprite_data.set_len(capacity);
         }
 
-        // OPTIMIZATION: Optimized pixel extraction with pre-allocated buffer
         let mut dst_offset = 0;
         for y in 0..tile_height {
             let row_offset = ((start_y + y) as usize) * stride;
@@ -341,9 +308,7 @@ impl SpriteLoader {
             let src_offset = row_offset + row_start_x;
             let row_len = (tile_width as usize) * bytes_per_pixel;
 
-            // Bounds check once per row, then use unsafe for speed
             if src_offset + row_len <= sheet_data.len() && dst_offset + row_len <= sprite_data.len() {
-                // Safe: we verified bounds above and buffer is pre-allocated
                 unsafe {
                     let src_ptr = sheet_data.as_ptr().add(src_offset);
                     let dst_ptr = sprite_data.as_mut_ptr().add(dst_offset);
@@ -351,7 +316,6 @@ impl SpriteLoader {
                 }
                 dst_offset += row_len;
             } else {
-                // Fallback: copy available bytes + pad with zeros
                 for x in 0..tile_width {
                     let pixel_offset = row_offset + (((start_x + x) as usize) * bytes_per_pixel);
                     if pixel_offset + 3 < sheet_data.len() && dst_offset + 4 <= sprite_data.len() {
@@ -372,7 +336,6 @@ impl SpriteLoader {
             }
         }
 
-        // Ensure length is correct (in case of fallback path)
         unsafe {
             sprite_data.set_len(dst_offset);
         }
@@ -384,17 +347,88 @@ impl SpriteLoader {
             data: Arc::new(sprite_data),
         })
     }
+}
 
-    /// Get the total number of sprites available
-    #[inline]
-    pub fn sprite_count(&self) -> usize {
-        self.catalog.sprite_count()
+/// Sprite loader that supports both Tibia 12+ catalog-based sprites and legacy `.spr` files.
+enum SpriteBackend {
+    Catalog(CatalogBackend),
+    Legacy(LegacySpriteLoader),
+}
+
+pub struct SpriteLoader {
+    backend: SpriteBackend,
+}
+
+impl SpriteLoader {
+    /// Create a new sprite loader with catalog and assets directory
+    pub fn new<P: AsRef<Path>>(catalog_path: P, assets_dir: P) -> Result<Self> {
+        let catalog = SpriteCatalog::load(catalog_path)?;
+        let assets_dir = assets_dir.as_ref().to_path_buf();
+
+        Ok(SpriteLoader {
+            backend: SpriteBackend::Catalog(CatalogBackend {
+                catalog,
+                assets_dir,
+                sprite_cache: DashMap::new(),
+            }),
+        })
     }
 
-    /// Get all available sprite IDs
+    /// Create a sprite loader from legacy `.spr` files (Tibia < 12 / OTC format)
+    pub fn new_legacy_from_files(files: Vec<PathBuf>) -> Result<Self> {
+        let loader = LegacySpriteLoader::new_from_files(files)?;
+        Ok(SpriteLoader {
+            backend: SpriteBackend::Legacy(loader),
+        })
+    }
+
+    /// Auto-detect legacy Tibia `.spr` files inside a directory (e.g., Tibia1.spr, Tibia2.spr)
+    pub fn detect_legacy_in_dir<P: AsRef<Path>>(dir: P) -> Result<Self> {
+        let dir = dir.as_ref();
+        let entries = fs::read_dir(dir).context(format!("Failed to read directory {:?}", dir))?;
+        let files: Vec<PathBuf> = entries
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| {
+                p.extension()
+                    .map(|ext| ext.eq_ignore_ascii_case("spr"))
+                    .unwrap_or(false)
+                    && p.file_name()
+                        .and_then(|s| s.to_str())
+                        .map(|name| name.starts_with("Tibia"))
+                        .unwrap_or(false)
+            })
+            .collect();
+
+        if files.is_empty() {
+            return Err(anyhow!("No legacy .spr files found in {:?}", dir));
+        }
+
+        Self::new_legacy_from_files(files)
+    }
+
+    #[inline]
+    pub fn get_sprite(&self, sprite_id: u32) -> Result<TibiaSprite> {
+        match &self.backend {
+            SpriteBackend::Catalog(backend) => backend.get_sprite(sprite_id),
+            SpriteBackend::Legacy(loader) => loader.get_sprite(sprite_id),
+        }
+    }
+
+    #[inline]
+    pub fn sprite_count(&self) -> usize {
+        match &self.backend {
+            SpriteBackend::Catalog(backend) => backend.catalog.sprite_count(),
+            SpriteBackend::Legacy(loader) => loader.sprite_count(),
+        }
+    }
+
     #[inline]
     pub fn get_all_sprite_ids(&self) -> Vec<u32> {
-        self.catalog.get_all_sprite_ids()
+        match &self.backend {
+            SpriteBackend::Catalog(backend) => backend.catalog.get_all_sprite_ids(),
+            SpriteBackend::Legacy(loader) => loader.get_all_sprite_ids(),
+        }
     }
 }
 
@@ -412,7 +446,7 @@ mod tests {
     #[test]
     #[ignore] // Only run with actual files
     fn test_load_sprites() {
-        let mut loader = SpriteLoader::new("catalog-content.json", ".").unwrap();
+        let loader = SpriteLoader::new("catalog-content.json", ".").unwrap();
         let sprite = loader.get_sprite(1).unwrap();
         assert_eq!(sprite.width, 32);
         assert_eq!(sprite.height, 32);

@@ -73,9 +73,11 @@ rayon = "1.10"
 # Fast hashing
 ahash = "0.8"
 
+# Binary parsing helpers
+byteorder = "1.5"
+
 # String interning for reduced allocations
 string-interner = "0.17"
 
 # Regex for parsing Lua files
 regex = "1.10"
-

@@ -7,6 +7,21 @@ use std::path::PathBuf;
 use tauri::State;
 use rayon::prelude::*;
 
+#[inline]
+fn resolve_sprite_bytes(state: &AppState, sprite_loader: &SpriteLoader, sprite_id: u32) -> Result<Vec<u8>, String> {
+    if let Some(bytes) = state.imported_sprites.get(&sprite_id) {
+        return Ok(bytes.clone());
+    }
+
+    let sprite = sprite_loader.get_sprite(sprite_id).map_err(|e| format!("Failed to get sprite {}: {}", sprite_id, e))?;
+    sprite.to_png_bytes().map_err(|e| format!("Failed to convert sprite to PNG: {}", e))
+}
+
+#[inline]
+fn resolve_imported_sprite_bytes(state: &AppState, sprite_id: u32) -> Option<Vec<u8>> {
+    state.imported_sprites.get(&sprite_id).map(|entry| entry.clone())
+}
+
 #[inline(always)]
 fn resolve_appearance<'a>(state: &'a AppState, items: &'a [Appearance], category: &AppearanceCategory, appearance_id: u32) -> Option<&'a Appearance> {
     let index_map = match category {
@@ -46,29 +61,26 @@ pub async fn auto_load_sprites(tibia_path: String, state: State<'_, AppState>) -
     let project_root = std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
     let project_catalog_path = project_root.join("catalog-content.json");
 
-    let (catalog_path, assets_dir) = if project_catalog_path.exists() {
+    let tibia_dir = PathBuf::from(&tibia_path);
+    let tibia_assets_dir = tibia_dir.join("assets");
+
+    // Try catalog first (project root or tibia assets)
+    let sprite_loader = if project_catalog_path.exists() {
         log::info!("Found catalog-content.json in project root: {:?}", project_catalog_path);
-        // Use project root for both catalog and assets
-        (project_catalog_path, project_root)
+        SpriteLoader::new(&project_catalog_path, &project_root)
     } else {
-        // Fallback to Tibia directory - look in assets subdirectory
-        let tibia_dir = PathBuf::from(&tibia_path);
-        let tibia_assets_dir = tibia_dir.join("assets");
         let tibia_catalog_path = tibia_assets_dir.join("catalog-content.json");
         log::info!("Looking for catalog in Tibia assets directory: {:?}", tibia_catalog_path);
 
-        if !tibia_catalog_path.exists() {
-            log::error!("catalog-content.json not found at: {:?}", tibia_catalog_path);
-            return Err(format!("catalog-content.json not found in project root or Tibia assets directory"));
+        if tibia_catalog_path.exists() {
+            SpriteLoader::new(&tibia_catalog_path, &tibia_assets_dir)
+        } else {
+            log::warn!("catalog-content.json not found; trying legacy .spr detection in {:?}", tibia_dir);
+            // Legacy OTC-style .spr files usually sit in the Tibia directory root
+            SpriteLoader::detect_legacy_in_dir(&tibia_dir).or_else(|_| SpriteLoader::detect_legacy_in_dir(&tibia_assets_dir))
         }
-
-        (tibia_catalog_path, tibia_assets_dir)
-    };
-
-    log::info!("Using catalog: {:?}", catalog_path);
-    log::info!("Using assets directory: {:?}", assets_dir);
-
-    let sprite_loader = SpriteLoader::new(&catalog_path, &assets_dir).map_err(|e| {
+    }
+    .map_err(|e| {
         log::error!("Failed to create SpriteLoader: {}", e);
         format!("Failed to auto-load sprites: {}", e)
     })?;
@@ -86,13 +98,15 @@ pub async fn auto_load_sprites(tibia_path: String, state: State<'_, AppState>) -
 /// Optimized: SpriteLoader now uses lock-free cache internally
 #[tauri::command]
 pub async fn get_sprite_by_id(sprite_id: u32, state: State<'_, AppState>) -> Result<Vec<u8>, String> {
+    if let Some(bytes) = resolve_imported_sprite_bytes(state.inner(), sprite_id) {
+        return Ok(bytes);
+    }
+
     let sprite_loader_lock = state.sprite_loader.read();
 
     match &*sprite_loader_lock {
         Some(loader) => {
-            let sprite = loader.get_sprite(sprite_id).map_err(|e| format!("Failed to get sprite {}: {}", sprite_id, e))?;
-
-            sprite.to_png_bytes().map_err(|e| format!("Failed to convert sprite to PNG: {}", e))
+            resolve_sprite_bytes(state.inner(), loader, sprite_id)
         }
         None => Err("No sprites loaded".to_string()),
     }
@@ -142,16 +156,10 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
         // Use parallel processing for appearances with many sprites
         all_sprite_ids
             .par_iter()
-            .filter_map(|&sprite_id| match sprite_loader.get_sprite(sprite_id) {
-                Ok(sprite) => match sprite.to_png_bytes() {
-                    Ok(bytes) => Some(bytes),
-                    Err(e) => {
-                        log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
-                        None
-                    }
-                },
+            .filter_map(|&sprite_id| match resolve_sprite_bytes(state.inner(), sprite_loader, sprite_id) {
+                Ok(bytes) => Some(bytes),
                 Err(e) => {
-                    log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                    log::warn!("{}", e);
                     None
                 }
             })
@@ -160,16 +168,10 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
         // Sequential for small sprite counts (avoid parallelism overhead)
         all_sprite_ids
             .iter()
-            .filter_map(|&sprite_id| match sprite_loader.get_sprite(sprite_id) {
-                Ok(sprite) => match sprite.to_png_bytes() {
-                    Ok(bytes) => Some(bytes),
-                    Err(e) => {
-                        log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
-                        None
-                    }
-                },
+            .filter_map(|&sprite_id| match resolve_sprite_bytes(state.inner(), sprite_loader, sprite_id) {
+                Ok(bytes) => Some(bytes),
                 Err(e) => {
-                    log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                    log::warn!("{}", e);
                     None
                 }
             })
@@ -216,9 +218,7 @@ pub async fn get_appearance_preview_sprite(category: AppearanceCategory, appeara
         None => return Ok(None),
     };
 
-    let sprite = sprite_loader.get_sprite(sprite_id).map_err(|e| format!("Failed to get sprite {}: {}", sprite_id, e))?;
-
-    let preview = sprite.to_png_bytes().map_err(|e| format!("Failed to convert sprite to PNG: {}", e))?;
+    let preview = resolve_sprite_bytes(state.inner(), sprite_loader, sprite_id)?;
 
     Ok(Some(preview))
 }
@@ -337,16 +337,10 @@ pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearan
             // Always use parallel for batch loading (already in parallel context)
             let sprite_images: Vec<Vec<u8>> = all_sprite_ids
                 .par_iter()
-                .filter_map(|&sprite_id| match sprite_loader.get_sprite(sprite_id) {
-                    Ok(sprite) => match sprite.to_png_bytes() {
-                        Ok(bytes) => Some(bytes),
-                        Err(e) => {
-                            log::warn!("Failed to encode sprite {}: {}", sprite_id, e);
-                            None
-                        }
-                    },
+                .filter_map(|&sprite_id| match resolve_sprite_bytes(app_state, sprite_loader, sprite_id) {
+                    Ok(bytes) => Some(bytes),
                     Err(e) => {
-                        log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                        log::warn!("{}", e);
                         None
                     }
                 })
@@ -441,8 +435,7 @@ pub async fn get_appearance_preview_sprites_batch(category: AppearanceCategory, 
             let first_sprite_id = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter()).copied().next()?;
 
             // Load and encode sprite
-            let sprite = sprite_loader.get_sprite(first_sprite_id).ok()?;
-            let preview = sprite.to_png_bytes().ok()?;
+            let preview = resolve_sprite_bytes(app_state, sprite_loader, first_sprite_id).ok()?;
 
             Some((appearance_id, preview))
         })

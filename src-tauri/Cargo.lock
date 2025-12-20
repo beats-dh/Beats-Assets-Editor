@@ -4951,6 +4951,7 @@ dependencies = [
  "ahash",
  "anyhow",
  "base64 0.22.1",
+ "byteorder",
  "dashmap",
  "env_logger",
  "image",

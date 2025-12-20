@@ -243,6 +243,45 @@
   border-top: none;
 }
 
+.import-start-id-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.import-start-id-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 140px 160px;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.import-start-id-row.header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.import-start-id-row.disabled {
+  opacity: 0.6;
+}
+
+.import-start-id-latest {
+  font-family: 'Courier New', monospace;
+  color: var(--text-primary);
+}
+
+.import-start-id-input {
+  width: 100%;
+}
+
+.import-start-id-placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* Modal de Adicionar Som - ajustes específicos */
 #add-sound-content {
   display: flex;

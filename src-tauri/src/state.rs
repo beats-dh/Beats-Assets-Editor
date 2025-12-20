@@ -39,6 +39,11 @@ pub struct AppState {
     pub search_cache: DashMap<String, Arc<Vec<u32>>, ahash::RandomState>, // Cache filtered IDs
 
     pub flags_clipboard: Mutex<Option<CompleteFlags>>,
+
+    // Imported sprite overrides (e.g., from AEC files)
+    pub imported_sprites: DashMap<u32, Vec<u8>, ahash::RandomState>,
+    pub imported_sprite_hashes: DashMap<u64, u32, ahash::RandomState>,
+    pub imported_sprite_next_id: Mutex<Option<u32>>,
 }
 
 impl AppState {
@@ -63,6 +68,10 @@ impl AppState {
             search_cache: DashMap::with_hasher(ahash::RandomState::new()),
 
             flags_clipboard: Mutex::new(None),
+
+            imported_sprites: DashMap::with_hasher(ahash::RandomState::new()),
+            imported_sprite_hashes: DashMap::with_hasher(ahash::RandomState::new()),
+            imported_sprite_next_id: Mutex::new(None),
         }
     }
 

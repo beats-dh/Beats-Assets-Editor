@@ -449,10 +449,28 @@
             </div>
           </div>
         </div>
-      </div>
+        </div>
+  
+        <div id="import-start-id-modal" class="asset-details-modal" role="dialog" aria-modal="true" aria-labelledby="import-start-id-title" aria-describedby="import-start-id-desc" style="display: none;">
+          <div class="modal-backdrop"></div>
+          <div class="modal-content" role="document">
+            <div class="modal-header">
+              <h2 id="import-start-id-title">Importar IDs iniciais</h2>
+              <button id="close-import-start-id" class="close-btn" aria-label="Fechar">X</button>
+            </div>
+            <div class="modal-body">
+              <p id="import-start-id-desc">Defina os IDs iniciais por categoria. Deixe em branco para usar o ID do arquivo.</p>
+              <div id="import-start-id-table" class="import-start-id-table"></div>
+              <div class="edit-actions">
+                <button id="import-start-id-confirm" class="btn-save">Importar</button>
+                <button id="import-start-id-cancel" class="btn-delete">Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
 
-      <!-- Sprite Library Drawer -->
-      <div id="sprite-library-drawer" aria-hidden="true">
+        <!-- Sprite Library Drawer -->
+        <div id="sprite-library-drawer" aria-hidden="true">
         <div class="sprite-library-backdrop"></div>
         <div class="sprite-library-panel" role="dialog" aria-label="Sprite Library">
           <div class="sprite-library-header">

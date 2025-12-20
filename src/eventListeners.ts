@@ -28,11 +28,21 @@ import { getPrimarySelection, isAssetSelected, setAssetSelection } from './asset
 import { setSpriteLibraryEnabled } from './spriteLibrary';
 import { redo, undo } from './history';
 
+const ignoredCheckboxChanges = new WeakSet<HTMLInputElement>();
+
 export function setupGlobalEventListeners(): void {
   // Global click listener for category navigation and all save buttons
   document.addEventListener('click', async (e) => {
     const target = e.target as HTMLElement;
     const mouseEvent = e as MouseEvent;
+
+    const checkbox = target.closest('.asset-select-checkbox') as HTMLInputElement | null;
+    if (checkbox) {
+      if (handleCheckboxSelection(mouseEvent, checkbox)) {
+        ignoredCheckboxChanges.add(checkbox);
+      }
+      return;
+    }
 
     if (target.closest('.asset-select-control')) {
       return;
@@ -111,6 +121,10 @@ export function setupGlobalEventListeners(): void {
   document.addEventListener('change', (event) => {
     const target = event.target as HTMLInputElement;
     if (target && target.classList.contains('asset-select-checkbox')) {
+      if (ignoredCheckboxChanges.has(target)) {
+        ignoredCheckboxChanges.delete(target);
+        return;
+      }
       const { assetId, category } = target.dataset;
       if (assetId && category) {
         const parsedId = parseInt(assetId, 10);
@@ -217,6 +231,57 @@ function shouldHandleCtrlSelection(event: MouseEvent, category: string, assetId:
   }
 
   return true;
+}
+
+function handleCheckboxSelection(event: MouseEvent, checkbox: HTMLInputElement): boolean {
+  const { assetId, category } = checkbox.dataset;
+  if (!assetId || !category) {
+    return false;
+  }
+  const parsedId = parseInt(assetId, 10);
+  if (Number.isNaN(parsedId)) {
+    return false;
+  }
+
+  if (event.shiftKey) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const items = getAssetItemsInOrder(category);
+    const targetIndex = items.findIndex((item) => parseInt(item.dataset.assetId ?? '', 10) === parsedId);
+    const primary = getPrimarySelection();
+
+    if (!primary || primary.category !== category || targetIndex === -1) {
+      setAssetSelection(category, parsedId, true);
+      return true;
+    }
+
+    const primaryIndex = items.findIndex((item) => parseInt(item.dataset.assetId ?? '', 10) === primary.id);
+    if (primaryIndex === -1) {
+      setAssetSelection(category, parsedId, true);
+      return true;
+    }
+
+    const start = Math.min(primaryIndex, targetIndex);
+    const end = Math.max(primaryIndex, targetIndex);
+    for (let i = start; i <= end; i += 1) {
+      const id = parseInt(items[i].dataset.assetId ?? '', 10);
+      if (!Number.isNaN(id)) {
+        setAssetSelection(category, id, true, false);
+      }
+    }
+    setAssetSelection(category, parsedId, true);
+    return true;
+  }
+
+  if (event.ctrlKey || event.metaKey) {
+    event.preventDefault();
+    event.stopPropagation();
+    setAssetSelection(category, parsedId, !isAssetSelected(category, parsedId));
+    return true;
+  }
+
+  return false;
 }
 
 async function handleSpinnerButtons(_e: Event, target: HTMLElement): Promise<void> {

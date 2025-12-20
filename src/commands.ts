@@ -53,7 +53,11 @@ export const COMMANDS = {
   // File Operations
   SAVE_APPEARANCES_FILE: 'save_appearances_file',
   EXPORT_APPEARANCE_TO_JSON: 'export_appearance_to_json',
+  EXPORT_APPEARANCE_TO_AEC: 'export_appearance_to_aec',
   IMPORT_APPEARANCE_FROM_JSON: 'import_appearance_from_json',
+  IMPORT_APPEARANCES_FROM_FILES: 'import_appearances_from_files',
+  IMPORT_APPEARANCES_FROM_FILES_ALL: 'import_appearances_from_files_all',
+  GET_IMPORT_CONTEXT: 'get_import_context',
   
   // Appearance Management
   DUPLICATE_APPEARANCE: 'duplicate_appearance',

@@ -12,6 +12,7 @@ import { recordAction } from "./history";
 import { openConfirmModal } from "./confirmModal";
 import { invoke } from "./utils/invoke";
 import { COMMANDS } from "./commands";
+import { modalClosed, modalOpened } from "./modalState";
 
 const ACTION_CONTAINER_ID = "appearance-action-bar";
 const ACTION_BUTTON_IDS = {
@@ -61,12 +62,93 @@ let selectedTargets: AssetTarget[] = [];
 let primarySelection: AssetTarget | null = null;
 let detailTarget: AssetTarget | null = null;
 
+function parseNumericId(value: string | null): number | null {
+  if (value === null) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
+    return null;
+  }
+  return parsed;
+}
+
+function promptForRequiredId(promptKey: TranslationKey): number | null {
+  const input = window.prompt(translate(promptKey), "");
+  if (input === null) {
+    return null;
+  }
+  const parsed = parseNumericId(input);
+  if (parsed === null) {
+    showStatus(translate('status.invalidId'), "error");
+    return null;
+  }
+  return parsed;
+}
+
+function promptForOptionalId(promptKey: TranslationKey): number | null {
+  const input = window.prompt(translate(promptKey), "");
+  if (input === null) {
+    return null;
+  }
+  if (!input.trim()) {
+    return null;
+  }
+  const parsed = parseNumericId(input);
+  if (parsed === null) {
+    showStatus(translate('status.invalidIdAuto'), "error");
+    return null;
+  }
+  return parsed;
+}
+
+function normalizeFileSelection(selection: string | string[] | null): string[] {
+  if (!selection) {
+    return [];
+  }
+  return Array.isArray(selection) ? selection : [selection];
+}
+
 interface AppearanceRenderedDetail {
   category?: string;
   id?: number;
 }
 
-type ImportMode = "replace" | "new";
+interface ImportBatchResult {
+  imported: number[];
+  skipped: number[];
+}
+
+interface ImportStartIds {
+  objects?: number | null;
+  outfits?: number | null;
+  effects?: number | null;
+  missiles?: number | null;
+}
+
+interface ImportPresence {
+  objects: boolean;
+  outfits: boolean;
+  effects: boolean;
+  missiles: boolean;
+}
+
+interface LatestAssetIds {
+  objects: number;
+  outfits: number;
+  effects: number;
+  missiles: number;
+  sounds: number;
+}
+
+interface ImportContext {
+  latest: LatestAssetIds;
+  present: ImportPresence;
+}
 
 function filterSupportedTargets(targets: AssetTarget[]): AssetTarget[] {
   return targets.filter((target) => SUPPORTED_CATEGORIES.has(target.category));
@@ -111,6 +193,30 @@ function getActionTargets(preferMultiple: boolean): AssetTarget[] {
     }
     const primary = getSelectionPrimary();
     return primary ? [primary] : [];
+  }
+
+  const grid = document.querySelector('#assets-grid');
+  if (grid) {
+    const checked = Array.from(grid.querySelectorAll<HTMLInputElement>('.asset-select-checkbox:checked'));
+    if (checked.length > 0) {
+      const targets = checked
+        .map((input) => {
+          const id = Number(input.dataset.assetId);
+          const category = input.dataset.category;
+          if (!Number.isNaN(id) && category) {
+            return { category, id };
+          }
+          return null;
+        })
+        .filter((item): item is AssetTarget => Boolean(item));
+
+      if (targets.length > 0) {
+        if (preferMultiple) {
+          return targets;
+        }
+        return [targets[targets.length - 1]];
+      }
+    }
   }
 
   if (detailTarget && SUPPORTED_CATEGORIES.has(detailTarget.category)) {
@@ -182,14 +288,17 @@ async function handleExport(category: string, id: number): Promise<void> {
     const defaultName = `appearance-${id}.json`;
     const destination = await save({
       defaultPath: defaultName,
-      filters: [{ name: "JSON", extensions: ["json"] }]
+      filters: [{ name: "Appearance", extensions: ["json", "aec"] }]
     });
 
     if (!destination) {
       return;
     }
 
-    await invoke(COMMANDS.EXPORT_APPEARANCE_TO_JSON, { category, id, path: destination });
+    const lower = destination.toLowerCase();
+    const useAec = lower.endsWith('.aec');
+    const command = useAec ? COMMANDS.EXPORT_APPEARANCE_TO_AEC : COMMANDS.EXPORT_APPEARANCE_TO_JSON;
+    await invoke(command, { category, id, path: destination });
     showStatus(translate('status.appearanceExported', { id }), "success");
   } catch (error) {
     console.error("Failed to export appearance", error);
@@ -197,51 +306,214 @@ async function handleExport(category: string, id: number): Promise<void> {
   }
 }
 
-async function handleImport(category: string, _currentId: number): Promise<void> {
+async function handleImport(_category: string): Promise<void> {
   try {
     const selection = await open({
-      multiple: false,
-      filters: [{ name: "JSON", extensions: ["json"] }]
+      multiple: true,
+      filters: [{ name: "Appearance", extensions: ["json", "aec"] }]
     });
 
-    if (typeof selection !== "string" || !selection) {
+    const paths = normalizeFileSelection(selection);
+    if (paths.length === 0) {
       return;
     }
 
-    let mode: ImportMode = "replace";
-    if (!window.confirm(translate('prompt.importReplaceWarning'))) {
-      mode = "new";
+    const startIds = await promptForImportStartIds(paths);
+    if (startIds === null) {
+      return;
     }
 
-    let newId: number | null = null;
-    if (mode === "new") {
-      const userValue = window.prompt(translate('prompt.enterNewObjectId'), "");
-      if (userValue && userValue.trim().length > 0) {
-        const parsed = Number(userValue);
-        if (!Number.isNaN(parsed) && parsed >= 0) {
-          newId = parsed;
-        } else {
-          showStatus(translate('status.invalidIdAuto'), "error");
-        }
-      }
-    }
-
-    const result = await invoke<CompleteAppearanceItem>("import_appearance_from_json", {
-      category,
-      path: selection,
-      mode,
-      newId
+    const result = await invoke<ImportBatchResult>(COMMANDS.IMPORT_APPEARANCES_FROM_FILES_ALL, {
+      paths,
+      startIds
     });
 
-    const imported = result as CompleteAppearanceItem;
-    await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
-    await loadAssets();
-    await refreshAssetDetails(category, imported.id);
-    showStatus(translate('status.appearanceImported', { id: imported.id }), "success");
+    const importedCount = result.imported.length;
+    const skippedCount = result.skipped.length;
+
+    if (importedCount > 0) {
+      await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
+      await loadAssets();
+    }
+
+    const messageKey = skippedCount > 0 ? 'status.appearanceImportSummary' : 'status.appearanceImportBatch';
+    const message = translate(messageKey, {
+      count: importedCount,
+      imported: importedCount,
+      skipped: skippedCount
+    });
+    showStatus(message, importedCount > 0 ? "success" : "error");
   } catch (error) {
     console.error("Failed to import appearance", error);
     showStatus(translate('status.appearanceImportFailed'), "error");
   }
+}
+
+async function promptForImportStartIds(paths: string[]): Promise<ImportStartIds | null> {
+  const modal = document.getElementById("import-start-id-modal") as HTMLElement | null;
+  const table = document.getElementById("import-start-id-table") as HTMLElement | null;
+  const confirmBtn = document.getElementById("import-start-id-confirm") as HTMLButtonElement | null;
+  const cancelBtn = document.getElementById("import-start-id-cancel") as HTMLButtonElement | null;
+  const closeBtn = document.getElementById("close-import-start-id") as HTMLButtonElement | null;
+  const titleEl = document.getElementById("import-start-id-title") as HTMLElement | null;
+  const descEl = document.getElementById("import-start-id-desc") as HTMLElement | null;
+
+  if (!modal || !table || !confirmBtn || !cancelBtn || !closeBtn || !titleEl || !descEl) {
+    const startId = promptForOptionalId('prompt.enterImportStartId');
+    if (startId === null) {
+      return null;
+    }
+    return {
+      objects: startId,
+      outfits: startId,
+      effects: startId,
+      missiles: startId
+    };
+  }
+
+  const context = await invoke<ImportContext>(COMMANDS.GET_IMPORT_CONTEXT, { paths });
+  const inputs: Partial<Record<keyof ImportStartIds, HTMLInputElement>> = {};
+
+  titleEl.textContent = translate('importStartIds.title');
+  descEl.textContent = translate('importStartIds.description');
+  confirmBtn.textContent = translate('action.button.import');
+  cancelBtn.textContent = translate('action.button.cancel');
+
+  table.innerHTML = "";
+  const headerRow = document.createElement("div");
+  headerRow.className = "import-start-id-row header";
+  const headerCategory = document.createElement("span");
+  headerCategory.textContent = translate('importStartIds.header.category');
+  const headerLatest = document.createElement("span");
+  headerLatest.textContent = translate('importStartIds.header.latest');
+  const headerStart = document.createElement("span");
+  headerStart.textContent = translate('importStartIds.header.start');
+  headerRow.append(headerCategory, headerLatest, headerStart);
+  table.appendChild(headerRow);
+
+  const createRow = (
+    key: keyof ImportStartIds | "sounds",
+    label: string,
+    latest: number,
+    enabled: boolean
+  ): void => {
+    const row = document.createElement("div");
+    row.className = "import-start-id-row";
+    if (!enabled) {
+      row.classList.add("disabled");
+    }
+
+    const labelEl = document.createElement("span");
+    labelEl.textContent = label;
+    const latestEl = document.createElement("span");
+    latestEl.className = "import-start-id-latest";
+    latestEl.textContent = String(latest);
+
+    row.append(labelEl, latestEl);
+
+    if (key === "sounds") {
+      const placeholder = document.createElement("span");
+      placeholder.className = "import-start-id-placeholder";
+      placeholder.textContent = translate('importStartIds.notApplicable');
+      row.appendChild(placeholder);
+      table.appendChild(row);
+      return;
+    }
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "0";
+    input.className = "import-start-id-input";
+    if (!enabled) {
+      input.disabled = true;
+      input.placeholder = translate('importStartIds.notInImport');
+    } else {
+      const defaultValue = latest > 0 ? latest + 1 : 1;
+      input.value = String(defaultValue);
+      input.placeholder = translate('importStartIds.placeholder');
+    }
+    row.appendChild(input);
+    table.appendChild(row);
+    inputs[key] = input;
+  };
+
+  createRow("objects", translate('category.objects'), context.latest.objects, context.present.objects);
+  createRow("outfits", translate('category.outfits'), context.latest.outfits, context.present.outfits);
+  createRow("effects", translate('category.effects'), context.latest.effects, context.present.effects);
+  createRow("missiles", translate('category.missiles'), context.latest.missiles, context.present.missiles);
+  createRow("sounds", translate('category.sounds'), context.latest.sounds, false);
+
+  modal.style.display = "flex";
+  modal.classList.add("show");
+  modalOpened();
+
+  const backdrop = modal.querySelector(".modal-backdrop") as HTMLElement | null;
+
+  return new Promise((resolve) => {
+    const cleanup = (): void => {
+      confirmBtn.removeEventListener("click", onConfirm);
+      cancelBtn.removeEventListener("click", onCancel);
+      closeBtn.removeEventListener("click", onCancel);
+      backdrop?.removeEventListener("click", onCancel);
+      document.removeEventListener("keydown", onKeydown);
+      modal.classList.remove("show");
+      modal.style.display = "none";
+      modalClosed();
+    };
+
+    const onConfirm = (): void => {
+      const startIds: ImportStartIds = {
+        objects: null,
+        outfits: null,
+        effects: null,
+        missiles: null
+      };
+
+      const keys: (keyof ImportStartIds)[] = ["objects", "outfits", "effects", "missiles"];
+      for (const key of keys) {
+        const input = inputs[key];
+        if (!input || input.disabled) {
+          continue;
+        }
+        const raw = input.value.trim();
+        if (!raw) {
+          startIds[key] = null;
+          continue;
+        }
+        const parsed = parseNumericId(raw);
+        if (parsed === null) {
+          showStatus(translate('status.invalidIdAuto'), "error");
+          input.focus();
+          return;
+        }
+        startIds[key] = parsed;
+      }
+
+      cleanup();
+      resolve(startIds);
+    };
+
+    const onCancel = (): void => {
+      cleanup();
+      resolve(null);
+    };
+
+    const onKeydown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCancel();
+      }
+    };
+
+    confirmBtn.addEventListener("click", onConfirm);
+    cancelBtn.addEventListener("click", onCancel);
+    closeBtn.addEventListener("click", onCancel);
+    backdrop?.addEventListener("click", onCancel);
+    document.addEventListener("keydown", onKeydown);
+
+    const firstInput = inputs.objects || inputs.outfits || inputs.effects || inputs.missiles;
+    firstInput?.focus();
+  });
 }
 
 async function handleDuplicate(category: string, id: number): Promise<void> {
@@ -504,18 +776,37 @@ function ensureActionBar(): HTMLDivElement | null {
 
     const importBtn = getActionButton("import");
     importBtn?.addEventListener("click", () => {
-      const target = getSingleTargetOrNotify("import");
-      if (target) {
-        void handleImport(target.category, target.id);
+      const category = resolveCategory(null);
+      if (!category) {
+        showStatus(
+          translate('status.selectAppearanceAction', {
+            action: translateActionVerb("import")
+          }),
+          "error"
+        );
+        return;
       }
+      void handleImport(category);
     });
 
     const exportBtn = getActionButton("export");
     exportBtn?.addEventListener("click", () => {
-      const target = getSingleTargetOrNotify("export");
-      if (target) {
-        void handleExport(target.category, target.id);
+      const target = getActionTargets(false)[0];
+      const category = target?.category ?? resolveCategory(null);
+      if (!category) {
+        showStatus(
+          translate('status.selectAppearanceAction', {
+            action: translateActionVerb("export")
+          }),
+          "error"
+        );
+        return;
       }
+      const targetId = target?.id ?? promptForRequiredId('prompt.enterExportId');
+      if (targetId === null) {
+        return;
+      }
+      void handleExport(category, targetId);
     });
 
     const duplicateBtn = getActionButton("duplicate");
@@ -604,12 +895,12 @@ export function updateActionButtonStates(): void {
 
   const importBtn = getActionButton("import");
   if (importBtn) {
-    importBtn.disabled = !hasSingleTarget;
+    importBtn.disabled = !hasCategory;
   }
 
   const exportBtn = getActionButton("export");
   if (exportBtn) {
-    exportBtn.disabled = !hasSingleTarget;
+    exportBtn.disabled = !hasCategory;
   }
 
   const duplicateBtn = getActionButton("duplicate");
