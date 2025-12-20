@@ -105,9 +105,7 @@ pub async fn get_sprite_by_id(sprite_id: u32, state: State<'_, AppState>) -> Res
     let sprite_loader_lock = state.sprite_loader.read();
 
     match &*sprite_loader_lock {
-        Some(loader) => {
-            resolve_sprite_bytes(state.inner(), loader, sprite_id)
-        }
+        Some(loader) => resolve_sprite_bytes(state.inner(), loader, sprite_id),
         None => Err("No sprites loaded".to_string()),
     }
 }

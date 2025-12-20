@@ -29,12 +29,7 @@ impl LegacySpriteSheet {
 
         let signature = file.read_u32::<LittleEndian>().context("Failed to read legacy signature")?;
         if signature != LEGACY_SIGNATURE {
-            return Err(anyhow!(
-                "Invalid legacy sprite signature in {:?}: expected 0x{:X}, got 0x{:X}",
-                path,
-                LEGACY_SIGNATURE,
-                signature
-            ));
+            return Err(anyhow!("Invalid legacy sprite signature in {:?}: expected 0x{:X}, got 0x{:X}", path, LEGACY_SIGNATURE, signature));
         }
 
         let sprite_count = file.read_u32::<LittleEndian>().context("Failed to read legacy sprite count")?;
@@ -48,10 +43,7 @@ impl LegacySpriteSheet {
             offsets.push(file.read_u32::<LittleEndian>().context("Failed to read sprite offset")?);
         }
 
-        let end_id = start_id
-            .checked_add(sprite_count)
-            .and_then(|v| v.checked_sub(1))
-            .ok_or_else(|| anyhow!("Sprite ID range overflow for {:?}", path))?;
+        let end_id = start_id.checked_add(sprite_count).and_then(|v| v.checked_sub(1)).ok_or_else(|| anyhow!("Sprite ID range overflow for {:?}", path))?;
 
         Ok(Self {
             path,
@@ -93,10 +85,7 @@ impl LegacySpriteLoader {
         let mut current_start_id = 1u32;
         for path in sorted_files {
             let sheet = LegacySpriteSheet::load_with_start_id(&path, current_start_id)?;
-            current_start_id = sheet
-                .end_id
-                .checked_add(1)
-                .ok_or_else(|| anyhow!("Sprite ID overflow while chaining legacy sprite sheets"))?;
+            current_start_id = sheet.end_id.checked_add(1).ok_or_else(|| anyhow!("Sprite ID overflow while chaining legacy sprite sheets"))?;
             sheets.push(sheet);
         }
 
@@ -109,10 +98,7 @@ impl LegacySpriteLoader {
 
     #[inline]
     pub fn sprite_count(&self) -> usize {
-        self.sheets
-            .last()
-            .map(|s| s.end_id as usize)
-            .unwrap_or(0)
+        self.sheets.last().map(|s| s.end_id as usize).unwrap_or(0)
     }
 
     #[inline]
@@ -126,19 +112,11 @@ impl LegacySpriteLoader {
             return Ok((*sprite).as_ref().clone());
         }
 
-        let sheet = self
-            .sheets
-            .iter()
-            .find(|s| s.contains_id(sprite_id))
-            .ok_or_else(|| anyhow!("Sprite ID {} not found in legacy sheets", sprite_id))?;
+        let sheet = self.sheets.iter().find(|s| s.contains_id(sprite_id)).ok_or_else(|| anyhow!("Sprite ID {} not found in legacy sheets", sprite_id))?;
 
         let file_bytes = self.load_file_bytes(&sheet.path)?;
         let local_index = sheet.local_index(sprite_id);
-        let offset = sheet
-            .offsets
-            .get(local_index)
-            .copied()
-            .ok_or_else(|| anyhow!("Offset not found for sprite {} in {:?}", sprite_id, sheet.path))?;
+        let offset = sheet.offsets.get(local_index).copied().ok_or_else(|| anyhow!("Offset not found for sprite {} in {:?}", sprite_id, sheet.path))?;
 
         let sprite = self.decode_sprite(sprite_id, offset, &file_bytes)?;
         let arc = Arc::new(sprite);
@@ -168,21 +146,13 @@ impl LegacySpriteLoader {
         }
 
         if (offset as usize) >= file_bytes.len() {
-            return Err(anyhow!(
-                "Sprite offset {} out of bounds for sprite {}",
-                offset,
-                sprite_id
-            ));
+            return Err(anyhow!("Sprite offset {} out of bounds for sprite {}", offset, sprite_id));
         }
 
         let mut cursor = Cursor::new(file_bytes);
-        cursor
-            .seek(SeekFrom::Start(offset as u64))
-            .context("Failed to seek to sprite offset")?;
+        cursor.seek(SeekFrom::Start(offset as u64)).context("Failed to seek to sprite offset")?;
 
-        let data_size = cursor
-            .read_u16::<LittleEndian>()
-            .context("Failed to read sprite data size")? as usize;
+        let data_size = cursor.read_u16::<LittleEndian>().context("Failed to read sprite data size")? as usize;
 
         let mut output = vec![0u8; (LEGACY_SPRITE_WIDTH * LEGACY_SPRITE_HEIGHT * 4) as usize];
 
@@ -199,16 +169,10 @@ impl LegacySpriteLoader {
         let mut pixel_index: usize = 0; // counts pixels written/advanced
 
         while (cursor.position() - start_pos) < data_size as u64 {
-            let transparent_pixels = cursor
-                .read_u16::<LittleEndian>()
-                .context("Failed to read transparent pixel count")? as usize;
-            let colored_pixels = cursor
-                .read_u16::<LittleEndian>()
-                .context("Failed to read colored pixel count")? as usize;
+            let transparent_pixels = cursor.read_u16::<LittleEndian>().context("Failed to read transparent pixel count")? as usize;
+            let colored_pixels = cursor.read_u16::<LittleEndian>().context("Failed to read colored pixel count")? as usize;
 
-            pixel_index = pixel_index
-                .checked_add(transparent_pixels)
-                .ok_or_else(|| anyhow!("Overflow while skipping transparent pixels"))?;
+            pixel_index = pixel_index.checked_add(transparent_pixels).ok_or_else(|| anyhow!("Overflow while skipping transparent pixels"))?;
 
             for _ in 0..colored_pixels {
                 let blue = cursor.read_u8().context("Failed to read blue channel")?;

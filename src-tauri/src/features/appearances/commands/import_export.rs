@@ -115,12 +115,7 @@ pub async fn export_appearance_to_aec(category: AppearanceCategory, id: u32, pat
 
     let mut appearance = appearance.clone();
 
-    let sprite_ids: Vec<u32> = appearance
-        .frame_group
-        .iter()
-        .filter_map(|fg| fg.sprite_info.as_ref())
-        .flat_map(|info| info.sprite_id.iter().copied())
-        .collect();
+    let sprite_ids: Vec<u32> = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()).collect();
 
     let sprite_loader_lock = state.sprite_loader.read();
     let sprite_loader = sprite_loader_lock.as_ref();
@@ -134,12 +129,8 @@ pub async fn export_appearance_to_aec(category: AppearanceCategory, id: u32, pat
             }
 
             let loader = sprite_loader.ok_or_else(|| "No sprites loaded".to_string())?;
-            let sprite = loader
-                .get_sprite(*sprite_id)
-                .map_err(|e| format!("Failed to get sprite {}: {}", sprite_id, e))?;
-            let bytes = sprite
-                .to_png_bytes()
-                .map_err(|e| format!("Failed to convert sprite to PNG: {}", e))?;
+            let sprite = loader.get_sprite(*sprite_id).map_err(|e| format!("Failed to get sprite {}: {}", sprite_id, e))?;
+            let bytes = sprite.to_png_bytes().map_err(|e| format!("Failed to convert sprite to PNG: {}", e))?;
             appearance.sprite_data.push(bytes);
         }
     }
@@ -258,12 +249,7 @@ pub async fn import_appearance_from_json(
 }
 
 #[tauri::command]
-pub async fn import_appearances_from_files(
-    category: AppearanceCategory,
-    paths: Vec<String>,
-    start_id: Option<u32>,
-    state: State<'_, AppState>,
-) -> Result<ImportBatchResult, String> {
+pub async fn import_appearances_from_files(category: AppearanceCategory, paths: Vec<String>, start_id: Option<u32>, state: State<'_, AppState>) -> Result<ImportBatchResult, String> {
     let mut appearances_lock = state.appearances.write();
     let appearances = appearances_lock.as_mut().ok_or_else(|| "No appearances loaded".to_string())?;
 
@@ -276,11 +262,7 @@ pub async fn import_appearances_from_files(
 
     let mut parsed_items = Vec::new();
     for path in &paths {
-        let extension = Path::new(path)
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("")
-            .to_lowercase();
+        let extension = Path::new(path).extension().and_then(|ext| ext.to_str()).unwrap_or("").to_lowercase();
 
         if extension == "aec" {
             let mut aec_items = parse_aec_items(path, &category)?;
@@ -288,8 +270,7 @@ pub async fn import_appearances_from_files(
             parsed_items.extend(aec_items.into_iter().map(|appearance| ImportedAppearance::Proto(appearance)));
         } else {
             let content = read_text_file(path)?;
-            let imported: CompleteAppearanceItem =
-                serde_json::from_str(&content).map_err(|e| format!("Failed to parse appearance JSON: {}", e))?;
+            let imported: CompleteAppearanceItem = serde_json::from_str(&content).map_err(|e| format!("Failed to parse appearance JSON: {}", e))?;
             parsed_items.push(ImportedAppearance::Complete(imported));
         }
     }
@@ -301,14 +282,7 @@ pub async fn import_appearances_from_files(
         skipped: Vec::new(),
     };
     let mut seen_signatures = existing_signatures;
-    let to_insert = process_import_bucket(
-        &category,
-        parsed_items,
-        start_id,
-        state.inner(),
-        &mut seen_signatures,
-        &mut result,
-    )?;
+    let to_insert = process_import_bucket(&category, parsed_items, start_id, state.inner(), &mut seen_signatures, &mut result)?;
 
     if !to_insert.is_empty() {
         let items = get_items_by_category_mut(appearances, &category);
@@ -322,11 +296,7 @@ pub async fn import_appearances_from_files(
 }
 
 #[tauri::command]
-pub async fn import_appearances_from_files_all(
-    paths: Vec<String>,
-    start_ids: Option<ImportStartIds>,
-    state: State<'_, AppState>,
-) -> Result<ImportBatchResult, String> {
+pub async fn import_appearances_from_files_all(paths: Vec<String>, start_ids: Option<ImportStartIds>, state: State<'_, AppState>) -> Result<ImportBatchResult, String> {
     let mut appearances_lock = state.appearances.write();
     let appearances = appearances_lock.as_mut().ok_or_else(|| "No appearances loaded".to_string())?;
 
@@ -339,11 +309,7 @@ pub async fn import_appearances_from_files_all(
 
     let mut buckets = ImportBuckets::default();
     for path in &paths {
-        let extension = Path::new(path)
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("")
-            .to_lowercase();
+        let extension = Path::new(path).extension().and_then(|ext| ext.to_str()).unwrap_or("").to_lowercase();
 
         if extension == "aec" {
             let mut aec = parse_aec_container(path)?;
@@ -366,8 +332,7 @@ pub async fn import_appearances_from_files_all(
             }
         } else {
             let content = read_text_file(path)?;
-            let imported: CompleteAppearanceItem =
-                serde_json::from_str(&content).map_err(|e| format!("Failed to parse appearance JSON: {}", e))?;
+            let imported: CompleteAppearanceItem = serde_json::from_str(&content).map_err(|e| format!("Failed to parse appearance JSON: {}", e))?;
             let category = category_from_appearance_type(imported.appearance_type);
             buckets.push(category, ImportedAppearance::Complete(imported));
         }
@@ -385,14 +350,7 @@ pub async fn import_appearances_from_files_all(
         }
         let existing_signatures = collect_existing_signatures(&category, appearances, state.inner())?;
         let mut seen_signatures = existing_signatures;
-        let to_import = process_import_bucket(
-            &category,
-            items,
-            start_id_for_category(start_ids.as_ref(), &category),
-            state.inner(),
-            &mut seen_signatures,
-            &mut result,
-        )?;
+        let to_import = process_import_bucket(&category, items, start_id_for_category(start_ids.as_ref(), &category), state.inner(), &mut seen_signatures, &mut result)?;
         if !to_import.is_empty() {
             to_insert.push(category, to_import);
         }
@@ -427,11 +385,7 @@ pub async fn import_appearances_from_files_all(
 }
 
 #[tauri::command]
-pub async fn get_import_context(
-    paths: Vec<String>,
-    state: State<'_, AppState>,
-    sounds_state: State<'_, SoundsState>,
-) -> Result<ImportContext, String> {
+pub async fn get_import_context(paths: Vec<String>, state: State<'_, AppState>, sounds_state: State<'_, SoundsState>) -> Result<ImportContext, String> {
     let appearances_lock = state.appearances.read();
     let appearances = appearances_lock.as_ref().ok_or_else(|| "No appearances loaded".to_string())?;
 
@@ -445,7 +399,10 @@ pub async fn get_import_context(
 
     let present = detect_import_presence(&paths)?;
 
-    Ok(ImportContext { latest, present })
+    Ok(ImportContext {
+        latest,
+        present,
+    })
 }
 
 #[tauri::command]
@@ -641,8 +598,7 @@ fn sort_by_id(items: &mut Vec<Appearance>) {
 fn read_text_file(path: &str) -> Result<String, String> {
     let bytes = fs::read(path).map_err(|e| format!("Failed to read file {}: {}", path, e))?;
     if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
-        return String::from_utf8(bytes[3..].to_vec())
-            .map_err(|e| format!("Failed to decode UTF-8 file {}: {}", path, e));
+        return String::from_utf8(bytes[3..].to_vec()).map_err(|e| format!("Failed to decode UTF-8 file {}: {}", path, e));
     }
     if bytes.starts_with(&[0xFF, 0xFE]) {
         return decode_utf16(&bytes[2..], true, path);
@@ -715,12 +671,7 @@ impl ImportBuckets {
     }
 
     fn into_entries(self) -> Vec<(AppearanceCategory, Vec<ImportedAppearance>)> {
-        vec![
-            (AppearanceCategory::Objects, self.objects),
-            (AppearanceCategory::Outfits, self.outfits),
-            (AppearanceCategory::Effects, self.effects),
-            (AppearanceCategory::Missiles, self.missiles),
-        ]
+        vec![(AppearanceCategory::Objects, self.objects), (AppearanceCategory::Outfits, self.outfits), (AppearanceCategory::Effects, self.effects), (AppearanceCategory::Missiles, self.missiles)]
     }
 }
 
@@ -743,10 +694,7 @@ impl InsertBuckets {
     }
 
     fn has_any(&self) -> bool {
-        !self.objects.is_empty()
-            || !self.outfits.is_empty()
-            || !self.effects.is_empty()
-            || !self.missiles.is_empty()
+        !self.objects.is_empty() || !self.outfits.is_empty() || !self.effects.is_empty() || !self.missiles.is_empty()
     }
 }
 
@@ -759,11 +707,7 @@ fn appearance_signature_from_import(imported: &ImportedAppearance, state: &AppSt
     appearance_signature(&appearance, state)
 }
 
-fn collect_existing_signatures(
-    category: &AppearanceCategory,
-    appearances: &Appearances,
-    state: &AppState,
-) -> Result<HashSet<u64>, String> {
+fn collect_existing_signatures(category: &AppearanceCategory, appearances: &Appearances, state: &AppState) -> Result<HashSet<u64>, String> {
     if state.imported_sprites.is_empty() {
         return Ok(HashSet::new());
     }
@@ -875,12 +819,7 @@ fn appearance_signature(appearance: &Appearance, state: &AppState) -> Result<u64
         let sprite_loader = state.sprite_loader.read();
         let loader = sprite_loader.as_ref();
 
-        for sprite_id in appearance
-            .frame_group
-            .iter()
-            .filter_map(|fg| fg.sprite_info.as_ref())
-            .flat_map(|info| info.sprite_id.iter().copied())
-        {
+        for sprite_id in appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()) {
             if let Some(bytes) = state.imported_sprites.get(&sprite_id) {
                 bytes.hash(&mut hasher);
                 continue;
@@ -896,12 +835,7 @@ fn appearance_signature(appearance: &Appearance, state: &AppState) -> Result<u64
 }
 
 fn appearance_uses_imported_sprites(appearance: &Appearance, state: &AppState) -> bool {
-    for sprite_id in appearance
-        .frame_group
-        .iter()
-        .filter_map(|fg| fg.sprite_info.as_ref())
-        .flat_map(|info| info.sprite_id.iter().copied())
-    {
+    for sprite_id in appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()) {
         if state.imported_sprites.contains_key(&sprite_id) {
             return true;
         }
@@ -970,11 +904,7 @@ fn detect_import_presence(paths: &[String]) -> Result<ImportPresence, String> {
     };
 
     for path in paths {
-        let extension = Path::new(path)
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("")
-            .to_lowercase();
+        let extension = Path::new(path).extension().and_then(|ext| ext.to_str()).unwrap_or("").to_lowercase();
 
         if extension == "aec" {
             let container = parse_aec_container(path)?;
@@ -992,8 +922,7 @@ fn detect_import_presence(paths: &[String]) -> Result<ImportPresence, String> {
             }
         } else {
             let content = read_text_file(path)?;
-            let imported: CompleteAppearanceItem =
-                serde_json::from_str(&content).map_err(|e| format!("Failed to parse appearance JSON: {}", e))?;
+            let imported: CompleteAppearanceItem = serde_json::from_str(&content).map_err(|e| format!("Failed to parse appearance JSON: {}", e))?;
             match category_from_appearance_type(imported.appearance_type) {
                 AppearanceCategory::Objects => presence.objects = true,
                 AppearanceCategory::Outfits => presence.outfits = true,
@@ -1086,19 +1015,12 @@ fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> R
 fn next_imported_sprite_id(state: &AppState) -> Result<u32, String> {
     let mut next_id = state.imported_sprite_next_id.lock();
     if next_id.is_none() {
-        let base = state
-            .sprite_loader
-            .read()
-            .as_ref()
-            .map(|loader| loader.get_all_sprite_ids().last().copied().unwrap_or(0))
-            .unwrap_or(1_000_000);
+        let base = state.sprite_loader.read().as_ref().map(|loader| loader.get_all_sprite_ids().last().copied().unwrap_or(0)).unwrap_or(1_000_000);
         *next_id = Some(base.saturating_add(1));
     }
 
     let start = next_id.unwrap_or(0);
-    let end = start
-        .checked_add(1)
-        .ok_or_else(|| "Imported sprite ID overflow".to_string())?;
+    let end = start.checked_add(1).ok_or_else(|| "Imported sprite ID overflow".to_string())?;
     *next_id = Some(end);
     Ok(start)
 }

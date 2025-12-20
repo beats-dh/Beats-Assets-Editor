@@ -140,10 +140,7 @@ struct CatalogBackend {
 impl CatalogBackend {
     #[inline]
     pub fn get_sprite(&self, sprite_id: u32) -> Result<TibiaSprite> {
-        let entry = self
-            .catalog
-            .get_entry_for_sprite(sprite_id)
-            .ok_or_else(|| anyhow!("Sprite ID {} not found in catalog", sprite_id))?;
+        let entry = self.catalog.get_entry_for_sprite(sprite_id).ok_or_else(|| anyhow!("Sprite ID {} not found in catalog", sprite_id))?;
 
         if !self.sprite_cache.contains_key(&entry.file) {
             let sprites = self.load_sprite_sheet_for_entry(entry)?;
@@ -151,17 +148,11 @@ impl CatalogBackend {
             self.sprite_cache.entry(entry.file.clone()).or_insert(sprites_arc);
         }
 
-        let sprites_arc = self
-            .sprite_cache
-            .get(&entry.file)
-            .ok_or_else(|| anyhow!("Sprite sheet {} not loaded in cache", entry.file))?;
+        let sprites_arc = self.sprite_cache.get(&entry.file).ok_or_else(|| anyhow!("Sprite sheet {} not loaded in cache", entry.file))?;
         let first_id = entry.first_sprite_id.unwrap_or(0);
         let sprite_index = (sprite_id - first_id) as usize;
 
-        sprites_arc
-            .get(sprite_index)
-            .cloned()
-            .ok_or_else(|| anyhow!("Sprite {} not found in sheet {}", sprite_id, entry.file))
+        sprites_arc.get(sprite_index).cloned().ok_or_else(|| anyhow!("Sprite {} not found in sheet {}", sprite_id, entry.file))
     }
 
     fn load_sprite_sheet_for_entry(&self, entry: &SpriteCatalogEntry) -> Result<Vec<TibiaSprite>> {
@@ -203,8 +194,16 @@ impl CatalogBackend {
                 }
                 4096 => (64, 64),
                 _ => {
-                    let tw = if width % 64 == 0 { 64 } else { 32 };
-                    let th = if height % 64 == 0 { 64 } else { 32 };
+                    let tw = if width % 64 == 0 {
+                        64
+                    } else {
+                        32
+                    };
+                    let th = if height % 64 == 0 {
+                        64
+                    } else {
+                        32
+                    };
                     (tw, th)
                 }
             }
@@ -389,15 +388,7 @@ impl SpriteLoader {
         let files: Vec<PathBuf> = entries
             .filter_map(|e| e.ok())
             .map(|e| e.path())
-            .filter(|p| {
-                p.extension()
-                    .map(|ext| ext.eq_ignore_ascii_case("spr"))
-                    .unwrap_or(false)
-                    && p.file_name()
-                        .and_then(|s| s.to_str())
-                        .map(|name| name.starts_with("Tibia"))
-                        .unwrap_or(false)
-            })
+            .filter(|p| p.extension().map(|ext| ext.eq_ignore_ascii_case("spr")).unwrap_or(false) && p.file_name().and_then(|s| s.to_str()).map(|name| name.starts_with("Tibia")).unwrap_or(false))
             .collect();
 
         if files.is_empty() {

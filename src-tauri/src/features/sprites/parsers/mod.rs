@@ -1,7 +1,7 @@
 // Sprite parsers module
 
-mod sprites;
 mod legacy;
+mod sprites;
 
 pub use legacy::*;
 pub use sprites::*;
