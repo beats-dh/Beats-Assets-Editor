@@ -1,6 +1,6 @@
 // TypeScript types for Sounds API
 // Matching Rust structures from src-tauri/src/core/parsers/sounds.rs
-import { translate } from './i18n';
+import { translate } from '../i18n/i18n';
 
 export interface SoundInfo {
   id: number;

@@ -545,26 +545,17 @@
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  min-width: 80px;
+  min-width: 70px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(10px);
   box-shadow:
     0 2px 4px rgba(0, 0, 0, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  /* Force custom styles on WebKit (Tauri) */
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23e2e8f0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  padding-right: 28px;
 }
 
 .page-size-select:hover {
-  background: var(--surface-bg);
-  border-color: var(--border-hover);
-  transform: translateY(-1px);
+  border-color: #4f46e5;
+  background: rgba(15, 23, 42, 0.9);
   box-shadow:
     0 4px 8px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
@@ -572,14 +563,9 @@
 
 .page-size-select:focus {
   outline: none;
-  border-color: var(--border-hover);
+  border-color: #4f46e5;
   box-shadow:
     0 0 0 3px rgba(79, 70, 229, 0.3),
     0 4px 8px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
-}
-
-.page-size-select option {
-  background: var(--control-bg);
-  color: var(--text-primary);
 }

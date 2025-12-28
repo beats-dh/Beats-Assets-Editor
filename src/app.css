@@ -1,0 +1,18 @@
+/* Import original styles for proper visual */
+@import "./styles/variables.css";
+@import "./styles/base.css";
+@import "./styles/animations.css";
+@import "./styles/loading.css";
+@import "./styles/buttons.css";
+@import "./styles/forms.css";
+@import "./styles/header.css";
+@import "./styles/categories.css";
+@import "./styles/search.css";
+@import "./styles/assets.css";
+@import "./styles/modals.css";
+@import "./styles/audio.css";
+@import "./styles/texture.css";
+@import "./styles/theme.css";
+@import "./styles/utilities.css";
+@import "./styles/responsive.css";
+@import "./mainMenu.css";

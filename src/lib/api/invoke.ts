@@ -5,7 +5,7 @@
  */
 
 import { invoke as tauriInvoke } from '@tauri-apps/api/core';
-import type { CommandName } from '../commands';
+import type { CommandName } from './commands';
 
 /**
  * Error class for IPC errors

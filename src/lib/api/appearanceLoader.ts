@@ -1,13 +1,23 @@
 import { join } from "@tauri-apps/api/path";
-import type { AppearanceStats } from "./types";
-import { setUserTibiaPath } from "./spriteCache";
-import { invoke } from "./utils/invoke";
+import type { AppearanceStats } from "../types/types";
+import { invoke } from "./invoke";
 import { COMMANDS } from "./commands";
 
 let appearancesLoaded = false;
 let appearancesLoadPromise: Promise<void> | null = null;
 let lastTibiaPath: string | null = null;
 let cachedStats: AppearanceStats | null = null;
+
+// Store the user's Tibia path for sprite loading later
+let userTibiaPath: string | null = null;
+
+export function setUserTibiaPath(path: string): void {
+  userTibiaPath = path;
+}
+
+export function getUserTibiaPath(): string | null {
+  return userTibiaPath;
+}
 
 async function requestTibiaPath(): Promise<string> {
   try {
@@ -55,6 +65,15 @@ async function loadAppearancesFromPathInternal(tibiaPath: string): Promise<void>
   const appearancePath = await join(assetsDir, selectedFile);
 
   cachedStats = await invoke<AppearanceStats>(COMMANDS.LOAD_APPEARANCES_FILE, { path: appearancePath });
+
+  // Also load sprites catalog so sprites can be displayed
+  try {
+    await invoke(COMMANDS.AUTO_LOAD_SPRITES, { tibiaPath });
+    console.log("Sprites loaded successfully");
+  } catch (e) {
+    console.warn("Failed to load sprites (optional):", e);
+  }
+
   appearancesLoaded = true;
   lastTibiaPath = tibiaPath;
 }
@@ -88,6 +107,9 @@ export async function loadAppearancesForAssetsEditor(tibiaPath: string): Promise
   await ensureAppearancesLoaded(tibiaPath);
   if (!cachedStats) {
     cachedStats = await invoke<AppearanceStats>(COMMANDS.GET_APPEARANCE_STATS);
+  }
+  if (!cachedStats) {
+    throw new Error("Failed to load appearance stats");
   }
   return cachedStats;
 }
