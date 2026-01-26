@@ -486,7 +486,7 @@ async function displayAssets(assets: CompleteAppearanceItem[], append = false): 
   loadSpritesForAssets(assets);
 }
 
-async function loadSpritesForAssets(assets: CompleteAppearanceItem[]): Promise<void> {
+export async function loadSpritesForAssets(assets: CompleteAppearanceItem[]): Promise<void> {
   if (assets.length === 0) return;
 
   // ✅ OPTIMIZED: Performance monitoring

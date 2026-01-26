@@ -1,9 +1,9 @@
 // Sound management module
 import { invoke } from '@tauri-apps/api/core';
 import {
-  SoundInfo,
-  SoundStats,
-  NumericSoundEffectInfo,
+  type SoundInfo,
+  type SoundStats,
+  type NumericSoundEffectInfo,
   getSoundTypeDisplayName,
   getSoundCategory
 } from './soundTypes';

@@ -1,4 +1,4 @@
-﻿import './mainMenu.css';
+import './mainMenu.css';
 import { createMonsterEditorView } from './monsterEditor';
 import { createNpcEditorView } from './npcEditor';
 import { invoke } from './utils/invoke';
@@ -6,7 +6,7 @@ import { COMMANDS } from './commands';
 import {
   applyDocumentTranslations,
   DEFAULT_LANGUAGE,
-  LanguageCode,
+  type LanguageCode,
   LANGUAGE_LOCALES,
   LANGUAGE_STORAGE_KEY,
   SUPPORTED_LANGUAGES
