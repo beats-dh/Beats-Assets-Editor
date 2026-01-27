@@ -105,12 +105,6 @@ function enqueueAnimations(category: string, ids: number[]): void {
   }
 }
 
-function resetAnimationQueue(): void {
-  enqueuedAnimations.clear();
-  animationQueue.length = 0;
-  processingAnimations = false;
-}
-
 export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], category: string): Promise<void> {
   if (assets.length === 0) return;
 

@@ -20,6 +20,9 @@ export function stopAllAnimationPlayers(): void {
     if (timerId) clearInterval(timerId);
   });
   activeAnimationPlayers.clear();
+  
+  // Clear animating class from all potential containers
+  document.querySelectorAll('.asset-image-container.animating').forEach(el => el.classList.remove('animating'));
 }
 
 // Stop only detail/modal animations, keep grid auto animations running
@@ -60,6 +63,10 @@ export function computeSpriteIndex(
 export function computeGroupOffsetsFromDetails(details: CompleteAppearanceItem): number[] {
   const offsets: number[] = [];
   let offset = 0;
+  // Guard against missing frame_groups
+  if (!details.frame_groups || !Array.isArray(details.frame_groups)) {
+    return offsets;
+  }
   for (const fg of details.frame_groups) {
     const count = fg.sprite_info?.sprite_ids.length ?? 0;
     offsets.push(offset);
@@ -229,6 +236,12 @@ export function initDetailSpriteCardAnimations(
     if (!currentAppearanceDetails) return;
     const details = currentAppearanceDetails;
     if (details.id !== appearanceId) return;
+
+    // Check if details is fully populated with frame_groups
+    // Sometimes details might be a partial update or minimal structure
+    if (!details.frame_groups || !Array.isArray(details.frame_groups)) {
+      return;
+    }
 
     const groupOffsets = computeGroupOffsetsFromDetails(details);
     const container = document.getElementById(`detail-sprites-${appearanceId}`);

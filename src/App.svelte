@@ -4,6 +4,7 @@
   import AssetEditorLayout from './components/AssetEditorLayout.svelte';
   import MonsterEditorLayout from './components/monster-editor/MonsterEditorLayout.svelte';
   import NpcEditorLayout from './components/npc-editor/NpcEditorLayout.svelte';
+  import ImportStartIdModal from './components/modals/ImportStartIdModal.svelte';
   
   // Global Styles
   import './styles/main.css';
@@ -21,3 +22,5 @@
 {:else if $currentView === 'npc-editor'}
   <NpcEditorLayout />
 {/if}
+
+<ImportStartIdModal />

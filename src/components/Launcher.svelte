@@ -58,8 +58,7 @@
       currentStats.set(result);
       currentView.set('assets-editor');
       
-      // Trigger loadAssets to populate the grid
-      loadAssetsData();
+      // loadAssetsData call removed to avoid race condition with CategoryView onMount
       
     } catch (error) {
       console.error('Error loading appearances:', error);
@@ -182,3 +181,7 @@
     </div>
   </div>
 </div>
+
+<style>
+  /* Styles are imported from ../mainMenu.css */
+</style>

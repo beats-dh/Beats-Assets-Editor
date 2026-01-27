@@ -77,11 +77,8 @@ export async function loadAssetsData(append = false) {
     
     totalItems.set(total);
     
-    // Trigger sprite loading
-    // We need to wait for Svelte to render the DOM elements
-    requestAnimationFrame(() => {
-      loadSpritesForAssets(items, category);
-    });
+    // Sprite loading is now handled reactively by CategoryView
+    // This avoids race conditions and ensures DOM elements exist before loading
 
   } catch (error) {
     console.error('Error loading assets:', error);

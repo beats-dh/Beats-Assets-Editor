@@ -1,4 +1,4 @@
-import { writable, derived } from 'svelte/store';
+import { writable } from 'svelte/store';
 import type { Monster, MonsterListEntry } from '../monsterTypes';
 
 export const currentMonster = writable<Monster | null>(null);

@@ -186,6 +186,8 @@
 
 {#if isOpen}
   <div id="sprite-library-drawer" class="is-open" aria-hidden="false">
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div class="sprite-library-backdrop" on:click={closeDrawer}></div>
     <div class="sprite-library-panel" role="dialog" aria-label={translate('texture.library.title')}>
       <div class="sprite-library-header">

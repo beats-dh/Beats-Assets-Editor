@@ -15,6 +15,8 @@
   {/if}
   
   <div class="detail-sprites" id="detail-sprites-{details.id}">
-    <div class="sprite-loading">🔄 Loading sprites...</div>
+    {#key details.id}
+       <div class="sprite-loading">🔄 Loading sprites...</div>
+    {/key}
   </div>
 </div>

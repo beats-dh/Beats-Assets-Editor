@@ -8,7 +8,7 @@ export const currentCategory = writable<string>('Objects');
 export const currentSubcategory = writable<string>('All');
 export const searchQuery = writable<string>('');
 
-export const currentPage = writable<number>(1);
+export const currentPage = writable<number>(0);
 export const pageSize = writable<number>(100);
 export const totalItems = writable<number>(0);
 
@@ -27,7 +27,10 @@ export function updateAsset(updated: CompleteAppearanceItem) {
 
 // Reset filters when category changes
 currentCategory.subscribe(() => {
-  currentSubcategory.set('All');
+  // Only reset if value actually changes, but here we just ensure consistent state
+  // Don't reset to 'All' if it's already set to something specific via the action
+  // We can let the UI action handle subcategory setting
+  // But we must reset page and search
   searchQuery.set('');
-  currentPage.set(1);
+  currentPage.set(0);
 });

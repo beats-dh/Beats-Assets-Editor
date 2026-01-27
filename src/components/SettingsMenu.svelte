@@ -44,6 +44,7 @@
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div 
   class="settings-menu" 
   class:show={show}
@@ -68,14 +69,13 @@
       <h4 class="settings-title">{translate('settings.theme.title')}</h4>
       <p class="settings-description">{translate('settings.theme.description')}</p>
     </div>
-    <div class="theme-grid" role="list">
+    <div class="theme-grid">
       {#each SUPPORTED_THEMES as t}
         <button 
           class="theme-option" 
           type="button" 
           class:active={$theme === t}
           data-theme={t} 
-          role="listitem"
           on:click={() => setTheme(t)}
         >
           <span class="theme-name">{translate(`theme.${t}`)}</span>

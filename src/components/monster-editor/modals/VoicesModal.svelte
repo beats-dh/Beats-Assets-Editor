@@ -53,18 +53,20 @@
              <div class="monster-modal-section">
                 <h4>Configuracoes</h4>
                 <div class="monster-modal-field checkbox">
-                    <input type="checkbox" bind:checked={enabled} />
-                    <span>Ativar Falas</span>
+                    <label>
+                        <input type="checkbox" bind:checked={enabled} />
+                        <span>Ativar Falas</span>
+                    </label>
                 </div>
                 
                 <div class="modal-grid">
                     <div class="monster-modal-field">
-                        <label>Intervalo (ms)</label>
-                        <input type="number" bind:value={voicesData.interval} disabled={!enabled} />
+                        <label for="voices-interval">Intervalo (ms)</label>
+                        <input id="voices-interval" type="number" bind:value={voicesData.interval} disabled={!enabled} />
                     </div>
                     <div class="monster-modal-field">
-                        <label>Chance (%)</label>
-                        <input type="number" bind:value={voicesData.chance} disabled={!enabled} />
+                        <label for="voices-chance">Chance (%)</label>
+                        <input id="voices-chance" type="number" bind:value={voicesData.chance} disabled={!enabled} />
                     </div>
                 </div>
              </div>
@@ -84,12 +86,14 @@
                                     <button class="btn-icon" on:click={() => removeVoice(i)}>&times;</button>
                                 </div>
                                 <div class="monster-modal-field">
-                                    <label>Texto</label>
-                                    <textarea rows="2" bind:value={voice.text}></textarea>
+                                    <label for="voice-text-{i}">Texto</label>
+                                    <textarea id="voice-text-{i}" rows="2" bind:value={voice.text}></textarea>
                                 </div>
                                 <div class="monster-modal-field checkbox">
-                                    <input type="checkbox" bind:checked={voice.yell} />
-                                    <span>Gritar</span>
+                                    <label>
+                                        <input type="checkbox" bind:checked={voice.yell} />
+                                        <span>Gritar</span>
+                                    </label>
                                 </div>
                             </div>
                         {/each}

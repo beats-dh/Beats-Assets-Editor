@@ -21,25 +21,39 @@
     openAssetDetails
   } from '../stores/selectionStore';
   import { 
-    loadSpritesForAssets 
+    loadSpritesForAssets,
+    clearAssetsQueryCachesForSprites // Ensure we clear animation queues on view change
   } from '../utils/spriteLoading';
+  import { stopAllAnimationPlayers } from '../animation'; // Import stop animations
   import { COMMANDS } from '../commands';
   import { invoke } from '../utils/invoke';
   import { showStatus } from '../utils';
   import { confirm } from '../stores/confirmStore';
   import { translate } from '../i18n';
   import { loadAssetsData } from '../services/assetService';
-  import { open, save } from '@tauri-apps/plugin-dialog';
+  import { 
+    handleImport as serviceImport,
+    handleExport as serviceExport,
+    handleCopyFlags as serviceCopyFlags,
+    handlePasteFlagsBatch as servicePasteFlags,
+    handleDeleteAppearances as serviceDelete
+  } from '../services/importExportService';
   import AddSoundModal from './AddSoundModal.svelte';
 
   // Back button
   function goBack() {
+    stopAllAnimationPlayers();
+    clearAssetsQueryCachesForSprites();
     viewMode.set('categories');
   }
 
   // Selection Logic
   let selectionTimestamp = 0;
   let selectedCount = 0;
+  // hasClipboard is now tracked by the service internally, or we can track locally for UI state.
+  // The service export `hasClipboard` is not reactive.
+  // We can just enable the button always or try to track it.
+  // For now, let's keep a local flag set when we copy.
   let hasClipboard = false;
 
   function updateSelectionState() {
@@ -72,87 +86,24 @@
   // --- Actions ---
 
   async function handleImport() {
-    try {
-      const selection = await open({
-        multiple: true,
-        filters: [{ name: "Appearance", extensions: ["json", "aec"] }]
-      });
-
-      const paths = Array.isArray(selection) ? selection : (selection ? [selection] : []);
-      if (paths.length === 0) return;
-
-      // Simple prompt for start ID for now
-      // Ideally we would use a custom modal for per-category start IDs like in legacy code
-      const startIdInput = prompt(translate('prompt.enterImportStartId'), "");
-      if (startIdInput === null) return;
-      
-      const startId = startIdInput.trim() ? parseInt(startIdInput) : null;
-      
-      const startIds = {
-        objects: startId,
-        outfits: startId,
-        effects: startId,
-        missiles: startId
-      };
-
-      const result = await invoke<{imported: number[], skipped: number[]}>(COMMANDS.IMPORT_APPEARANCES_FROM_FILES_ALL, {
-        paths,
-        startIds
-      });
-
-      if (result.imported.length > 0) {
-        await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
-        await loadAssetsData();
-        showStatus(translate('status.appearanceImportBatch', { count: result.imported.length }), 'success');
-      } else {
-        showStatus(translate('status.appearanceImportFailed'), 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      showStatus('Error importing assets', 'error');
-    }
+    await serviceImport();
   }
 
   async function handleExport() {
     const sel = getCurrentSelection();
     if (sel.length === 0) {
-      // Export current category/id if nothing selected? 
-      // Legacy behavior: "getActionTargets" -> if nothing selected, use detailTarget or prompt.
-      // Here we require selection for simplicity in this context, or export single.
+      // Prompt for ID if nothing selected
       const idInput = prompt(translate('prompt.enterExportId'), "");
       if (!idInput) return;
       const id = parseInt(idInput);
       if (isNaN(id)) return;
-      await exportAsset($currentCategory, id);
+      await serviceExport($currentCategory, id);
       return;
     }
 
-    // Export primary selection (legacy only exports one at a time via this button usually, unless batch)
-    // Legacy `handleExport` takes category and id.
-    const target = sel[sel.length - 1]; // Use last selected as primary
-    await exportAsset(target.category, target.id);
-  }
-
-  async function exportAsset(category: string, id: number) {
-    try {
-      const defaultName = `appearance-${id}.json`;
-      const destination = await save({
-        defaultPath: defaultName,
-        filters: [{ name: "Appearance", extensions: ["json", "aec"] }]
-      });
-
-      if (!destination) return;
-
-      const lower = destination.toLowerCase();
-      const useAec = lower.endsWith('.aec');
-      const command = useAec ? COMMANDS.EXPORT_APPEARANCE_TO_AEC : COMMANDS.EXPORT_APPEARANCE_TO_JSON;
-      
-      await invoke(command, { category, id, path: destination });
-      showStatus(translate('status.appearanceExported', { id }), "success");
-    } catch (err) {
-      console.error(err);
-      showStatus(translate('status.appearanceExportFailed'), 'error');
-    }
+    // Export primary (last selected)
+    const target = sel[sel.length - 1];
+    await serviceExport(target.category, target.id);
   }
 
   async function handleDuplicate() {
@@ -189,32 +140,15 @@
     const sel = getCurrentSelection();
     if (sel.length === 0) return;
     const target = sel[sel.length - 1];
-    try {
-      await invoke(COMMANDS.COPY_APPEARANCE_FLAGS, { category: target.category, id: target.id });
-      hasClipboard = true;
-      showStatus(translate('status.flagsCopied', { id: target.id }), "success");
-    } catch (err) {
-      console.error(err);
-      showStatus(translate('status.flagsCopyFailed'), "error");
-    }
+    await serviceCopyFlags(target.category, target.id);
+    hasClipboard = true;
   }
 
   async function handlePasteFlags() {
     if (!hasClipboard) return;
     const sel = getCurrentSelection();
     if (sel.length === 0) return;
-
-    try {
-      for (const target of sel) {
-        await invoke(COMMANDS.PASTE_APPEARANCE_FLAGS, { category: target.category, id: target.id });
-      }
-      await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
-      loadAssetsData();
-      showStatus(translate('status.flagsAppliedMultiple', { count: sel.length }), "success");
-    } catch (err) {
-      console.error(err);
-      showStatus(translate('status.flagsPasteFailed'), "error");
-    }
+    await servicePasteFlags(sel);
   }
 
   async function handleCreate() {
@@ -249,30 +183,10 @@
     }
   }
 
-  function handleDelete() {
-    if (selectedCount === 0) return;
-    
-    confirm({
-      title: translate('modal.confirmDelete.title'),
-      message: translate('modal.confirmDelete.message', { count: selectedCount }),
-      confirmLabel: translate('button.delete'),
-      cancelLabel: translate('button.cancel'),
-      onConfirm: async () => {
-        try {
-          const sel = getCurrentSelection();
-          for (const item of sel) {
-            await invoke(COMMANDS.DELETE_APPEARANCE, { category: item.category, id: item.id });
-            removeAssetSelection(item.category, item.id);
-          }
-          await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
-          showStatus(translate('status.assetsDeleted', { count: selectedCount }), 'success');
-          loadAssetsData();
-        } catch (err) {
-          console.error(err);
-          showStatus('Error deleting assets', 'error');
-        }
-      }
-    });
+  async function handleDelete() {
+    const sel = getCurrentSelection();
+    if (sel.length === 0) return;
+    await serviceDelete(sel);
   }
 
   function handleAssetClick(e: MouseEvent, asset: any) {
@@ -332,6 +246,8 @@
   // Pagination
   function prevPage() {
     if ($currentPage > 0) {
+      stopAllAnimationPlayers();
+      clearAssetsQueryCachesForSprites();
       currentPage.update(n => n - 1);
       loadAssetsData();
     }
@@ -340,12 +256,16 @@
   function nextPage() {
     const maxPage = Math.max(1, Math.ceil($totalItems / $pageSize));
     if ($currentPage < maxPage - 1) {
+      stopAllAnimationPlayers();
+      clearAssetsQueryCachesForSprites();
       currentPage.update(n => n + 1);
       loadAssetsData();
     }
   }
   
   function handlePageSizeChange(e: Event) {
+    stopAllAnimationPlayers();
+    clearAssetsQueryCachesForSprites();
     const size = parseInt((e.target as HTMLSelectElement).value);
     pageSize.set(size);
     currentPage.set(0);
@@ -369,6 +289,7 @@
   // onMount moved up for organization
 
   let showNames = true;
+  let timer: number; // Define timer
   
   // React to category change to set default showNames if needed
   let lastCategory = '';
@@ -381,8 +302,12 @@
   // Ensure sprites are loaded/animated when assets change and DOM is updated
   $: if ($assets) {
     (async () => {
+      // Wait for DOM update
       await tick();
-      loadSpritesForAssets($assets, $currentCategory);
+      // Double check via animation frame to ensure paint/layout is ready
+      requestAnimationFrame(() => {
+        loadSpritesForAssets($assets, $currentCategory);
+      });
     })();
   }
 
@@ -432,6 +357,8 @@
   }
 
   function handleSubcategoryChange(e: Event) {
+    stopAllAnimationPlayers();
+    clearAssetsQueryCachesForSprites();
     const val = (e.target as HTMLSelectElement).value;
     currentSubcategory.set(val);
     currentPage.set(0);
@@ -520,7 +447,13 @@
             on:input={handleSearch}
           />
           {#if $searchQuery}
-            <button id="clear-search" class="clear-search-btn" on:click={clearSearch} style="display: flex;">
+            <button 
+              id="clear-search" 
+              class="clear-search-btn" 
+              on:click={clearSearch} 
+              style="display: flex;"
+              aria-label={translate('search.clear')}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <line x1="18" y1="6" x2="6" y2="18"/>
                 <line x1="6" y1="6" x2="18" y2="18"/>
@@ -565,12 +498,12 @@
       </div>
 
       <div class="page-size-container">
-        <select id="page-size" class="page-size-select" value={$pageSize} on:change={handlePageSizeChange}>
-          <option value="100">100</option>
-          <option value="500">500</option>
-          <option value="1000">1000</option>
-          <option value="10000">10000</option>
-          <option value="50000">50000</option>
+        <select id="page-size" class="page-size-select" bind:value={$pageSize} on:change={handlePageSizeChange}>
+          <option value={100}>100</option>
+          <option value={500}>500</option>
+          <option value={1000}>1000</option>
+          <option value={10000}>10000</option>
+          <option value={50000}>50000</option>
         </select>
       </div>
 
@@ -606,6 +539,7 @@
       {:else}
         {#each $assets as asset (asset.id)}
           <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <!-- svelte-ignore a11y-no-static-element-interactions -->
           <div 
             class="asset-item" 
             class:is-selected={selectionTimestamp > 0 && isAssetSelected($currentCategory, asset.id)}
@@ -613,8 +547,11 @@
             data-asset-id={asset.id} 
             data-category={$currentCategory}
             on:click={(e) => handleAssetClick(e, asset)}
+            role="button"
+            tabindex="0"
           >
-            <label class="asset-select-control" aria-label="Select appearance #{asset.id}" on:click={(e) => handleCheckboxClick(e, asset)}>
+            <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+            <label class="asset-select-control" aria-label="Select appearance #{asset.id}" on:click={(e) => handleCheckboxClick(e, asset)} on:keydown={(e) => e.key === 'Enter' && handleCheckboxClick(e, asset)}>
               <input 
                 type="checkbox" 
                 class="asset-select-checkbox" 

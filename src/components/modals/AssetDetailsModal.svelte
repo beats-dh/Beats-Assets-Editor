@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { selectedAsset, isDetailsModalOpen, activeTab, closeAssetDetails } from '../../stores/selectionStore';
+  import { selectedAsset, isDetailsModalOpen, activeTab, closeAssetDetails, openAssetDetails } from '../../stores/selectionStore';
   import { currentCategory, assets } from '../../stores/assetsStore';
   import { translate } from '../../i18n';
   import { loadDetailSprites } from '../../utils/spriteLoading';
@@ -12,6 +12,7 @@
   import AssetFrameGroups from '../asset-details/AssetFrameGroups.svelte';
   import AssetSpritePreview from '../asset-details/AssetSpritePreview.svelte';
   import AssetEditForm from '../asset-details/AssetEditForm.svelte';
+  import TextureEditor from '../asset-details/texture/TextureEditor.svelte';
   import SoundDetails from '../asset-details/SoundDetails.svelte';
   import SoundEditForm from '../asset-details/SoundEditForm.svelte';
 
@@ -22,18 +23,101 @@
     closeAssetDetails();
   }
 
+  function handlePrev() {
+    if (!$selectedAsset) return;
+    const currentId = $selectedAsset.id;
+    const currentIndex = $assets.findIndex(a => a.id === currentId);
+    if (currentIndex > 0) {
+      const prev = $assets[currentIndex - 1];
+      openAssetDetails(prev, false);
+    }
+  }
+
+  function handleNext() {
+    if (!$selectedAsset) return;
+    const currentId = $selectedAsset.id;
+    const currentIndex = $assets.findIndex(a => a.id === currentId);
+    if (currentIndex !== -1 && currentIndex < $assets.length - 1) {
+      const next = $assets[currentIndex + 1];
+      openAssetDetails(next, false);
+    }
+  }
+
   function setTab(tab: 'details' | 'edit' | 'texture') {
     activeTab.set(tab);
+    // Reload sprites if returning to details tab, as they might be cleared from DOM
+    if (tab === 'details' && $selectedAsset) {
+      const assetId = $selectedAsset.id;
+      const cat = $currentCategory;
+      const currentAsset = $selectedAsset;
+      requestAnimationFrame(() => {
+        if ($isDetailsModalOpen && $selectedAsset && $selectedAsset.id === assetId) {
+          loadDetailSprites(cat, assetId, undefined, currentAsset);
+        }
+      });
+    }
   }
 
   // Load sprites when asset changes or modal opens
-  $: if ($isDetailsModalOpen && $selectedAsset) {
-    // Schedule sprite loading after DOM update
-    setTimeout(() => {
-      if ($selectedAsset) {
-        loadDetailSprites($currentCategory, $selectedAsset.id);
+  let lastFetchedId = -1;
+  
+  // Reset fetched ID when modal closes to ensure we refetch if needed
+  $: if (!$isDetailsModalOpen || !$selectedAsset) {
+      lastFetchedId = -1;
+  }
+
+  async function ensureCompleteDetails(assetId: number, category: string) {
+      try {
+          const fullDetails = await invoke('get_complete_appearance', { 
+              category: category, 
+              id: assetId 
+          });
+          
+          if (fullDetails) {
+              // Check if we are still viewing the same asset
+              if ($selectedAsset && $selectedAsset.id === assetId) {
+                  // Merge or replace? Replace is safer to ensure we have everything.
+                  // However, preserve client-side flags if any? 
+                  // Usually modal edits are committed to backend or local state.
+                  // Since we just opened/navigated, replacing is fine.
+                  selectedAsset.set(fullDetails as CompleteAppearanceItem);
+              }
+          }
+      } catch (err) {
+          console.error("Failed to fetch complete details", err);
       }
-    }, 0);
+  }
+
+  $: if ($isDetailsModalOpen && $selectedAsset) {
+    const assetId = $selectedAsset.id;
+    const cat = $currentCategory;
+    const currentAsset = $selectedAsset;
+
+    // Check if we need to fetch full details (if sprite_info is missing)
+    // We do this only once per asset ID to avoid loops
+    if (assetId !== lastFetchedId) {
+        lastFetchedId = assetId;
+        // Only fetch if it looks incomplete (optimization) or always fetch to be safe?
+        // Let's check for frame_groups presence/completeness
+        const isIncomplete = !currentAsset.frame_groups || 
+                             (currentAsset.frame_groups.length > 0 && !currentAsset.frame_groups[0].sprite_info);
+        
+        if (isIncomplete) {
+            ensureCompleteDetails(assetId, cat);
+        }
+    }
+    
+    // Schedule sprite loading after DOM update
+    // Using requestAnimationFrame to ensure we don't block the UI rendering
+    // and wait for the new elements to be mounted
+    
+    // Clear previous pending operations if any (though loadDetailSprites handles queues internally)
+    requestAnimationFrame(() => {
+      // Double check if we are still looking at the same asset
+      if ($isDetailsModalOpen && $selectedAsset && $selectedAsset.id === assetId) {
+        loadDetailSprites(cat, assetId, undefined, currentAsset);
+      }
+    });
   }
 
   async function handleSave(updated: CompleteAppearanceItem) {
@@ -172,6 +256,8 @@
 
 {#if $isDetailsModalOpen && $selectedAsset}
   <div id="asset-details" class="asset-details-modal" role="dialog" aria-modal="true" style="display: flex;">
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div class="modal-backdrop" on:click={handleClose}></div>
     <div class="modal-content">
       <div class="modal-header">
@@ -213,7 +299,7 @@
               <SoundDetails id={$selectedAsset.id} />
             </div>
           {:else if $activeTab === 'edit'}
-             <div class="tab-content">
+             <div class="tab-content" id="edit-content">
                <SoundEditForm id={$selectedAsset.id} onSave={() => { /* maybe refresh list? */ }} />
              </div>
           {:else if $activeTab === 'texture'}
@@ -230,7 +316,7 @@
               <AssetFlags flags={$selectedAsset.flags} />
             </div>
           {:else if $activeTab === 'edit'}
-            <div class="tab-content">
+            <div class="tab-content" id="edit-content">
               <AssetEditForm 
                 details={$selectedAsset} 
                 category={$currentCategory} 
@@ -239,7 +325,7 @@
             </div>
           {:else if $activeTab === 'texture'}
             <div class="tab-content">
-              <p style="color: #888; text-align: center;">Texture editor coming soon...</p>
+              <TextureEditor details={$selectedAsset} />
             </div>
           {/if}
         {/if}

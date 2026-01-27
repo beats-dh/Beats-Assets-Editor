@@ -28,6 +28,7 @@
 
 {#if isOpen}
 <!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="monster-modal-backdrop" on:click|self={() => isOpen = false}>
     <div class="monster-modal">
         <div class="monster-modal-header">
@@ -48,8 +49,8 @@
                                     <button class="btn-icon" on:click={() => removeEvent(i)}>&times;</button>
                                 </div>
                                 <div class="monster-modal-field">
-                                    <label>Nome do Evento</label>
-                                    <input type="text" bind:value={events[i]} placeholder="Ex.: RottenBloodBakragoreDeath" />
+                                    <label for="event-name-{i}">Nome do Evento</label>
+                                    <input id="event-name-{i}" type="text" bind:value={events[i]} placeholder="Ex.: RottenBloodBakragoreDeath" />
                                 </div>
                             </div>
                         {/each}

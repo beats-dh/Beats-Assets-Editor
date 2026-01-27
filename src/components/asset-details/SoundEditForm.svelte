@@ -3,7 +3,7 @@
   import { invoke } from '../../utils/invoke';
   import { translate } from '../../i18n';
   import { currentSubcategory } from '../../stores/assetsStore';
-  import { openConfirmModal } from '../../confirmModal'; // Assuming this exists or needs refactor
+  import { openConfirmModal } from '../../stores/confirmStore';
   import { closeAssetDetails } from '../../stores/selectionStore';
   import { loadAssetsData } from '../../services/assetService';
 

@@ -3,6 +3,7 @@
   import { translate } from '../i18n';
 
   function selectCategory(cat: string, sub: string = 'All') {
+    // Reset state before switching view
     currentCategory.set(cat);
     currentSubcategory.set(sub);
     viewMode.set('grid');

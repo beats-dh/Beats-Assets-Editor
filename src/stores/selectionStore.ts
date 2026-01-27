@@ -1,4 +1,4 @@
-import { writable, get } from 'svelte/store';
+import { writable } from 'svelte/store';
 import type { CompleteAppearanceItem } from '../types';
 import { recordAction } from '../history';
 
@@ -10,9 +10,11 @@ export const selectedAsset = writable<CompleteAppearanceItem | null>(null);
 export const isDetailsModalOpen = writable<boolean>(false);
 export const activeTab = writable<'details' | 'edit' | 'texture'>('details');
 
-export function openAssetDetails(asset: CompleteAppearanceItem) {
+export function openAssetDetails(asset: CompleteAppearanceItem, resetTab = true) {
   selectedAsset.set(asset);
-  activeTab.set('details');
+  if (resetTab) {
+    activeTab.set('details');
+  }
   isDetailsModalOpen.set(true);
 }
 
@@ -100,8 +102,6 @@ function commitHistory(snapshotBefore: AssetSelectionSnapshot | null, recordHist
 function applySelectionSnapshot(snapshot: AssetSelectionSnapshot): void {
   if (isApplyingSnapshot) return;
   isApplyingSnapshot = true;
-
-  const targetKeys = new Set(snapshot.selected.map((item) => `${item.category}:${item.id}`));
 
   // Unselect items not present in the snapshot
   // Note: We can't directly manipulate DOM here easily without store binding
