@@ -3,7 +3,8 @@
   import { debugCache } from '../spriteCache';
   import { showStatus } from '../utils';
   import { translate, getThemeLabel, getLanguageOptionLabel, SUPPORTED_LANGUAGES } from '../i18n';
-  import { clearPreviewSpriteCaches, clearAssetsQueryCaches, loadAssets } from '../assetUI'; // Refactor pending
+  import { clearPreviewSpriteCaches } from '../utils/spriteLoading';
+  import { loadAssetsData } from '../services/assetService';
 
   const SUPPORTED_THEMES = ['default', 'ocean', 'aurora', 'ember', 'forest', 'dusk'];
 
@@ -23,8 +24,9 @@
   async function clearCache() {
     await debugCache.clearAllCaches();
     clearPreviewSpriteCaches();
-    clearAssetsQueryCaches();
+    // clearAssetsQueryCaches(); // No longer needed with store-based approach
     showStatus(translate('status.cacheCleared'), 'success');
+    loadAssetsData(); // Refresh assets
     closeMenu();
   }
 

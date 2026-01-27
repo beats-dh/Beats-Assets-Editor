@@ -7,7 +7,7 @@
   import { COMMANDS } from '../commands';
   import { loadAppearancesForAssetsEditor } from '../appearanceLoader';
   import { loadSpecialMeaningIds } from '../specialMeaning';
-  import { loadAssets } from '../assetUI'; // We will refactor this later, but for now we call it
+  import { loadAssetsData } from '../services/assetService';
   import { showStatus } from '../utils';
   import { currentStats } from '../stores/assetsStore';
   import { join } from "@tauri-apps/api/path";
@@ -55,30 +55,11 @@
       const result = await loadAppearancesForAssetsEditor($tibiaPath);
       await loadSpecialMeaningIds();
       
-      // Lazy load sounds (simplified from main.ts)
-      try {
-        const soundsDir = await join($tibiaPath, "sounds");
-        // We can't easily use the dynamic import logic from main.ts here without some changes
-        // For now, we'll skip the sound lazy loading optimization or move it to a service
-        // But since we are just calling loadAssets later, maybe we don't need to preload sounds explicitly here if loadAssets handles it?
-        // Actually main.ts did it to update stats.
-        
-        // Let's import the module dynamically as in main.ts
-        const { areSoundsLoaded, loadSoundsFile } = await import("../sounds");
-        if (!areSoundsLoaded()) {
-           const stats = await loadSoundsFile(soundsDir);
-           (window as any).__lastLoadedSoundCount = stats.total_sounds;
-        }
-      } catch (e) {
-        console.warn("Optional sounds loading failed", e);
-      }
-
       currentStats.set(result);
       currentView.set('assets-editor');
       
       // Trigger loadAssets to populate the grid
-      // Note: loadAssets currently touches DOM. We will need to refactor CategoryView to trigger loadAssets on mount instead.
-      // But for now, we leave it as is.
+      loadAssetsData();
       
     } catch (error) {
       console.error('Error loading appearances:', error);

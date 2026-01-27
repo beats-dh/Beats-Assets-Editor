@@ -2,7 +2,8 @@
   import { currentView } from '../stores/appState';
   import { currentStats } from '../stores/assetsStore';
   import { translate } from '../i18n';
-  import { loadAssets, clearAssetsQueryCaches, clearPreviewSpriteCaches } from '../assetUI';
+  import { loadAssetsData as loadAssets } from '../services/assetService';
+  import { clearPreviewSpriteCaches } from '../utils/spriteLoading';
   import { showStatus } from '../utils';
   import SettingsMenu from './SettingsMenu.svelte';
   
@@ -28,7 +29,6 @@
   }
 
   async function refresh() {
-    clearAssetsQueryCaches();
     clearPreviewSpriteCaches();
     await loadAssets();
     showStatus(translate('status.assetsRefreshed'), 'success');

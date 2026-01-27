@@ -2,6 +2,8 @@
   import { currentView } from './stores/appState';
   import Launcher from './components/Launcher.svelte';
   import AssetEditorLayout from './components/AssetEditorLayout.svelte';
+  import MonsterEditorLayout from './components/monster-editor/MonsterEditorLayout.svelte';
+  import NpcEditorLayout from './components/npc-editor/NpcEditorLayout.svelte';
   
   // Global Styles
   import './styles/main.css';
@@ -15,15 +17,7 @@
 {:else if $currentView === 'assets-editor'}
   <AssetEditorLayout />
 {:else if $currentView === 'monster-editor'}
-  <div style="color: white; padding: 2rem; text-align: center;">
-    <h2>Monster Editor</h2>
-    <p>Coming Soon</p>
-    <button on:click={() => currentView.set('launcher')} class="btn-primary">Back to Home</button>
-  </div>
+  <MonsterEditorLayout />
 {:else if $currentView === 'npc-editor'}
-  <div style="color: white; padding: 2rem; text-align: center;">
-    <h2>NPC Editor</h2>
-    <p>Coming Soon</p>
-    <button on:click={() => currentView.set('launcher')} class="btn-primary">Back to Home</button>
-  </div>
+  <NpcEditorLayout />
 {/if}

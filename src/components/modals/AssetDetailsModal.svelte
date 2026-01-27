@@ -1,8 +1,8 @@
 <script lang="ts">
   import { selectedAsset, isDetailsModalOpen, activeTab, closeAssetDetails } from '../../stores/selectionStore';
-  import { currentCategory } from '../../stores/assetsStore';
+  import { currentCategory, assets } from '../../stores/assetsStore';
   import { translate } from '../../i18n';
-  import { loadDetailSprites } from '../../assetDetails';
+  import { loadDetailSprites } from '../../utils/spriteLoading';
   import { invoke } from '../../utils/invoke';
   import type { CompleteAppearanceItem } from '../../types';
   
@@ -12,6 +12,8 @@
   import AssetFrameGroups from '../asset-details/AssetFrameGroups.svelte';
   import AssetSpritePreview from '../asset-details/AssetSpritePreview.svelte';
   import AssetEditForm from '../asset-details/AssetEditForm.svelte';
+  import SoundDetails from '../asset-details/SoundDetails.svelte';
+  import SoundEditForm from '../asset-details/SoundEditForm.svelte';
 
   // Import styles
   import '../../styles/modals.css';
@@ -198,32 +200,48 @@
         </div>
         <div class="modal-actions">
           <div class="modal-nav-controls" role="group">
-            <button class="detail-nav-btn" type="button" aria-label="Previous asset">◀</button>
-            <button class="detail-nav-btn" type="button" aria-label="Next asset">▶</button>
+            <button class="detail-nav-btn" type="button" aria-label="Previous asset" on:click={handlePrev}>◀</button>
+            <button class="detail-nav-btn" type="button" aria-label="Next asset" on:click={handleNext}>▶</button>
           </div>
           <button class="close-btn" type="button" on:click={handleClose}>✕</button>
         </div>
       </div>
       <div class="modal-body" id="details-content">
-        {#if $activeTab === 'details'}
-          <div class="tab-content">
-            <AssetBasicInfo details={$selectedAsset} category={$currentCategory} />
-            <AssetSpritePreview details={$selectedAsset} />
-            <AssetFrameGroups details={$selectedAsset} />
-            <AssetFlags flags={$selectedAsset.flags} />
-          </div>
-        {:else if $activeTab === 'edit'}
-          <div class="tab-content">
-            <AssetEditForm 
-              details={$selectedAsset} 
-              category={$currentCategory} 
-              onSave={handleSave} 
-            />
-          </div>
-        {:else if $activeTab === 'texture'}
-          <div class="tab-content">
-            <p style="color: #888; text-align: center;">Texture editor coming soon...</p>
-          </div>
+        {#if $currentCategory === 'Sounds'}
+          {#if $activeTab === 'details'}
+            <div class="tab-content">
+              <SoundDetails id={$selectedAsset.id} />
+            </div>
+          {:else if $activeTab === 'edit'}
+             <div class="tab-content">
+               <SoundEditForm id={$selectedAsset.id} onSave={() => { /* maybe refresh list? */ }} />
+             </div>
+          {:else if $activeTab === 'texture'}
+            <div class="tab-content">
+               <p style="color: #888; text-align: center;">Not applicable for sounds.</p>
+            </div>
+          {/if}
+        {:else}
+          {#if $activeTab === 'details'}
+            <div class="tab-content">
+              <AssetBasicInfo details={$selectedAsset} category={$currentCategory} />
+              <AssetSpritePreview details={$selectedAsset} />
+              <AssetFrameGroups details={$selectedAsset} />
+              <AssetFlags flags={$selectedAsset.flags} />
+            </div>
+          {:else if $activeTab === 'edit'}
+            <div class="tab-content">
+              <AssetEditForm 
+                details={$selectedAsset} 
+                category={$currentCategory} 
+                onSave={handleSave} 
+              />
+            </div>
+          {:else if $activeTab === 'texture'}
+            <div class="tab-content">
+              <p style="color: #888; text-align: center;">Texture editor coming soon...</p>
+            </div>
+          {/if}
         {/if}
       </div>
     </div>

@@ -11,7 +11,7 @@ import {
   searchQuery, 
   isLoading 
 } from '../stores/assetsStore';
-import { loadSpritesForAssets } from '../assetUI';
+import { loadSpritesForAssets } from '../utils/spriteLoading';
 import type { CompleteAppearanceItem } from '../types';
 
 export async function loadAssetsData(append = false) {
@@ -28,17 +28,32 @@ export async function loadAssetsData(append = false) {
     let total = 0;
 
     if (category === 'Sounds') {
-      // Logic for sounds (simplified for now, mimicking assetUI.ts structure)
-      // We might need to handle specific sound types
-      // For now, let's assume standard listing for simplicity or implement full logic
+      let soundItems: any[] = [];
       
-      // const soundType = sub !== 'All' ? sub : null;
-      // Note: This call signature depends on the backend. 
-      // assetUI.ts has different branches for Ambience Streams etc.
-      // For this MVP step, I'll focus on standard appearances first.
-      // If category is Sounds, we might need to update the types in assetsStore to allow Sound items
-      // But CompleteAppearanceItem is for appearances.
-      // We'll skip Sounds full implementation for this exact moment and focus on visual assets
+      if (sub === 'Ambience Streams') {
+         soundItems = await invoke('list_ambience_streams', { page, pageSize: size });
+         total = await invoke('get_ambience_stream_count');
+      } else if (sub === 'Ambience Object Streams') {
+         soundItems = await invoke('list_ambience_object_streams', { page, pageSize: size });
+         total = await invoke('get_ambience_object_stream_count');
+      } else if (sub === 'Music Templates') {
+         soundItems = await invoke('list_music_templates', { page, pageSize: size });
+         total = await invoke('get_music_template_count');
+      } else {
+         // Default to Sound Effects
+         const typeFilter = sub !== 'All' ? sub : null;
+         soundItems = await invoke('list_numeric_sound_effects', { page, pageSize: size, soundType: typeFilter });
+         // Note: Count might be inaccurate if filtered, but backend limitation for now
+         total = await invoke('get_sound_effect_count'); 
+      }
+      
+      // Map to compatible structure for the store
+      items = soundItems.map(s => ({
+         id: s.id,
+         name: s.filename || s.sound_type || `Sound #${s.id}`,
+         description: '',
+         flags: {} as any // Empty flags
+      })) as unknown as CompleteAppearanceItem[];
       
     } else {
       // Standard Appearance Assets
@@ -65,7 +80,7 @@ export async function loadAssetsData(append = false) {
     // Trigger sprite loading
     // We need to wait for Svelte to render the DOM elements
     requestAnimationFrame(() => {
-      loadSpritesForAssets(items);
+      loadSpritesForAssets(items, category);
     });
 
   } catch (error) {

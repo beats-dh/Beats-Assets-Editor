@@ -1811,6 +1811,62 @@ const translationEntries = {
     es: 'eliminar',
     ru: 'удалить'
   },
+  'button.create': {
+    default: 'Create',
+    'pt-BR': 'Criar',
+    en: 'Create',
+    es: 'Crear',
+    ru: 'Создать'
+  },
+  'button.selectAll': {
+    default: 'Select All',
+    'pt-BR': 'Selecionar Tudo',
+    en: 'Select All',
+    es: 'Seleccionar Todo',
+    ru: 'Выбрать все'
+  },
+  'button.deselectAll': {
+    default: 'Deselect All',
+    'pt-BR': 'Deselecionar Tudo',
+    en: 'Deselect All',
+    es: 'Deseleccionar Todo',
+    ru: 'Снять выделение'
+  },
+  'button.deleteSelected': {
+    default: 'Delete Selected',
+    'pt-BR': 'Excluir Selecionados',
+    en: 'Delete Selected',
+    es: 'Eliminar Seleccionados',
+    ru: 'Удалить выбранные'
+  },
+  'button.delete': {
+    default: 'Delete',
+    'pt-BR': 'Excluir',
+    en: 'Delete',
+    es: 'Eliminar',
+    ru: 'Удалить'
+  },
+  'button.cancel': {
+    default: 'Cancel',
+    'pt-BR': 'Cancelar',
+    en: 'Cancel',
+    es: 'Cancelar',
+    ru: 'Отмена'
+  },
+  'action.toggle.autoAnimate': {
+    default: 'Auto Animate',
+    'pt-BR': 'Animar',
+    en: 'Auto Animate',
+    es: 'Animar',
+    ru: 'Анимация'
+  },
+  'action.toggle.showNames': {
+    default: 'Show Names',
+    'pt-BR': 'Nomes',
+    en: 'Show Names',
+    es: 'Nombres',
+    ru: 'Имена'
+  },
   'files.table.empty': {
     default: 'No data available',
     'pt-BR': 'Nenhum dado disponível',

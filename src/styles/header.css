@@ -279,6 +279,9 @@
   transition: background var(--transition-fast, 0.2s) ease, color var(--transition-fast, 0.2s) ease, border-color var(--transition-fast, 0.2s) ease, box-shadow var(--transition-fast, 0.2s) ease;
   white-space: nowrap;
   backdrop-filter: blur(12px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .appearance-action-button:hover:not(:disabled) {
@@ -295,6 +298,20 @@
   border-color: rgba(148, 163, 184, 0.2);
   color: rgba(148, 163, 184, 0.65);
   box-shadow: none;
+}
+
+/* Active state for action buttons */
+.appearance-action-button.active {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #ffffff;
+  box-shadow: inset 0 0 8px rgba(59, 130, 246, 0.2);
+}
+
+.appearance-action-button .btn-icon {
+  margin-right: 6px;
+  font-size: 1.1em;
+  vertical-align: middle;
 }
 
 .appearance-action-button.destructive {
@@ -568,4 +585,70 @@
     0 0 0 3px rgba(79, 70, 229, 0.3),
     0 4px 8px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* Toggle Switch (Legacy, kept just in case) */
+.toggle-switch {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  background: var(--control-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.toggle-switch:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-bg);
+}
+
+.toggle-switch.active {
+  background: var(--primary-accent);
+  border-color: var(--primary-accent);
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+}
+
+.toggle-switch.active .toggle-knob {
+  transform: translateX(20px);
+}
+
+.toggle-icon {
+  position: absolute;
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--text-secondary);
+  z-index: 1;
+  transition: opacity 0.3s ease;
+  user-select: none;
+}
+
+/* Icon positioning */
+.toggle-switch .toggle-icon {
+  right: 8px; /* Show icon on right when inactive (knob on left) */
+  opacity: 1;
+}
+
+.toggle-switch.active .toggle-icon {
+  left: 8px; /* Show icon on left when active (knob on right) */
+  color: rgba(255, 255, 255, 0.9);
+  right: auto;
 }

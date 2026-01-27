@@ -11,9 +11,8 @@
 </script>
 
 <div id="main-app" class="main-app" style="display: block;">
-  <Header />
-  
   {#if $viewMode === 'categories'}
+    <Header />
     <CategoryNav />
   {:else}
     <CategoryView />

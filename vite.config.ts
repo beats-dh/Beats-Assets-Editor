@@ -37,11 +37,6 @@ export default defineConfig({
           // Vendor chunks
           'vendor-tauri': ['@tauri-apps/api', '@tauri-apps/plugin-dialog', '@tauri-apps/plugin-opener'],
           
-          // Feature chunks (lazy loaded)
-          'monster-editor': ['./src/monsterEditor.ts'],
-          'sound-editor': ['./src/sounds.ts'],
-          'npc-editor': ['./src/npcEditor.ts'],
-          
           // Animation workers
           'workers': [
             './src/workers/animationWorker.ts',
