@@ -947,7 +947,7 @@
   gap: var(--space-md);
 }
 
-.monster-modal-section > h4 {
+.monster-modal-section>h4 {
   margin: 0 0 var(--space-md);
   font-size: 0.9rem;
   font-weight: 600;
@@ -1224,8 +1224,3 @@
     grid-template-columns: repeat(3, 1fr);
   }
 }
-
-
-
-
-

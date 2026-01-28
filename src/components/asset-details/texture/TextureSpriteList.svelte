@@ -113,14 +113,14 @@
         on:drop={(e) => handleDrop(e, i)}
         class:dragging={draggingIndex === i}
       >
-        <div class="texture-sprite-preview">
+        <div class="texture-sprite-thumb">
           <img src={bufferToObjectUrl(sprite)} alt="Sprite {i}" />
         </div>
-        <div class="texture-sprite-info">
-          <span class="sprite-index">#{i}</span>
-          <span class="sprite-id">ID: {spriteIds[i]}</span>
+        <div class="texture-sprite-meta">
+          <span class="texture-sprite-id">#{i}</span>
+          <span class="texture-sprite-slot">ID: {spriteIds[i]}</span>
         </div>
-        <button class="remove-btn" on:click|stopPropagation={() => handleRemove(i)} title="Remove">×</button>
+        <button class="texture-remove-box remove-btn" on:click|stopPropagation={() => handleRemove(i)} title="Remove">×</button>
       </div>
     {/each}
     
@@ -137,35 +137,10 @@
 </div>
 
 <style>
-  .texture-sprite-chip {
-    position: relative;
-    cursor: grab;
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
-  
-  .texture-sprite-chip:active {
-    cursor: grabbing;
-  }
-  
+  /* Only minimal overrides not in global texture.css */
   .texture-sprite-chip.dragging {
     opacity: 0.5;
     border-style: dashed;
-  }
-
-  .texture-sprite-preview img {
-    max-width: 32px;
-    max-height: 32px;
-    image-rendering: pixelated;
-  }
-  
-  .texture-sprite-info {
-    display: flex;
-    flex-direction: column;
-    font-size: 0.8rem;
-  }
-  
-  .sprite-id {
-    color: var(--text-secondary);
   }
 
   .remove-btn {
