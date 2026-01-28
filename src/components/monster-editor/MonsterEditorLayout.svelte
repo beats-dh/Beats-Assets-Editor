@@ -1,30 +1,29 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
   import { currentView } from '../../stores/appState';
   import { 
-    monsterList, 
     currentMonster, 
     currentFilePath, 
-    monstersRootPath 
+    monstersRootPath,
+    cachedMonstersPath
   } from '../../stores/monsterStore';
   import { invoke } from '../../utils/invoke';
   import { COMMANDS } from '../../commands';
+  import { ensureAppearancesLoaded } from '../../appearanceLoader';
   import MonsterSidebar from './MonsterSidebar.svelte';
   import MonsterForm from './MonsterForm.svelte';
   import { open } from '@tauri-apps/plugin-dialog';
+
+  let isInitializing = true;
+  let initError = '';
 
   function goBack() {
     currentView.set('launcher');
   }
 
   async function handleReload() {
-     // Trigger reload in sidebar via store or event if needed, 
-     // but mainly we just need to re-fetch the list if the path is set.
      if ($monstersRootPath) {
-        // We'll let the sidebar handle the actual fetching based on the store change
-        // or we can force a re-fetch here.
-        // For now, let's just re-set the path to trigger reactivity if we implement it that way,
-        // or dispatch an event.
         window.dispatchEvent(new CustomEvent('reload-monster-list'));
      }
   }
@@ -35,6 +34,7 @@
       if (typeof selection === "string" && selection) {
         await invoke(COMMANDS.SET_MONSTER_BASE_PATH, { monsterPath: selection });
         monstersRootPath.set(selection);
+        cachedMonstersPath.set(null); // Clear cache to force reload
         currentMonster.set(null);
         currentFilePath.set(null);
       }
@@ -45,16 +45,30 @@
   }
 
   onMount(async () => {
-      // Try to get the current monster path if already set in backend
-      // or rely on what's passed.
-      // If we need to load the initial path:
-      // const path = await invoke('get_monster_base_path'); // if this command existed
-      // For now we assume the user has to select it or it's stored in settings.
-      // But the legacy code passes `monstersPath` to `createMonsterEditorView`.
-      // We might need a store for "settings" that persists this.
-      // For now, let's just wait for user interaction or check if we have a default.
+    try {
+      // 1. Ensure appearances are loaded (required for sprites)
+      await ensureAppearancesLoaded();
+      
+      // 2. Load saved monster path from backend if not already set
+      if (!get(monstersRootPath)) {
+        try {
+          const savedPath = await invoke<string | null>(COMMANDS.GET_MONSTER_BASE_PATH);
+          if (savedPath) {
+            monstersRootPath.set(savedPath);
+          }
+        } catch (e) {
+          console.log('No saved monster path found');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to initialize Monster Editor:', error);
+      initError = error instanceof Error ? error.message : String(error);
+    } finally {
+      isInitializing = false;
+    }
   });
 </script>
+
 
 <div class="monster-editor-container">
   <header class="monster-editor-header">

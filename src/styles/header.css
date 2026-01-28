@@ -643,12 +643,14 @@
 
 /* Icon positioning */
 .toggle-switch .toggle-icon {
-  right: 8px; /* Show icon on right when inactive (knob on left) */
+  right: 8px;
+  /* Show icon on right when inactive (knob on left) */
   opacity: 1;
 }
 
 .toggle-switch.active .toggle-icon {
-  left: 8px; /* Show icon on left when active (knob on right) */
+  left: 8px;
+  /* Show icon on left when active (knob on right) */
   color: rgba(255, 255, 255, 0.9);
   right: auto;
 }

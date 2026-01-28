@@ -9,8 +9,9 @@ export const isLoading = writable<boolean>(false);
 export const monsterSearchQuery = writable<string>('');
 export const expandedCategories = writable<Set<string>>(new Set(['__root__']));
 
-// Bestiary class order - likely loaded from backend, defaulting to empty for now
+// Bestiary class order - loaded from backend
 export const bestiaryClassOrder = writable<string[]>([]);
 
-// Derived store for filtered monsters could go here if needed, 
-// but might be better handled in the component to avoid complex derived logic here for now.
+// Cache control - tracks the path that was last successfully loaded
+// If this matches monstersRootPath, we don't need to reload
+export const cachedMonstersPath = writable<string | null>(null);

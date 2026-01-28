@@ -1,11 +1,13 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
   import { 
     monsterList, 
     monstersRootPath, 
     monsterSearchQuery, 
     bestiaryClassOrder,
-    isLoading
+    isLoading,
+    cachedMonstersPath
   } from '../../stores/monsterStore';
   import { invoke } from '../../utils/invoke';
   import MonsterCategoryList from './MonsterCategoryList.svelte';
@@ -13,21 +15,27 @@
 
   let searchInput: HTMLInputElement;
 
-  async function loadMonsters() {
-    if (!$monstersRootPath) return;
+  async function loadMonsters(forceReload = false) {
+    const path = get(monstersRootPath);
+    if (!path) return;
+    
+    // Check cache - skip loading if already loaded for this path
+    const cached = get(cachedMonstersPath);
+    if (!forceReload && cached === path && get(monsterList).length > 0) {
+      console.log('Monster list already cached, skipping reload');
+      return;
+    }
     
     isLoading.set(true);
     try {
-      // Ensure appearances are loaded first (legacy requirement)
-      // await invoke('ensure_appearances_loaded'); // If needed
-
       const [entries, classes] = await Promise.all([
-        invoke<MonsterListEntry[]>("list_monster_files", { monstersPath: $monstersRootPath }),
-        invoke<string[]>("list_bestiary_classes", { monstersPath: $monstersRootPath }).catch(() => [])
+        invoke<MonsterListEntry[]>("list_monster_files", { monstersPath: path }),
+        invoke<string[]>("list_bestiary_classes", { monstersPath: path }).catch(() => [])
       ]);
 
       monsterList.set(entries);
       bestiaryClassOrder.set(normalizeBestiaryOrder(classes));
+      cachedMonstersPath.set(path); // Mark as cached
     } catch (err) {
       console.error("Failed to load monsters:", err);
       monsterList.set([]);
@@ -67,9 +75,9 @@
       .join(" ");
   }
 
-  // Reload listener
+  // Reload listener - force reload when user explicitly requests
   function handleReloadEvent() {
-    loadMonsters();
+    loadMonsters(true); // forceReload = true
   }
 
   onMount(() => {
@@ -83,8 +91,10 @@
     window.removeEventListener('reload-monster-list', handleReloadEvent);
   });
 
-  // Reactive load
-  $: if ($monstersRootPath) {
+  // Reactive load - only when path changes (cache check inside loadMonsters)
+  let lastReactivePath: string | null = null;
+  $: if ($monstersRootPath && $monstersRootPath !== lastReactivePath) {
+    lastReactivePath = $monstersRootPath;
     loadMonsters();
   }
 
