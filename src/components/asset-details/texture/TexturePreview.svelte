@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { onMount, afterUpdate } from 'svelte';
+  import { onMount, afterUpdate, createEventDispatcher } from 'svelte';
   import type { CompleteAppearanceItem, CompleteSpriteInfo } from '../../../types';
   import { computeSpriteIndex, computeGroupOffsetsFromDetails } from '../../../animation';
   import { bufferToObjectUrl } from '../../../spriteCache';
+  import { translate } from '../../../i18n';
 
   export let details: CompleteAppearanceItem;
   export let sprites: Uint8Array[];
@@ -10,9 +11,12 @@
   export let spriteInfo: CompleteSpriteInfo | undefined;
   export let isOutfit: boolean;
 
+  const dispatch = createEventDispatcher();
+
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D | null = null;
   let animationFrameId: number | null = null;
+  let isDragging = false;
 
   // Hex to RGB helper
   function hexToRgb(hex: string) {
@@ -41,6 +45,73 @@
       img.onerror = reject;
       img.src = bufferToObjectUrl(buffer);
     });
+  }
+
+  // Drag and Drop Logic
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault();
+    if (!e.dataTransfer) return;
+    isDragging = true;
+    e.dataTransfer.dropEffect = 'copy';
+  }
+
+  function handleDragLeave(e: DragEvent) {
+    e.preventDefault();
+    isDragging = false;
+  }
+
+  interface SpriteDragPayload {
+    spriteIds?: number[];
+    localIndices?: number[];
+    frameGroupIndex?: number;
+  }
+
+  function parseSpriteDragPayload(event: DragEvent): number[] | null {
+    const data = event.dataTransfer;
+    if (!data) return null;
+
+    // Try custom payload first (set by TextureSpriteList)
+    // Note: TextureSpriteList sets 'application/json' with the object
+    const customPayload = data.getData('application/json');
+    if (customPayload) {
+      try {
+        const parsed = JSON.parse(customPayload) as SpriteDragPayload;
+        if (parsed && Array.isArray(parsed.spriteIds)) {
+          return parsed.spriteIds.map(id => Number(id)).filter(id => Number.isFinite(id));
+        }
+      } catch (error) {
+        console.warn('Failed to parse custom sprite drag payload', error);
+      }
+    }
+
+    const plain = data.getData('text/plain');
+    if (plain) {
+      // Check if it's JSON first (TextureSpriteList also sets text/plain JSON)
+      try {
+         const parsed = JSON.parse(plain);
+         if (parsed.spriteIds && Array.isArray(parsed.spriteIds)) {
+             return parsed.spriteIds;
+         }
+      } catch (e) {
+          // Ignore
+      }
+
+      const ids = plain.split(',').map(part => Number(part.trim())).filter(num => Number.isFinite(num));
+      if (ids.length > 0) {
+        return ids;
+      }
+    }
+
+    return null;
+  }
+
+  function handleDrop(e: DragEvent) {
+    e.preventDefault();
+    isDragging = false;
+    const spriteIds = parseSpriteDragPayload(e);
+    if (spriteIds && spriteIds.length > 0) {
+        dispatch('dropSprites', { spriteIds });
+    }
   }
 
   async function renderSpriteVariant(
@@ -147,20 +218,19 @@
     if (isOutfit && state.showFullAddons) {
       for (let i = 0; i <= addonMax; i++) variants.push(i);
     } else {
-      variants.push(isOutfit ? state.addon : 0); // For objects, addon concept maps differently or used for variants
+      variants.push(isOutfit ? state.addon : 0);
     }
 
-    // Render first pass to determine size
-    // In legacy, it renders all addons and computes bounding box.
-    // Here we'll simplify: just render them centered or at 0,0.
-    // Legacy code used 'computePreviewDimensions'. We'll assume standard 32x32 or 64x64 grids.
-    // Actually, let's just draw them on top of each other.
+    // Pre-calculate/load all variants to prevent flickering
+    const renderPromises = variants.map(addon => 
+        renderSpriteVariant(baseOffset, state.direction, addon, state.mount, currentRenderFrame)
+    );
     
-    // We need to determine canvas size.
-    // Let's render the first one to get size.
-    const firstRender = await renderSpriteVariant(baseOffset, state.direction, variants[0], state.mount, state.frame);
+    const results = await Promise.all(renderPromises);
+    const firstRender = results[0];
+
     if (!firstRender) {
-         ctx.fillRect(0, 0, canvas.width, canvas.height);
+         ctx.clearRect(0, 0, canvas.width, canvas.height);
          return;
     }
 
@@ -169,19 +239,21 @@
     const MIN_PREVIEW_DIM = 140;
     const scale = Math.max(1, Math.floor(MIN_PREVIEW_DIM / (maxDim || 1)));
     
-    canvas.width = firstRender.width * scale;
-    canvas.height = firstRender.height * scale;
+    if (canvas.width !== firstRender.width * scale || canvas.height !== firstRender.height * scale) {
+        canvas.width = firstRender.width * scale;
+        canvas.height = firstRender.height * scale;
+    }
     
+    // Clear and draw all at once
     ctx.fillStyle = `rgb(${bg.r}, ${bg.g}, ${bg.b})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = false;
 
-    for (const addon of variants) {
-       const rendered = await renderSpriteVariant(baseOffset, state.direction, addon, state.mount, state.frame);
+    results.forEach(rendered => {
        if (rendered) {
            ctx.drawImage(rendered, 0, 0, rendered.width * scale, rendered.height * scale);
        }
-    }
+    });
     
     // Draw BBox if needed
     if (state.showBoundingBoxes) {
@@ -193,15 +265,12 @@
           ctx.lineWidth = 1;
           ctx.setLineDash([4, 4]);
           const sq = boundingSquare * scale;
-          // Centered? Legacy just draws at 0,0.
           ctx.strokeRect(0, 0, sq, sq);
           ctx.restore();
       }
 
       if (spriteInfo.bounding_box_per_direction || spriteInfo.bounding_boxes) {
         const boxes = spriteInfo.bounding_boxes || spriteInfo.bounding_box_per_direction || [];
-        // Legacy: uses directionIndex based on patternX (for objects) or direction (for outfits)
-        // But simplified:
         const dirIndex = Math.min(isOutfit ? state.direction : state.patternX, boxes.length - 1);
         const bbox = boxes[dirIndex] || boxes[0];
       
@@ -209,8 +278,6 @@
           ctx.save();
           ctx.strokeStyle = '#ff9800'; // Orange
           ctx.lineWidth = 1;
-          // The bbox coordinates (x,y,w,h) are relative to the sprite frame (usually 32x32 or 64x64).
-          // Since we drew the sprite at (0,0) scaled by `scale`, we scale the bbox too.
           ctx.strokeRect(bbox.x * scale, bbox.y * scale, bbox.width * scale, bbox.height * scale);
           ctx.restore();
         }
@@ -218,93 +285,93 @@
     }
   }
 
-  // Animation Loop
-  let lastFrameTime = 0;
-  function animate(timestamp: number) {
-    if (!state.autoAnimate) {
-        animationFrameId = null;
-        return;
-    }
-    
-    if (!lastFrameTime) lastFrameTime = timestamp;
-    const elapsed = timestamp - lastFrameTime;
-    
-    const duration = spriteInfo?.animation?.phases?.[0]?.duration_min ?? 250;
-    
-    if (elapsed > duration) {
-        const frames = getFrameCount(spriteInfo!);
-        if (frames > 1) {
-            state.frame = (state.frame + 1) % frames;
-            // Force Svelte update for controls if bound? 
-            // Better: update parent state? No, avoid loop. 
-            // Just draw with local incremented frame, but better to update state so slider moves.
-            // But we can't easily update prop.
-            // For now, let's just rely on reactive draw triggered by parent.
-            // Wait, if we want auto-animate, we need to drive it.
-        }
-        lastFrameTime = timestamp;
-    }
-    
-    draw(); // Draw with current state
-    
-    // To properly animate state.frame, we should emit an event or update a local override.
-    // Given the props structure, auto-animate logic usually resides in parent or we use a local frame.
-    // For this implementation, I'll skip complex auto-animate syncing with slider for now 
-    // and just re-trigger draw loop if state changes.
-    
-    animationFrameId = requestAnimationFrame(animate);
-  }
-
   // Watch for changes
   $: {
       if (details && sprites && state) {
-          draw();
+          // If not animating, ensure we redraw when props change
+          if (!state.autoAnimate) {
+             currentRenderFrame = state.frame;
+             draw();
+          }
       }
   }
 
-  // Handle auto-animate toggle
-  $: if (state.autoAnimate && !animationFrameId) {
-      // animationFrameId = requestAnimationFrame(animate);
-      // Logic for animation needs to update `state.frame` in parent to reflect in slider.
-      // So I'll implement a simple interval in parent or here that emits 'change'.
-  } else if (!state.autoAnimate && animationFrameId) {
-      cancelAnimationFrame(animationFrameId);
-      animationFrameId = null;
+  // Animation State
+  let currentRenderFrame = 0;
+  let lastTime = 0;
+
+
+  $: if (!state.autoAnimate) {
+    currentRenderFrame = state.frame;
+    if (canvas) draw();
   }
-  
-  // Actually, let's do a simple interval for animation here if enabled
-  let intervalId: number | null = null;
-  $: if (state.autoAnimate && spriteInfo) {
-      if (!intervalId) {
-          const duration = spriteInfo.animation?.phases?.[0]?.duration_min ?? 250;
-          intervalId = window.setInterval(() => {
-              const frames = getFrameCount(spriteInfo!);
-              if (frames > 1) {
-                  // Emit change to parent
-                  // We can't dispatch here easily inside reactive block without causing infinite loops if not careful
-                  // dispatch('change', { frame: (state.frame + 1) % frames });
-                  // This component doesn't have dispatch defined.
-                  // I'll skip auto-animate slider sync for now and just rely on manual control
-                  // OR I can use a local animation loop that ignores the slider value for drawing.
-              }
-          }, duration);
-      }
+
+  function startAnimation() {
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    lastTime = 0;
+    animationFrameId = requestAnimationFrame(loop);
+  }
+
+  function stopAnimation() {
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+    currentRenderFrame = state.frame;
+    if (canvas) draw();
+  }
+
+  function loop(timestamp: number) {
+    if (!state.autoAnimate) return;
+
+    if (!lastTime) lastTime = timestamp;
+    const elapsed = timestamp - lastTime;
+    
+    // Get duration for current phase
+    const frameCount = spriteInfo ? getFrameCount(spriteInfo) : 1;
+    let duration = 200;
+    
+    if (spriteInfo && spriteInfo.animation && spriteInfo.animation.phases && spriteInfo.animation.phases.length > 0) {
+        // Use duration_min for standard playback
+        const phaseIndex = currentRenderFrame % spriteInfo.animation.phases.length;
+        const phase = spriteInfo.animation.phases[phaseIndex];
+        duration = phase.duration_min && phase.duration_min > 0 ? phase.duration_min : 200;
+    }
+
+    if (elapsed >= duration) {
+        currentRenderFrame = (currentRenderFrame + 1) % frameCount;
+        lastTime = timestamp;
+        draw();
+    }
+
+    animationFrameId = requestAnimationFrame(loop);
+  }
+
+  $: if (state.autoAnimate) {
+      startAnimation();
   } else {
-      if (intervalId) {
-          clearInterval(intervalId);
-          intervalId = null;
-      }
+      stopAnimation();
   }
 
 </script>
 
-<div class="texture-preview-card">
+<div 
+  class="texture-preview-card" 
+  class:dragging={isDragging}
+  class:has-preview={sprites.length > 0}
+  on:dragover={handleDragOver}
+  on:dragleave={handleDragLeave}
+  on:drop={handleDrop}
+>
   {#if !spriteInfo}
     <div class="texture-empty-state">No sprite info available</div>
   {:else}
     <canvas bind:this={canvas}></canvas>
-    {#if !sprites.length}
-        <div class="texture-drop-hint">Loading sprites...</div>
+    {#if !sprites.length || isDragging}
+        <div class="texture-drop-hint">
+          <div class="texture-drop-title">{translate('texture.drop.title') || 'Drop sprites here'}</div>
+          <div class="texture-drop-subtitle">{translate('texture.drop.subtitle') || 'Drag from list or desktop'}</div>
+        </div>
     {/if}
   {/if}
 </div>
@@ -312,5 +379,10 @@
 <style>
   canvas {
     image-rendering: pixelated;
+  }
+  
+  .texture-preview-card.dragging {
+    border-color: var(--primary-color);
+    background: var(--surface-2);
   }
 </style>

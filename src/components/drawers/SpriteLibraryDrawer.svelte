@@ -273,6 +273,7 @@
     height: 100vh;
     z-index: 2000;
     display: none;
+    pointer-events: none; /* Allow clicks through empty areas */
   }
 
   #sprite-library-drawer.is-open {
@@ -285,8 +286,19 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(2px);
+    /* Remove background and blocking for seamless interaction if needed */
+    /* Or keep it but allow interaction? No, standard modal usually blocks. */
+    /* But user complains "não da pra fazer nada" (can't do anything). */
+    /* If the modal is behind the backdrop, they can't interact with the modal. */
+    /* But this drawer is supposedly ON TOP of the modal. */
+    /* Wait, if the drawer is on top, and has a backdrop, it blocks the modal underneath. */
+    /* User probably wants to DRAG from drawer to modal. */
+    /* So we should remove the backdrop or make it non-blocking when dragging? */
+    /* Let's make the backdrop transparent and non-blocking for now to simulate "side panel" feel */
+    /* or at least allow interaction with the rest if that's the goal. */
+    /* However, "ofuscado" suggests the backdrop is visible. */
+    background: transparent; 
+    pointer-events: none;
   }
 
   .sprite-library-panel {
@@ -300,6 +312,7 @@
     display: flex;
     flex-direction: column;
     border-left: 1px solid var(--border-color, #333);
+    pointer-events: auto; /* Re-enable pointer events for the panel itself */
   }
 
   .sprite-library-header {

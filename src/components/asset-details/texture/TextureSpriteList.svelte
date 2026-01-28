@@ -69,20 +69,18 @@
       if (data.type === 'sprite-reorder' && data.frameGroupIndex === frameGroupIndex) {
         dispatch('reorder', { from: data.index, to: targetIndex });
       } else if (data.spriteIds && Array.isArray(data.spriteIds)) {
-        // External drop of IDs
-        dispatch('dropExternal', { 
-            index: targetIndex, 
-            spriteIds: data.spriteIds, 
-            replace: !e.ctrlKey // Default to replace, Ctrl to insert/append? Legacy logic was complex.
-            // Legacy: 
-            // If targetLocalIndex is number -> replace starting at that index
-            // If Ctrl key -> complex mapping logic
-            // Let's simplified: just emit the raw drop info and let parent decide
-        });
-        
-        // Actually, let's keep it simple and consistent with legacy behavior intent:
-        // If dropping on a slot, replace it and subsequent slots.
-        dispatch('replace', { index: targetIndex, spriteIds: data.spriteIds });
+        // Handle external drops (from Sprite Library or desktop)
+        // If dropped on an existing item (targetIndex < count), we replace
+        // If dropped on the add button (targetIndex >= count), we append
+        if (targetIndex < count) {
+             dispatch('replace', { index: targetIndex, spriteIds: data.spriteIds });
+        } else {
+             // For appending, we might need a specific 'append' event or just reuse replace logic if backend supports it
+             // But the current 'replace' handler in TextureEditor expects replacing existing slots.
+             // We need an 'append' handler in TextureEditor that takes a list of IDs.
+             // Let's emit a new event 'append' with sprites
+             dispatch('append', { spriteIds: data.spriteIds });
+        }
       }
     } catch (err) {
       console.warn('Invalid drop data', err);
@@ -127,7 +125,12 @@
     {/each}
     
     <!-- Add Button -->
-    <button class="texture-sprite-chip add-btn" on:click={() => dispatch('add')}>
+    <button 
+      class="texture-sprite-chip add-btn" 
+      on:click={() => dispatch('add')}
+      on:dragover={(e) => handleDragOver(e, count)}
+      on:drop={(e) => handleDrop(e, count)}
+    >
       <span class="plus-icon">+</span>
     </button>
   </div>

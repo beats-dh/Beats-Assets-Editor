@@ -63,6 +63,24 @@
   }
 
   async function save() {
+    // Validation
+    if ((spriteInfo.pattern_width ?? 0) < 1) {
+        showStatus(translate('texture.error.invalidWidth') || 'Invalid width', 'error');
+        return;
+    }
+    if ((spriteInfo.pattern_height ?? 0) < 1) {
+        showStatus(translate('texture.error.invalidHeight') || 'Invalid height', 'error');
+        return;
+    }
+    if ((spriteInfo.pattern_depth ?? 0) < 1) {
+        showStatus(translate('texture.error.invalidDepth') || 'Invalid depth', 'error');
+        return;
+    }
+    if ((spriteInfo.layers ?? 0) < 1) {
+        showStatus(translate('texture.error.invalidLayers') || 'Invalid layers', 'error');
+        return;
+    }
+
     try {
       const payload: Record<string, unknown> = {
         frame_group_index: state.frameGroupIndex,

@@ -1,11 +1,12 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { CompleteSpriteInfo } from '../../../types';
+  import type { CompleteSpriteInfo, CompleteAppearanceItem } from '../../../types';
   import { translate } from '../../../i18n';
 
   export let state: any;
   export let spriteInfo: CompleteSpriteInfo | undefined;
   export let isOutfit: boolean;
+  export let details: CompleteAppearanceItem | undefined = undefined;
 
   const dispatch = createEventDispatcher();
 
@@ -24,10 +25,24 @@
   $: maxPatternY = Math.max(0, (spriteInfo?.pattern_height ?? 1) - 1);
   $: maxPatternZ = Math.max(0, (spriteInfo?.pattern_depth ?? 1) - 1);
   $: maxLayer = Math.max(0, (spriteInfo?.layers ?? spriteInfo?.pattern_layers ?? 1) - 1);
+
+  $: frameGroups = details?.frame_groups ?? [];
 </script>
 
 <div class="texture-preview-controls">
-  <!-- Common: Frame Group Selection could go here if multiple groups exist -->
+  <!-- Frame Group Selection -->
+  {#if frameGroups.length > 1}
+    <div class="texture-control-row">
+      <label>
+        <span>{translate('texture.preview.frameGroup') || 'Frame Group'}</span>
+        <select value={state.frameGroupIndex} on:change={(e) => update('frameGroupIndex', parseInt(e.currentTarget.value))}>
+          {#each frameGroups as _, i}
+            <option value={i}>{translate('texture.preview.frameGroupOption', { index: i + 1 }) || `Group ${i + 1}`}</option>
+          {/each}
+        </select>
+      </label>
+    </div>
+  {/if}
   
   {#if isOutfit}
     <!-- Outfit Controls -->

@@ -36,7 +36,9 @@
     handleExport as serviceExport,
     handleCopyFlags as serviceCopyFlags,
     handlePasteFlagsBatch as servicePasteFlags,
-    handleDeleteAppearances as serviceDelete
+    handleDeleteAppearances as serviceDelete,
+    handleDuplicate as serviceDuplicate,
+    handleCreateNew as serviceCreateNew
   } from '../services/importExportService';
   import AddSoundModal from './AddSoundModal.svelte';
 
@@ -110,29 +112,10 @@
     const sel = getCurrentSelection();
     if (sel.length === 0) return;
     const target = sel[sel.length - 1];
-
-    const desiredIdInput = prompt(translate('prompt.enterDuplicateId'), "");
-    let desiredId: number | null = null;
-    if (desiredIdInput && desiredIdInput.trim()) {
-      desiredId = parseInt(desiredIdInput);
-      if (isNaN(desiredId)) {
-        showStatus(translate('status.invalidIdAuto'), "error");
-        return;
-      }
-    }
-
-    try {
-      await invoke("duplicate_appearance", {
-        category: target.category,
-        sourceId: target.id,
-        targetId: desiredId
-      });
-      await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
+    
+    const duplicatedId = await serviceDuplicate(target.category, target.id);
+    if (duplicatedId) {
       loadAssetsData();
-      showStatus(translate('status.appearanceDuplicated', { id: target.id }), "success");
-    } catch (err) {
-      console.error(err);
-      showStatus(translate('status.appearanceDuplicateFailed'), "error");
     }
   }
 
@@ -152,34 +135,9 @@
   }
 
   async function handleCreate() {
-    try {
-      const idInput = prompt(translate('prompt.enterNewId'), "");
-      let newId: number | null = null;
-      if (idInput && idInput.trim()) {
-        newId = parseInt(idInput);
-        if (isNaN(newId)) {
-           showStatus(translate('status.invalidIdAuto'), "error");
-           return;
-        }
-      }
-      
-      const name = prompt(translate('prompt.enterName'), "") || null;
-      const description = prompt(translate('prompt.enterDescription'), "") || null;
-
-      const created = await invoke("create_empty_appearance", { 
-        category: $currentCategory,
-        newId,
-        name,
-        description
-      });
-      
-      await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
-      showStatus(translate('status.assetCreated'), 'success');
-      await loadAssetsData();
-      openAssetDetails(created);
-    } catch (err) {
-      console.error(err);
-      showStatus('Error creating asset', 'error');
+    const createdId = await serviceCreateNew($currentCategory);
+    if (createdId) {
+      openAssetDetails({ id: createdId });
     }
   }
 
@@ -374,11 +332,16 @@
   function handleCloseAddSound() {
     showAddSoundModal = false;
   }
+
+  function handleSoundCreated(id: number) {
+    loadAssetsData();
+  }
 </script>
 
 <AddSoundModal 
   isOpen={showAddSoundModal} 
-  onClose={handleCloseAddSound} 
+  onClose={handleCloseAddSound}
+  onSoundCreated={handleSoundCreated}
 />
 
 <main id="category-view" class="category-view" style="display: block;">
