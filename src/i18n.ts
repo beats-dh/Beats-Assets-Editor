@@ -600,6 +600,13 @@ const translationEntries = {
     es: 'Plantillas de música',
     ru: 'Музыкальные шаблоны'
   },
+  'modal.confirmDelete': {
+    default: 'Are you sure you want to delete this sprite?',
+    'pt-BR': 'Tem certeza que deseja excluir este sprite?',
+    en: 'Are you sure you want to delete this sprite?',
+    es: '¿Estás seguro de que deseas eliminar este sprite?',
+    ru: 'Вы уверены, что хотите удалить этот спрайт?'
+  },
   'modal.detailsTab': {
     default: 'Asset Details',
     'pt-BR': 'Detalhes do asset',

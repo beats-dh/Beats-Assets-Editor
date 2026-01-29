@@ -1,10 +1,19 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { dndzone } from 'svelte-dnd-action';
+  import type { DndEvent } from 'svelte-dnd-action';
   import { translate } from '../../i18n';
   import { getSpriteById, getCachedSpriteById } from '../../spriteCache';
   import { getSpriteUrl as getUnifiedSpriteUrl } from '../../utils/spriteUrlCache';
   import { showStatus } from '../../utils';
   import { spriteLibraryStore } from '../../stores/spriteLibraryStore';
+  import '../../styles/texture.css'; // Import texture styles
+
+  // Type for items in the drag & drop list
+  type SpriteItem = {
+    id: string; // Must be string for dndzone
+    spriteId: number; // Actual sprite ID
+  };
 
   let isOpen = false;
   let mode: 'browse' | 'select' = 'browse';
@@ -16,9 +25,18 @@
   let order: 'asc' | 'desc' = 'asc';
   
   let visibleRange: number[] = [];
+  let spriteItems: SpriteItem[] = []; // For dndzone
   let spriteUrls: Map<number, string> = new Map();
-  let loading = false;
   let selectedIds: Set<number> = new Set();
+  
+  let libraryListElement: HTMLElement;
+  let loading = false;
+  
+  // Convert visibleRange to spriteItems whenever it changes
+  $: spriteItems = visibleRange.map(spriteId => ({
+    id: `sprite-${spriteId}`,
+    spriteId
+  }));
 
   const unsubscribe = spriteLibraryStore.subscribe(state => {
     isOpen = state.isOpen;
@@ -105,7 +123,7 @@
       if (data) {
         spriteUrls.set(id, getUnifiedSpriteUrl(data));
         loadedCount++;
-        // Update periodically to show progress
+        // Update periodically
         if (loadedCount % 10 === 0) {
            spriteUrls = new Map(spriteUrls);
         }
@@ -153,34 +171,34 @@
     loadPageFromState();
   }
 
-  function selectSprite(id: number) {
+  function handleSpriteClick(event: MouseEvent, spriteId: number) {
     if (mode === 'select' && onSelectCallback) {
-      onSelectCallback(id);
+      onSelectCallback(spriteId);
       closeDrawer();
       return;
     }
 
-    // Browse mode selection
-    selectedIds.clear();
-    selectedIds.add(id);
+    const multiSelect = event.ctrlKey || event.metaKey;
+    if (!multiSelect) {
+      selectedIds.clear();
+      selectedIds.add(spriteId);
+    } else {
+      if (selectedIds.has(spriteId)) {
+        selectedIds.delete(spriteId);
+      } else {
+        selectedIds.add(spriteId);
+      }
+    }
     selectedIds = new Set(selectedIds);
   }
 
-  function handleDragStart(event: DragEvent, id: number) {
-    const cachedUrl = spriteUrls.get(id);
-    if (!event.dataTransfer || !cachedUrl) return;
-    
-    if (!selectedIds.has(id)) {
-      selectedIds.clear();
-      selectedIds.add(id);
-      selectedIds = new Set(selectedIds);
-    }
-    
-    const spriteIds = Array.from(selectedIds).sort((a, b) => a - b);
-    const payload = { spriteIds };
-    event.dataTransfer.setData('application/x-asset-sprite', JSON.stringify(payload));
-    event.dataTransfer.setData('text/plain', spriteIds.join(','));
-    event.dataTransfer.effectAllowed = 'copy';
+  function handleDndConsider(e: CustomEvent<DndEvent<SpriteItem>>) {
+    spriteItems = e.detail.items;
+  }
+
+  function handleDndFinalize(e: CustomEvent<DndEvent<SpriteItem>>) {
+    spriteItems = e.detail.items;
+    // Don't update visibleRange - library is read-only for drag operations
   }
 </script>
 
@@ -191,73 +209,85 @@
     <div class="sprite-library-backdrop" on:click={closeDrawer}></div>
     <div class="sprite-library-panel" role="dialog" aria-label={translate('texture.library.title')}>
       <div class="sprite-library-header">
-        <div class="header-controls">
+        <div>
           <h3>{translate('texture.library.title')}</h3>
-          <div class="search-box">
+          <p class="sprite-library-subtitle">{translate('texture.library.subtitle')}</p>
+        </div>
+        <button type="button" class="close-btn" on:click={closeDrawer}>✕</button>
+      </div>
+
+      <div class="sprite-library-controls">
+        <div class="sprite-library-controls--grid">
+          <div class="sprite-library-control" style="grid-column: 1 / span 2;">
             <input 
               type="text" 
               bind:value={searchInput} 
               placeholder={translate('texture.library.searchPlaceholder')}
               on:keydown={handleKeyDown}
             />
-            <button class="btn-secondary" on:click={handleSearch}>
-              {translate('texture.library.button.search')}
-            </button>
+          </div>
+          <div class="sprite-library-control" style="grid-column: 1 / span 2;">
+             <button class="btn-primary sprite-library-order-btn" on:click={handleSearch}>
+                {translate('texture.library.button.search')}
+             </button>
+          </div>
+          
+          <div class="sprite-library-control">
+            <span>{translate('texture.library.start')}</span>
+            <input type="number" bind:value={pageStart} min="1" on:change={() => loadPageFromState()} />
+          </div>
+          <div class="sprite-library-control">
+            <span>{translate('texture.library.pageSize')}</span>
+            <input type="number" bind:value={pageSize} min="1" max="500" on:change={() => loadPageFromState()} />
+          </div>
+
+          <div class="sprite-library-control order-control">
+             <button class="btn-secondary sprite-library-order-btn" on:click={toggleOrder}>
+               {order === 'asc' ? translate('texture.library.order.asc') : translate('texture.library.order.desc')}
+             </button>
           </div>
         </div>
-        <button type="button" class="icon-btn close-btn" on:click={closeDrawer}>✕</button>
-      </div>
-
-      <div class="sprite-library-controls">
-        <div class="pagination-controls">
-          <label>
-            {translate('texture.library.start')}:
-            <input type="number" bind:value={pageStart} min="1" on:change={() => loadPageFromState()} />
-          </label>
-          <label>
-            {translate('texture.library.pageSize')}:
-            <input type="number" bind:value={pageSize} min="1" max="500" on:change={() => loadPageFromState()} />
-          </label>
-          <button class="btn-secondary" on:click={toggleOrder}>
-            {order === 'asc' ? translate('texture.library.order.asc') : translate('texture.library.order.desc')}
-          </button>
-        </div>
-        <div class="nav-buttons">
-          <button class="btn-secondary" on:click={goToPrevPage}>
-            {translate('texture.library.prev')}
-          </button>
-          <button class="btn-secondary" on:click={goToNextPage}>
-            {translate('texture.library.next')}
-          </button>
+        
+        <div class="sprite-library-pager">
+             <button class="btn-secondary" on:click={goToPrevPage}>{translate('texture.library.prev')}</button>
+             <button class="btn-secondary" on:click={goToNextPage}>{translate('texture.library.next')}</button>
         </div>
       </div>
 
-      <div class="sprite-library-content">
-        {#if visibleRange.length === 0}
+      <div 
+        class="sprite-library-list" 
+        bind:this={libraryListElement}
+        use:dndzone={{
+          items: spriteItems,
+          flipDurationMs: 200,
+          dropTargetStyle: {},
+          type: 'sprite'
+        }}
+        on:consider={handleDndConsider}
+        on:finalize={handleDndFinalize}
+      >
+        {#if spriteItems.length === 0}
           <div class="sprite-library-empty">{translate('texture.library.empty')}</div>
         {:else}
-          <div class="sprite-grid">
-            {#each visibleRange as id}
-              <button 
-                class="texture-sprite-chip sprite-library-chip" 
-                class:is-selected={selectedIds.has(id)}
-                on:click={() => selectSprite(id)}
-                draggable="true"
-                on:dragstart={(e) => handleDragStart(e, id)}
-              >
-                <div class="texture-sprite-thumb">
-                  {#if spriteUrls.has(id)}
-                    <img src={spriteUrls.get(id)} alt="Sprite {id}" />
-                  {:else}
-                    <div class="texture-sprite-placeholder">…</div>
-                  {/if}
-                </div>
-                <div class="texture-sprite-meta">
-                  <span class="texture-sprite-id">#{id}</span>
-                </div>
-              </button>
-            {/each}
-          </div>
+          {#each spriteItems as item (item.id)}
+            <button 
+              class="texture-sprite-chip sprite-library-chip" 
+              class:is-selected={selectedIds.has(item.spriteId)}
+              on:click={(e) => handleSpriteClick(e, item.spriteId)}
+            >
+              <div class="texture-sprite-thumb">
+                {#if spriteUrls.has(item.spriteId)}
+                  <img src={spriteUrls.get(item.spriteId)} alt="Sprite {item.spriteId}" draggable="false" />
+                {:else}
+                  <div class="texture-sprite-placeholder">…</div>
+                {/if}
+              </div>
+              <div class="texture-sprite-meta">
+                <span class="texture-sprite-id">#{item.spriteId}</span>
+                <span class="texture-sprite-slot">{translate('texture.spriteList.slotLabel', { value: item.spriteId })}</span>
+              </div>
+            </button>
+          {/each}
         {/if}
       </div>
     </div>
@@ -265,213 +295,23 @@
 {/if}
 
 <style>
-  #sprite-library-drawer {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 2000;
-    display: none;
-    pointer-events: none; /* Allow clicks through empty areas */
-  }
-
-  #sprite-library-drawer.is-open {
-    display: block;
-  }
-
-  .sprite-library-backdrop {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    /* Remove background and blocking for seamless interaction if needed */
-    /* Or keep it but allow interaction? No, standard modal usually blocks. */
-    /* But user complains "não da pra fazer nada" (can't do anything). */
-    /* If the modal is behind the backdrop, they can't interact with the modal. */
-    /* But this drawer is supposedly ON TOP of the modal. */
-    /* Wait, if the drawer is on top, and has a backdrop, it blocks the modal underneath. */
-    /* User probably wants to DRAG from drawer to modal. */
-    /* So we should remove the backdrop or make it non-blocking when dragging? */
-    /* Let's make the backdrop transparent and non-blocking for now to simulate "side panel" feel */
-    /* or at least allow interaction with the rest if that's the goal. */
-    /* However, "ofuscado" suggests the backdrop is visible. */
-    background: transparent; 
-    pointer-events: none;
-  }
-
-  .sprite-library-panel {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 400px;
-    height: 100%;
-    background: var(--bg-secondary, #1e1e1e);
-    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3);
-    display: flex;
-    flex-direction: column;
-    border-left: 1px solid var(--border-color, #333);
-    pointer-events: auto; /* Re-enable pointer events for the panel itself */
-  }
-
-  .sprite-library-header {
-    padding: 1rem;
-    border-bottom: 1px solid var(--border-color, #333);
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    background: var(--bg-tertiary, #252525);
-  }
-
-  .header-controls {
-    flex: 1;
-  }
-
-  .header-controls h3 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.1rem;
-    color: var(--text-primary, #e0e0e0);
-  }
-
-  .search-box {
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .search-box input {
-    flex: 1;
-    background: var(--bg-input, #111);
-    border: 1px solid var(--border-input, #444);
-    color: var(--text-primary, #e0e0e0);
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-  }
-
   .close-btn {
     background: none;
     border: none;
-    color: var(--text-secondary, #aaa);
+    color: var(--text-secondary);
     font-size: 1.2rem;
     cursor: pointer;
-    padding: 0.25rem;
+    padding: 4px;
   }
-
   .close-btn:hover {
-    color: var(--text-primary, #fff);
+    color: var(--text-primary);
   }
-
-  .sprite-library-controls {
-    padding: 0.75rem;
-    background: var(--bg-tertiary, #252525);
-    border-bottom: 1px solid var(--border-color, #333);
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .pagination-controls {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .pagination-controls label {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.85rem;
-    color: var(--text-secondary, #aaa);
-  }
-
-  .pagination-controls input {
-    width: 60px;
-    background: var(--bg-input, #111);
-    border: 1px solid var(--border-input, #444);
-    color: var(--text-primary, #e0e0e0);
-    padding: 0.1rem 0.3rem;
-    border-radius: 3px;
-  }
-
-  .nav-buttons {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: space-between;
-  }
-
-  .sprite-library-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0.5rem;
-  }
-
-  .sprite-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-    gap: 0.5rem;
-  }
-
-  .sprite-library-chip {
-    background: var(--bg-card, #2a2a2a);
-    border: 1px solid var(--border-color, #333);
-    border-radius: 4px;
-    padding: 0.5rem;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    transition: all 0.2s;
-  }
-
-  .sprite-library-chip:hover {
-    background: var(--bg-hover, #333);
-    border-color: var(--primary-color, #646cff);
-  }
-
-  .sprite-library-chip.is-selected {
-    background: var(--primary-color-dim, #3a3a5e);
-    border-color: var(--primary-color, #646cff);
-  }
-
-  .texture-sprite-thumb {
-    width: 48px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8"><path d="M0 0h4v4H0zm4 4h4v4H4z" fill="%23222" fill-opacity="0.4"/></svg>');
-  }
-
-  .texture-sprite-thumb img {
-    max-width: 100%;
-    max-height: 100%;
-    image-rendering: pixelated;
-  }
-
-  .texture-sprite-meta {
-    font-size: 0.75rem;
-    color: var(--text-secondary, #888);
-  }
-
-  .btn-secondary {
-    background: var(--bg-button, #333);
-    border: 1px solid var(--border-button, #555);
-    color: var(--text-primary, #e0e0e0);
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85rem;
-  }
-
-  .btn-secondary:hover {
-    background: var(--bg-button-hover, #444);
-  }
-
-  .sprite-library-empty {
-    text-align: center;
-    color: var(--text-secondary, #888);
-    padding: 2rem;
+  .btn-primary {
+    background: var(--primary-color, #646cff);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer; 
+    font-weight: 600;
   }
 </style>
