@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { dndzone } from 'svelte-dnd-action';
   import type { DndEvent } from 'svelte-dnd-action';
   import { translate } from '../../i18n';
@@ -7,12 +7,11 @@
   import { getSpriteUrl as getUnifiedSpriteUrl } from '../../utils/spriteUrlCache';
   import { showStatus } from '../../utils';
   import { spriteLibraryStore } from '../../stores/spriteLibraryStore';
-  import '../../styles/texture.css'; // Import texture styles
+  import '../../styles/texture.css';
 
-  // Type for items in the drag & drop list
   type SpriteItem = {
-    id: string; // Must be string for dndzone
-    spriteId: number; // Actual sprite ID
+    id: string;
+    spriteId: number;
   };
 
   let isOpen = false;
@@ -23,16 +22,15 @@
   let pageStart = 1;
   let pageSize = 100;
   let order: 'asc' | 'desc' = 'asc';
-  
+
   let visibleRange: number[] = [];
-  let spriteItems: SpriteItem[] = []; // For dndzone
+  let spriteItems: SpriteItem[] = [];
   let spriteUrls: Map<number, string> = new Map();
   let selectedIds: Set<number> = new Set();
-  
+
   let libraryListElement: HTMLElement;
   let loading = false;
-  
-  // Convert visibleRange to spriteItems whenever it changes
+
   $: spriteItems = visibleRange.map(spriteId => ({
     id: `sprite-${spriteId}`,
     spriteId
@@ -105,34 +103,31 @@
   async function loadSpriteImages(ids: number[]) {
     loading = true;
     let loadedCount = 0;
-    
-    // First pass: check cache
+
     for (const id of ids) {
       const cached = getCachedSpriteById(id);
       if (cached) {
         spriteUrls.set(id, getUnifiedSpriteUrl(cached));
       }
     }
-    spriteUrls = new Map(spriteUrls); // Trigger update
+    spriteUrls = new Map(spriteUrls);
 
-    // Second pass: fetch missing
     for (const id of ids) {
       if (getCachedSpriteById(id)) continue;
-      
+
       const data = await getSpriteById(id);
       if (data) {
         spriteUrls.set(id, getUnifiedSpriteUrl(data));
         loadedCount++;
-        // Update periodically
         if (loadedCount % 10 === 0) {
-           spriteUrls = new Map(spriteUrls);
+          spriteUrls = new Map(spriteUrls);
         }
       }
     }
-    
+
     spriteUrls = new Map(spriteUrls);
     loading = false;
-    
+
     if (loadedCount > 0) {
       showStatus(translate('status.spriteLibraryLoaded', { count: loadedCount }), 'success');
     }
@@ -198,7 +193,6 @@
 
   function handleDndFinalize(e: CustomEvent<DndEvent<SpriteItem>>) {
     spriteItems = e.detail.items;
-    // Don't update visibleRange - library is read-only for drag operations
   }
 </script>
 
@@ -210,52 +204,106 @@
     <div class="sprite-library-panel" role="dialog" aria-label={translate('texture.library.title')}>
       <div class="sprite-library-header">
         <div>
-          <h3>{translate('texture.library.title')}</h3>
-          <p class="sprite-library-subtitle">{translate('texture.library.subtitle')}</p>
+          <h3 data-i18n="texture.library.title">{translate('texture.library.title')}</h3>
         </div>
-        <button type="button" class="close-btn" on:click={closeDrawer}>✕</button>
+        <button
+          type="button"
+          class="icon-btn"
+          id="sprite-library-close"
+          aria-label={translate('texture.library.button.close')}
+          data-i18n-aria-label="texture.library.button.close"
+          on:click={closeDrawer}
+        >
+          ?
+        </button>
+      </div>
+
+      <div class="sprite-library-controls sprite-library-controls--grid">
+        <label class="sprite-library-control">
+          <span data-i18n="texture.library.start">{translate('texture.library.start')}</span>
+          <input
+            id="sprite-library-start"
+            type="number"
+            min="1"
+            bind:value={pageStart}
+            on:change={() => loadPageFromState()}
+          />
+        </label>
+        <label class="sprite-library-control">
+          <span data-i18n="texture.library.pageSize">{translate('texture.library.pageSize')}</span>
+          <input
+            id="sprite-library-size"
+            type="number"
+            min="1"
+            max="500"
+            bind:value={pageSize}
+            on:change={() => loadPageFromState()}
+          />
+        </label>
+        <label class="sprite-library-control order-control">
+          <span data-i18n="texture.library.order">{translate('texture.library.order')}</span>
+          <div class="sprite-library-order-row">
+            <button
+              type="button"
+              id="sprite-library-order"
+              class="btn-secondary sprite-library-order-btn"
+              data-order={order}
+              data-i18n={order === 'asc' ? 'texture.library.order.asc' : 'texture.library.order.desc'}
+              on:click={toggleOrder}
+            >
+              {order === 'asc' ? translate('texture.library.order.asc') : translate('texture.library.order.desc')}
+            </button>
+            <div class="sprite-library-pager">
+              <button
+                type="button"
+                id="sprite-library-prev"
+                class="btn-secondary"
+                title={translate('texture.library.prev')}
+                data-i18n-title="texture.library.prev"
+                on:click={goToPrevPage}
+              >
+                ◀
+              </button>
+              <button
+                type="button"
+                id="sprite-library-next"
+                class="btn-secondary"
+                title={translate('texture.library.next')}
+                data-i18n-title="texture.library.next"
+                on:click={goToNextPage}
+              >
+                ▶
+              </button>
+            </div>
+          </div>
+        </label>
       </div>
 
       <div class="sprite-library-controls">
-        <div class="sprite-library-controls--grid">
-          <div class="sprite-library-control" style="grid-column: 1 / span 2;">
-            <input 
-              type="text" 
-              bind:value={searchInput} 
-              placeholder={translate('texture.library.searchPlaceholder')}
-              on:keydown={handleKeyDown}
-            />
-          </div>
-          <div class="sprite-library-control" style="grid-column: 1 / span 2;">
-             <button class="btn-primary sprite-library-order-btn" on:click={handleSearch}>
-                {translate('texture.library.button.search')}
-             </button>
-          </div>
-          
-          <div class="sprite-library-control">
-            <span>{translate('texture.library.start')}</span>
-            <input type="number" bind:value={pageStart} min="1" on:change={() => loadPageFromState()} />
-          </div>
-          <div class="sprite-library-control">
-            <span>{translate('texture.library.pageSize')}</span>
-            <input type="number" bind:value={pageSize} min="1" max="500" on:change={() => loadPageFromState()} />
-          </div>
-
-          <div class="sprite-library-control order-control">
-             <button class="btn-secondary sprite-library-order-btn" on:click={toggleOrder}>
-               {order === 'asc' ? translate('texture.library.order.asc') : translate('texture.library.order.desc')}
-             </button>
-          </div>
-        </div>
-        
-        <div class="sprite-library-pager">
-             <button class="btn-secondary" on:click={goToPrevPage}>{translate('texture.library.prev')}</button>
-             <button class="btn-secondary" on:click={goToNextPage}>{translate('texture.library.next')}</button>
-        </div>
+        <input
+          id="sprite-library-search"
+          type="text"
+          bind:value={searchInput}
+          placeholder={translate('texture.library.searchPlaceholder')}
+          data-i18n-placeholder="texture.library.searchPlaceholder"
+          on:keydown={handleKeyDown}
+        />
+        <button
+          type="button"
+          id="sprite-library-search-btn"
+          class="btn-secondary"
+          data-i18n="texture.library.button.search"
+          on:click={handleSearch}
+        >
+          {translate('texture.library.button.search')}
+        </button>
       </div>
 
-      <div 
-        class="sprite-library-list" 
+      <p class="sprite-library-hint" data-i18n="texture.library.hint">{translate('texture.library.hint')}</p>
+
+      <div
+        class="sprite-library-list"
+        id="sprite-library-list"
         bind:this={libraryListElement}
         use:dndzone={{
           items: spriteItems,
@@ -270,8 +318,8 @@
           <div class="sprite-library-empty">{translate('texture.library.empty')}</div>
         {:else}
           {#each spriteItems as item (item.id)}
-            <button 
-              class="texture-sprite-chip sprite-library-chip" 
+            <button
+              class="texture-sprite-chip sprite-library-chip"
               class:is-selected={selectedIds.has(item.spriteId)}
               on:click={(e) => handleSpriteClick(e, item.spriteId)}
             >
@@ -293,25 +341,3 @@
     </div>
   </div>
 {/if}
-
-<style>
-  .close-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 4px;
-  }
-  .close-btn:hover {
-    color: var(--text-primary);
-  }
-  .btn-primary {
-    background: var(--primary-color, #646cff);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer; 
-    font-weight: 600;
-  }
-</style>

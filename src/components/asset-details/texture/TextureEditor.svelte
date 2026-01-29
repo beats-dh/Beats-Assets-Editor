@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
-  import type { CompleteAppearanceItem, CompleteSpriteInfo } from '../../../types';
+  import type { CompleteAppearanceItem } from '../../../types';
   import { currentCategory } from '../../../stores/assetsStore';
   import { getAppearanceSprites } from '../../../spriteCache';
   import TexturePreview from './TexturePreview.svelte';
@@ -8,7 +7,6 @@
   import TextureSpriteList from './TextureSpriteList.svelte';
   import TextureSettings from './TextureSettings.svelte';
   import TextureBoundingBox from './TextureBoundingBox.svelte';
-  import SpriteLibraryDrawer from '../../drawers/SpriteLibraryDrawer.svelte';
   import { invoke } from '../../../utils/invoke';
   import { showStatus } from '../../../utils';
   import { spriteLibraryStore } from '../../../stores/spriteLibraryStore';
@@ -19,12 +17,10 @@
 
   // State
   let sprites: Uint8Array[] = [];
-  let isLoading = false;
   
-  // Preview State (Initialize with defaults matching backup)
-  let state = {
+  const defaultState = {
     frameGroupIndex: 0,
-    direction: 2, // South
+    direction: 0,
     addon: 0,
     mount: 0,
     frame: 0,
@@ -46,31 +42,63 @@
     layer: 0
   };
 
-  $: isOutfit = details && (details.appearance_type === 2 || $currentCategory === 'Outfits');
-  $: isObject = details && (details.appearance_type === 1 || $currentCategory === 'Objects');
+  // Preview State (Initialize with defaults matching backup)
+  let state = { ...defaultState };
+  let lastDetailsId: number | null = null;
+
+  $: textureCategory =
+    details?.appearance_type === 2
+      ? 'Outfits'
+      : details?.appearance_type === 1
+        ? 'Objects'
+        : ($currentCategory === 'Outfits' || $currentCategory === 'Objects')
+          ? $currentCategory
+          : 'Other';
+
+  $: isOutfit = textureCategory === 'Outfits';
+  $: isUnsupported = textureCategory === 'Other';
+  $: activeTextureCategory = isOutfit
+    ? 'Outfits'
+    : textureCategory === 'Objects'
+      ? 'Objects'
+      : null;
   
   // Computed helpers
   $: currentFrameGroup = details && details.frame_groups ? details.frame_groups[state.frameGroupIndex] : undefined;
   $: spriteInfo = currentFrameGroup?.sprite_info;
 
-  // Load sprites when details change
-  $: if (details) {
+  // Reset state and load sprites when details change
+  $: if (details && details.id !== lastDetailsId) {
+    lastDetailsId = details.id;
+    state = { ...defaultState };
     loadSprites();
   }
 
   async function loadSprites() {
-    if (!details) return;
-    isLoading = true;
+    if (!details || !activeTextureCategory) return;
     try {
-      sprites = await getAppearanceSprites($currentCategory, details.id);
+      sprites = await getAppearanceSprites(activeTextureCategory, details.id);
     } catch (err) {
       console.error('Failed to load sprites for texture editor:', err);
-    } finally {
-      isLoading = false;
     }
   }
 
   function handleStateChange(newState: any) {
+    if (newState.frameGroupIndex !== undefined && newState.frameGroupIndex !== state.frameGroupIndex) {
+      state = {
+        ...state,
+        frameGroupIndex: newState.frameGroupIndex,
+        direction: 0,
+        addon: 0,
+        mount: 0,
+        frame: 0,
+        patternX: 0,
+        patternY: 0,
+        patternZ: 0,
+        layer: 0
+      };
+      return;
+    }
     state = { ...state, ...newState };
   }
 
@@ -80,125 +108,163 @@
 
   // --- Sprite Operations ---
 
-  async function handleReorder(event: CustomEvent<{ from: number, to: number }>) {
-    // Reusing logic similar to backup's reorderSpriteIds
-    // Backup logic: Remove from old index, Insert at new index, call replace_appearance_sprites with new mapping
-    // But backend might support 'update_appearance_sprite_ids' directly?
-    // The previously viewed TextureEditor used 'update_appearance_sprite_ids'.
-    // Let's try that first as it is cleaner.
-    
+  async function handleReorder(event: CustomEvent<{ newOrder: number[] }>) {
+    const category = activeTextureCategory;
+    if (!category) return;
     if (!spriteInfo || !spriteInfo.sprite_ids) return;
-    const { from, to } = event.detail;
-    
-    const ids = [...spriteInfo.sprite_ids];
-    const [removed] = ids.splice(from, 1);
-    ids.splice(to, 0, removed);
-    
-    // Optimistic update
-    spriteInfo.sprite_ids = ids;
-    if (details.frame_groups[state.frameGroupIndex]) {
-        details.frame_groups[state.frameGroupIndex].sprite_info = spriteInfo;
-    }
-    
-    try {
-      await invoke('update_appearance_sprite_ids', { 
-        category: $currentCategory, 
-        id: details.id, 
-        frameGroupIndex: state.frameGroupIndex,
-        spriteIds: ids
-      });
-      document.dispatchEvent(new CustomEvent('texture-settings-saved', { detail: { category: $currentCategory, id: details.id } }));
-      loadSprites(); 
-    } catch (err) {
-      console.error('Failed to reorder sprites:', err);
-      showStatus('Failed to reorder', 'error');
-      loadSprites(); // Revert
-    }
-  }
+    const { newOrder } = event.detail;
+    if (!Array.isArray(newOrder) || newOrder.length === 0) return;
 
-  async function handleRemove(event: CustomEvent<{ index: number }>) {
-    if (!spriteInfo || !spriteInfo.sprite_ids) return;
-    const { index } = event.detail;
+    const ids = spriteInfo.sprite_ids.slice();
+    const reordered = newOrder.map(index => ids[index]).filter(id => typeof id === 'number') as number[];
+    if (reordered.length !== ids.length) return;
+
+    const updates = reordered.map((spriteId, index) => ({
+      index,
+      sprite_id: spriteId
+    }));
 
     try {
-      await invoke('remove_appearance_sprites', { 
-        category: $currentCategory, 
-        id: details.id, 
+      await invoke('replace_appearance_sprites', {
+        category,
+        id: details.id,
         update: {
-            frame_group_index: state.frameGroupIndex,
-            indices: [index]
+          frame_group_index: state.frameGroupIndex,
+          updates
         }
       });
       await invoke('save_appearances_file');
-      
-      // Update local state
-      spriteInfo.sprite_ids.splice(index, 1);
+      spriteInfo.sprite_ids = reordered;
       if (details.frame_groups[state.frameGroupIndex]) {
-         details.frame_groups[state.frameGroupIndex].sprite_info = spriteInfo;
+        details.frame_groups[state.frameGroupIndex].sprite_info = spriteInfo;
       }
-      
+      loadSprites();
+      showStatus(translate('status.spriteReplaced'), 'success');
+    } catch (err) {
+      console.error('Failed to reorder sprites:', err);
+      showStatus(translate('status.spriteReplaceFailed'), 'error');
+    }
+  }
+
+  async function handleRemove(event: CustomEvent<{ indices: number[] }>) {
+    const category = activeTextureCategory;
+    if (!category) return;
+    if (!spriteInfo || !spriteInfo.sprite_ids) return;
+    const indices = Array.from(new Set(event.detail.indices || []))
+      .filter(index => Number.isInteger(index))
+      .sort((a, b) => a - b);
+    if (indices.length === 0) return;
+
+    try {
+      await invoke('remove_appearance_sprites', {
+        category,
+        id: details.id,
+        update: {
+          frame_group_index: state.frameGroupIndex,
+          indices
+        }
+      });
+      await invoke('save_appearances_file');
+
+      indices.slice().sort((a, b) => b - a).forEach((index) => {
+        spriteInfo.sprite_ids?.splice(index, 1);
+      });
+      if (details.frame_groups[state.frameGroupIndex]) {
+        details.frame_groups[state.frameGroupIndex].sprite_info = spriteInfo;
+      }
+
       loadSprites();
       showStatus(translate('status.spriteRemoved'), 'success');
     } catch (err) {
       console.error('Failed to remove sprite:', err);
-      showStatus('Failed to remove sprite', 'error');
+      showStatus(translate('status.spriteRemoveFailed'), 'error');
     }
   }
 
   async function handleReplace(event: CustomEvent<{ index: number, spriteIds: number[] }>) {
-      const { index, spriteIds } = event.detail;
-      if (!spriteIds || spriteIds.length === 0) return;
+    const category = activeTextureCategory;
+    if (!category) return;
+    if (!spriteInfo || !spriteInfo.sprite_ids) return;
+    const { index, spriteIds } = event.detail;
+    if (!spriteIds || spriteIds.length === 0) return;
 
-      try {
-          const updates = spriteIds.map((id, i) => ({
-              index: index + i,
-              sprite_id: id
-          }));
+    const updates: Array<{ index: number; sprite_id: number }> = [];
+    const appendIds: number[] = [];
 
-          await invoke('replace_appearance_sprites', {
-              category: $currentCategory,
-              id: details.id,
-              update: {
-                  frame_group_index: state.frameGroupIndex,
-                  updates: updates
-              }
-          });
-          
-          await invoke('save_appearances_file');
-          loadSprites();
-          showStatus(translate('status.spriteReplaced'), 'success');
-      } catch (err) {
-          console.error('Failed to replace sprites:', err);
-          showStatus('Failed to replace sprites', 'error');
+    spriteIds.forEach((spriteId, offset) => {
+      const targetIndex = index + offset;
+      if (targetIndex < spriteInfo.sprite_ids.length) {
+        updates.push({ index: targetIndex, sprite_id: spriteId });
+      } else {
+        appendIds.push(spriteId);
       }
+    });
+
+    try {
+      if (updates.length > 0) {
+        await invoke('replace_appearance_sprites', {
+          category,
+          id: details.id,
+          update: {
+            frame_group_index: state.frameGroupIndex,
+            updates
+          }
+        });
+        updates.forEach((update) => {
+          if (spriteInfo.sprite_ids && update.index < spriteInfo.sprite_ids.length) {
+            spriteInfo.sprite_ids[update.index] = update.sprite_id;
+          }
+        });
+      }
+
+      if (appendIds.length > 0) {
+        await invoke('append_appearance_sprites', {
+          category,
+          id: details.id,
+          update: {
+            frame_group_index: state.frameGroupIndex,
+            sprite_ids: appendIds
+          }
+        });
+        spriteInfo.sprite_ids.push(...appendIds);
+      }
+
+      if (updates.length > 0 || appendIds.length > 0) {
+        await invoke('save_appearances_file');
+        loadSprites();
+        showStatus(translate('status.spriteReplaced'), 'success');
+      }
+    } catch (err) {
+      console.error('Failed to replace sprites:', err);
+      showStatus(translate('status.spriteReplaceFailed'), 'error');
+    }
   }
 
   async function handleAppend(event: CustomEvent<{ spriteIds: number[] }>) {
-      const { spriteIds } = event.detail;
-      if (!spriteIds || spriteIds.length === 0) return;
+    const category = activeTextureCategory;
+    if (!category) return;
+    const { spriteIds } = event.detail;
+    if (!spriteIds || spriteIds.length === 0) return;
+    if (!spriteInfo || !spriteInfo.sprite_ids) return;
 
-      try {
-          await invoke('append_appearance_sprites', {
-              category: $currentCategory,
-              id: details.id,
-              update: {
-                  frame_group_index: state.frameGroupIndex,
-                  sprite_ids: spriteIds
-              }
-          });
-          await invoke('save_appearances_file');
-          
-          // Update local
-          if (spriteInfo && spriteInfo.sprite_ids) {
-             spriteInfo.sprite_ids.push(...spriteIds);
-          }
-          
-          loadSprites();
-          showStatus(translate('status.spriteReplaced'), 'success');
-      } catch (err) {
-          console.error('Failed to append sprites:', err);
-          showStatus('Failed to append sprites', 'error');
-      }
+    try {
+      await invoke('append_appearance_sprites', {
+        category,
+        id: details.id,
+        update: {
+          frame_group_index: state.frameGroupIndex,
+          sprite_ids: spriteIds
+        }
+      });
+      await invoke('save_appearances_file');
+
+      spriteInfo.sprite_ids.push(...spriteIds);
+      loadSprites();
+      showStatus(translate('status.spriteReplaced'), 'success');
+    } catch (err) {
+      console.error('Failed to append sprites:', err);
+      showStatus(translate('status.spriteReplaceFailed'), 'error');
+    }
   }
 
   // Handle updates from Settings Form (bounding boxes, animation, properties)
@@ -254,10 +320,12 @@
   async function handleSaveSettings() {
       const update = collectTextureUpdatePayload();
       if (!update) return;
+      const category = activeTextureCategory;
+      if (!category) return;
 
       try {
           await invoke('update_appearance_texture_settings', {
-              category: $currentCategory,
+              category,
               id: details.id,
               update: update
           });
@@ -265,7 +333,7 @@
           await invoke('save_appearances_file');
           showStatus(translate('status.textureSaved'), 'success');
           document.dispatchEvent(new CustomEvent('texture-settings-saved', {
-            detail: { category: $currentCategory, id: details.id }
+            detail: { category, id: details.id }
           }));
           loadSprites(); 
       } catch (err) {
@@ -276,91 +344,54 @@
 
 </script>
 
-<div class="texture-layout">
-  {#if isLoading}
-    <div class="loading-overlay">Loading...</div>
-  {/if}
+{#if isUnsupported}
+  <div class="texture-empty-state">
+    <p>{translate('texture.emptyState.unsupported')}</p>
+  </div>
+{:else}
+  <div class="texture-layout">
+    <div class="texture-preview-column">
+      <TexturePreview 
+        {details} 
+        {sprites} 
+        {state} 
+        {spriteInfo}
+        {isOutfit}
+        on:dropSprites={handleAppend}
+        on:stateChange={(e) => handleStateChange(e.detail)}
+      />
+      
+      <TextureControls 
+        {state} 
+        {spriteInfo} 
+        {isOutfit}
+        {details}
+        on:change={(e) => handleStateChange(e.detail)}
+      />
 
-  <div class="texture-preview-column">
-    <TexturePreview 
-      {details} 
-      {sprites} 
-      {state} 
-      {spriteInfo}
-      {isOutfit}
-      on:dropSprites={handleAppend}
-      on:stateChange={(e) => handleStateChange(e.detail)}
-    />
-    
-    <TextureControls 
-      {state} 
-      {spriteInfo} 
-      {isOutfit}
-      {details}
-      on:change={(e) => handleStateChange(e.detail)}
-    />
+      <TextureSpriteList 
+        {sprites} 
+        {details}
+        frameGroupIndex={state.frameGroupIndex}
+        on:reorder={handleReorder}
+        on:remove={handleRemove}
+        on:replace={handleReplace}
+        on:append={handleAppend}
+        on:add={openSpriteLibrary}
+      />
 
-
-    <!-- Sprite List (Moved to Left Column to match backup) -->
-     <div class="texture-sprite-settings-wrapper">
-        <div class="texture-library-trigger-row" style="margin-bottom: 8px;">
-            <button class="sprite-library-trigger" on:click={openSpriteLibrary} style="width: 100%; justify-content: center;">
-                <span>🔍</span> {translate('texture.library.title')}
-            </button>
-        </div>
-        
-        <TextureSpriteList 
-          {sprites} 
-          {details}
-          {state}
-          frameGroupIndex={state.frameGroupIndex}
-          on:reorder={handleReorder}
-          on:remove={handleRemove}
-          on:replace={handleReplace}
-          on:append={handleAppend}
-          on:add={() => openSpriteLibrary()} 
-        />
+      <TextureBoundingBox 
+        {spriteInfo}
+        on:change={handleSettingsChange}
+      />
     </div>
 
-    <!-- Bounding Boxes (Moved to Left Column to match backup) -->
-    <TextureBoundingBox 
-      {spriteInfo}
-      on:change={handleSettingsChange}
-    />
+    <div class="texture-settings-column">
+      <TextureSettings 
+        {spriteInfo}
+        on:change={handleSettingsChange}
+        on:save={handleSaveSettings}
+      />
+    </div>
   </div>
-
-  <div class="texture-settings-column">
-    <TextureSettings 
-      {details} 
-      {state}
-      {spriteInfo}
-      on:change={handleSettingsChange}
-      on:save={handleSaveSettings}
-    />
-  </div>
-</div>
-
-<SpriteLibraryDrawer />
-
-<style>
-  .loading-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0,0,0,0.7);
-    color: white;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 100;
-    border-radius: 12px;
-  }
-  
-  .texture-library-trigger-row {
-      margin-bottom: 12px;
-  }
-  
-  /* Ensure layout doesn't break */
-  .texture-layout {
-      position: relative;
-  }
-</style>
+{/if}
