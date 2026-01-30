@@ -1,5 +1,6 @@
 <script lang="ts">
   import { selectedAsset, isDetailsModalOpen, activeTab, closeAssetDetails, openAssetDetails } from '../../stores/selectionStore';
+  import { spriteLibraryStore } from '../../stores/spriteLibraryStore';
   import { currentCategory, assets } from '../../stores/assetsStore';
   import { translate } from '../../i18n';
   import { loadDetailSprites } from '../../utils/spriteLoading';
@@ -21,6 +22,7 @@
 
   function handleClose() {
     closeAssetDetails();
+    spriteLibraryStore.close();
   }
 
   function handlePrev() {
@@ -64,6 +66,16 @@
   // Reset fetched ID when modal closes to ensure we refetch if needed
   $: if (!$isDetailsModalOpen || !$selectedAsset) {
       lastFetchedId = -1;
+  }
+
+  $: {
+    if (typeof document !== 'undefined') {
+      document.body.classList.toggle('modal-open', $isDetailsModalOpen);
+    }
+  }
+
+  $: if (!$isDetailsModalOpen) {
+    spriteLibraryStore.close();
   }
 
   async function ensureCompleteDetails(assetId: number, category: string) {
@@ -258,7 +270,7 @@
   <div id="asset-details" class="asset-details-modal" role="dialog" aria-modal="true" style="display: flex;">
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div class="modal-backdrop" on:click={handleClose}></div>
+    <div class="modal-backdrop"></div>
     <div class="modal-content">
       <div class="modal-header">
         <div class="modal-tabs">
