@@ -1,13 +1,15 @@
 <script lang="ts">
   import type { CompleteAppearanceItem } from '../../../types';
   import { currentCategory } from '../../../stores/assetsStore';
-  import { getAppearanceSprites } from '../../../spriteCache';
+  import { computeGroupOffsetsFromDetails } from '../../../animation';
+  import { getAppearanceSprites, getSpriteById } from '../../../spriteCache';
   import TexturePreview from './TexturePreview.svelte';
   import TextureControls from './TextureControls.svelte';
   import TextureSpriteList from './TextureSpriteList.svelte';
   import TextureSettings from './TextureSettings.svelte';
   import TextureBoundingBox from './TextureBoundingBox.svelte';
   import { invoke } from '../../../utils/invoke';
+  import { invalidateDetailSpriteCache, loadDetailSprites, refreshAssetPreview } from '../../../utils/spriteLoading';
   import { showStatus } from '../../../utils';
   import { spriteLibraryStore } from '../../../stores/spriteLibraryStore';
   import { translate } from '../../../i18n';
@@ -83,6 +85,33 @@
     }
   }
 
+  function getGroupOffset(): number {
+    if (!details) return 0;
+    const offsets = computeGroupOffsetsFromDetails(details);
+    return offsets[state.frameGroupIndex] ?? 0;
+  }
+
+  async function fetchSpriteBuffers(spriteIds: number[]): Promise<Uint8Array[]> {
+    const buffers = await Promise.all(
+      spriteIds.map(async (spriteId) => {
+        const sprite = await getSpriteById(spriteId);
+        return sprite ?? new Uint8Array();
+      })
+    );
+    return buffers;
+  }
+
+  function refreshDetailPreviews(): void {
+    if (!details || !activeTextureCategory) return;
+    const category = activeTextureCategory;
+    const id = details.id;
+    invalidateDetailSpriteCache(category, id);
+    void refreshAssetPreview(category, id);
+    requestAnimationFrame(() => {
+      loadDetailSprites(category, id, undefined, details);
+    });
+  }
+
   function handleStateChange(newState: any) {
     if (newState.frameGroupIndex !== undefined && newState.frameGroupIndex !== state.frameGroupIndex) {
       state = {
@@ -138,7 +167,15 @@
       if (details.frame_groups[state.frameGroupIndex]) {
         details.frame_groups[state.frameGroupIndex].sprite_info = spriteInfo;
       }
-      loadSprites();
+      const offset = getGroupOffset();
+      const count = spriteInfo.sprite_ids.length;
+      const current = sprites.slice();
+      const groupSprites = current.slice(offset, offset + count);
+      const reorderedSprites = newOrder.map(index => groupSprites[index] ?? new Uint8Array());
+      current.splice(offset, count, ...reorderedSprites);
+      sprites = current;
+      refreshDetailPreviews();
+      void loadSprites();
       showStatus(translate('status.spriteReplaced'), 'success');
     } catch (err) {
       console.error('Failed to reorder sprites:', err);
@@ -173,7 +210,17 @@
         details.frame_groups[state.frameGroupIndex].sprite_info = spriteInfo;
       }
 
-      loadSprites();
+      const offset = getGroupOffset();
+      const current = sprites.slice();
+      indices.slice().sort((a, b) => b - a).forEach((index) => {
+        const target = offset + index;
+        if (target >= 0 && target < current.length) {
+          current.splice(target, 1);
+        }
+      });
+      sprites = current;
+      refreshDetailPreviews();
+      void loadSprites();
       showStatus(translate('status.spriteRemoved'), 'success');
     } catch (err) {
       console.error('Failed to remove sprite:', err);
@@ -188,6 +235,8 @@
     const { index, spriteIds } = event.detail;
     if (!spriteIds || spriteIds.length === 0) return;
 
+    const offset = getGroupOffset();
+    const previousCount = spriteInfo.sprite_ids.length;
     const updates: Array<{ index: number; sprite_id: number }> = [];
     const appendIds: number[] = [];
 
@@ -231,7 +280,32 @@
 
       if (updates.length > 0 || appendIds.length > 0) {
         await invoke('save_appearances_file');
-        loadSprites();
+        
+        // Force reactivity by updating the reference
+        if (details.frame_groups[state.frameGroupIndex]) {
+          details.frame_groups[state.frameGroupIndex].sprite_info = { ...spriteInfo };
+        }
+
+        const current = sprites.slice();
+        if (updates.length > 0) {
+          const buffers = await fetchSpriteBuffers(updates.map(update => update.sprite_id));
+          updates.forEach((update, updateIndex) => {
+            const target = offset + update.index;
+            if (target >= 0 && target < current.length) {
+              current[target] = buffers[updateIndex] ?? new Uint8Array();
+            }
+          });
+        }
+
+        if (appendIds.length > 0) {
+          const buffers = await fetchSpriteBuffers(appendIds);
+          const insertAt = offset + previousCount;
+          current.splice(insertAt, 0, ...buffers);
+        }
+
+        sprites = current;
+        refreshDetailPreviews();
+        void loadSprites();
         showStatus(translate('status.spriteReplaced'), 'success');
       }
     } catch (err) {
@@ -247,6 +321,8 @@
     if (!spriteIds || spriteIds.length === 0) return;
     if (!spriteInfo || !spriteInfo.sprite_ids) return;
 
+    const offset = getGroupOffset();
+    const previousCount = spriteInfo.sprite_ids.length;
     try {
       await invoke('append_appearance_sprites', {
         category,
@@ -258,8 +334,18 @@
       });
       await invoke('save_appearances_file');
 
+      // Update sprite_ids and force reactivity
       spriteInfo.sprite_ids.push(...spriteIds);
-      loadSprites();
+      if (details.frame_groups[state.frameGroupIndex]) {
+        details.frame_groups[state.frameGroupIndex].sprite_info = { ...spriteInfo };
+      }
+
+      const current = sprites.slice();
+      const buffers = await fetchSpriteBuffers(spriteIds);
+      current.splice(offset + previousCount, 0, ...buffers);
+      sprites = current;
+      refreshDetailPreviews();
+      void loadSprites();
       showStatus(translate('status.spriteReplaced'), 'success');
     } catch (err) {
       console.error('Failed to append sprites:', err);
@@ -274,7 +360,7 @@
       // If event.detail contains specific updates, merge them?
       // Actually TextureSettings directly mutates spriteInfo via bindings mostly.
       // But if we need to react:
-      if (event.detail.animation) {
+      if (event.detail?.animation) {
          // handle animation update if special logic needed
       }
   }

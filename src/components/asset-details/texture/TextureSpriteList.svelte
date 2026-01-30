@@ -15,7 +15,7 @@
 
   type SpriteListItem = {
     id: string;
-    spriteData: Uint8Array;
+    spriteData?: Uint8Array;
     spriteId: number;
     localIndex: number;
   };
@@ -31,10 +31,10 @@
   $: groupSprites = sprites.slice(offset, offset + count);
   $: spriteIds = spriteInfo?.sprite_ids ?? [];
 
-  $: spriteItems = groupSprites.map((spriteData, i) => ({
+  $: spriteItems = spriteIds.map((spriteId, i) => ({
     id: `sprite-${frameGroupIndex}-${i}`,
-    spriteData,
-    spriteId: spriteIds[i] ?? 0,
+    spriteData: groupSprites[i],
+    spriteId: spriteId ?? 0,
     localIndex: i
   }));
 

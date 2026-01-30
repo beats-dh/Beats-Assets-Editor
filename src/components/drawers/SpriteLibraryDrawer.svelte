@@ -208,13 +208,13 @@
         </div>
         <button
           type="button"
-          class="icon-btn"
+          class="close-btn"
           id="sprite-library-close"
           aria-label={translate('texture.library.button.close')}
           data-i18n-aria-label="texture.library.button.close"
           on:click={closeDrawer}
         >
-          ?
+          ✕
         </button>
       </div>
 
