@@ -1,0 +1,86 @@
+/* Audio Player Styles */
+.sound-audio-container {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Oculta o container do player quando está vazio para não formar uma barra */
+.sound-audio-container:empty {
+  display: none;
+}
+
+/* No Add Sound modal, fixe o player e evite impactar o layout */
+#add-sound-modal #add-sound-audio-player {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 88px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+#add-sound-modal #add-sound-audio-player .sound-player {
+  pointer-events: auto;
+  height: 32px;
+}
+
+.sound-player {
+  width: 100%;
+  height: 40px;
+  background: var(--tertiary-bg);
+  border: 1px solid var(--border-soft-20);
+  border-radius: var(--radius-md);
+}
+
+.loading-audio {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.audio-error {
+  color: var(--error-color);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+}
+
+.random-sounds-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.random-sound-btn,
+.random-sounds-playall-btn {
+  height: var(--control-height);
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft-20);
+  background: var(--control-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.random-sound-btn:hover,
+.random-sounds-playall-btn:hover {
+  background: var(--tertiary-bg);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+.random-sounds-playall-btn {
+  background: var(--gradient-primary);
+  color: #fff;
+  border-color: var(--border-soft-30);
+}
+
+.random-sounds-playall-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}

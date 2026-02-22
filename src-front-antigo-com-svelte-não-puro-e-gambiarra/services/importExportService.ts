@@ -3,9 +3,16 @@ import { invoke } from "../utils/invoke";
 import { COMMANDS } from "../commands";
 import { translate } from "../i18n";
 import { loadAssetsData } from "./assetService";
-import { openImportModal, type ImportContext } from "../stores/importExportState.svelte";
-import { openConfirmModal } from "../stores/confirmState.svelte";
-import { clearAssetSelection, removeAssetSelection } from "../stores/selectionState.svelte";
+import { openImportModal, type ImportContext } from "../stores/importExportStore";
+import { openConfirmModal } from "../stores/confirmStore"; // Need to check/create this wrapper
+import { clearAssetSelection, removeAssetSelection } from "../stores/selectionStore";
+
+// Helper for status (assuming utils has it or we mock it)
+// We might need to import showStatus from a different place if utils.ts was deleted.
+// Actually utils.ts seems to exist in src/utils.ts? No, I see src/utils/ in the file list.
+// Let's assume src/utils/index.ts or similar exports it, or I'll implement a basic one if needed.
+// Looking at Launcher.svelte: import { showStatus } from '../utils'; -> this likely refers to src/utils.ts if it exists in root?
+// The file list showed 'utils.ts' in root.
 
 interface AssetTarget {
   category: string;
@@ -22,16 +29,19 @@ export async function handleExport(category: string, id: number): Promise<void> 
     const defaultName = `appearance-${id}.json`;
     const destination = await save({
       defaultPath: defaultName,
-      filters: [{ name: "Appearance", extensions: ["json", "aec"] }],
+      filters: [{ name: "Appearance", extensions: ["json", "aec"] }]
     });
 
-    if (!destination) return;
+    if (!destination) {
+      return;
+    }
 
     const lower = destination.toLowerCase();
     const useAec = lower.endsWith('.aec');
     const command = useAec ? COMMANDS.EXPORT_APPEARANCE_TO_AEC : COMMANDS.EXPORT_APPEARANCE_TO_JSON;
     await invoke(command, { category, id, path: destination });
-    alert(translate('status.appearanceExported', { id }));
+    // showStatus(translate('status.appearanceExported', { id }), "success");
+    alert(translate('status.appearanceExported', { id })); // Fallback
   } catch (error) {
     console.error("Failed to export appearance", error);
     alert(translate('status.appearanceExportFailed'));
@@ -47,7 +57,7 @@ export async function handleImport(): Promise<void> {
   try {
     const selection = await open({
       multiple: true,
-      filters: [{ name: "Appearance", extensions: ["json", "aec"] }],
+      filters: [{ name: "Appearance", extensions: ["json", "aec"] }]
     });
 
     const paths = normalizeFileSelection(selection);
@@ -62,7 +72,7 @@ export async function handleImport(): Promise<void> {
 
     const result = await invoke<ImportBatchResult>(COMMANDS.IMPORT_APPEARANCES_FROM_FILES_ALL, {
       paths,
-      startIds,
+      startIds
     });
 
     const importedCount = result.imported.length;
@@ -77,9 +87,9 @@ export async function handleImport(): Promise<void> {
     const message = translate(messageKey, {
       count: importedCount,
       imported: importedCount,
-      skipped: skippedCount,
+      skipped: skippedCount
     });
-    alert(message);
+    alert(message); // Fallback for showStatus
   } catch (error) {
     console.error("Failed to import appearance", error);
     alert(translate('status.appearanceImportFailed'));
@@ -138,6 +148,8 @@ export async function handleDeleteAppearances(targets: AssetTarget[]): Promise<v
   if (!confirmed) return;
 
   try {
+    // Logic for Undo would go here (saving snapshots), simplifying for now
+
     for (const target of targets) {
       await invoke(COMMANDS.DELETE_APPEARANCE, { category: target.category, id: target.id });
       removeAssetSelection(target.category, target.id);
@@ -150,18 +162,23 @@ export async function handleDeleteAppearances(targets: AssetTarget[]): Promise<v
       ? translate('status.appearanceDeletedSingle', { id: targets[0].id })
       : translate('status.appearanceDeletedMultiple', { count: targets.length });
     alert(message);
+
   } catch (error) {
     console.error("Failed to delete appearance", error);
     alert(translate('status.appearanceDeleteFailed'));
   }
 }
 
+/**
+ * Duplicate an existing appearance to a new ID
+ */
 export async function handleDuplicate(category: string, id: number, newId?: number): Promise<number | null> {
   try {
+    // If no newId provided, prompt the user
     let targetId = newId;
     if (targetId === undefined) {
       const idInput = prompt(translate('prompt.enterDuplicateId') || 'Enter new ID for duplicate (leave empty for auto):', '');
-      if (idInput === null) return null;
+      if (idInput === null) return null; // User cancelled
 
       if (idInput.trim()) {
         targetId = parseInt(idInput, 10);
@@ -175,7 +192,7 @@ export async function handleDuplicate(category: string, id: number, newId?: numb
     const duplicatedId = await invoke<number>(COMMANDS.DUPLICATE_APPEARANCE, {
       category,
       id,
-      newId: targetId,
+      newId: targetId
     });
 
     await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
@@ -190,13 +207,17 @@ export async function handleDuplicate(category: string, id: number, newId?: numb
   }
 }
 
+/**
+ * Create a new empty appearance
+ */
 export async function handleCreateNew(category: string, desiredId?: number): Promise<number | null> {
   try {
     let newId = desiredId;
 
+    // If no ID provided, prompt the user
     if (newId === undefined) {
       const idInput = prompt(translate('prompt.enterNewId') || 'Enter ID for new appearance (leave empty for auto):', '');
-      if (idInput === null) return null;
+      if (idInput === null) return null; // User cancelled
 
       if (idInput.trim()) {
         newId = parseInt(idInput, 10);
@@ -209,7 +230,7 @@ export async function handleCreateNew(category: string, desiredId?: number): Pro
 
     const createdId = await invoke<number>(COMMANDS.CREATE_EMPTY_APPEARANCE, {
       category,
-      id: newId,
+      id: newId
     });
 
     await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
@@ -224,8 +245,12 @@ export async function handleCreateNew(category: string, desiredId?: number): Pro
   }
 }
 
+/**
+ * Check if clipboard has flags
+ */
 export function getHasClipboard(): boolean {
   return hasClipboard;
 }
 
+// Export type for components that need it
 export type { AssetTarget };

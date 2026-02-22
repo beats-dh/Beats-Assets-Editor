@@ -1,16 +1,26 @@
+import { get } from 'svelte/store';
 import { invoke } from '../utils/invoke';
 import { COMMANDS } from '../commands';
-import { assetsState } from '../stores/assetsState.svelte';
+import {
+  assets,
+  totalItems,
+  currentPage,
+  pageSize,
+  currentCategory,
+  currentSubcategory,
+  searchQuery,
+  isLoading
+} from '../stores/assetsStore';
 import type { CompleteAppearanceItem } from '../types';
 
 export async function loadAssetsData(append = false) {
-  assetsState.isLoading = true;
+  isLoading.set(true);
 
-  const category = assetsState.currentCategory;
-  const page = assetsState.currentPage;
-  const size = assetsState.pageSize;
-  const search = assetsState.searchQuery;
-  const sub = assetsState.currentSubcategory;
+  const category = get(currentCategory);
+  const page = get(currentPage);
+  const size = get(pageSize);
+  const search = get(searchQuery);
+  const sub = get(currentSubcategory);
 
   try {
     let items: CompleteAppearanceItem[] = [];
@@ -32,25 +42,26 @@ export async function loadAssetsData(append = false) {
         // Default to Sound Effects
         const typeFilter = sub !== 'All' ? sub : null;
         soundItems = await invoke('list_numeric_sound_effects', { page, pageSize: size, soundType: typeFilter });
+        // Note: Count might be inaccurate if filtered, but backend limitation for now
         total = await invoke('get_sound_effect_count');
       }
 
-      // Map to compatible structure
+      // Map to compatible structure for the store
       items = soundItems.map(s => ({
         id: s.id,
         name: s.filename || s.sound_type || `Sound #${s.id}`,
         description: '',
-        flags: {} as any,
+        flags: {} as any // Empty flags
       })) as unknown as CompleteAppearanceItem[];
 
     } else {
       // Standard Appearance Assets
       const response = await invoke<{ total: number; items: CompleteAppearanceItem[] }>(COMMANDS.LIST_APPEARANCES_BY_CATEGORY, {
-        category,
-        page,
+        category: category,
+        page: page,
         pageSize: size,
         search: search || null,
-        subcategory: category === 'Objects' && sub !== 'All' ? sub : null,
+        subcategory: category === 'Objects' && sub !== 'All' ? sub : null
       });
 
       items = response.items;
@@ -58,16 +69,19 @@ export async function loadAssetsData(append = false) {
     }
 
     if (append) {
-      assetsState.assets = [...assetsState.assets, ...items];
+      assets.update(current => [...current, ...items]);
     } else {
-      assetsState.assets = items;
+      assets.set(items);
     }
 
-    assetsState.totalItems = total;
+    totalItems.set(total);
+
+    // Sprite loading is now handled reactively by CategoryView
+    // This avoids race conditions and ensures DOM elements exist before loading
 
   } catch (error) {
     console.error('Error loading assets:', error);
   } finally {
-    assetsState.isLoading = false;
+    isLoading.set(false);
   }
 }
