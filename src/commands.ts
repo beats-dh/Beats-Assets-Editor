@@ -18,7 +18,7 @@ export const COMMANDS = {
   GET_ITEM_SUBCATEGORIES: 'get_item_subcategories',
   GET_COMPLETE_APPEARANCE: 'get_complete_appearance',
   GET_SPECIAL_MEANING_IDS: 'get_special_meaning_ids',
-  
+
   // Appearance Updates
   UPDATE_APPEARANCE_NAME: 'update_appearance_name',
   UPDATE_APPEARANCE_DESCRIPTION: 'update_appearance_description',
@@ -43,12 +43,15 @@ export const COMMANDS = {
   UPDATE_APPEARANCE_PROFICIENCY: 'update_appearance_proficiency',
   UPDATE_APPEARANCE_WEAPON_TYPE: 'update_appearance_weapon_type',
   UPDATE_APPEARANCE_TEXTURE_SETTINGS: 'update_appearance_texture_settings',
-  
+  UPDATE_APPEARANCE_MINIMUM_LEVEL: 'update_appearance_minimum_level',
+  UPDATE_APPEARANCE_RESTRICT_TO_VOCATION: 'update_appearance_restrict_to_vocation',
+  UPDATE_APPEARANCE_NPC_SALE_DATA: 'update_appearance_npc_sale_data',
+
   // Sprite Operations
   REPLACE_APPEARANCE_SPRITES: 'replace_appearance_sprites',
   REMOVE_APPEARANCE_SPRITES: 'remove_appearance_sprites',
   APPEND_APPEARANCE_SPRITES: 'append_appearance_sprites',
-  
+
   // File Operations
   SAVE_APPEARANCES_FILE: 'save_appearances_file',
   EXPORT_APPEARANCE_TO_JSON: 'export_appearance_to_json',
@@ -57,14 +60,14 @@ export const COMMANDS = {
   IMPORT_APPEARANCES_FROM_FILES: 'import_appearances_from_files',
   IMPORT_APPEARANCES_FROM_FILES_ALL: 'import_appearances_from_files_all',
   GET_IMPORT_CONTEXT: 'get_import_context',
-  
+
   // Appearance Management
   DUPLICATE_APPEARANCE: 'duplicate_appearance',
   CREATE_EMPTY_APPEARANCE: 'create_empty_appearance',
   COPY_APPEARANCE_FLAGS: 'copy_appearance_flags',
   PASTE_APPEARANCE_FLAGS: 'paste_appearance_flags',
   DELETE_APPEARANCE: 'delete_appearance',
-  
+
   // Sprites Commands
   LOAD_SPRITES_CATALOG: 'load_sprites_catalog',
   AUTO_LOAD_SPRITES: 'auto_load_sprites',
@@ -75,7 +78,7 @@ export const COMMANDS = {
   GET_SPRITE_CACHE_STATS: 'get_sprite_cache_stats',
   GET_APPEARANCE_SPRITES_BATCH: 'get_appearance_sprites_batch',
   GET_APPEARANCE_PREVIEW_SPRITES_BATCH: 'get_appearance_preview_sprites_batch',
-  
+
   // Sounds Commands
   LOAD_SOUNDS_FILE: 'load_sounds_file',
   GET_SOUNDS_STATS: 'get_sounds_stats',
@@ -108,20 +111,28 @@ export const COMMANDS = {
   ADD_NUMERIC_SOUND_EFFECT: 'add_numeric_sound_effect',
   DELETE_NUMERIC_SOUND_EFFECT: 'delete_numeric_sound_effect',
   IMPORT_AND_ADD_SOUND: 'import_and_add_sound',
-  
+
   // Monsters Commands
   LIST_MONSTER_FILES: 'list_monster_files',
   LOAD_MONSTER_FILE: 'load_monster_file',
   SAVE_MONSTER_FILE: 'save_monster_file',
   RENAME_MONSTER_FILE: 'rename_monster_file',
   LIST_BESTIARY_CLASSES: 'list_bestiary_classes',
-  
+
+  // Npcs Commands
+  LIST_NPC_FILES: 'list_npc_files',
+  LOAD_NPC_FILE: 'load_npc_file',
+  SAVE_NPC_FILE: 'save_npc_file',
+  RENAME_NPC_FILE: 'rename_npc_file',
+
   // Settings Commands
   SET_TIBIA_BASE_PATH: 'set_tibia_base_path',
   GET_TIBIA_BASE_PATH: 'get_tibia_base_path',
   SET_MONSTER_BASE_PATH: 'set_monster_base_path',
   GET_MONSTER_BASE_PATH: 'get_monster_base_path',
-  
+  SET_NPC_BASE_PATH: 'set_npc_base_path',
+  GET_NPC_BASE_PATH: 'get_npc_base_path',
+
   // Cache Management Commands
   GET_CACHE_STATISTICS: 'get_cache_statistics',
   CLEAR_ALL_CACHES: 'clear_all_caches',
@@ -140,30 +151,30 @@ export const SELECTORS = {
   DETAILS_CONTENT: '#details-content',
   EDIT_CONTENT: '#edit-content',
   TEXTURE_CONTENT: '#texture-content',
-  
+
   // Search and filters
   ASSET_SEARCH: '#asset-search',
   CLEAR_SEARCH: '#clear-search',
   SEARCH_BTN: '#search-btn',
   SUBCATEGORY_SELECT: '#subcategory-select',
   SUBCATEGORY_CONTAINER: '#subcategory-container',
-  
+
   // Pagination
   RESULTS_COUNT: '#results-count',
   PAGE_INFO: '#page-info',
   PREV_PAGE: '#prev-page',
   NEXT_PAGE: '#next-page',
   PAGE_SIZE: '#page-size',
-  
+
   // Navigation
   PREV_ASSET: '#prev-asset',
   NEXT_ASSET: '#next-asset',
-  
+
   // Tabs
   TAB_DETAILS: '#tab-details',
   TAB_EDIT: '#tab-edit',
   TAB_TEXTURE: '#tab-texture',
-  
+
   // Settings
   SETTINGS_BTN: '#settings-btn',
   SETTINGS_MENU: '#settings-menu',
@@ -172,7 +183,7 @@ export const SELECTORS = {
   CLEAR_CACHE_BTN: '#clear-cache-btn',
   REFRESH_BTN: '#refresh-btn',
   HOME_BTN: '#home-btn',
-  
+
   // UI elements
   LOADING_SCREEN: '#loading-screen',
   MAIN_APP: '#main-app',
@@ -190,25 +201,25 @@ export const CONSTANTS = {
   LANGUAGE_STORAGE_KEY: 'languagePreference',
   AUTO_ANIMATE_KEY: 'autoAnimateGridEnabled',
   STORAGE_VERSION_KEY: 'storageVersion',
-  
+
   // Storage version
   STORAGE_VERSION: '1.0',
-  
+
   // Cache limits
   MAX_SPRITE_CACHE_SIZE: 1000,
   MAX_PREVIEW_CACHE_SIZE: 500,
   MAX_QUERY_CACHE_SIZE: 100,
-  
+
   // Rendering
   INITIAL_SPRITE_RENDER_COUNT: 48,
   SPRITE_RENDER_CHUNK: 24,
   PREVIEW_BATCH_SIZE: 12,
   ANIMATION_BATCH_SIZE: 24,
-  
+
   // Timing
   SEARCH_DEBOUNCE_MS: 300,
   IDLE_CALLBACK_TIMEOUT: 300,
-  
+
   // Defaults
   DEFAULT_PAGE_SIZE: 100,
   DEFAULT_THEME: 'default',

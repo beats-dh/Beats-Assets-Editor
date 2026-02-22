@@ -53,6 +53,9 @@ pub fn run() {
             features::appearances::commands::update_appearance_proficiency,
             features::appearances::commands::update_appearance_transparency_level,
             features::appearances::commands::update_appearance_weapon_type,
+            features::appearances::commands::update_appearance_minimum_level,
+            features::appearances::commands::update_appearance_restrict_to_vocation,
+            features::appearances::commands::update_appearance_npc_sale_data,
             features::appearances::commands::update_appearance_texture_settings,
             features::appearances::commands::replace_appearance_sprites,
             features::appearances::commands::remove_appearance_sprites,
@@ -118,11 +121,18 @@ pub fn run() {
             features::monsters::commands::save_monster_file,
             features::monsters::commands::rename_monster_file,
             features::monsters::commands::list_bestiary_classes,
+            // Npcs API
+            features::npcs::commands::list_npc_files,
+            features::npcs::commands::load_npc_file,
+            features::npcs::commands::save_npc_file,
+            features::npcs::commands::rename_npc_file,
             // Settings API
             features::settings::set_tibia_base_path,
             features::settings::get_tibia_base_path,
             features::settings::set_monster_base_path,
             features::settings::get_monster_base_path,
+            features::settings::set_npc_base_path,
+            features::settings::get_npc_base_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

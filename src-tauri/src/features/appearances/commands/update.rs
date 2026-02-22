@@ -1327,3 +1327,102 @@ pub async fn update_appearance_write_once(category: AppearanceCategory, id: u32,
 
     Ok(create_appearance_item_response(id, appearance))
 }
+
+#[tauri::command]
+pub async fn update_appearance_minimum_level(category: AppearanceCategory, id: u32, minimum_level: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+    let mut appearances_lock = state.appearances.write();
+
+    let appearances = match &mut *appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category_mut(appearances, &category);
+
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
+
+    let flags = ensure_flags(appearance);
+    flags.minimum_level = minimum_level;
+
+    invalidate_search_cache(&state);
+    Ok(create_appearance_item_response(id, appearance))
+}
+
+#[tauri::command]
+pub async fn update_appearance_restrict_to_vocation(category: AppearanceCategory, id: u32, vocations: Vec<i32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+    let mut appearances_lock = state.appearances.write();
+
+    let appearances = match &mut *appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category_mut(appearances, &category);
+
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
+
+    let flags = ensure_flags(appearance);
+    flags.restrict_to_vocation = vocations;
+
+    invalidate_search_cache(&state);
+    Ok(create_appearance_item_response(id, appearance))
+}
+
+#[derive(serde::Deserialize)]
+pub struct NpcSaleDataInput {
+    pub name: Option<String>,
+    pub location: Option<String>,
+    pub sale_price: Option<u32>,
+    pub buy_price: Option<u32>,
+    pub currency_object_type_id: Option<u32>,
+    pub currency_quest_flag_display_name: Option<String>,
+}
+
+#[tauri::command]
+pub async fn update_appearance_npc_sale_data(category: AppearanceCategory, id: u32, npc_sale_data: Vec<NpcSaleDataInput>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+    let mut appearances_lock = state.appearances.write();
+
+    let appearances = match &mut *appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category_mut(appearances, &category);
+
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
+
+    let flags = ensure_flags(appearance);
+    
+    flags.npcsaledata.clear();
+    for data in npc_sale_data {
+        flags.npcsaledata.push(crate::core::protobuf::AppearanceFlagNpc {
+            name: data.name,
+            location: data.location,
+            sale_price: data.sale_price,
+            buy_price: data.buy_price,
+            currency_object_type_id: data.currency_object_type_id,
+            currency_quest_flag_display_name: data.currency_quest_flag_display_name,
+        });
+    }
+
+    invalidate_search_cache(&state);
+    Ok(create_appearance_item_response(id, appearance))
+}

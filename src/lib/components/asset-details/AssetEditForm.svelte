@@ -1,12 +1,27 @@
 <script lang="ts">
   import type { CompleteAppearanceItem, CompleteFlags } from '../../../types';
   import { spriteLibraryState } from '../../../stores/spriteLibraryState.svelte';
-  interface Props { details: CompleteAppearanceItem; category?: string; onSave: (updated: CompleteAppearanceItem) => void; }
-  let { details, category = '', onSave }: Props = $props();
+  import { onMount, untrack } from 'svelte';
+  
+  interface Props {
+    details: CompleteAppearanceItem;
+    category?: string;
+    onSave?: (updated: CompleteAppearanceItem) => void;
+    bindDetails?: (getEditedData: () => CompleteAppearanceItem) => void;
+  }
+  let { details, category = '', onSave, bindDetails }: Props = $props();
 
   let name = $state(details.name || '');
   let description = $state(details.description || '');
   let flags: any = $state(JSON.parse(JSON.stringify(details.flags || {})));
+
+  $effect(() => {
+    if (bindDetails) {
+       untrack(() => {
+         bindDetails(() => ({ ...details, name, description, flags }));
+       });
+    }
+  });
 
   // Ensure complex flags exist for binding
   if (!flags.light) flags.light = { brightness: 0, color: 0 };
@@ -26,6 +41,9 @@
   if (!flags.skillwheel_gem) flags.skillwheel_gem = { gem_quality_id: 0, vocation_id: 0 };
   if (!flags.imbueable) flags.imbueable = { slot_count: 0 };
   if (!flags.proficiency) flags.proficiency = { proficiency_id: 0 };
+  if (!flags.minimum_level) flags.minimum_level = 0;
+  if (!flags.restrict_to_vocation) flags.restrict_to_vocation = [];
+  if (!flags.npc_sale_data) flags.npc_sale_data = [];
 
   const flagDefs = [
     { key: 'clip', label: 'Clip' }, { key: 'bottom', label: 'Bottom' }, { key: 'top', label: 'Top' },
@@ -58,7 +76,6 @@
   <h4>Editar Item</h4>
   <div class="detail-item"><span class="detail-label">Nome:</span><input type="text" bind:value={name} placeholder="Digite o nome" /></div>
   <div class="detail-item"><span class="detail-label">Descri&ccedil;&atilde;o:</span><textarea rows="3" bind:value={description} placeholder="Digite a descri&ccedil;&atilde;o"></textarea></div>
-  <div class="detail-actions"><button class="btn-primary" onclick={handleSave}>Salvar Altera&ccedil;&otilde;es</button></div>
 </div>
 
 <div class="detail-section">
@@ -115,4 +132,50 @@
 <div class="detail-section"><h4>Proficiency</h4>
   <div class="detail-item"><span class="detail-label">Proficiency ID:</span><div class="number-input"><input type="number" bind:value={flags.proficiency.proficiency_id} /></div></div>
 </div>
-<div class="detail-actions" style="margin-top:2rem;"><button class="btn-primary" onclick={handleSave}>Salvar Altera&ccedil;&otilde;es</button></div>
+
+<div class="detail-section"><h4>Requirements</h4>
+  <div class="detail-item"><span class="detail-label">Minimum Level:</span><div class="number-input"><input type="number" bind:value={flags.minimum_level} /></div></div>
+  <div class="detail-item" style="align-items: flex-start;">
+    <span class="detail-label">Vocations:</span>
+    <div style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
+      {#each [1, 2, 3, 4] as vocName, i}
+        <label style="display: flex; align-items: center; gap: 0.5rem; color: #ccc;">
+          <input type="checkbox" checked={flags.restrict_to_vocation.includes(i + 1)} onchange={(e) => {
+            if (e.target.checked) flags.restrict_to_vocation = [...flags.restrict_to_vocation, i + 1];
+            else flags.restrict_to_vocation = flags.restrict_to_vocation.filter(v => v !== i + 1);
+          }} />
+          Vocação ID {i + 1}
+        </label>
+      {/each}
+      <button class="btn-secondary" style="margin-top: 0.5rem;" onclick={() => {
+        const id = prompt('Digite o ID da vocacao:');
+        if (id && !isNaN(parseInt(id))) {
+           if(!flags.restrict_to_vocation.includes(parseInt(id))) flags.restrict_to_vocation = [...flags.restrict_to_vocation, parseInt(id)];
+        }
+      }}>+ Add Vocation ID</button>
+      {#each flags.restrict_to_vocation.filter(v => v > 4) as extraVoc}
+         <div style="display: flex; align-items: center; justify-content: space-between; background: #222; padding: 0.5rem; border-radius: 4px;">
+            <span>Vocação ID {extraVoc}</span>
+            <button class="btn-secondary" style="padding: 0.2rem 0.5rem;" onclick={() => flags.restrict_to_vocation = flags.restrict_to_vocation.filter(v => v !== extraVoc)}>Remover</button>
+         </div>
+      {/each}
+    </div>
+  </div>
+</div>
+
+<div class="detail-section"><h4>NPC Sale Data</h4>
+  {#each flags.npc_sale_data as npc, index}
+    <div style="background: rgba(0,0,0,0.2); padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+        <strong>NPC #{index + 1}</strong>
+        <button class="btn-secondary" onclick={() => flags.npc_sale_data = flags.npc_sale_data.filter((_, i) => i !== index)}>Remover</button>
+      </div>
+      <div class="detail-item"><span class="detail-label">Name:</span><input type="text" bind:value={npc.name} /></div>
+      <div class="detail-item"><span class="detail-label">Location:</span><input type="text" bind:value={npc.location} /></div>
+      <div class="detail-item"><span class="detail-label">Sale Price:</span><div class="number-input"><input type="number" bind:value={npc.sale_price} /></div></div>
+      <div class="detail-item"><span class="detail-label">Buy Price:</span><div class="number-input"><input type="number" bind:value={npc.buy_price} /></div></div>
+      <div class="detail-item"><span class="detail-label">Currency Object ID:</span><div class="number-input"><input type="number" bind:value={npc.currency_object_type_id} /></div></div>
+    </div>
+  {/each}
+  <button class="btn-secondary" onclick={() => flags.npc_sale_data = [...flags.npc_sale_data, { name: '', location: '', sale_price: 0, buy_price: 0, currency_object_type_id: 0 }]}>+ Adicionar NPC Sale Data</button>
+</div>

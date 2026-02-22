@@ -10,6 +10,7 @@ use tauri::{AppHandle, Manager};
 pub struct AppSettings {
     pub tibia_base_path: Option<String>,
     pub monster_base_path: Option<String>,
+    pub npc_base_path: Option<String>,
 }
 
 fn settings_file_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -62,4 +63,17 @@ pub async fn set_monster_base_path(app: AppHandle, monster_path: String) -> Resu
 pub async fn get_monster_base_path(app: AppHandle) -> Result<Option<String>, String> {
     let settings = read_settings(&app)?;
     Ok(settings.monster_base_path)
+}
+
+#[tauri::command]
+pub async fn set_npc_base_path(app: AppHandle, npc_path: String) -> Result<(), String> {
+    let mut settings = read_settings(&app)?;
+    settings.npc_base_path = Some(npc_path);
+    write_settings(&app, &settings)
+}
+
+#[tauri::command]
+pub async fn get_npc_base_path(app: AppHandle) -> Result<Option<String>, String> {
+    let settings = read_settings(&app)?;
+    Ok(settings.npc_base_path)
 }

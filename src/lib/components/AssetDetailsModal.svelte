@@ -20,6 +20,9 @@
   // Import styles
   import '../../styles/modals.css';
 
+  // Callback referenciado pelo form filho (para pegar as alterações local do componente child Svelte).
+  let getEditedDataFn: (() => CompleteAppearanceItem) | null = null;
+
   function handleClose() {
     closeAssetDetails();
     closeSpriteLibrary();
@@ -110,6 +113,12 @@
     }
   }
 
+  async function triggerSaveFromHeader() {
+    if (!getEditedDataFn) return;
+    const updatedData = getEditedDataFn();
+    await handleSave(updatedData);
+  }
+
   async function handleSave(updated: CompleteAppearanceItem) {
     if (!detailsModal.selectedAsset) return;
     const original = detailsModal.selectedAsset;
@@ -170,6 +179,9 @@
       if (updatedFlags.skillwheel_gem) await invoke('update_appearance_skillwheel_gem', { category, id, gemQualityId: updatedFlags.skillwheel_gem.gem_quality_id, vocationId: updatedFlags.skillwheel_gem.vocation_id });
       if (updatedFlags.imbueable?.slot_count) await invoke('update_appearance_imbueable', { category, id, slotCount: updatedFlags.imbueable.slot_count });
       if (updatedFlags.proficiency?.proficiency_id) await invoke('update_appearance_proficiency', { category, id, proficiencyId: updatedFlags.proficiency.proficiency_id });
+      if (updatedFlags.minimum_level !== undefined) await invoke('update_appearance_minimum_level', { category, id, minimumLevel: updatedFlags.minimum_level });
+      if (updatedFlags.restrict_to_vocation) await invoke('update_appearance_restrict_to_vocation', { category, id, vocations: updatedFlags.restrict_to_vocation });
+      if (updatedFlags.npc_sale_data) await invoke('update_appearance_npc_sale_data', { category, id, npcSaleData: updatedFlags.npc_sale_data });
 
       await invoke('save_appearances_file');
       const newDetails = await invoke('get_complete_appearance', { category, id });
@@ -195,6 +207,11 @@
           <button class="tab-btn" class:active={detailsModal.activeTab === 'texture'} onclick={() => setTab('texture')}>{translate('modal.textureTab')}</button>
         </div>
         <div class="modal-actions">
+          {#if detailsModal.activeTab === 'edit'}
+            <button class="btn-primary" style="margin-right: 1rem; padding: 0.4rem 1rem;" onclick={triggerSaveFromHeader}>
+              Salvar Alterações
+            </button>
+          {/if}
           <div class="modal-nav-controls" role="group">
             <button class="detail-nav-btn" type="button" aria-label="Previous asset" onclick={handlePrev}>◀</button>
             <button class="detail-nav-btn" type="button" aria-label="Next asset" onclick={handleNext}>▶</button>
@@ -221,7 +238,7 @@
             </div>
           {:else if detailsModal.activeTab === 'edit'}
             <div class="tab-content" id="edit-content">
-              <AssetEditForm details={detailsModal.selectedAsset} category={assetsState.currentCategory} onSave={handleSave} />
+              <AssetEditForm details={detailsModal.selectedAsset} category={assetsState.currentCategory} bindDetails={(fn: any) => getEditedDataFn = fn} />
             </div>
           {:else if detailsModal.activeTab === 'texture'}
             <div class="tab-content"><TextureEditor details={detailsModal.selectedAsset} /></div>
