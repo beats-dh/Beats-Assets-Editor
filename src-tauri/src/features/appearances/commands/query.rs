@@ -319,7 +319,6 @@ pub async fn get_appearance_details(category: AppearanceCategory, id: u32, state
         id: appearance.id.unwrap_or(0),
         name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
         description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        appearance_type: None,
         category,
         frame_groups,
         flags: flags_info,
@@ -419,6 +418,7 @@ pub async fn get_item_subcategories() -> Result<Vec<(String, String)>, String> {
         (format!("{:?}", ItemSubcategory::CreatureProducts), ItemSubcategory::CreatureProducts.display_name().to_string()),
         (format!("{:?}", ItemSubcategory::Quiver), ItemSubcategory::Quiver.display_name().to_string()),
         (format!("{:?}", ItemSubcategory::Soulcores), ItemSubcategory::Soulcores.display_name().to_string()),
+        (format!("{:?}", ItemSubcategory::FistWeapons), ItemSubcategory::FistWeapons.display_name().to_string()),
     ];
 
     Ok(subcategories)

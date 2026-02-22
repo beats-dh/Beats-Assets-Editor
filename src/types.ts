@@ -20,7 +20,6 @@ export interface CompleteAppearanceItem {
   description?: string;
   frame_groups: CompleteFrameGroup[];
   flags?: CompleteFlags;
-  sprite_data: string[];
 }
 
 export interface CompleteFrameGroup {
@@ -34,7 +33,6 @@ export interface CompleteSpriteInfo {
   pattern_height?: number;
   pattern_depth?: number;
   layers?: number;
-  pattern_size?: number;
   sprite_ids: number[];
   bounding_square?: number;
   animation?: SpriteAnimation;

@@ -19,7 +19,13 @@
   if (!flags.lenshelp) flags.lenshelp = { id: 0 };
   if (!flags.clothes) flags.clothes = { slot: 0 };
   if (!flags.default_action) flags.default_action = { action: 0 };
-  if (!flags.market) flags.market = { category: 9, trade_as_object_id: 0, show_as_object_id: 0, name: '', restrict_to_vocation: [], minimum_level: 0, vocation: 0 };
+  if (!flags.market) flags.market = { category: 9, trade_as_object_id: 0, show_as_object_id: 0 };
+  if (!flags.changed_to_expire) flags.changed_to_expire = { former_object_typeid: 0 };
+  if (!flags.cyclopedia_item) flags.cyclopedia_item = { cyclopedia_type: 0 };
+  if (!flags.upgrade_classification) flags.upgrade_classification = { upgrade_classification: 0 };
+  if (!flags.skillwheel_gem) flags.skillwheel_gem = { gem_quality_id: 0, vocation_id: 0 };
+  if (!flags.imbueable) flags.imbueable = { slot_count: 0 };
+  if (!flags.proficiency) flags.proficiency = { proficiency_id: 0 };
 
   const flagDefs = [
     { key: 'clip', label: 'Clip' }, { key: 'bottom', label: 'Bottom' }, { key: 'top', label: 'Top' },
@@ -41,7 +47,6 @@
     { key: 'wearout', label: 'Wearout' }, { key: 'clockexpire', label: 'Clockexpire' },
     { key: 'expire', label: 'Expire' }, { key: 'expirestop', label: 'Expirestop' },
     { key: 'deco_item_kit', label: 'Deco Item Kit' }, { key: 'dual_wielding', label: 'Dual Wielding' },
-    { key: 'hook_south', label: 'Hook South' }, { key: 'hook_east', label: 'Hook East' },
   ];
 
   function openSpriteSelector(callback: (id: number) => void) { spriteLibraryState.openSelect(callback); }
@@ -52,8 +57,8 @@
 <div class="detail-section">
   <h4>Editar Item</h4>
   <div class="detail-item"><span class="detail-label">Nome:</span><input type="text" bind:value={name} placeholder="Digite o nome" /></div>
-  <div class="detail-item"><span class="detail-label">Descrição:</span><textarea rows="3" bind:value={description} placeholder="Digite a descrição"></textarea></div>
-  <div class="detail-actions"><button class="btn-primary" onclick={handleSave}>Salvar Alterações</button></div>
+  <div class="detail-item"><span class="detail-label">Descri&ccedil;&atilde;o:</span><textarea rows="3" bind:value={description} placeholder="Digite a descri&ccedil;&atilde;o"></textarea></div>
+  <div class="detail-actions"><button class="btn-primary" onclick={handleSave}>Salvar Altera&ccedil;&otilde;es</button></div>
 </div>
 
 <div class="detail-section">
@@ -86,12 +91,28 @@
 <div class="detail-section"><h4>Clothes</h4><div class="detail-item"><span class="detail-label">Slot:</span><div class="select-input"><select bind:value={flags.clothes.slot}><option value={0}>None</option><option value={1}>Helmet</option><option value={2}>Amulet</option><option value={3}>Backpack</option><option value={4}>Armor</option><option value={5}>Shield</option><option value={6}>Weapon</option><option value={7}>Legs</option><option value={8}>Boots</option><option value={9}>Ring</option><option value={10}>Arrow / Quiver</option></select></div></div></div>
 <div class="detail-section"><h4>Default Action</h4><div class="detail-item"><span class="detail-label">Action:</span><div class="select-input"><select bind:value={flags.default_action.action}><option value={0}>None</option><option value={1}>Look</option><option value={2}>Use</option><option value={3}>Open</option><option value={4}>Autowalk Highlight</option></select></div></div></div>
 <div class="detail-section"><h4>Weapon Type</h4><div class="detail-item"><span class="detail-label">Type:</span><div class="select-input"><select bind:value={flags.weapon_type}><option value={undefined}>—</option><option value={0}>No Weapon</option><option value={1}>Sword</option><option value={2}>Axe</option><option value={3}>Club</option><option value={4}>Fist</option><option value={5}>Bow</option><option value={6}>Crossbow</option><option value={7}>Wand Rod</option><option value={8}>Throw</option></select></div></div></div>
-<div class="detail-section"><h4>Transparency Level</h4><div class="detail-item"><span class="detail-label">Level:</span><div class="number-input"><input type="number" bind:value={flags.transparency_level} /></div></div></div>
 <div class="detail-section"><h4>Market</h4>
   <div class="detail-item"><span class="detail-label">Category:</span><div class="select-input"><select bind:value={flags.market.category}><option value={undefined}>—</option>{#each Array.from({length: 27}, (_, i) => i + 1) as v}<option value={v}>{v}</option>{/each}</select></div></div>
   <div class="detail-item"><span class="detail-label">Trade As Object ID:</span><div class="number-input" style="display:flex;gap:0.5rem;"><input type="number" bind:value={flags.market.trade_as_object_id} /><button type="button" class="btn-secondary" style="padding:0 0.5rem;" onclick={() => openSpriteSelector(id => flags.market.trade_as_object_id = id)}>🔍</button></div></div>
   <div class="detail-item"><span class="detail-label">Show As Object ID:</span><div class="number-input" style="display:flex;gap:0.5rem;"><input type="number" bind:value={flags.market.show_as_object_id} /><button type="button" class="btn-secondary" style="padding:0 0.5rem;" onclick={() => openSpriteSelector(id => flags.market.show_as_object_id = id)}>🔍</button></div></div>
-  <div class="detail-item"><span class="detail-label">Minimum Level:</span><div class="number-input"><input type="number" bind:value={flags.market.minimum_level} /></div></div>
-  <div class="detail-item"><span class="detail-label">Market Name:</span><input type="text" bind:value={flags.market.name} placeholder="ex: Magic Sword" /></div>
 </div>
-<div class="detail-actions" style="margin-top:2rem;"><button class="btn-primary" onclick={handleSave}>Salvar Alterações</button></div>
+<div class="detail-section"><h4>Changed To Expire</h4>
+  <div class="detail-item"><span class="detail-label">Former Object Type ID:</span><div class="number-input"><input type="number" bind:value={flags.changed_to_expire.former_object_typeid} /></div></div>
+</div>
+<div class="detail-section"><h4>Cyclopedia</h4>
+  <div class="detail-item"><span class="detail-label">Cyclopedia Type:</span><div class="number-input"><input type="number" bind:value={flags.cyclopedia_item.cyclopedia_type} /></div></div>
+</div>
+<div class="detail-section"><h4>Upgrade Classification</h4>
+  <div class="detail-item"><span class="detail-label">Classification:</span><div class="number-input"><input type="number" bind:value={flags.upgrade_classification.upgrade_classification} /></div></div>
+</div>
+<div class="detail-section"><h4>Skillwheel Gem</h4>
+  <div class="detail-item"><span class="detail-label">Gem Quality ID:</span><div class="number-input"><input type="number" bind:value={flags.skillwheel_gem.gem_quality_id} /></div></div>
+  <div class="detail-item"><span class="detail-label">Vocation ID:</span><div class="number-input"><input type="number" bind:value={flags.skillwheel_gem.vocation_id} /></div></div>
+</div>
+<div class="detail-section"><h4>Imbueable</h4>
+  <div class="detail-item"><span class="detail-label">Slot Count:</span><div class="number-input"><input type="number" bind:value={flags.imbueable.slot_count} /></div></div>
+</div>
+<div class="detail-section"><h4>Proficiency</h4>
+  <div class="detail-item"><span class="detail-label">Proficiency ID:</span><div class="number-input"><input type="number" bind:value={flags.proficiency.proficiency_id} /></div></div>
+</div>
+<div class="detail-actions" style="margin-top:2rem;"><button class="btn-primary" onclick={handleSave}>Salvar Altera&ccedil;&otilde;es</button></div>

@@ -1,14 +1,3 @@
-export function getAppearanceTypeName(type: number | undefined): string {
-  if (type === undefined || type === null) return 'Unknown';
-  switch (type) {
-    case 1: return 'Object';
-    case 2: return 'Outfit';
-    case 3: return 'Effect';
-    case 4: return 'Missile';
-    default: return `Unknown (${type})`;
-  }
-}
-
 export function getClothesSlotName(slot: number | undefined): string {
   if (slot === undefined || slot === null) return 'None';
   const slots: Record<number, string> = {

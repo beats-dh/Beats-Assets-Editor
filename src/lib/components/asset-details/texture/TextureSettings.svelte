@@ -7,17 +7,15 @@
   function getFrameCount() {
     if (!spriteInfo) return 1;
     if (spriteInfo.animation && spriteInfo.animation.phases.length > 0) return spriteInfo.animation.phases.length;
-    if (spriteInfo.pattern_frames && spriteInfo.pattern_frames > 0) return spriteInfo.pattern_frames;
     return 1;
   }
   function updateFrameCount(count: number) {
     if (!spriteInfo) return;
-    if (!spriteInfo.animation) { spriteInfo.animation = { sprite_id: 0, loop_type: 0, loop_count: 0, default_start_phase: 0, synchronized: false, random_start_phase: false, phases: [] }; }
+    if (!spriteInfo.animation) { spriteInfo.animation = { loop_type: 0, loop_count: 0, synchronized: false, phases: [] }; }
     const currentPhases = spriteInfo.animation.phases || [];
     if (count > currentPhases.length) { spriteInfo.animation.phases = [...currentPhases, ...Array(count - currentPhases.length).fill(null).map(() => ({ duration_min: 100, duration_max: 100 }))]; }
     else if (count < currentPhases.length) { spriteInfo.animation.phases = currentPhases.slice(0, count); }
-    spriteInfo.pattern_frames = count;
-    onChange?.({ animation: spriteInfo.animation, pattern_frames: count });
+    onChange?.({ animation: spriteInfo.animation });
   }
 </script>
 
@@ -29,10 +27,8 @@
     <label><span>{translate('texture.form.patternHeight')}</span><input type="number" id="texture-pattern-height" min="0" bind:value={spriteInfo.pattern_height} /></label>
     <label><span>{translate('texture.form.patternDepth')}</span><input type="number" id="texture-pattern-depth" min="0" bind:value={spriteInfo.pattern_depth} /></label>
     <label><span>{translate('texture.form.layers')}</span><input type="number" id="texture-pattern-layers" min="0" bind:value={spriteInfo.layers} /></label>
-    <label><span>{translate('texture.form.patternFrames')}</span><input type="number" id="texture-pattern-frames" min="0" value={spriteInfo.pattern_frames} oninput={(e) => updateFrameCount(Number((e.target as HTMLInputElement).value))} /></label>
     <label><span>{translate('texture.form.boundingSquare')}</span><input type="number" id="texture-bounding-square" min="0" bind:value={spriteInfo.bounding_square} /></label>
     <label class="texture-checkbox"><input type="checkbox" id="texture-is-opaque" bind:checked={spriteInfo.is_opaque} /><span>{translate('texture.form.isOpaque')}</span></label>
-    <label class="texture-checkbox"><input type="checkbox" id="texture-is-animation" bind:checked={spriteInfo.is_animation} /><span>{translate('texture.form.isAnimation')}</span></label>
   </div>
 </div>
 <div class="texture-form-section">
@@ -40,11 +36,9 @@
   <div class="texture-form-grid texture-animation-grid">
     <label><span>{translate('texture.form.frameCount')}</span><input type="number" id="texture-animation-frame-count" min="0" value={getFrameCount()} oninput={(e) => updateFrameCount(Number((e.target as HTMLInputElement).value))} /></label>
     {#if spriteInfo.animation}
-      <label><span>{translate('texture.form.defaultStartPhase')}</span><input type="number" id="texture-animation-default-phase" min="0" bind:value={spriteInfo.animation.default_start_phase} /></label>
       <label><span>{translate('texture.form.loopType')}</span><input type="number" id="texture-animation-loop-type" bind:value={spriteInfo.animation.loop_type} /></label>
       <label><span>{translate('texture.form.loopCount')}</span><input type="number" id="texture-animation-loop-count" min="0" bind:value={spriteInfo.animation.loop_count} /></label>
       <label class="texture-checkbox"><input type="checkbox" id="texture-animation-synchronized" bind:checked={spriteInfo.animation.synchronized} /><span>{translate('texture.form.synchronized')}</span></label>
-      <label class="texture-checkbox"><input type="checkbox" id="texture-animation-random-start" bind:checked={spriteInfo.animation.random_start_phase} /><span>{translate('texture.form.randomStart')}</span></label>
     {/if}
   </div>
   {#if spriteInfo.animation?.phases}

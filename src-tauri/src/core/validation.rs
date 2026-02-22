@@ -35,7 +35,7 @@ pub fn validate_animation_phases(phase_count: usize, sprite_count: usize) -> App
         return Err(AppError::frame_group_validation("Animation must have at least one phase"));
     }
 
-    if sprite_count % phase_count != 0 {
+    if !sprite_count.is_multiple_of(phase_count) {
         return Err(AppError::frame_group_validation(format!("Sprite count ({}) must be divisible by phase count ({})", sprite_count, phase_count)));
     }
 

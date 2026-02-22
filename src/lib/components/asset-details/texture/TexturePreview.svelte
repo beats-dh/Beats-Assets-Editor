@@ -41,7 +41,7 @@
   function ensureNumber(value: number | undefined | null, fallback = 0): number { return typeof value === 'number' && !Number.isNaN(value) ? value : fallback; }
   function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); }
   function hexToRgb(hex: string) { const s = hex.replace('#', ''); const p = s.length === 3 ? s.split('').map(c => c + c).join('') : s.padEnd(6, '0'); const n = parseInt(p, 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
-  function getFrameCount(info: CompleteSpriteInfo | undefined): number { if (!info) return 1; if (info.animation && info.animation.phases.length > 0) return info.animation.phases.length; if (info.pattern_frames && info.pattern_frames > 0) return info.pattern_frames; return 1; }
+  function getFrameCount(info: CompleteSpriteInfo | undefined): number { if (!info) return 1; if (info.animation && info.animation.phases.length > 0) return info.animation.phases.length; return 1; }
 
   function computePreviewDimensions(baseWidth: number, baseHeight: number, boxes: Array<{ x: number; y: number; width: number; height: number }>, boundingSquare: number | null): { width: number; height: number } {
     let width = baseWidth, height = baseHeight;

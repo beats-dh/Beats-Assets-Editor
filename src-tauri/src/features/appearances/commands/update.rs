@@ -1,6 +1,6 @@
 use super::category_types::{AppearanceCategory, AppearanceItem};
 use super::helpers::{create_appearance_item_response, ensure_flags, get_items_by_category_mut, get_index_for_category, invalidate_search_cache};
-use crate::core::protobuf::{Box as ProtoBoundingBox, SpriteAnimation as ProtoSpriteAnimation, SpriteInfo as ProtoSpriteInfo, SpritePhase as ProtoSpritePhase};
+use crate::core::protobuf::{Box as ProtoBoundingBox, SpriteInfo as ProtoSpriteInfo, SpritePhase as ProtoSpritePhase};
 use crate::state::AppState;
 use serde::Deserialize;
 
@@ -139,12 +139,9 @@ pub struct SpritePhaseInput {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SpriteAnimationInput {
-    pub default_start_phase: Option<u32>,
     pub synchronized: Option<bool>,
-    pub random_start_phase: Option<bool>,
     pub loop_type: Option<i32>,
     pub loop_count: Option<u32>,
-    pub animation_mode: Option<i32>,
     pub phases: Vec<SpritePhaseInput>,
 }
 
@@ -155,15 +152,8 @@ pub struct TextureSettingsUpdate {
     pub pattern_height: Option<Option<u32>>,
     pub pattern_depth: Option<Option<u32>>,
     pub layers: Option<Option<u32>>,
-    pub pattern_size: Option<Option<u32>>,
-    pub pattern_layers: Option<Option<u32>>,
-    pub pattern_x: Option<Option<u32>>,
-    pub pattern_y: Option<Option<u32>>,
-    pub pattern_z: Option<Option<u32>>,
-    pub pattern_frames: Option<Option<u32>>,
     pub bounding_square: Option<Option<u32>>,
     pub is_opaque: Option<Option<bool>>,
-    pub is_animation: Option<Option<bool>>,
     pub bounding_boxes: Option<Vec<BoundingBoxInput>>,
     pub animation: Option<Option<SpriteAnimationInput>>,
 }
@@ -397,9 +387,6 @@ pub async fn update_appearance_name(category: AppearanceCategory, id: u32, new_n
     // Invalidate cache (name changed - affects search!)
     invalidate_search_cache(&state);
 
-    // Invalidate cache (data changed)
-    invalidate_search_cache(&state);
-
     Ok(create_appearance_item_response(id, appearance))
 }
 
@@ -594,10 +581,6 @@ pub async fn update_appearance_market(
     category_value: Option<i32>,
     trade_as_object_id: Option<u32>,
     show_as_object_id: Option<u32>,
-    restrict_to_vocation: Vec<i32>,
-    minimum_level: Option<u32>,
-    name: Option<String>,
-    vocation: Option<i32>,
     state: tauri::State<'_, AppState>,
 ) -> Result<AppearanceItem, String> {
     let mut appearances_lock = state.appearances.write();
@@ -623,10 +606,6 @@ pub async fn update_appearance_market(
     let market = if category_value.is_none()
         && trade_as_object_id.is_none()
         && show_as_object_id.is_none()
-        && restrict_to_vocation.is_empty()
-        && minimum_level.is_none()
-        && name.is_none()
-        && vocation.is_none()
     {
         None
     } else {
@@ -998,7 +977,7 @@ pub async fn update_appearance_description(category: AppearanceCategory, id: u32
 }
 
 fn set_bool_flag(flags: &mut crate::core::protobuf::AppearanceFlags, key: &str, value: bool) -> Result<(), String> {
-    let k = key.to_lowercase().replace('_', "").replace(' ', "");
+    let k = key.to_lowercase().replace(['_', ' '], "");
     match k.as_str() {
         "clip" => {
             flags.clip = Some(value);

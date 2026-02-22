@@ -7,8 +7,6 @@ pub struct CompleteAppearanceItem {
     pub id: u32,
     pub name: Option<String>,
     pub description: Option<String>,
-    #[serde(default)]
-    pub sprite_data: Vec<String>,
     pub frame_groups: Vec<CompleteFrameGroup>,
     pub flags: Option<CompleteFlags>,
 }
@@ -274,7 +272,6 @@ impl CompleteAppearanceItem {
             id: appearance.id.unwrap_or(0),
             name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
             description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-            sprite_data: vec![], // Add an empty array for backward compatibility
             frame_groups: appearance.frame_group.iter().map(CompleteFrameGroup::from_protobuf).collect(),
             flags: appearance.flags.as_ref().map(CompleteFlags::from_protobuf),
         }
@@ -302,7 +299,7 @@ impl CompleteSpriteInfo {
             bounding_square: si.bounding_square,
             animation: si.animation.as_ref().map(|a| SpriteAnimation {
                 synchronized: a.synchronized,
-                loop_type: a.loop_type.map(|mode| mode as i32),
+                loop_type: a.loop_type,
                 loop_count: a.loop_count,
                 phases: a
                     .sprite_phase
@@ -412,7 +409,7 @@ impl CompleteFlags {
                 action: d.action,
             }),
             market: flags.market.as_ref().map(|m| FlagMarket {
-                category: m.category.map(|mode| mode as i32),
+                category: m.category,
                 trade_as_object_id: m.trade_as_object_id,
                 show_as_object_id: m.show_as_object_id,
             }),
@@ -447,9 +444,9 @@ impl CompleteFlags {
             proficiency: flags.proficiency.as_ref().map(|p| FlagProficiency {
                 proficiency_id: p.proficiency_id,
             }),
-            restrict_to_vocation: flags.restrict_to_vocation.iter().map(|v| *v as i32).collect(),
+            restrict_to_vocation: flags.restrict_to_vocation.clone(),
             minimum_level: flags.minimum_level,
-            weapon_type: flags.weapon_type.map(|mode| mode as i32),
+            weapon_type: flags.weapon_type,
         }
     }
 }

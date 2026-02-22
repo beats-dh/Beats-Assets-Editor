@@ -106,14 +106,6 @@ pub fn invalidate_search_cache(state: &AppState) {
     state.search_cache.clear();
 }
 
-/// Convert bytes to String
-/// Eliminates 60+ duplicate conversions
-/// OPTIMIZED: #[inline(always)] for hot path
-#[inline(always)]
-pub fn str_to_string(s: &String) -> String {
-    s.to_string()
-}
-
 /// Ensure appearance has flags initialized, return mutable reference
 /// Eliminates 21+ duplicate flag initialization blocks
 /// OPTIMIZED: #[inline(always)] for hot path

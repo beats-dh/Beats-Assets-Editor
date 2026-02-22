@@ -5,7 +5,7 @@
   let { previewState: ps, spriteInfo, isOutfit, details, onChange }: Props = $props();
 
   const clamp = (value: number, min: number, max: number) => { if (!Number.isFinite(value)) return min; return Math.max(min, Math.min(max, value)); };
-  const getFrameCount = () => { if (!spriteInfo) return 1; if (spriteInfo.animation && spriteInfo.animation.phases.length > 0) return spriteInfo.animation.phases.length; if (spriteInfo.pattern_frames && spriteInfo.pattern_frames > 0) return spriteInfo.pattern_frames; return 1; };
+  const getFrameCount = () => { if (!spriteInfo) return 1; if (spriteInfo.animation && spriteInfo.animation.phases.length > 0) return spriteInfo.animation.phases.length; return 1; };
 
   let frameGroupOptions = $derived(details?.frame_groups ?? []);
   let directionCount = $derived(Math.max(1, spriteInfo?.pattern_width ?? 1));

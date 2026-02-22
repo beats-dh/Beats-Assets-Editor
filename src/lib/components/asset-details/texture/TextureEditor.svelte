@@ -23,7 +23,7 @@
   let state = $state({ ...defaultState });
   let lastDetailsId = $state<number | null>(null);
 
-  let textureCategory = $derived(details?.appearance_type === 2 ? 'Outfits' : details?.appearance_type === 1 ? 'Objects' : (assetsState.currentCategory === 'Outfits' || assetsState.currentCategory === 'Objects') ? assetsState.currentCategory : 'Other');
+  let textureCategory = $derived((assetsState.currentCategory === 'Outfits' || assetsState.currentCategory === 'Objects') ? assetsState.currentCategory : 'Other');
   let isOutfit = $derived(textureCategory === 'Outfits');
   let isUnsupported = $derived(textureCategory === 'Other');
   let activeTextureCategory = $derived(isOutfit ? 'Outfits' : textureCategory === 'Objects' ? 'Objects' : null);
@@ -119,8 +119,8 @@
 
   function collectTextureUpdatePayload() {
     if (!spriteInfo) return null;
-    const payload: any = { frame_group_index: state.frameGroupIndex, pattern_width: Number(spriteInfo.pattern_width || 0), pattern_height: Number(spriteInfo.pattern_height || 0), pattern_depth: Number(spriteInfo.pattern_depth || 0), layers: Number(spriteInfo.layers || 1), pattern_frames: Number(spriteInfo.pattern_frames || 1), bounding_square: Number(spriteInfo.bounding_square || 0), is_opaque: !!spriteInfo.is_opaque, is_animation: !!spriteInfo.is_animation, bounding_boxes: spriteInfo.bounding_boxes || [] };
-    if (spriteInfo.animation) { const a = spriteInfo.animation; payload.animation = { default_start_phase: Number(a.default_start_phase || 0), loop_type: Number(a.loop_type || 0), loop_count: Number(a.loop_count || 0), synchronized: !!a.synchronized, random_start_phase: !!a.random_start_phase, phases: a.phases?.map(p => ({ duration_min: Number(p.duration_min || 100), duration_max: Number(p.duration_max || 100) })) || [] }; }
+    const payload: any = { frame_group_index: state.frameGroupIndex, pattern_width: Number(spriteInfo.pattern_width || 0), pattern_height: Number(spriteInfo.pattern_height || 0), pattern_depth: Number(spriteInfo.pattern_depth || 0), layers: Number(spriteInfo.layers || 1), bounding_square: Number(spriteInfo.bounding_square || 0), is_opaque: !!spriteInfo.is_opaque, bounding_boxes: spriteInfo.bounding_boxes || [] };
+    if (spriteInfo.animation) { const a = spriteInfo.animation; payload.animation = { loop_type: Number(a.loop_type || 0), loop_count: Number(a.loop_count || 0), synchronized: !!a.synchronized, phases: a.phases?.map(p => ({ duration_min: Number(p.duration_min || 100), duration_max: Number(p.duration_max || 100) })) || [] }; }
     else payload.animation = null;
     return payload;
   }

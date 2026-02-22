@@ -135,7 +135,7 @@
         'fullbank', 'ignore_look', 'wrap', 'unwrap', 'topeffect', 'corpse', 'player_corpse',
         'ammo', 'show_off_socket', 'reportable', 'reverse_addons_east', 'reverse_addons_west',
         'reverse_addons_south', 'reverse_addons_north', 'wearout', 'clockexpire', 'expire',
-        'expirestop', 'deco_item_kit', 'dual_wielding', 'hook_south', 'hook_east',
+        'expirestop', 'deco_item_kit', 'dual_wielding',
       ];
       for (const key of boolFlags) {
         const oldVal = getBool(originalFlags, key);
@@ -157,15 +157,19 @@
       if (updatedFlags.clothes) await invoke('update_appearance_clothes', { category, id, slot: updatedFlags.clothes.slot });
       if (updatedFlags.default_action) await invoke('update_appearance_default_action', { category, id, action: updatedFlags.default_action.action });
       if (updatedFlags.weapon_type !== undefined) await invoke('update_appearance_weapon_type', { category, id, weaponType: updatedFlags.weapon_type });
-      if (updatedFlags.transparency_level !== undefined) await invoke('update_appearance_transparency_level', { category, id, transparencyLevel: updatedFlags.transparency_level });
       if (updatedFlags.market) {
         const m = updatedFlags.market;
         await invoke('update_appearance_market', {
           category, id, categoryValue: m.category, tradeAsObjectId: m.trade_as_object_id,
-          showAsObjectId: m.show_as_object_id, restrictToVocation: m.restrict_to_vocation || [],
-          minimumLevel: m.minimum_level, name: m.name, vocation: m.vocation,
+          showAsObjectId: m.show_as_object_id,
         });
       }
+      if (updatedFlags.changed_to_expire?.former_object_typeid) await invoke('update_appearance_changed_to_expire', { category, id, formerObjectTypeid: updatedFlags.changed_to_expire.former_object_typeid });
+      if (updatedFlags.cyclopedia_item?.cyclopedia_type) await invoke('update_appearance_cyclopedia_item', { category, id, cyclopediaType: updatedFlags.cyclopedia_item.cyclopedia_type });
+      if (updatedFlags.upgrade_classification?.upgrade_classification) await invoke('update_appearance_upgrade_classification', { category, id, upgradeClassification: updatedFlags.upgrade_classification.upgrade_classification });
+      if (updatedFlags.skillwheel_gem) await invoke('update_appearance_skillwheel_gem', { category, id, gemQualityId: updatedFlags.skillwheel_gem.gem_quality_id, vocationId: updatedFlags.skillwheel_gem.vocation_id });
+      if (updatedFlags.imbueable?.slot_count) await invoke('update_appearance_imbueable', { category, id, slotCount: updatedFlags.imbueable.slot_count });
+      if (updatedFlags.proficiency?.proficiency_id) await invoke('update_appearance_proficiency', { category, id, proficiencyId: updatedFlags.proficiency.proficiency_id });
 
       await invoke('save_appearances_file');
       const newDetails = await invoke('get_complete_appearance', { category, id });

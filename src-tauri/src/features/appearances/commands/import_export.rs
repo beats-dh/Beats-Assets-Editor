@@ -463,10 +463,9 @@ pub async fn create_empty_appearance(
     let mut appearances_lock = state.appearances.write();
     let appearances = appearances_lock.as_mut().ok_or_else(|| "No appearances loaded".to_string())?;
 
-    let index_map = get_index_for_category(&state, &category);
     let items = get_items_by_category(appearances, &category);
 
-    let mut candidate = new_id.unwrap_or_else(|| find_next_available_id(items));
+    let candidate = new_id.unwrap_or_else(|| find_next_available_id(items));
     let mut appearance = Appearance::default();
     appearance.id = Some(candidate);
     let name = name.map(|s| s.into_bytes());
@@ -845,15 +844,6 @@ fn parse_aec_container(path: &str) -> Result<Appearances, String> {
     Appearances::decode(bytes.as_slice()).map_err(|e| format!("Failed to decode AEC: {}", e))
 }
 
-fn category_from_appearance_type(appearance_type: Option<i32>) -> AppearanceCategory {
-    match appearance_type {
-        Some(2) => AppearanceCategory::Outfits,
-        Some(3) => AppearanceCategory::Effects,
-        Some(4) => AppearanceCategory::Missiles,
-        _ => AppearanceCategory::Objects,
-    }
-}
-
 fn max_id(items: &[Appearance]) -> u32 {
     items.iter().map(|appearance| appearance.id.unwrap_or(0)).max().unwrap_or(0)
 }
@@ -905,15 +895,9 @@ fn detect_import_presence(paths: &[String]) -> Result<ImportPresence, String> {
             }
         } else {
             let content = read_text_file(path)?;
-            let imported: CompleteAppearanceItem = serde_json::from_str(&content).map_err(|e| format!("Failed to parse appearance JSON: {}", e))?;
-            // Try to figure out the category from the protobuf data first
-            let category = AppearanceCategory::Objects;
-            match category {
-                AppearanceCategory::Objects => presence.objects = true,
-                AppearanceCategory::Outfits => presence.outfits = true,
-                AppearanceCategory::Effects => presence.effects = true,
-                AppearanceCategory::Missiles => presence.missiles = true,
-            }
+            let _imported: CompleteAppearanceItem = serde_json::from_str(&content).map_err(|e| format!("Failed to parse appearance JSON: {}", e))?;
+            // JSON imports default to Objects category
+            presence.objects = true;
         }
     }
 

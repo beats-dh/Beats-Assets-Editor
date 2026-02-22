@@ -193,7 +193,7 @@
 
   function hasAnimatedSprite(spriteInfo: CompleteSpriteInfo | undefined): boolean {
       if (!spriteInfo) return false;
-      const phaseCount = spriteInfo.animation?.phases?.length ?? spriteInfo.pattern_frames ?? 1;
+      const phaseCount = spriteInfo.animation?.phases?.length ?? 1;
       return phaseCount > 1;
   }
 
@@ -224,7 +224,7 @@
       const spritesPerFrame = Math.max(1, layers * pw * ph * pd);
       const totalSprites = spriteInfo.sprite_ids?.length ?? spritesPerFrame;
       const inferredFrames = Math.max(1, Math.floor(totalSprites / spritesPerFrame));
-      const metadataFrames = spriteInfo.animation?.phases?.length ?? spriteInfo.pattern_frames ?? inferredFrames;
+      const metadataFrames = spriteInfo.animation?.phases?.length ?? inferredFrames;
       return Math.max(1, metadataFrames, inferredFrames);
   }
 

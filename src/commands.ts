@@ -41,7 +41,6 @@ export const COMMANDS = {
   UPDATE_APPEARANCE_SKILLWHEEL_GEM: 'update_appearance_skillwheel_gem',
   UPDATE_APPEARANCE_IMBUEABLE: 'update_appearance_imbueable',
   UPDATE_APPEARANCE_PROFICIENCY: 'update_appearance_proficiency',
-  UPDATE_APPEARANCE_TRANSPARENCY_LEVEL: 'update_appearance_transparency_level',
   UPDATE_APPEARANCE_WEAPON_TYPE: 'update_appearance_weapon_type',
   UPDATE_APPEARANCE_TEXTURE_SETTINGS: 'update_appearance_texture_settings',
   

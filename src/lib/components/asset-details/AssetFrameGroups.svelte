@@ -7,10 +7,6 @@
     if (group === undefined || group === null) return 'Unknown';
     switch (group) { case 0: return 'Outfit Idle'; case 1: return 'Outfit Moving'; case 2: return 'Object Initial'; default: return `Unknown (${group})`; }
   }
-  function getAnimationModeName(mode: number | undefined): string {
-    if (mode === undefined || mode === null) return 'Unknown';
-    switch (mode) { case 0: return 'Asynchronized'; case 1: return 'Synchronized'; default: return `Unknown (${mode})`; }
-  }
   function getLoopTypeName(loopType: number): string {
     if (loopType === -1) return 'Pingpong'; if (loopType === 0) return 'Infinito'; if (loopType === 1) return 'Contado'; return `Desconhecido (${loopType})`;
   }
@@ -31,8 +27,7 @@
         {#if spriteInfo.pattern_depth !== undefined}<div class="detail-item"><span class="detail-label">Pattern Depth:</span><span class="detail-value">{spriteInfo.pattern_depth}</span></div>{/if}
         {#if spriteInfo.layers !== undefined}<div class="detail-item"><span class="detail-label">Layers:</span><span class="detail-value">{spriteInfo.layers}</span></div>{/if}
         {#if spriteInfo.bounding_square !== undefined}<div class="detail-item"><span class="detail-label">Bounding Square:</span><span class="detail-value">{spriteInfo.bounding_square}</span></div>{/if}
-        {#if spriteInfo.is_opaque !== undefined}<div class="detail-item"><span class="detail-label">Is Opaque:</span><span class="detail-value">{spriteInfo.is_opaque ? '✅ Yes' : '❌ No'}</span></div>{/if}
-        {#if spriteInfo.is_animation !== undefined}<div class="detail-item"><span class="detail-label">Is Animation:</span><span class="detail-value">{spriteInfo.is_animation ? '✅ Yes' : '❌ No'}</span></div>{/if}
+        {#if spriteInfo.is_opaque !== undefined}<div class="detail-item"><span class="detail-label">Is Opaque:</span><span class="detail-value">{spriteInfo.is_opaque ? 'Yes' : 'No'}</span></div>{/if}
         {#if spriteInfo.sprite_ids && spriteInfo.sprite_ids.length > 0}
           <div class="detail-item-full sprite-ids-section">
             <div class="detail-label">Sprite IDs ({spriteInfo.sprite_ids.length} total):</div>
@@ -57,12 +52,9 @@
             <div class="detail-label">Animation Details:</div>
             <div class="detail-value">
               <div>Phases: {anim.phases.length}</div>
-              {#if anim.default_start_phase !== undefined}<div>Default Start Phase: {anim.default_start_phase}</div>{/if}
-              {#if anim.random_start_phase !== undefined}<div>Random Start Phase: {anim.random_start_phase ? 'Yes' : 'No'}</div>{/if}
               {#if anim.synchronized !== undefined}<div>Synchronized: {anim.synchronized ? 'Yes' : 'No'}</div>{/if}
               {#if anim.loop_type !== undefined}<div>Loop Type: {getLoopTypeName(anim.loop_type)}</div>{/if}
               {#if anim.loop_count !== undefined}<div>Loop Count: {anim.loop_count}</div>{/if}
-              {#if anim.animation_mode !== undefined}<div>Animation Mode: {getAnimationModeName(anim.animation_mode)}</div>{/if}
               <div class="animation-phases">{#each anim.phases as ph, idx}<div class="phase-item"><span class="phase-index">Phase #{idx + 1}</span><span class="phase-duration">{ph.duration_min ?? '—'}-{ph.duration_max ?? '—'} ms</span></div>{/each}</div>
             </div>
           </div>
