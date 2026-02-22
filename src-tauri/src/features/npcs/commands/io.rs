@@ -20,7 +20,7 @@ pub async fn list_npc_files(npcs_path: String) -> Result<Vec<NpcListEntry>, Stri
     list_npcs_recursive(Path::new(&npcs_path), &base_path).map_err(|e| format!("Failed to list npc files: {}", e))
 }
 
-fn list_npcs_recursive(dir: &Path, base: &Path) -> Result<Vec<NpcListEntry>> {
+pub(crate) fn list_npcs_recursive(dir: &Path, base: &Path) -> Result<Vec<NpcListEntry>> {
     let mut npcs = Vec::new();
 
     if !dir.exists() {
@@ -59,7 +59,7 @@ fn list_npcs_recursive(dir: &Path, base: &Path) -> Result<Vec<NpcListEntry>> {
     Ok(npcs)
 }
 
-fn extract_npc_name_quick(content: &str) -> Result<String> {
+pub(crate) fn extract_npc_name_quick(content: &str) -> Result<String> {
     let internal_re = Regex::new(r#"local\s+internalNpcName\s*=\s*"([^"]+)""#)?;
     if let Some(caps) = internal_re.captures(content) {
         return Ok(caps[1].to_string());
@@ -146,7 +146,7 @@ fn slugify_name(name: &str) -> String {
     }
 }
 
-fn generate_lua_from_npc(npc: &Npc) -> Result<String> {
+pub(crate) fn generate_lua_from_npc(npc: &Npc) -> Result<String> {
     let mut lua = String::new();
 
     // Header

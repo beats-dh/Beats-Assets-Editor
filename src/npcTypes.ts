@@ -82,3 +82,21 @@ export interface NpcListEntry {
     relativePath: string;
     categories: string[];
 }
+
+export interface SyncNpcDetail {
+    npcName: string;
+    filePath: string;
+    itemsBefore: number;
+    itemsAfter: number;
+    status: string;
+}
+
+export interface SyncNpcShopsResult {
+    totalNpcsScanned: number;
+    npcsUpdated: number;
+    npcsSkipped: number;
+    itemsAdded: number;
+    itemsRemoved: number;
+    errors: string[];
+    npcDetails: SyncNpcDetail[];
+}

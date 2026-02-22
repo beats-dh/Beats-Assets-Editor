@@ -124,6 +124,7 @@ export const COMMANDS = {
   LOAD_NPC_FILE: 'load_npc_file',
   SAVE_NPC_FILE: 'save_npc_file',
   RENAME_NPC_FILE: 'rename_npc_file',
+  SYNC_NPC_SHOPS_FROM_PROTO: 'sync_npc_shops_from_proto',
 
   // Settings Commands
   SET_TIBIA_BASE_PATH: 'set_tibia_base_path',

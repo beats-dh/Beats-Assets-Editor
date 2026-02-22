@@ -126,6 +126,7 @@ pub fn run() {
             features::npcs::commands::load_npc_file,
             features::npcs::commands::save_npc_file,
             features::npcs::commands::rename_npc_file,
+            features::npcs::commands::sync_npc_shops_from_proto,
             // Settings API
             features::settings::set_tibia_base_path,
             features::settings::get_tibia_base_path,

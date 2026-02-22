@@ -9,8 +9,10 @@
 
   import NpcSidebar from './NpcSidebar.svelte';
   import NpcForm from './NpcForm.svelte';
+  import SyncShopModal from './modals/SyncShopModal.svelte';
 
   let isInitializing = $state(true);
+  let showSyncModal = $state(false);
   let initError = $state('');
 
   function goBack() {
@@ -77,6 +79,10 @@
         <span class="btn-icon">📁</span>
         <span>Mudar pasta</span>
       </button>
+      <button type="button" class="editor-icon-button" onclick={() => showSyncModal = true} title="Sync all NPC shops from proto npcsaledata">
+        <span class="btn-icon">🛍️</span>
+        <span>Sync Shop</span>
+      </button>
     </div>
   </header>
 
@@ -97,3 +103,5 @@
     {/if}
   </div>
 </div>
+
+<SyncShopModal bind:isOpen={showSyncModal} />
