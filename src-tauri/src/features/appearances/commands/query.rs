@@ -96,13 +96,10 @@ pub async fn list_appearances_by_category(
             .filter_map(|appearance| {
                 let id = appearance.id.unwrap_or(0);
 
-                // Apply search filter if provided
+                    // Apply search filter if provided
                 if let Some(ref search_term_lower) = search_lower {
-                    let name = appearance.name.as_ref().map(|b| String::from_utf8_lossy(b));
-                    let description = appearance.description.as_ref().map(|b| String::from_utf8_lossy(b));
-
-                    let matches = name.as_ref().map_or(false, |n| n.to_lowercase().contains(search_term_lower))
-                        || description.as_ref().map_or(false, |d| d.to_lowercase().contains(search_term_lower))
+                    let matches = appearance.name.as_ref().map_or(false, |n| String::from_utf8_lossy(n).to_lowercase().contains(search_term_lower))
+                        || appearance.description.as_ref().map_or(false, |d| String::from_utf8_lossy(d).to_lowercase().contains(search_term_lower))
                         || id.to_string().contains(search_term_lower);
 
                     if !matches {
@@ -138,11 +135,8 @@ pub async fn list_appearances_by_category(
                 // Apply search filter if provided
                 if let Some(ref search_term_lower) = search_lower {
                     // OPTIMIZATION: Convert to string only if we need to search
-                    let name = appearance.name.as_ref().map(|b| String::from_utf8_lossy(b));
-                    let description = appearance.description.as_ref().map(|b| String::from_utf8_lossy(b));
-
-                    let matches = name.as_ref().map_or(false, |n| n.to_lowercase().contains(search_term_lower))
-                        || description.as_ref().map_or(false, |d| d.to_lowercase().contains(search_term_lower))
+                    let matches = appearance.name.as_ref().map_or(false, |n| String::from_utf8_lossy(n).to_lowercase().contains(search_term_lower))
+                        || appearance.description.as_ref().map_or(false, |d| String::from_utf8_lossy(d).to_lowercase().contains(search_term_lower))
                         || id.to_string().contains(search_term_lower);
 
                     if !matches {
@@ -325,7 +319,7 @@ pub async fn get_appearance_details(category: AppearanceCategory, id: u32, state
         id: appearance.id.unwrap_or(0),
         name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
         description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        appearance_type: appearance.appearance_type,
+        appearance_type: None,
         category,
         frame_groups,
         flags: flags_info,
@@ -359,14 +353,11 @@ pub async fn get_appearance_count(category: AppearanceCategory, search: Option<S
         .iter()
         .filter(|appearance| {
             let id = appearance.id.unwrap_or(0);
-            let name = appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string());
-            let description = appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string());
 
-            // Apply search filter if provided
             if let Some(ref search_term) = search {
                 let search_lower = search_term.to_lowercase();
-                let matches = name.as_ref().map_or(false, |n| n.to_lowercase().contains(&search_lower))
-                    || description.as_ref().map_or(false, |d| d.to_lowercase().contains(&search_lower))
+                let matches = appearance.name.as_ref().map_or(false, |n| String::from_utf8_lossy(n).to_lowercase().contains(&search_lower))
+                    || appearance.description.as_ref().map_or(false, |d| String::from_utf8_lossy(d).to_lowercase().contains(&search_lower))
                     || id.to_string().contains(&search_lower);
 
                 if !matches {

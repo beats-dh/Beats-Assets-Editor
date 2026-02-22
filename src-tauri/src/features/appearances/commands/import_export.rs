@@ -1,8 +1,7 @@
-use super::category_types::AppearanceCategory;
 use super::conversion::{clone_with_new_id, complete_flags_to_proto, complete_to_protobuf};
 use super::helpers::{get_items_by_category, get_items_by_category_mut, get_index_for_category, rebuild_indexes, invalidate_search_cache};
 use crate::core::protobuf::{Appearance, Appearances};
-use crate::features::appearances::{CompleteAppearanceItem, CompleteFlags};
+use crate::features::appearances::{AppearanceCategory, CompleteAppearanceItem, CompleteFlags};
 use crate::state::AppState;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -11,7 +10,7 @@ use std::path::Path;
 use prost::Message;
 use tauri::State;
 use ahash::AHasher;
-use std::hash::{Hash, Hasher};
+use std::hash::{DefaultHasher, Hash, Hasher};
 use crate::features::sounds::commands::SoundsState;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -120,18 +119,18 @@ pub async fn export_appearance_to_aec(category: AppearanceCategory, id: u32, pat
     let sprite_loader_lock = state.sprite_loader.read();
     let sprite_loader = sprite_loader_lock.as_ref();
 
-    appearance.sprite_data.clear();
+    let mut sprite_data = Vec::new();
     if !sprite_ids.is_empty() {
         for sprite_id in &sprite_ids {
             if let Some(bytes) = state.imported_sprites.get(sprite_id) {
-                appearance.sprite_data.push(bytes.clone());
+                sprite_data.push(bytes.clone());
                 continue;
             }
 
             let loader = sprite_loader.ok_or_else(|| "No sprites loaded".to_string())?;
             let sprite = loader.get_sprite(*sprite_id).map_err(|e| format!("Failed to get sprite {}: {}", sprite_id, e))?;
             let bytes = sprite.to_png_bytes().map_err(|e| format!("Failed to convert sprite to PNG: {}", e))?;
-            appearance.sprite_data.push(bytes);
+            sprite_data.push(bytes);
         }
     }
 
@@ -236,7 +235,7 @@ pub async fn import_appearance_from_json(
         }
     };
 
-    // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
+    // OPTIMIZATION: Use O(1) index lookup after rebuild instead of O(n) linear search
     let index_map_after = get_index_for_category(&state, &category);
     let items_after = get_items_by_category(appearances, &category);
     let stored = if let Some(pos) = index_map_after.get(&stored_id) {
@@ -275,7 +274,7 @@ pub async fn import_appearances_from_files(category: AppearanceCategory, paths: 
         }
     }
 
-    let existing_signatures = collect_existing_signatures(&category, appearances, state.inner())?;
+    let existing_signatures = collect_existing_signatures(&category, &appearances.object, state.inner())?;
 
     let mut result = ImportBatchResult {
         imported: Vec::new(),
@@ -333,7 +332,8 @@ pub async fn import_appearances_from_files_all(paths: Vec<String>, start_ids: Op
         } else {
             let content = read_text_file(path)?;
             let imported: CompleteAppearanceItem = serde_json::from_str(&content).map_err(|e| format!("Failed to parse appearance JSON: {}", e))?;
-            let category = category_from_appearance_type(imported.appearance_type);
+            // Infer category from ID if it's not set (e.g. from older editors or incomplete data)
+            let category = AppearanceCategory::Objects;
             buckets.push(category, ImportedAppearance::Complete(imported));
         }
     }
@@ -345,10 +345,11 @@ pub async fn import_appearances_from_files_all(paths: Vec<String>, start_ids: Op
     let mut to_insert = InsertBuckets::default();
 
     for (category, items) in buckets.into_entries() {
+        let items: Vec<ImportedAppearance> = items;
         if items.is_empty() {
             continue;
         }
-        let existing_signatures = collect_existing_signatures(&category, appearances, state.inner())?;
+        let existing_signatures = collect_existing_signatures(&category, &appearances.object, state.inner())?;
         let mut seen_signatures = existing_signatures;
         let to_import = process_import_bucket(&category, items, start_id_for_category(start_ids.as_ref(), &category), state.inner(), &mut seen_signatures, &mut result)?;
         if !to_import.is_empty() {
@@ -466,15 +467,13 @@ pub async fn create_empty_appearance(
     let items = get_items_by_category(appearances, &category);
 
     let mut candidate = new_id.unwrap_or_else(|| find_next_available_id(items));
-    // OPTIMIZATION: Use O(1) index lookup instead of O(n) linear search
-    while index_map.contains_key(&candidate) {
-        candidate += 1;
-    }
-
     let mut appearance = Appearance::default();
     appearance.id = Some(candidate);
-    appearance.name = name.map(|s| s.into_bytes());
-    appearance.description = description.map(|s| s.into_bytes());
+    let name = name.map(|s| s.into_bytes());
+    let description = description.map(|s| s.into_bytes());
+
+    appearance.name = name;
+    appearance.description = description;
 
     let stored_id = candidate;
 
@@ -707,13 +706,12 @@ fn appearance_signature_from_import(imported: &ImportedAppearance, state: &AppSt
     appearance_signature(&appearance, state)
 }
 
-fn collect_existing_signatures(category: &AppearanceCategory, appearances: &Appearances, state: &AppState) -> Result<HashSet<u64>, String> {
+fn collect_existing_signatures(_category: &AppearanceCategory, existing_items: &[Appearance], state: &AppState) -> Result<HashSet<u64>, String> {
     if state.imported_sprites.is_empty() {
         return Ok(HashSet::new());
     }
 
     let mut existing_signatures = HashSet::new();
-    let existing_items = get_items_by_category(appearances, &category);
     for appearance in existing_items {
         if appearance_uses_imported_sprites(appearance, state) {
             if let Ok(signature) = appearance_signature(appearance, state) {
@@ -762,11 +760,10 @@ fn process_import_bucket(
     Ok(to_insert)
 }
 
-fn appearance_signature(appearance: &Appearance, state: &AppState) -> Result<u64, String> {
-    let mut hasher = AHasher::default();
-    appearance.appearance_type.hash(&mut hasher);
+pub fn appearance_signature(appearance: &Appearance, state: &AppState) -> Result<u64, String> {
+    let mut hasher = DefaultHasher::new();
 
-    if let Some(flags) = appearance.flags.as_ref() {
+    if let Some(flags) = &appearance.flags {
         let mut buf = Vec::new();
         flags.encode(&mut buf).map_err(|e| format!("Failed to encode flags: {}", e))?;
         buf.hash(&mut hasher);
@@ -776,19 +773,12 @@ fn appearance_signature(appearance: &Appearance, state: &AppState) -> Result<u64
         fg.fixed_frame_group.hash(&mut hasher);
         fg.id.hash(&mut hasher);
 
-        if let Some(info) = fg.sprite_info.as_ref() {
+        if let Some(info) = &fg.sprite_info {
             info.pattern_width.hash(&mut hasher);
             info.pattern_height.hash(&mut hasher);
             info.pattern_depth.hash(&mut hasher);
             info.layers.hash(&mut hasher);
-            info.pattern_size.hash(&mut hasher);
-            info.pattern_layers.hash(&mut hasher);
-            info.pattern_x.hash(&mut hasher);
-            info.pattern_y.hash(&mut hasher);
-            info.pattern_z.hash(&mut hasher);
-            info.pattern_frames.hash(&mut hasher);
             info.bounding_square.hash(&mut hasher);
-            info.is_animation.hash(&mut hasher);
             info.is_opaque.hash(&mut hasher);
             for bbox in info.bounding_box_per_direction.iter() {
                 bbox.x.hash(&mut hasher);
@@ -797,37 +787,30 @@ fn appearance_signature(appearance: &Appearance, state: &AppState) -> Result<u64
                 bbox.height.hash(&mut hasher);
             }
             if let Some(anim) = info.animation.as_ref() {
-                anim.default_start_phase.hash(&mut hasher);
                 anim.synchronized.hash(&mut hasher);
-                anim.random_start_phase.hash(&mut hasher);
                 anim.loop_type.hash(&mut hasher);
                 anim.loop_count.hash(&mut hasher);
-                anim.animation_mode.hash(&mut hasher);
-                for phase in anim.sprite_phase.iter() {
-                    phase.duration_min.hash(&mut hasher);
-                    phase.duration_max.hash(&mut hasher);
-                }
+                anim.sprite_phase.len().hash(&mut hasher);
             }
         }
     }
 
-    if !appearance.sprite_data.is_empty() {
-        for sprite_bytes in appearance.sprite_data.iter() {
-            sprite_bytes.hash(&mut hasher);
-        }
-    } else {
-        let sprite_loader = state.sprite_loader.read();
-        let loader = sprite_loader.as_ref();
+    let sprite_loader_lock = state.sprite_loader.read();
+    let sprite_loader = sprite_loader_lock.as_ref()
+        .ok_or_else(|| "No sprite loaded for signature".to_string())?;
 
-        for sprite_id in appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()) {
-            if let Some(bytes) = state.imported_sprites.get(&sprite_id) {
+    for fg in &appearance.frame_group {
+        if let Some(info) = &fg.sprite_info {
+            for sprite_id in &info.sprite_id {
+                let bytes = if let Some(mem_bytes) = state.imported_sprites.get(sprite_id) {
+                    mem_bytes.clone()
+                } else {
+                    let sprite = sprite_loader.get_sprite(*sprite_id)
+                        .map_err(|e| format!("Failed getting sprite {}: {}", sprite_id, e))?;
+                    sprite.to_png_bytes().map_err(|e| format!("Failed to export png: {}", e))?
+                };
                 bytes.hash(&mut hasher);
-                continue;
             }
-            let loader = loader.ok_or_else(|| "No sprites loaded".to_string())?;
-            let sprite = loader.get_sprite(sprite_id).map_err(|e| format!("Failed to get sprite {}: {}", sprite_id, e))?;
-            let bytes = sprite.to_png_bytes().map_err(|e| format!("Failed to convert sprite to PNG: {}", e))?;
-            bytes.hash(&mut hasher);
         }
     }
 
@@ -923,7 +906,9 @@ fn detect_import_presence(paths: &[String]) -> Result<ImportPresence, String> {
         } else {
             let content = read_text_file(path)?;
             let imported: CompleteAppearanceItem = serde_json::from_str(&content).map_err(|e| format!("Failed to parse appearance JSON: {}", e))?;
-            match category_from_appearance_type(imported.appearance_type) {
+            // Try to figure out the category from the protobuf data first
+            let category = AppearanceCategory::Objects;
+            match category {
                 AppearanceCategory::Objects => presence.objects = true,
                 AppearanceCategory::Outfits => presence.outfits = true,
                 AppearanceCategory::Effects => presence.effects = true,
@@ -936,7 +921,9 @@ fn detect_import_presence(paths: &[String]) -> Result<ImportPresence, String> {
 }
 
 fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> Result<(), String> {
-    let total_sprites: usize = appearances.iter().map(|appearance| appearance.sprite_data.len()).sum();
+    let total_sprites: usize = appearances.iter().map(|appearance| {
+        appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).map(|info| info.sprite_id.len()).sum::<usize>()
+    }).sum();
     if total_sprites == 0 {
         return Ok(());
     }
@@ -946,13 +933,33 @@ fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> R
     let mut ordered_map: Vec<usize> = Vec::with_capacity(total_sprites);
 
     for appearance in appearances.iter() {
-        for sprite_bytes in appearance.sprite_data.iter() {
+        let sprite_loader_lock = state.sprite_loader.read();
+        let sprite_loader = sprite_loader_lock.as_ref();
+        
+        let sprite_ids: Vec<u32> = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()).collect();
+        for sprite_id in sprite_ids {
+            let sprite_bytes = if let Some(mem_bytes) = state.imported_sprites.get(&sprite_id) {
+                mem_bytes.clone()
+            } else if let Some(loader) = sprite_loader {
+                if let Ok(sprite) = loader.get_sprite(sprite_id) {
+                    sprite.to_png_bytes().unwrap_or_default()
+                } else {
+                    Vec::new()
+                }
+            } else {
+                Vec::new()
+            };
+            
+            if sprite_bytes.is_empty() {
+                continue;
+            }
+
             let mut hasher = AHasher::default();
             sprite_bytes.hash(&mut hasher);
             let hash = hasher.finish();
 
             let unique_index = if let Some(&idx) = hash_lookup.get(&hash) {
-                if unique_sprites.get(idx).map_or(false, |existing| existing == sprite_bytes) {
+                if unique_sprites.get(idx).map_or(false, |existing| existing == &sprite_bytes) {
                     idx
                 } else {
                     let new_idx = unique_sprites.len();

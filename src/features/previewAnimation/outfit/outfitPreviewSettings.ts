@@ -9,7 +9,7 @@ function getPhaseCount(spriteInfo: CompleteSpriteInfo): number {
   if (animationPhases > 0) {
     return animationPhases;
   }
-  return ensureNumber(spriteInfo.pattern_frames, 0);
+  return ensureNumber(spriteInfo.pattern_size, 0);
 }
 
 export function resolveOutfitPreviewDirection(spriteInfo: CompleteSpriteInfo): number {

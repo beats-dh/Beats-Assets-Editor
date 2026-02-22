@@ -2,15 +2,13 @@ use crate::core::protobuf::Box as ProtoBoundingBox;
 use crate::core::protobuf::{
     Appearance, AppearanceFlagAutomap, AppearanceFlagBank, AppearanceFlagChangedToExpire, AppearanceFlagClothes, AppearanceFlagCyclopedia, AppearanceFlagDefaultAction, AppearanceFlagHeight,
     AppearanceFlagHook, AppearanceFlagImbueable, AppearanceFlagLenshelp, AppearanceFlagLight, AppearanceFlagMarket, AppearanceFlagNpc, AppearanceFlagProficiency, AppearanceFlagShift,
-    AppearanceFlagSkillWheelGem, AppearanceFlagTransparencyLevel, AppearanceFlagUpgradeClassification, AppearanceFlagWrite, AppearanceFlagWriteOnce, AppearanceFlags, FrameGroup,
+    AppearanceFlagSkillWheelGem, AppearanceFlagUpgradeClassification, AppearanceFlagWrite, AppearanceFlagWriteOnce, AppearanceFlags, FrameGroup,
     SpriteAnimation as ProtoSpriteAnimation, SpriteInfo as ProtoSpriteInfo, SpritePhase as ProtoSpritePhase,
 };
 use crate::features::appearances::{
     CompleteAppearanceItem, CompleteFlags, CompleteFrameGroup, CompleteSpriteInfo, FlagAutomap, FlagBank, FlagChangedToExpire, FlagClothes, FlagCyclopedia, FlagDefaultAction, FlagHeight, FlagHook,
     FlagImbueable, FlagLenshelp, FlagLight, FlagNPC, FlagProficiency, FlagShift, FlagSkillWheelGem, FlagUpgradeClassification, FlagWrite, FlagWriteOnce, SpriteAnimation,
 };
-use base64::{engine::general_purpose::STANDARD, Engine as _};
-use rayon::prelude::*;
 
 /// Convert a [`CompleteAppearanceItem`] back into the protobuf [`Appearance`]
 /// representation used by the Tibia client files.
@@ -19,47 +17,6 @@ pub fn complete_to_protobuf(item: &CompleteAppearanceItem) -> Appearance {
     appearance.id = Some(item.id);
     appearance.name = item.name.as_ref().map(|s| s.clone().into_bytes());
     appearance.description = item.description.as_ref().map(|s| s.clone().into_bytes());
-    appearance.appearance_type = item.appearance_type;
-    // OPTIMIZATION: Parallelize Base64 decoding for large sprite_data arrays (>=100 items)
-    // This significantly speeds up import of appearances with many sprites
-    // Using >= instead of > because loads are typically in batches of 100
-    let sprite_data_len = item.sprite_data.len();
-    appearance.sprite_data = if sprite_data_len >= 100 {
-        item.sprite_data
-            .par_iter()
-            .map(|encoded| {
-                if encoded.is_empty() {
-                    Vec::new()
-                } else {
-                    match STANDARD.decode(encoded) {
-                        Ok(bytes) => bytes,
-                        Err(err) => {
-                            log::warn!("Failed to decode sprite data for appearance {}: {}", item.id, err);
-                            Vec::new()
-                        }
-                    }
-                }
-            })
-            .collect()
-    } else {
-        // Sequential for small arrays (avoid parallelism overhead)
-        item.sprite_data
-            .iter()
-            .map(|encoded| {
-                if encoded.is_empty() {
-                    Vec::new()
-                } else {
-                    match STANDARD.decode(encoded) {
-                        Ok(bytes) => bytes,
-                        Err(err) => {
-                            log::warn!("Failed to decode sprite data for appearance {}: {}", item.id, err);
-                            Vec::new()
-                        }
-                    }
-                }
-            })
-            .collect()
-    };
 
     appearance.frame_group = item.frame_groups.iter().map(complete_frame_group_to_proto).collect();
 
@@ -82,14 +39,7 @@ fn complete_sprite_info_to_proto(info: &CompleteSpriteInfo) -> ProtoSpriteInfo {
     sprite_info.pattern_height = info.pattern_height;
     sprite_info.pattern_depth = info.pattern_depth;
     sprite_info.layers = info.layers;
-    sprite_info.pattern_size = info.pattern_size;
-    sprite_info.pattern_layers = info.pattern_layers;
-    sprite_info.pattern_x = info.pattern_x;
-    sprite_info.pattern_y = info.pattern_y;
-    sprite_info.pattern_z = info.pattern_z;
-    sprite_info.pattern_frames = info.pattern_frames;
     sprite_info.bounding_square = info.bounding_square;
-    sprite_info.is_animation = info.is_animation;
     sprite_info.is_opaque = info.is_opaque;
 
     sprite_info.sprite_id = info.sprite_ids.clone();
@@ -112,12 +62,9 @@ fn complete_sprite_info_to_proto(info: &CompleteSpriteInfo) -> ProtoSpriteInfo {
 
 fn complete_animation_to_proto(animation: &SpriteAnimation) -> ProtoSpriteAnimation {
     let mut proto = ProtoSpriteAnimation::default();
-    proto.default_start_phase = animation.default_start_phase;
     proto.synchronized = animation.synchronized;
-    proto.random_start_phase = animation.random_start_phase;
     proto.loop_type = animation.loop_type;
     proto.loop_count = animation.loop_count;
-    proto.animation_mode = animation.animation_mode;
     proto.sprite_phase = animation
         .phases
         .iter()
@@ -260,10 +207,6 @@ pub fn complete_flags_to_proto(flags: &CompleteFlags) -> AppearanceFlags {
         category: market.category,
         trade_as_object_id: market.trade_as_object_id,
         show_as_object_id: market.show_as_object_id,
-        restrict_to_vocation: market.restrict_to_vocation.clone(),
-        minimum_level: market.minimum_level,
-        name: market.name.as_ref().map(|s| s.clone().into_bytes()),
-        vocation: market.vocation,
     });
     proto.npcsaledata = flags
         .npc_sale_data
@@ -277,12 +220,12 @@ pub fn complete_flags_to_proto(flags: &CompleteFlags) -> AppearanceFlags {
                  currency_object_type_id,
                  currency_quest_flag_display_name,
              }| AppearanceFlagNpc {
-                name: name.as_ref().map(|s| s.clone().into_bytes()),
-                location: location.as_ref().map(|s| s.clone().into_bytes()),
+                name: name.as_ref().map(|s| s.clone()),
+                location: location.as_ref().map(|s| s.clone()),
                 sale_price: *sale_price,
                 buy_price: *buy_price,
                 currency_object_type_id: *currency_object_type_id,
-                currency_quest_flag_display_name: currency_quest_flag_display_name.as_ref().map(|s| s.clone().into_bytes()),
+                currency_quest_flag_display_name: currency_quest_flag_display_name.as_ref().map(|s| s.clone()),
             },
         )
         .collect();
@@ -333,11 +276,6 @@ pub fn complete_flags_to_proto(flags: &CompleteFlags) -> AppearanceFlags {
     proto.restrict_to_vocation = flags.restrict_to_vocation.clone();
     proto.minimum_level = flags.minimum_level;
     proto.weapon_type = flags.weapon_type;
-    proto.hook_south = flags.hook_south;
-    proto.hook_east = flags.hook_east;
-    proto.transparencylevel = flags.transparency_level.map(|level| AppearanceFlagTransparencyLevel {
-        level: Some(level),
-    });
 
     proto
 }

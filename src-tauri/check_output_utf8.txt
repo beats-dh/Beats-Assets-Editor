@@ -1,0 +1,49 @@
+﻿cargo : warning: unused import: `SpriteAnimation as ProtoSpriteAnimation`
+No linha:1 caractere:1
++ cargo build > check_output.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: unused...priteAnimation` 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ --> src\features\appearances\commands\update.rs:3:54
+  |
+3 | use crate::core::protobuf::{Box as ProtoBoundingBox, SpriteAnimation as 
+ProtoSpriteAnimation, SpriteInfo as ProtoSpriteInfo, SpritePhase ...
+  |                                                      
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `imported`
+   --> src\features\appearances\commands\import_export.rs:910:17
+    |
+910 | ...   let imported: CompleteAppearanceItem = 
+serde_json::from_str(&content).map_err(|e| format!("Failed to parse appearance 
+JSON: {}", e))?;
+    |           ^^^^^^^^ help: if this is intentional, prefix it with an 
+underscore: `_imported`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by 
+default
+
+warning: function `str_to_string` is never used
+   --> src\features\appearances\commands\helpers.rs:113:8
+    |
+113 | pub fn str_to_string(s: &String) -> String {
+    |        ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `category_from_appearance_type` is never used
+   --> src\features\appearances\commands\import_export.rs:850:4
+    |
+850 | fn category_from_appearance_type(appearance_type: Option<i32>) -> 
+AppearanceCategory {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `tibia-assets-editor` (lib) generated 4 warnings (run `cargo fix 
+--lib -p tibia-assets-editor` to apply 2 suggestions)
+   Compiling tibia-assets-editor v0.1.0 
+(C:\Users\danie\Documentos\Beats-Assets-Editor\src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.39s

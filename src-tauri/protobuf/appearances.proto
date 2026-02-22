@@ -2,18 +2,20 @@ syntax = "proto2";
 
 package tibia.protobuf.appearances;
 
-message Appearances {
-    repeated Appearance object = 1;
-    repeated Appearance outfit = 2;
-    repeated Appearance effect = 3;
-    repeated Appearance missile = 4;
-    optional SpecialMeaningAppearanceIds special_meaning_appearance_ids = 5;
-}
+import "shared.proto";
 
 enum FIXED_FRAME_GROUP {
-    FIXED_FRAME_GROUP_OUTFIT_IDLE = 0;
-    FIXED_FRAME_GROUP_OUTFIT_MOVING = 1;
-    FIXED_FRAME_GROUP_OBJECT_INITIAL = 2;
+  FIXED_FRAME_GROUP_OUTFIT_IDLE = 0;
+  FIXED_FRAME_GROUP_OUTFIT_MOVING = 1;
+  FIXED_FRAME_GROUP_OBJECT_INITIAL = 2;
+}
+
+message Appearances {
+  repeated Appearance object = 1;
+  repeated Appearance outfit = 2;
+  repeated Appearance effect = 3;
+  repeated Appearance missile = 4;
+  optional SpecialMeaningAppearanceIds special_meaning_appearance_ids = 5;
 }
 
 message SpritePhase {
@@ -22,13 +24,10 @@ message SpritePhase {
 }
 
 message SpriteAnimation {
-    optional uint32 default_start_phase = 1;
-    optional bool synchronized = 2;
-    optional bool random_start_phase = 3;
-    optional ANIMATION_LOOP_TYPE loop_type = 4;
-    optional uint32 loop_count = 5;
-    repeated SpritePhase sprite_phase = 6;
-    optional ANIMATION_ANIMATION_MODE animation_mode = 7;
+  optional bool synchronized = 2;
+  optional shared.ANIMATION_LOOP_TYPE loop_type = 4;
+  optional uint32 loop_count = 5;
+  repeated SpritePhase sprite_phase = 6;
 }
 
 message Box {
@@ -39,22 +38,15 @@ message Box {
 }
 
 message SpriteInfo {
-    optional uint32 pattern_width = 1;
-    optional uint32 pattern_height = 2;
-    optional uint32 pattern_depth = 3;
-    optional uint32 layers = 4;
-    repeated uint32 sprite_id = 5;
-    optional uint32 bounding_square = 7;
-    optional SpriteAnimation animation = 6;
-    optional bool is_opaque = 8;
-    repeated Box bounding_box_per_direction = 9;
-    optional uint32 pattern_size = 10;
-    optional uint32 pattern_layers = 11;
-    optional uint32 pattern_x = 12;
-    optional uint32 pattern_y = 13;
-    optional uint32 pattern_z = 14;
-    optional uint32 pattern_frames = 15;
-    optional bool is_animation  = 16;
+  optional uint32 pattern_width = 1;
+  optional uint32 pattern_height = 2;
+  optional uint32 pattern_depth = 3;
+  optional uint32 layers = 4;
+  repeated uint32 sprite_id = 5;
+  optional uint32 bounding_square = 7;
+  optional SpriteAnimation animation = 6;
+  optional bool is_opaque = 8;
+  repeated Box bounding_box_per_direction = 9;
 }
 
 message FrameGroup {
@@ -64,13 +56,11 @@ message FrameGroup {
 }
 
 message Appearance {
-    optional uint32 id = 1;
-    repeated FrameGroup frame_group = 2;
-    optional AppearanceFlags flags = 3;
-    optional bytes name = 4;
-    optional bytes description = 5;
-    optional APPEARANCE_TYPE appearance_type = 6;
-    repeated bytes sprite_data = 7;
+  optional uint32 id = 1;
+  repeated FrameGroup frame_group = 2;
+  optional AppearanceFlags flags = 3;
+  optional bytes name = 4;
+  optional bytes description = 5;
 }
 
 message AppearanceFlags {
@@ -135,13 +125,13 @@ message AppearanceFlags {
   optional bool dual_wielding = 59;
   optional AppearanceFlagImbueable imbueable = 60;
   optional AppearanceFlagProficiency proficiency = 61;
-  repeated VOCATION restrict_to_vocation = 62;
+  repeated shared.VOCATION restrict_to_vocation = 62;
   optional uint32 minimum_level = 63;
-  optional WEAPON_TYPE weapon_type = 64;
-  reserved 65 to 69;;
-  optional bool hook_south = 70;
-  optional bool hook_east = 71;
-  optional AppearanceFlagTransparencyLevel transparencylevel = 72;
+  optional shared.WEAPON_TYPE weapon_type = 64;
+}
+
+message AppearanceFlagImbueable {
+  optional uint32 slot_count = 1;
 }
 
 message AppearanceFlagBank {
@@ -175,26 +165,22 @@ message AppearanceFlagClothes {
 }
 
 message AppearanceFlagDefaultAction {
-    optional PLAYER_ACTION action = 1;
+  optional shared.PLAYER_ACTION action = 1;
 }
 
 message AppearanceFlagMarket {
-    optional ITEM_CATEGORY category = 1;
-    optional uint32 trade_as_object_id = 2;
-    optional uint32 show_as_object_id = 3;
-    repeated VOCATION restrict_to_vocation = 5;
-    optional uint32 minimum_level = 6;
-    optional bytes name = 7;
-    optional VOCATION vocation = 8;
+  optional shared.ITEM_CATEGORY category = 1;
+  optional uint32 trade_as_object_id = 2;
+  optional uint32 show_as_object_id = 3;
 }
 
 message AppearanceFlagNPC {
-  optional bytes name = 1;
-  optional bytes location = 2;
+  optional string name = 1;
+  optional string location = 2;
   optional uint32 sale_price = 3;
   optional uint32 buy_price = 4;
   optional uint32 currency_object_type_id = 5;
-  optional bytes currency_quest_flag_display_name = 6;
+  optional string currency_quest_flag_display_name = 6;
 }
 
 message AppearanceFlagAutomap {
@@ -202,7 +188,7 @@ message AppearanceFlagAutomap {
 }
 
 message AppearanceFlagHook {
-    optional HOOK_TYPE direction = 1;
+  optional shared.HOOK_TYPE direction = 1;
 }
 
 message AppearanceFlagLenshelp {
@@ -226,116 +212,17 @@ message AppearanceFlagSkillWheelGem {
   optional uint32 vocation_id = 2;
 }
 
-message AppearanceFlagImbueable {
-  optional uint32 slot_count = 1;
-}
-
 message AppearanceFlagProficiency {
   optional uint32 proficiency_id = 1;
 }
 
-message AppearanceFlagTransparencyLevel {
-    optional uint32 level = 1;
-}
-
 message SpecialMeaningAppearanceIds {
-    optional uint32 gold_coin_id = 1;
-    optional uint32 platinum_coin_id = 2;
-    optional uint32 crystal_coin_id = 3;
-    optional uint32 tibia_coin_id = 4;
-    optional uint32 stamped_letter_id = 5;
-    optional uint32 supply_stash_id = 6;
-    optional uint32 standard_reward_chest_id = 7;
-    optional uint32 blank_imbuement_scroll_id = 8;
+  optional uint32 gold_coin_id = 1;
+  optional uint32 platinum_coin_id = 2;
+  optional uint32 crystal_coin_id = 3;
+  optional uint32 tibia_coin_id = 4;
+  optional uint32 stamped_letter_id = 5;
+  optional uint32 supply_stash_id = 6;
+  optional uint32 standard_reward_chest_id = 7;
+  optional uint32 blank_imbuement_scroll_id = 8;
 }
-
-message Coordinate {
-    optional uint32 x = 1;
-    optional uint32 y = 2;
-    optional uint32 z = 3;
-}
-
-enum PLAYER_ACTION {
-    PLAYER_ACTION_NONE = 0;
-    PLAYER_ACTION_LOOK = 1;
-    PLAYER_ACTION_USE = 2;
-    PLAYER_ACTION_OPEN = 3;
-    PLAYER_ACTION_AUTOWALK_HIGHLIGHT = 4;
-}
-
-enum ITEM_CATEGORY {
-    ITEM_CATEGORY_ARMORS = 1;
-    ITEM_CATEGORY_AMULETS = 2;
-    ITEM_CATEGORY_BOOTS = 3;
-    ITEM_CATEGORY_CONTAINERS = 4;
-    ITEM_CATEGORY_DECORATION = 5;
-    ITEM_CATEGORY_FOOD = 6;
-    ITEM_CATEGORY_HELMETS_HATS = 7;
-    ITEM_CATEGORY_LEGS = 8;
-    ITEM_CATEGORY_OTHERS = 9;
-    ITEM_CATEGORY_POTIONS = 10;
-    ITEM_CATEGORY_RINGS = 11;
-    ITEM_CATEGORY_RUNES = 12;
-    ITEM_CATEGORY_SHIELDS = 13;
-    ITEM_CATEGORY_TOOLS = 14;
-    ITEM_CATEGORY_VALUABLES = 15;
-    ITEM_CATEGORY_AMMUNITION = 16;
-    ITEM_CATEGORY_AXES = 17;
-    ITEM_CATEGORY_CLUBS = 18;
-    ITEM_CATEGORY_DISTANCE_WEAPONS = 19;
-    ITEM_CATEGORY_SWORDS = 20;
-    ITEM_CATEGORY_WANDS_RODS = 21;
-    ITEM_CATEGORY_PREMIUM_SCROLLS = 22;
-    ITEM_CATEGORY_TIBIA_COINS = 23;
-    ITEM_CATEGORY_CREATURE_PRODUCTS = 24;
-    ITEM_CATEGORY_QUIVER = 25;
-    ITEM_CATEGORY_SOUL_CORES = 26;
-    ITEM_CATEGORY_FIST_WEAPONS = 27;
-}
-
-enum VOCATION {
-    VOCATION_ANY = -1;
-    VOCATION_NONE = 0;
-    VOCATION_KNIGHT = 1;
-    VOCATION_PALADIN = 2;
-    VOCATION_SORCERER = 3;
-    VOCATION_DRUID = 4;
-    VOCATION_MONK = 5;
-    VOCATION_PROMOTED = 10;
-}
-
-enum ANIMATION_LOOP_TYPE {
-    ANIMATION_LOOP_TYPE_PINGPONG = -1;
-    ANIMATION_LOOP_TYPE_INFINITE = 0;
-    ANIMATION_LOOP_TYPE_COUNTED = 1;
-}
-
-enum HOOK_TYPE {
-    HOOK_TYPE_SOUTH = 1;
-    HOOK_TYPE_EAST = 2;
-}
-
-enum ANIMATION_ANIMATION_MODE {
-    ANIMATION_ASYNCHRONIZED = 0;
-    ANIMATION_SYNCHRONIZED = 1;
-}
-
-enum APPEARANCE_TYPE {
-    APPEARANCE_OBJECT = 1;
-    APPEARANCE_OUTFIT = 2;
-    APPEARANCE_EFFECT = 3;
-    APPEARANCE_MISSILE = 4;
-}
-
-enum WEAPON_TYPE {
-  WEAPON_TYPE_NOWEAPON = 0;
-  WEAPON_TYPE_SWORD = 1;
-  WEAPON_TYPE_AXE = 2;
-  WEAPON_TYPE_CLUB = 3;
-  WEAPON_TYPE_FIST = 4;
-  WEAPON_TYPE_BOW = 5;
-  WEAPON_TYPE_CROSSBOW = 6;
-  WEAPON_TYPE_WAND_ROD = 7;
-  WEAPON_TYPE_THROW = 8;
-}
-

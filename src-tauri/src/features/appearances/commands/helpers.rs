@@ -110,8 +110,8 @@ pub fn invalidate_search_cache(state: &AppState) {
 /// Eliminates 60+ duplicate conversions
 /// OPTIMIZED: #[inline(always)] for hot path
 #[inline(always)]
-pub fn bytes_to_string(bytes: &[u8]) -> String {
-    String::from_utf8_lossy(bytes).to_string()
+pub fn str_to_string(s: &String) -> String {
+    s.to_string()
 }
 
 /// Ensure appearance has flags initialized, return mutable reference
@@ -134,8 +134,8 @@ pub fn create_appearance_item_response(id: u32, appearance: &Appearance) -> Appe
 
     AppearanceItem {
         id,
-        name: appearance.name.as_ref().map(|b| bytes_to_string(b)),
-        description: appearance.description.as_ref().map(|b| bytes_to_string(b)),
+        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
         has_flags: appearance.flags.is_some(),
         sprite_count,
     }

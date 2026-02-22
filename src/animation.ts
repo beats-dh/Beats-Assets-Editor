@@ -20,7 +20,7 @@ export function stopAllAnimationPlayers(): void {
     if (timerId) clearInterval(timerId);
   });
   activeAnimationPlayers.clear();
-  
+
   // Clear animating class from all potential containers
   document.querySelectorAll('.asset-image-container.animating').forEach(el => el.classList.remove('animating'));
 }
@@ -47,11 +47,11 @@ export function computeSpriteIndex(
   z: number,
   phaseIndex: number
 ): number {
-  const layers = (spriteInfo.layers ?? spriteInfo.pattern_layers ?? 1);
+  const layers = (spriteInfo.layers ?? 1);
   const pw = (spriteInfo.pattern_width ?? 1);
   const ph = (spriteInfo.pattern_height ?? 1);
   const pd = (spriteInfo.pattern_depth ?? 1);
-  const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_frames ?? 1);
+  const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_size ?? 1);
   let idx = phaseIndex % frames;
   idx = idx * pd + (z || 0);
   idx = idx * ph + (y || 0);
@@ -92,11 +92,11 @@ export function getGroupIndexForAggregatedSprite(
 }
 
 export function decomposeSpriteIndex(spriteInfo: CompleteSpriteInfo, localIndex: number): SpriteDecomposition {
-  const layers = (spriteInfo.layers ?? spriteInfo.pattern_layers ?? 1);
+  const layers = (spriteInfo.layers ?? 1);
   const pw = (spriteInfo.pattern_width ?? 1);
   const ph = (spriteInfo.pattern_height ?? 1);
   const pd = (spriteInfo.pattern_depth ?? 1);
-  const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_frames ?? 1);
+  const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_size ?? 1);
   let u = Math.floor(localIndex);
   const layerIndex = u % layers; u = Math.floor(u / layers);
   const x = u % pw; u = Math.floor(u / pw);
@@ -122,7 +122,7 @@ export async function initAnimationPlayersForDetails(
     details.frame_groups.forEach((fg, index) => {
       const spriteInfo = fg.sprite_info;
       if (!spriteInfo) return;
-      const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_frames ?? 1);
+      const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_size ?? 1);
       if (frames <= 1) return;
 
       const containerSelector = `.frame-group-detail`;
@@ -257,7 +257,7 @@ export function initDetailSpriteCardAnimations(
       const { groupIndex, localIndex } = mapping;
       const spriteInfo = details.frame_groups[groupIndex]?.sprite_info;
       if (!spriteInfo) return;
-      const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_frames ?? 1);
+      const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_size ?? 1);
       if (frames <= 1) return;
       if (el.dataset.animReady === 'true') return;
       el.dataset.animReady = 'true';

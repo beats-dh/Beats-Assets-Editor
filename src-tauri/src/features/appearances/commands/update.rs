@@ -241,32 +241,12 @@ pub async fn update_appearance_texture_settings(category: AppearanceCategory, id
     if let Some(value) = update.layers {
         sprite_info.layers = value;
     }
-    if let Some(value) = update.pattern_size {
-        sprite_info.pattern_size = value;
-    }
-    if let Some(value) = update.pattern_layers {
-        sprite_info.pattern_layers = value;
-    }
-    if let Some(value) = update.pattern_x {
-        sprite_info.pattern_x = value;
-    }
-    if let Some(value) = update.pattern_y {
-        sprite_info.pattern_y = value;
-    }
-    if let Some(value) = update.pattern_z {
-        sprite_info.pattern_z = value;
-    }
-    if let Some(value) = update.pattern_frames {
-        sprite_info.pattern_frames = value;
-    }
+
     if let Some(value) = update.bounding_square {
         sprite_info.bounding_square = value;
     }
     if let Some(value) = update.is_opaque {
         sprite_info.is_opaque = value;
-    }
-    if let Some(value) = update.is_animation {
-        sprite_info.is_animation = value;
     }
 
     if let Some(boxes) = update.bounding_boxes {
@@ -284,13 +264,10 @@ pub async fn update_appearance_texture_settings(category: AppearanceCategory, id
     if let Some(animation_opt) = update.animation {
         match animation_opt {
             Some(anim) => {
-                let mut proto_anim = ProtoSpriteAnimation::default();
-                proto_anim.default_start_phase = anim.default_start_phase;
+                let mut proto_anim = crate::core::protobuf::SpriteAnimation::default();
                 proto_anim.synchronized = anim.synchronized;
-                proto_anim.random_start_phase = anim.random_start_phase;
-                proto_anim.loop_type = anim.loop_type;
                 proto_anim.loop_count = anim.loop_count;
-                proto_anim.animation_mode = anim.animation_mode;
+                proto_anim.loop_type = anim.loop_type;
                 proto_anim.sprite_phase.clear();
                 for phase in anim.phases {
                     proto_anim.sprite_phase.push(ProtoSpritePhase {
@@ -414,7 +391,7 @@ pub async fn update_appearance_name(category: AppearanceCategory, id: u32, new_n
     appearance.name = if new_name.trim().is_empty() {
         None
     } else {
-        Some(new_name.trim().as_bytes().to_vec())
+        Some(new_name.into_bytes())
     };
 
     // Invalidate cache (name changed - affects search!)
@@ -657,10 +634,6 @@ pub async fn update_appearance_market(
             category: category_value,
             trade_as_object_id,
             show_as_object_id,
-            restrict_to_vocation,
-            minimum_level,
-            name: name.map(|s| s.into_bytes()),
-            vocation,
         })
     };
 
@@ -932,7 +905,7 @@ pub async fn update_appearance_proficiency(category: AppearanceCategory, id: u32
 }
 
 #[tauri::command]
-pub async fn update_appearance_transparency_level(category: AppearanceCategory, id: u32, transparency_level: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+pub async fn update_appearance_transparency_level(category: AppearanceCategory, id: u32, _transparency_level: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
     let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
@@ -951,15 +924,9 @@ pub async fn update_appearance_transparency_level(category: AppearanceCategory, 
         items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
-    let flags = ensure_flags(appearance);
-
-    if transparency_level.is_none() {
-        flags.transparencylevel = None;
-    } else {
-        flags.transparencylevel = Some(crate::core::protobuf::AppearanceFlagTransparencyLevel {
-            level: transparency_level,
-        });
-    }
+    // Intentionally blank as transparencylevel has been removed from protobuf
+    // This allows the frontend signature to stay the same until we clean it up
+    // but the backend won't save this field anymore.
 
     // Invalidate cache (data changed)
     invalidate_search_cache(&state);
@@ -1021,7 +988,7 @@ pub async fn update_appearance_description(category: AppearanceCategory, id: u32
     appearance.description = if new_description.trim().is_empty() {
         None
     } else {
-        Some(new_description.trim().as_bytes().to_vec())
+        Some(new_description.into_bytes())
     };
 
     // Invalidate cache (data changed)
@@ -1160,10 +1127,10 @@ fn set_bool_flag(flags: &mut crate::core::protobuf::AppearanceFlags, key: &str, 
             flags.dual_wielding = Some(value);
         }
         "hooksouth" => {
-            flags.hook_south = Some(value);
+            // Ignored, field removed from protobuf
         }
         "hookeast" => {
-            flags.hook_east = Some(value);
+            // Ignored, field removed from protobuf
         }
         _ => return Err(format!("Unknown boolean flag '{}'", key)),
     }

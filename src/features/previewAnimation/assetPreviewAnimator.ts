@@ -95,8 +95,8 @@ function getFrameCount(spriteInfo: CompleteSpriteInfo | undefined): number {
   if (spriteInfo.animation && spriteInfo.animation.phases.length > 0) {
     return spriteInfo.animation.phases.length;
   }
-  if (spriteInfo.pattern_frames && spriteInfo.pattern_frames > 0) {
-    return spriteInfo.pattern_frames;
+  if (spriteInfo.pattern_size && spriteInfo.pattern_size > 0) {
+    return spriteInfo.pattern_size;
   }
   return 0;
 }

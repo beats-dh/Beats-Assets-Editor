@@ -18,7 +18,6 @@ export interface CompleteAppearanceItem {
   id: number;
   name?: string;
   description?: string;
-  appearance_type?: number;
   frame_groups: CompleteFrameGroup[];
   flags?: CompleteFlags;
   sprite_data: string[];
@@ -36,28 +35,17 @@ export interface CompleteSpriteInfo {
   pattern_depth?: number;
   layers?: number;
   pattern_size?: number;
-  // Extra optional pattern fields present from backend mapping
-  pattern_layers?: number;
-  pattern_x?: number;
-  pattern_y?: number;
-  pattern_z?: number;
-  pattern_frames?: number;
   sprite_ids: number[];
   bounding_square?: number;
   animation?: SpriteAnimation;
-  // Flag indicating animation presence
-  is_animation?: boolean;
   is_opaque?: boolean;
   bounding_boxes: BoundingBox[];
 }
 
 export interface SpriteAnimation {
-  default_start_phase?: number;
   synchronized?: boolean;
-  random_start_phase?: boolean;
   loop_type?: number;
   loop_count?: number;
-  animation_mode?: number;
   phases: SpritePhase[];
 }
 
@@ -123,9 +111,6 @@ export interface CompleteFlags {
   write?: { max_text_length?: number };
   write_once?: { max_text_length_once?: number };
   hook?: { direction?: number };
-  // Hook mount booleans
-  hook_south?: boolean;
-  hook_east?: boolean;
   light?: { brightness?: number; color?: number };
   shift?: { x?: number; y?: number };
   height?: { elevation?: number };
@@ -137,10 +122,6 @@ export interface CompleteFlags {
     category?: number;
     trade_as_object_id?: number;
     show_as_object_id?: number;
-    restrict_to_vocation: number[];
-    minimum_level?: number;
-    name?: string;
-    vocation?: number;
   };
   npc_sale_data: FlagNPC[];
   changed_to_expire?: { former_object_typeid?: number };
@@ -154,7 +135,6 @@ export interface CompleteFlags {
   restrict_to_vocation: number[];
   minimum_level?: number;
   weapon_type?: number;
-  transparency_level?: number;
 }
 
 export interface FlagNPC {
