@@ -3,7 +3,7 @@ use crate::features::npcs::parsers::lua_parser::LuaNpcParser;
 use crate::features::npcs::types::NpcShopItem;
 use crate::state::AppState;
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 use tauri::command;
@@ -15,6 +15,241 @@ struct ProtoShopEntry {
     sale_price: Option<u32>,
     buy_price: Option<u32>,
     market_category: Option<i32>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalProtoShopEntryInput {
+    item_id: Option<u32>,
+    item_name: String,
+    sale_price: Option<u32>,
+    buy_price: Option<u32>,
+    market_category: Option<i32>,
+}
+
+fn normalize_item_lookup_key(value: &str) -> String {
+    let mut out = String::new();
+    let mut last_space = false;
+
+    for ch in value.chars() {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch.to_ascii_lowercase());
+            last_space = false;
+        } else if !last_space {
+            out.push(' ');
+            last_space = true;
+        }
+    }
+
+    out.trim().to_string()
+}
+
+fn add_item_name_lookup(lookup: &mut HashMap<String, u32>, item_id: u32, raw_name: &str) {
+    if item_id == 0 {
+        return;
+    }
+
+    let key = normalize_item_lookup_key(raw_name);
+    if key.is_empty() {
+        return;
+    }
+
+    lookup.entry(key).or_insert(item_id);
+}
+
+fn resolve_item_id_from_lookup(lookup: &HashMap<String, u32>, item_name: &str) -> Option<u32> {
+    let normalized = normalize_item_lookup_key(item_name);
+    if normalized.is_empty() {
+        return None;
+    }
+
+    if let Some(item_id) = lookup.get(&normalized) {
+        return Some(*item_id);
+    }
+
+    let trimmed_parenthesis = Regex::new(r"\s*\([^)]*\)\s*$")
+        .ok()
+        .map(|re| re.replace(&normalized, "").to_string())
+        .unwrap_or_else(|| normalized.clone());
+    if !trimmed_parenthesis.is_empty() {
+        if let Some(item_id) = lookup.get(&trimmed_parenthesis) {
+            return Some(*item_id);
+        }
+    }
+
+    None
+}
+
+fn external_to_proto_entry(
+    raw: &ExternalProtoShopEntryInput,
+    item_name_to_id: &HashMap<String, u32>,
+) -> Option<ProtoShopEntry> {
+    let name = raw.item_name.trim();
+    if name.is_empty() {
+        return None;
+    }
+
+    let item_id = match raw.item_id {
+        Some(id) if id > 0 => id,
+        _ => resolve_item_id_from_lookup(item_name_to_id, name)?,
+    };
+
+    Some(ProtoShopEntry {
+        item_id,
+        item_name: name.to_string(),
+        sale_price: raw.sale_price,
+        buy_price: raw.buy_price,
+        market_category: raw.market_category,
+    })
+}
+
+fn normalize_external_shop_map(
+    raw_map: Option<HashMap<String, Vec<ExternalProtoShopEntryInput>>>,
+    item_name_to_id: &HashMap<String, u32>,
+) -> HashMap<String, Vec<ProtoShopEntry>> {
+    let mut result: HashMap<String, Vec<ProtoShopEntry>> = HashMap::new();
+    let Some(raw_map) = raw_map else {
+        return result;
+    };
+
+    for (npc_name, items) in raw_map {
+        let key = npc_name.trim().to_lowercase();
+        if key.is_empty() {
+            continue;
+        }
+
+        let mut merged_by_id: HashMap<u32, ProtoShopEntry> = HashMap::new();
+        for item in items
+            .iter()
+            .filter_map(|raw| external_to_proto_entry(raw, item_name_to_id))
+        {
+            let entry = merged_by_id.entry(item.item_id).or_insert(ProtoShopEntry {
+                item_id: item.item_id,
+                item_name: item.item_name.clone(),
+                sale_price: None,
+                buy_price: None,
+                market_category: item.market_category,
+            });
+
+            if entry.item_name.is_empty() && !item.item_name.is_empty() {
+                entry.item_name = item.item_name.clone();
+            }
+            if item.sale_price.is_some() {
+                entry.sale_price = item.sale_price;
+            }
+            if item.buy_price.is_some() {
+                entry.buy_price = item.buy_price;
+            }
+            if entry.market_category.is_none() {
+                entry.market_category = item.market_category;
+            }
+        }
+
+        if merged_by_id.is_empty() {
+            continue;
+        }
+
+        let mut normalized_items: Vec<ProtoShopEntry> = merged_by_id.into_values().collect();
+        normalized_items.sort_by(|a, b| a.item_id.cmp(&b.item_id));
+        result.insert(key, normalized_items);
+    }
+
+    result
+}
+
+fn merge_proto_entries_by_item_id(entries: Vec<ProtoShopEntry>) -> Vec<ProtoShopEntry> {
+    let mut merged_by_id: HashMap<u32, ProtoShopEntry> = HashMap::new();
+    for item in entries {
+        if item.item_id == 0 {
+            continue;
+        }
+
+        let entry = merged_by_id.entry(item.item_id).or_insert(ProtoShopEntry {
+            item_id: item.item_id,
+            item_name: item.item_name.clone(),
+            sale_price: None,
+            buy_price: None,
+            market_category: item.market_category,
+        });
+
+        if entry.item_name.is_empty() && !item.item_name.is_empty() {
+            entry.item_name = item.item_name.clone();
+        }
+        if item.sale_price.is_some() {
+            entry.sale_price = item.sale_price;
+        }
+        if item.buy_price.is_some() {
+            entry.buy_price = item.buy_price;
+        }
+        if entry.market_category.is_none() {
+            entry.market_category = item.market_category;
+        }
+    }
+
+    let mut merged: Vec<ProtoShopEntry> = merged_by_id.into_values().collect();
+    merged.sort_by(|a, b| a.item_id.cmp(&b.item_id));
+    merged
+}
+
+fn collect_existing_shop_client_ids(existing_shop: Option<&Vec<NpcShopItem>>) -> HashSet<u32> {
+    let mut ids = HashSet::new();
+    let Some(existing_shop) = existing_shop else {
+        return ids;
+    };
+
+    for item in existing_shop {
+        if let Some(cid) = item.client_id {
+            if cid > 0 {
+                ids.insert(cid);
+            }
+        }
+    }
+
+    ids
+}
+
+fn remap_proto_entries_with_existing_shop_names(
+    proto_entries: &mut Vec<ProtoShopEntry>,
+    existing_shop: Option<&Vec<NpcShopItem>>,
+) {
+    let Some(existing_shop) = existing_shop else {
+        return;
+    };
+
+    let mut name_to_id: HashMap<String, u32> = HashMap::new();
+    let mut ambiguous_keys: HashSet<String> = HashSet::new();
+
+    for item in existing_shop {
+        let (Some(name), Some(cid)) = (&item.item_name, item.client_id) else {
+            continue;
+        };
+        if cid == 0 {
+            continue;
+        }
+
+        let key = normalize_item_lookup_key(name);
+        if key.is_empty() {
+            continue;
+        }
+
+        if let Some(existing) = name_to_id.get(&key) {
+            if *existing != cid {
+                ambiguous_keys.insert(key.clone());
+            }
+        } else {
+            name_to_id.insert(key.clone(), cid);
+        }
+    }
+
+    for entry in proto_entries.iter_mut() {
+        let key = normalize_item_lookup_key(&entry.item_name);
+        if key.is_empty() || ambiguous_keys.contains(&key) {
+            continue;
+        }
+        if let Some(existing_id) = name_to_id.get(&key) {
+            entry.item_id = *existing_id;
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -41,6 +276,21 @@ pub struct SyncNpcShopsResult {
 
 const AUTO_SYNC_BLOCK_START: &str = "-- AUTO-SYNC-PROTO-SHOP:START";
 const AUTO_SYNC_BLOCK_END: &str = "-- AUTO-SYNC-PROTO-SHOP:END";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShopSyncSource {
+    Proto,
+    Fandom,
+}
+
+impl ShopSyncSource {
+    fn parse(raw: Option<&str>) -> Self {
+        match raw.map(|v| v.trim().to_ascii_lowercase()) {
+            Some(value) if value == "fandom" => ShopSyncSource::Fandom,
+            _ => ShopSyncSource::Proto,
+        }
+    }
+}
 
 fn proto_entry_to_shop_item(proto_entry: &ProtoShopEntry) -> NpcShopItem {
     NpcShopItem {
@@ -524,6 +774,22 @@ fn detect_indent_unit(text: &str) -> String {
     }
 }
 
+fn detect_direct_shop_item_indent(table_block: &str, outer_indent: &str) -> String {
+    let re = Regex::new(r#"(?m)^([ \t]*)\{[^{}\r\n]*\bclientId\s*=\s*\d+"#);
+    let Ok(re) = re else {
+        return format!("{}{}", outer_indent, detect_indent_unit(table_block));
+    };
+
+    for cap in re.captures_iter(table_block) {
+        let indent = cap.get(1).map_or("", |m| m.as_str());
+        if indent.len() > outer_indent.len() && indent.starts_with(outer_indent) {
+            return indent.to_string();
+        }
+    }
+
+    format!("{}{}", outer_indent, detect_indent_unit(table_block))
+}
+
 fn normalize_category_label(value: &str) -> String {
     let mut out = String::new();
     let mut last_space = false;
@@ -771,7 +1037,52 @@ fn render_item_entry(props: &[(String, String)], indent: &str, trailing_comma: b
     line
 }
 
-fn update_existing_item_entry(entry_text: &str, indent: &str, proto_item: &NpcShopItem) -> String {
+fn normalize_leading_item_commas(table_block: &str) -> String {
+    let re = Regex::new(
+        r#"(?m)\}([ \t]*\r?\n[ \t]*),([ \t]*\{[^{}\r\n]*\bclientId\s*=)"#,
+    );
+    let Ok(re) = re else {
+        return table_block.to_string();
+    };
+
+    re.replace_all(table_block, "},$1$2").to_string()
+}
+
+fn normalize_item_entry_commas(table_block: &str) -> String {
+    let normalized = normalize_leading_item_commas(table_block);
+    let item_entry_re = Regex::new(r#"(?s)\{[^{}]*\bclientId\s*=\s*\d+[^{}]*\},?"#);
+    let Ok(item_entry_re) = item_entry_re else {
+        return normalized;
+    };
+
+    let matches: Vec<_> = item_entry_re.find_iter(&normalized).collect();
+    if matches.len() < 2 {
+        return normalized;
+    }
+
+    let mut result = String::with_capacity(normalized.len() + 32);
+    let mut cursor = 0usize;
+    for (idx, m) in matches.iter().enumerate() {
+        result.push_str(&normalized[cursor..m.start()]);
+
+        let mut entry = normalized[m.start()..m.end()].to_string();
+        if idx + 1 < matches.len() && !entry.trim_end().ends_with(',') {
+            entry.push(',');
+        }
+        result.push_str(&entry);
+
+        cursor = m.end();
+    }
+    result.push_str(&normalized[cursor..]);
+    result
+}
+
+fn update_existing_item_entry(
+    entry_text: &str,
+    indent: &str,
+    proto_item: &NpcShopItem,
+    preserve_existing_prices_when_missing: bool,
+) -> String {
     let (inner, trailing_comma) = match strip_entry_braces_and_comma(entry_text) {
         Some(v) => v,
         None => {
@@ -784,16 +1095,22 @@ fn update_existing_item_entry(entry_text: &str, indent: &str, proto_item: &NpcSh
         return entry_text.to_string();
     }
 
-    if let Some(cid) = proto_item.client_id {
-        set_or_remove_prop(&mut props, "clientId", Some(cid.to_string()));
+    let has_storage_gate = props
+        .iter()
+        .any(|(k, _)| k == "storageKey" || k == "storageValue");
+
+    if !has_storage_gate {
+        if let Some(cid) = proto_item.client_id {
+            set_or_remove_prop(&mut props, "clientId", Some(cid.to_string()));
+        }
     }
 
-    let has_subtype_like = props.iter().any(|(k, _)| {
-        k == "count" || k.eq_ignore_ascii_case("subtype")
-    });
+    let has_subtype_like = props
+        .iter()
+        .any(|(k, _)| k == "count" || k.eq_ignore_ascii_case("subtype"));
 
-    // For subtype/count-based entries (e.g. fluids), preserve the custom item name and only sync prices.
-    if !has_subtype_like {
+    // For subtype/count-based and storage-gated entries, preserve custom identity and sync only prices.
+    if !has_subtype_like && !has_storage_gate {
         // Update whichever key style exists (`itemName` or `name`) and preserve all custom props.
         let name_value = proto_item.item_name.as_ref().map(|name| lua_quote(name));
         let has_item_name = props.iter().any(|(k, _)| k == "itemName");
@@ -810,16 +1127,25 @@ fn update_existing_item_entry(entry_text: &str, indent: &str, proto_item: &NpcSh
         }
     }
 
-    set_or_remove_prop(
-        &mut props,
-        "buy",
-        proto_item.buy.filter(|v| *v > 0).map(|v| v.to_string()),
-    );
-    set_or_remove_prop(
-        &mut props,
-        "sell",
-        proto_item.sell.filter(|v| *v > 0).map(|v| v.to_string()),
-    );
+    if preserve_existing_prices_when_missing {
+        if let Some(buy) = proto_item.buy.filter(|v| *v > 0) {
+            set_or_remove_prop(&mut props, "buy", Some(buy.to_string()));
+        }
+        if let Some(sell) = proto_item.sell.filter(|v| *v > 0) {
+            set_or_remove_prop(&mut props, "sell", Some(sell.to_string()));
+        }
+    } else {
+        set_or_remove_prop(
+            &mut props,
+            "buy",
+            proto_item.buy.filter(|v| *v > 0).map(|v| v.to_string()),
+        );
+        set_or_remove_prop(
+            &mut props,
+            "sell",
+            proto_item.sell.filter(|v| *v > 0).map(|v| v.to_string()),
+        );
+    }
 
     // Keep existing count unless proto explicitly provides one.
     if let Some(count) = proto_item.count {
@@ -843,7 +1169,8 @@ fn normalize_direct_shop_closing_spacing(table_block: &str) -> String {
     };
 
     let newline = newline_style(table_block);
-    let close_indent = line_indent_at(table_block, close);
+    // Closing brace of `npcConfig.shop` should align with assignment line.
+    let close_indent = line_indent_at(table_block, open);
     let mut inner_end = close;
     let bytes = table_block.as_bytes();
     while inner_end > open + 1 {
@@ -854,15 +1181,21 @@ fn normalize_direct_shop_closing_spacing(table_block: &str) -> String {
     }
 
     let inner_raw = &table_block[open + 1..inner_end];
-    let inner_compact = Regex::new(r"(?m)(\r?\n)[ \t]*(\r?\n)+")
+    let inner_without_blank_lines = Regex::new(r"(?m)^[ \t]*\r?\n")
         .ok()
-        .map(|re| re.replace_all(inner_raw, "$1").to_string())
+        .map(|re| re.replace_all(inner_raw, "").to_string())
         .unwrap_or_else(|| inner_raw.to_string());
+    let inner_trimmed_end = inner_without_blank_lines
+        .trim_end_matches(|c| c == ' ' || c == '\t' || c == '\r' || c == '\n')
+        .to_string();
+    let inner_without_leading_breaks = inner_trimmed_end.trim_start_matches(['\r', '\n']);
+    let has_inner_content = !inner_without_leading_breaks.trim().is_empty();
 
     let mut result = String::with_capacity(table_block.len());
     result.push_str(&table_block[..open + 1]);
-    result.push_str(&inner_compact);
-    if inner_end > open + 1 {
+    if has_inner_content {
+        result.push_str(newline);
+        result.push_str(inner_without_leading_breaks);
         result.push_str(newline);
         result.push_str(&close_indent);
     }
@@ -1271,6 +1604,7 @@ fn relocate_existing_items_by_market_category(
     table_block: &str,
     proto_by_id: &HashMap<u32, &ProtoShopEntry>,
     protected_client_ids: &HashSet<u32>,
+    preserve_existing_prices_when_missing: bool,
 ) -> String {
     if proto_by_id.is_empty() {
         return table_block.to_string();
@@ -1358,6 +1692,7 @@ fn relocate_existing_items_by_market_category(
             &relocation.entry_text,
             &target_category.item_indent,
             &updated_proto_item,
+            preserve_existing_prices_when_missing,
         );
 
         grouped_by_close
@@ -1452,6 +1787,7 @@ fn apply_proto_to_items_table_content(
     content: &str,
     proto_entries: &[ProtoShopEntry],
     keep_custom_items: bool,
+    preserve_existing_prices_when_missing: bool,
 ) -> Option<(String, usize, usize)> {
     let (block_start, _, block_end) = find_named_table_block_range(content, "itemsTable")?;
     let table_block = &content[block_start..block_end];
@@ -1498,7 +1834,12 @@ fn apply_proto_to_items_table_content(
             seen_proto_ids.insert(cid);
             let proto_item = proto_entry_to_shop_item(proto_entry);
             // Keep the original line indentation already present in the untouched prefix.
-            let updated_entry = update_existing_item_entry(entry_text, "", &proto_item);
+            let updated_entry = update_existing_item_entry(
+                entry_text,
+                "",
+                &proto_item,
+                preserve_existing_prices_when_missing,
+            );
             updated_block.push_str(&updated_entry);
             items_after += 1;
         } else if keep_custom_items {
@@ -1514,6 +1855,7 @@ fn apply_proto_to_items_table_content(
         &updated_block,
         &proto_by_id,
         &protected_client_ids,
+        preserve_existing_prices_when_missing,
     );
 
     let mut missing_items: Vec<&ProtoShopEntry> = Vec::new();
@@ -1530,6 +1872,7 @@ fn apply_proto_to_items_table_content(
     let (updated_block, added_count) =
         insert_missing_proto_items_into_items_table(&updated_block, &missing_items)?;
     items_after += added_count;
+    let updated_block = normalize_item_entry_commas(&updated_block);
     let updated_block = normalize_category_item_indentation(&updated_block);
     let updated_block = normalize_category_closing_indentation(&updated_block);
 
@@ -1553,7 +1896,7 @@ fn insert_missing_proto_items_into_direct_shop(
     let outer_open = table_block.find('{')?;
     let outer_close = find_matching_brace(table_block, outer_open)?;
     let outer_indent = line_indent_at(table_block, outer_open);
-    let item_indent = format!("{}{}", outer_indent, detect_indent_unit(table_block));
+    let item_indent = detect_direct_shop_item_indent(table_block, &outer_indent);
     let newline = newline_style(table_block);
     let name_key = detect_global_name_key(table_block);
 
@@ -1587,6 +1930,7 @@ fn apply_proto_to_direct_shop_content(
     content: &str,
     proto_entries: &[ProtoShopEntry],
     keep_custom_items: bool,
+    preserve_existing_prices_when_missing: bool,
 ) -> Option<(String, usize, usize)> {
     if proto_entries.is_empty() {
         return Some((content.to_string(), 0, 0));
@@ -1643,7 +1987,12 @@ fn apply_proto_to_direct_shop_content(
             seen_proto_ids.insert(cid);
             let proto_item = proto_entry_to_shop_item(proto_entry);
             // Keep the original line indentation already present in the untouched prefix.
-            let updated_entry = update_existing_item_entry(entry_text, "", &proto_item);
+            let updated_entry = update_existing_item_entry(
+                entry_text,
+                "",
+                &proto_item,
+                preserve_existing_prices_when_missing,
+            );
             updated_block.push_str(&updated_entry);
             items_after += 1;
         } else if keep_custom_items {
@@ -1669,6 +2018,7 @@ fn apply_proto_to_direct_shop_content(
     let (updated_block, added_count) =
         insert_missing_proto_items_into_direct_shop(&updated_block, &missing_items)?;
     items_after += added_count;
+    let updated_block = normalize_item_entry_commas(&updated_block);
     let updated_block = normalize_direct_shop_closing_spacing(&updated_block);
 
     let mut new_content =
@@ -1687,12 +2037,15 @@ pub async fn sync_npc_shops_from_proto(
     ignore_item_names: Vec<String>,
     keep_custom_items: bool,
     items_xml_path: Option<String>,
+    shop_source: Option<String>,
+    fandom_shop_map: Option<HashMap<String, Vec<ExternalProtoShopEntryInput>>>,
     state: tauri::State<'_, AppState>,
 ) -> Result<SyncNpcShopsResult, String> {
     let base_path = PathBuf::from(&npcs_path);
     if !base_path.exists() {
         return Err("NPC directory does not exist".to_string());
     }
+    let source = ShopSyncSource::parse(shop_source.as_deref());
 
     // Parse items.xml for name fallback (explicit path or inferred default)
     let resolved_items_xml_path = resolve_items_xml_path(&base_path, items_xml_path.as_deref())?;
@@ -1709,30 +2062,58 @@ pub async fn sync_npc_shops_from_proto(
         .filter(|n| !n.is_empty())
         .collect();
 
-    // Step 1: Read proto data and build NPC -> items map
-    let npc_shop_map = {
+    let mut item_name_to_id: HashMap<String, u32> = HashMap::new();
+    for (item_id, item_name) in &items_xml_names {
+        add_item_name_lookup(&mut item_name_to_id, *item_id, item_name);
+    }
+    if source == ShopSyncSource::Fandom {
+        let appearances_lock = state.appearances.read();
+        if let Some(appearances) = &*appearances_lock {
+            for appearance in &appearances.object {
+                let item_id = match appearance.id {
+                    Some(id) if id > 0 => id,
+                    _ => continue,
+                };
+                let proto_name = appearance
+                    .name
+                    .as_ref()
+                    .map(|b| normalize_proto_name(b))
+                    .unwrap_or_default();
+                if !proto_name.is_empty() {
+                    add_item_name_lookup(&mut item_name_to_id, item_id, &proto_name);
+                }
+            }
+        }
+    }
+
+    // Step 1: Build source data
+    let mut npc_shop_map: HashMap<String, Vec<ProtoShopEntry>> = if source == ShopSyncSource::Fandom {
+        normalize_external_shop_map(fandom_shop_map, &item_name_to_id)
+    } else {
+        HashMap::new()
+    };
+
+    if source == ShopSyncSource::Proto {
         let appearances_lock = state.appearances.read();
         let appearances = match &*appearances_lock {
             Some(a) => a,
             None => return Err("No appearances loaded. Please load an appearances file first.".to_string()),
         };
 
-        let mut map: HashMap<String, Vec<ProtoShopEntry>> = HashMap::new();
         let mut seen_items_by_npc: HashMap<String, HashMap<u32, usize>> = HashMap::new();
-
         for appearance in &appearances.object {
             let item_id = match appearance.id {
                 Some(id) if id > 0 => id,
                 _ => continue,
             };
 
-            // Get name: try proto first, then items.xml fallback
             let proto_name = appearance
                 .name
                 .as_ref()
                 .map(|b| normalize_proto_name(b))
                 .unwrap_or_default();
 
+            // Get name: try proto first, then items.xml fallback
             let item_name = if proto_name.is_empty() {
                 items_xml_names.get(&item_id).cloned().unwrap_or_default()
             } else {
@@ -1766,7 +2147,7 @@ pub async fn sync_npc_shops_from_proto(
                         }
 
                         let npc_key = npc_name.trim().to_lowercase();
-                        let npc_items = map.entry(npc_key.clone()).or_default();
+                        let npc_items = npc_shop_map.entry(npc_key.clone()).or_default();
                         let npc_seen = seen_items_by_npc.entry(npc_key).or_default();
 
                         if let Some(existing_idx) = npc_seen.get(&item_id).copied() {
@@ -1800,9 +2181,12 @@ pub async fn sync_npc_shops_from_proto(
                 }
             }
         }
-
-        map
-    }; // appearances_lock dropped here
+    } else if npc_shop_map.is_empty() {
+        return Err(
+            "Fandom source selected but no fandomShopMap was provided by the frontend."
+                .to_string(),
+        );
+    }
 
     // Step 2: List and process all NPC files
     let npc_entries = list_npcs_recursive(&base_path, &base_path)
@@ -1838,25 +2222,53 @@ pub async fn sync_npc_shops_from_proto(
         };
 
         let npc_name_lower = npc.name.trim().to_lowercase();
-        let proto_items = npc_shop_map.get(&npc_name_lower);
+        let mut proto_entries: Vec<ProtoShopEntry> =
+            npc_shop_map.get(&npc_name_lower).cloned().unwrap_or_default();
+        let existing_shop = npc.shop.as_ref();
 
-        // Determine if this NPC has proto data
-        let has_proto_data = proto_items.map_or(false, |items| !items.is_empty());
+        if source == ShopSyncSource::Fandom {
+            remap_proto_entries_with_existing_shop_names(&mut proto_entries, existing_shop);
+        }
 
-        if !has_proto_data {
-            // No proto data for this NPC -> never touch it
+        proto_entries = merge_proto_entries_by_item_id(proto_entries);
+        let existing_client_ids = if source == ShopSyncSource::Fandom {
+            collect_existing_shop_client_ids(existing_shop)
+        } else {
+            HashSet::new()
+        };
+
+        proto_entries.retain(|entry| {
+            if entry.item_id > 0 && ignore_ids.contains(&entry.item_id) {
+                return false;
+            }
+            if entry.item_name.is_empty() || ignore_names_lower.contains(&entry.item_name.to_lowercase()) {
+                return false;
+            }
+
+            if source == ShopSyncSource::Fandom {
+                // For Fandom rows with non-gold currency, keep only if this item already exists in the NPC file.
+                return entry.sale_price.is_some()
+                    || entry.buy_price.is_some()
+                    || existing_client_ids.contains(&entry.item_id);
+            }
+
+            true
+        });
+
+        if proto_entries.is_empty() {
             result.npcs_skipped += 1;
             continue;
         }
 
-        let proto_entries = proto_items.unwrap();
+        let preserve_existing_prices_when_missing = source == ShopSyncSource::Fandom;
 
         if has_dynamic_shop_builder(&file_content) {
             let content_without_auto = remove_auto_sync_block(&file_content);
             let Some((new_content, managed_before, managed_after)) = apply_proto_to_items_table_content(
                 &content_without_auto,
-                proto_entries,
+                &proto_entries,
                 keep_custom_items,
+                preserve_existing_prices_when_missing,
             ) else {
                 result.npcs_skipped += 1;
                 result.errors.push(format!(
@@ -1895,8 +2307,9 @@ pub async fn sync_npc_shops_from_proto(
         let content_without_auto = remove_auto_sync_block(&file_content);
         let Some((new_content, managed_before, managed_after)) = apply_proto_to_direct_shop_content(
             &content_without_auto,
-            proto_entries,
+            &proto_entries,
             keep_custom_items,
+            preserve_existing_prices_when_missing,
         ) else {
             result.npcs_skipped += 1;
             result.errors.push(format!(

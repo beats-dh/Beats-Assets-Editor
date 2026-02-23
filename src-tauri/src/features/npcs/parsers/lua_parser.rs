@@ -210,6 +210,8 @@ impl LuaNpcParser {
             
             if let Some(c) = Regex::new(r#"itemName\s*=\s*"([^"]+)""#)?.captures(inner) {
                 item.item_name = Some(c[1].to_string());
+            } else if let Some(c) = Regex::new(r#"name\s*=\s*"([^"]+)""#)?.captures(inner) {
+                item.item_name = Some(c[1].to_string());
             }
             if let Some(c) = Regex::new(r"clientId\s*=\s*(\d+)")?.captures(inner) {
                 item.client_id = Some(c[1].parse().unwrap_or(0));
