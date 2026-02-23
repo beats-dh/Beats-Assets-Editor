@@ -225,6 +225,9 @@ impl LuaNpcParser {
             }
             if let Some(c) = Regex::new(r"count\s*=\s*(\d+)")?.captures(inner) {
                 item.count = Some(c[1].parse().unwrap_or(0));
+            } else if let Some(c) = Regex::new(r"sub[Tt]ype\s*=\s*(\d+)")?.captures(inner) {
+                // `subType`/`subtype` is equivalent to `count` for NPC shop subtype in Canary.
+                item.count = Some(c[1].parse().unwrap_or(0));
             }
             
             if item.item_name.is_some() || item.client_id.is_some() || item.item_id.is_some() {

@@ -8,10 +8,12 @@
   interface Props { isOpen: boolean; }
   let { isOpen = $bindable(false) }: Props = $props();
 
+  const DEFAULT_ITEMS_XML_PATH = 'data\\items\\items.xml';
+
   let ignoreIds = $state('');
   let ignoreNames = $state('');
   let keepCustomItems = $state(true);
-  let itemsXmlPath = $state('');
+  let itemsXmlPath = $state(DEFAULT_ITEMS_XML_PATH);
   let isSyncing = $state(false);
   let result = $state<SyncNpcShopsResult | null>(null);
   let error = $state('');
@@ -24,6 +26,10 @@
   function close() {
     isOpen = false;
     reset();
+  }
+
+  function useDefaultItemsXmlPath() {
+    itemsXmlPath = DEFAULT_ITEMS_XML_PATH;
   }
 
   async function selectItemsXml() {
@@ -98,23 +104,26 @@
         </p>
 
         <div class="monster-modal-field" style="margin-bottom: 12px;">
-          <label>items.xml (name fallback for items without name in proto)</label>
+          <label for="sync-items-xml-path">items.xml (name fallback for items without name in proto)</label>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="text" bind:value={itemsXmlPath} placeholder="Path to items.xml (optional)" disabled={isSyncing} style="flex: 1;" />
+            <input id="sync-items-xml-path" type="text" bind:value={itemsXmlPath} placeholder="Path to items.xml" disabled={isSyncing} style="flex: 1;" />
+            <button class="btn-secondary" onclick={useDefaultItemsXmlPath} disabled={isSyncing} style="white-space: nowrap;">Default</button>
             <button class="btn-secondary" onclick={selectItemsXml} disabled={isSyncing} style="white-space: nowrap;">Browse</button>
           </div>
-          <small style="color: var(--text-secondary);">e.g. data/items/items.xml from your server. Used to resolve item names not present in the proto.</small>
+          <small style="color: var(--text-secondary);">
+            Default: <code>data/items/items.xml</code>. Accepts relative or absolute path and is used to resolve item names not present in the proto.
+          </small>
         </div>
 
         <div class="monster-modal-field" style="margin-bottom: 12px;">
-          <label>Ignore Item IDs (comma-separated)</label>
-          <input type="text" bind:value={ignoreIds} placeholder="e.g. 100, 200, 300" disabled={isSyncing} />
+          <label for="sync-ignore-item-ids">Ignore Item IDs (comma-separated)</label>
+          <input id="sync-ignore-item-ids" type="text" bind:value={ignoreIds} placeholder="e.g. 100, 200, 300" disabled={isSyncing} />
           <small style="color: var(--text-secondary);">Items with these client IDs will not be synced from proto.</small>
         </div>
 
         <div class="monster-modal-field" style="margin-bottom: 12px;">
-          <label>Ignore Item Names (comma-separated)</label>
-          <input type="text" bind:value={ignoreNames} placeholder="e.g. sword, magic plate armor" disabled={isSyncing} />
+          <label for="sync-ignore-item-names">Ignore Item Names (comma-separated)</label>
+          <input id="sync-ignore-item-names" type="text" bind:value={ignoreNames} placeholder="e.g. sword, magic plate armor" disabled={isSyncing} />
           <small style="color: var(--text-secondary);">Items with these names will not be synced from proto.</small>
         </div>
 
