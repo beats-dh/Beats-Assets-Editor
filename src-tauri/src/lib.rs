@@ -151,6 +151,18 @@ pub fn run() {
             features::staticmapdata::commands::io::load_staticmapdata_file,
             features::staticmapdata::commands::io::list_staticmapdata_files,
             features::staticmapdata::commands::io::get_staticmapdata_houses,
+            // RCC Editor API
+            features::rcc::commands::rcc_load,
+            features::rcc::commands::rcc_get_resource,
+            features::rcc::commands::rcc_replace_resource,
+            features::rcc::commands::rcc_save,
+            features::rcc::commands::rcc_extract_all,
+            features::rcc::commands::rcc_extract_single,
+            features::rcc::commands::rcc_get_files,
+            features::rcc::commands::rcc_replace_from_file,
+            features::rcc::commands::rcc_delete_resource,
+            features::rcc::commands::rcc_find_files,
+            features::rcc::commands::rcc_add_resource,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

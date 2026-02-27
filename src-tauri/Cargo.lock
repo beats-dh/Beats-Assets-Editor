@@ -4954,6 +4954,7 @@ dependencies = [
  "byteorder",
  "dashmap",
  "env_logger",
+ "flate2",
  "image",
  "log",
  "lzma-rs",

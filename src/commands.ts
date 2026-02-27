@@ -156,6 +156,19 @@ export const COMMANDS = {
   GET_STATICDATA_BOSSES: 'get_staticdata_bosses',
   GET_STATICDATA_QUESTS: 'get_staticdata_quests',
   GET_STATICMAPDATA_HOUSES: 'get_staticmapdata_houses',
+
+  // RCC Editor Commands
+  RCC_LOAD: 'rcc_load',
+  RCC_GET_RESOURCE: 'rcc_get_resource',
+  RCC_REPLACE_RESOURCE: 'rcc_replace_resource',
+  RCC_SAVE: 'rcc_save',
+  RCC_EXTRACT_ALL: 'rcc_extract_all',
+  RCC_EXTRACT_SINGLE: 'rcc_extract_single',
+  RCC_GET_FILES: 'rcc_get_files',
+  RCC_REPLACE_FROM_FILE: 'rcc_replace_from_file',
+  RCC_DELETE_RESOURCE: 'rcc_delete_resource',
+  RCC_FIND_FILES: 'rcc_find_files',
+  RCC_ADD_RESOURCE: 'rcc_add_resource',
 } as const;
 
 // Type for command names

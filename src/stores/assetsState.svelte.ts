@@ -23,7 +23,7 @@ function createAssetsState() {
         currentPage: 0,
         pageSize: 100,
         totalItems: 0,
-        viewMode: 'categories' as 'categories' | 'grid' | 'staticdata',
+        viewMode: 'categories' as 'categories' | 'grid' | 'staticdata' | 'rcc',
         currentStaticDataType: 'creatures' as 'creatures' | 'bosses' | 'quests' | 'titles' | 'houses' | 'map_houses',
         isLoading: false,
         loadingProgress: 0,
@@ -67,4 +67,8 @@ export function updateStaticDataState(category: string, updatedList: any[]) {
         case 'houses': assetsState.houses = updatedList; break;
         case 'map_houses': assetsState.mapHouses = updatedList; break;
     }
+}
+
+export function selectRccMode() {
+    assetsState.viewMode = 'rcc';
 }

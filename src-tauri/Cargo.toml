@@ -81,3 +81,6 @@ string-interner = "0.17"
 
 # Regex for parsing Lua files
 regex = "1.10"
+
+# Zlib decompression for RCC resources
+flate2 = "1.0"

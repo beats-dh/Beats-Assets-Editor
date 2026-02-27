@@ -4,6 +4,7 @@
 pub mod appearances;
 pub mod monsters;
 pub mod npcs;
+pub mod rcc;
 pub mod settings;
 pub mod sounds;
 pub mod sprites;

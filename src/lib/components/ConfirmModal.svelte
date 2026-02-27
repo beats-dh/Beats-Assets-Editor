@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { confirmState, closeConfirm } from '../../stores/confirmState.svelte';
+  import { confirmState, closeConfirm } from "../../stores/confirmState.svelte";
 
   function handleConfirm() {
     closeConfirm(true);
@@ -11,28 +11,39 @@
 </script>
 
 {#if confirmState.options}
-  <div id="confirm-modal" class="asset-details-modal" role="dialog" aria-modal="true" style="display: flex;">
+  <div
+    id="confirm-modal"
+    class="confirm-overlay"
+    role="dialog"
+    aria-modal="true"
+  >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="modal-backdrop" onclick={handleCancel}></div>
-    <div class="modal-content" role="document">
-      <div class="modal-header">
+    <div class="confirm-backdrop" onclick={handleCancel}></div>
+    <div class="confirm-dialog" role="document">
+      <div class="confirm-header">
         <h2>{confirmState.options.title}</h2>
-        <button class="close-btn" onclick={handleCancel} aria-label="Close">✕</button>
+        <button class="confirm-close" onclick={handleCancel} aria-label="Close"
+          >✕</button
+        >
       </div>
-      <div class="modal-body">
-        <p>{confirmState.options.message}</p>
-        <div class="edit-actions">
-          <button class="btn-delete" onclick={handleConfirm}>{confirmState.options.confirmLabel || 'Confirm'}</button>
-          <button class="btn-save" onclick={handleCancel}>{confirmState.options.cancelLabel || 'Cancel'}</button>
-        </div>
+      <div class="confirm-body">
+        {@html confirmState.options.message}
+      </div>
+      <div class="confirm-actions">
+        <button class="confirm-btn danger" onclick={handleConfirm}>
+          {confirmState.options.confirmLabel || "Confirm"}
+        </button>
+        <button class="confirm-btn secondary" onclick={handleCancel}>
+          {confirmState.options.cancelLabel || "Cancel"}
+        </button>
       </div>
     </div>
   </div>
 {/if}
 
 <style>
-  .asset-details-modal {
+  .confirm-overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -44,67 +55,164 @@
     align-items: center;
   }
 
-  .modal-backdrop {
+  .confirm-backdrop {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
   }
 
-  .modal-content {
-    background: var(--surface-card);
-    padding: 20px;
-    border-radius: 8px;
+  .confirm-dialog {
+    position: relative;
     z-index: 2001;
-    min-width: 300px;
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    min-width: 400px;
     max-width: 500px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow:
+      var(--shadow-xl),
+      0 0 0 1px rgba(79, 70, 229, 0.1);
+    animation: confirmSlideIn var(--transition-fast);
   }
 
-  .modal-header {
+  @keyframes confirmSlideIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .confirm-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--tertiary-bg);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 
-  .modal-header h2 {
+  .confirm-header h2 {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
   }
 
-  .close-btn {
+  .confirm-close {
     background: none;
     border: none;
-    font-size: 1.2rem;
+    font-size: 16px;
     cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+  }
+  .confirm-close:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .confirm-body {
+    padding: var(--space-lg);
+    font-size: 13px;
+    line-height: 1.6;
     color: var(--text-secondary);
   }
 
-  .edit-actions {
+  /* Styles for HTML content inside the body */
+  .confirm-body :global(p) {
+    margin: 0 0 12px 0;
+  }
+  .confirm-body :global(p:last-child) {
+    margin-bottom: 0;
+  }
+  .confirm-body :global(.confirm-filename) {
+    display: inline;
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  .confirm-body :global(.confirm-detail) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin: 12px 0;
+    background: var(--primary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    word-break: break-all;
+  }
+  .confirm-body :global(.confirm-detail .detail-label) {
+    color: var(--text-disabled);
+    font-family: var(--font-family);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+  .confirm-body :global(.confirm-detail .detail-value) {
+    color: var(--text-secondary);
+  }
+  .confirm-body :global(.confirm-warning) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-top: 12px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: var(--radius-md);
+    color: var(--error-color);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .confirm-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-lg) var(--space-md);
   }
 
-  .btn-delete {
-    background: var(--primary-color);
+  .confirm-btn {
+    padding: 8px 20px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .confirm-btn.danger {
+    background: var(--error-color);
+    border: 1px solid var(--error-color);
     color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
+  }
+  .confirm-btn.danger:hover {
+    filter: brightness(1.15);
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
   }
 
-  .btn-save {
-    background: transparent;
-    border: 1px solid var(--border-color);
+  .confirm-btn.secondary {
+    background: var(--surface-bg);
+    border: 1px solid var(--border-hover);
     color: var(--text-primary);
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
+  }
+  .confirm-btn.secondary:hover {
+    background: var(--elevated-bg);
+    border-color: var(--text-muted);
   }
 </style>
