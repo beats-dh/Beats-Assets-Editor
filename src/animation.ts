@@ -1,12 +1,27 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { CompleteAppearanceItem, CompleteSpriteInfo, SpriteDecomposition, GroupMapping } from './types';
-import { getAppearanceSprites, bufferToObjectUrl } from './spriteCache';
+import { getAppearanceSprites } from './spriteCache';
+import { getSpriteUrl } from './utils/spriteUrlCache';
 import { buildAssetPreviewAnimation } from './features/previewAnimation/assetPreviewAnimator';
+import { perfConfig } from './stores/performanceConfig.svelte';
 
 // Active animation players storage
 const activeAnimationPlayers = new Map<string, number>();
 const detailCache = new Map<string, CompleteAppearanceItem>();
-const MAX_AUTO_ANIMATIONS = 10_000;
+
+// Redraws a sprite URL onto an existing canvas (nearest-neighbor)
+function redrawCanvas(canvas: HTMLCanvasElement, url: string): void {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const img = new Image();
+  img.onload = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  };
+  img.src = url;
+}
+
 const runWhenIdle = (cb: () => void): void => {
   if ('requestIdleCallback' in window) {
     (window as any).requestIdleCallback(cb, { timeout: 500 });
@@ -135,7 +150,7 @@ export async function initAnimationPlayersForDetails(
       player.className = 'animation-player';
       player.innerHTML = `
         <div class="anim-canvas">
-          <img class="anim-sprite-image" alt="Animation">
+          <canvas class="anim-sprite-image" style="width:64px;height:64px;"></canvas>
           <span class="anim-phase-label">Fase 1</span>
         </div>
         <div class="anim-controls">
@@ -148,7 +163,13 @@ export async function initAnimationPlayersForDetails(
       `;
       groupEl.appendChild(player);
 
-      const imgEl = player.querySelector('img') as HTMLImageElement;
+      // Setup canvas DPR
+      const animCanvas = player.querySelector('canvas.anim-sprite-image') as HTMLCanvasElement;
+      if (animCanvas) {
+        const dpr = window.devicePixelRatio || 1;
+        animCanvas.width = Math.round(64 * dpr);
+        animCanvas.height = Math.round(64 * dpr);
+      }
       const phaseLabel = player.querySelector('.anim-phase-label') as HTMLElement;
       const playBtn = player.querySelector('button[data-action="play"]') as HTMLButtonElement;
       const pauseBtn = player.querySelector('button[data-action="pause"]') as HTMLButtonElement;
@@ -159,8 +180,8 @@ export async function initAnimationPlayersForDetails(
       const baseOffset = groupOffsets[index];
       const draw = () => {
         const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, 0, 0, 0, 0, phase);
-        if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = bufferToObjectUrl(sprites[spriteIdx]);
+        if (spriteIdx >= 0 && spriteIdx < sprites.length && animCanvas) {
+          redrawCanvas(animCanvas, getSpriteUrl(sprites[spriteIdx]));
           phaseLabel.textContent = `Fase ${phase + 1}`;
         }
       };
@@ -262,8 +283,8 @@ export function initDetailSpriteCardAnimations(
       if (el.dataset.animReady === 'true') return;
       el.dataset.animReady = 'true';
 
-      const imgEl = el.querySelector('img.detail-sprite-image') as HTMLImageElement | null;
-      if (!imgEl) return;
+      const canvasEl = el.querySelector('canvas.detail-sprite-image') as HTMLCanvasElement | null;
+      if (!canvasEl) return;
 
       const baseOffset = groupOffsets[groupIndex];
       const dims = decomposeSpriteIndex(spriteInfo, localIndex);
@@ -273,7 +294,7 @@ export function initDetailSpriteCardAnimations(
       const draw = () => {
         const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, dims.layerIndex, dims.x, dims.y, dims.z, phase);
         if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = bufferToObjectUrl(sprites[spriteIdx]);
+          redrawCanvas(canvasEl, getSpriteUrl(sprites[spriteIdx]));
         }
       };
 
@@ -303,7 +324,7 @@ export function initDetailSpriteCardAnimations(
                 el.classList.remove('animating');
                 const spriteIdx = aggIndex;
                 if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-                  imgEl.src = bufferToObjectUrl(sprites[spriteIdx]);
+                  redrawCanvas(canvasEl, getSpriteUrl(sprites[spriteIdx]));
                 }
                 return;
               }
@@ -326,7 +347,7 @@ export function initDetailSpriteCardAnimations(
         el.classList.remove('animating');
         const spriteIdx = aggIndex;
         if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = bufferToObjectUrl(sprites[spriteIdx]);
+          redrawCanvas(canvasEl, getSpriteUrl(sprites[spriteIdx]));
         }
       };
 
@@ -350,8 +371,8 @@ export function initAssetCardAutoAnimation(
   forceStart = false
 ): void {
   const container = document.getElementById(`sprite-${appearanceId}`) as HTMLElement | null;
-  const imgEl = container?.querySelector('img') as HTMLImageElement | null;
-  if (!container || !imgEl) return;
+  const canvasEl = container?.querySelector('canvas') as HTMLCanvasElement | null;
+  if (!container || !canvasEl) return;
 
   const cacheKey = `${category}:${appearanceId}`;
 
@@ -359,7 +380,7 @@ export function initAssetCardAutoAnimation(
     try {
       if (!autoAnimateGridEnabled) return;
       if (activeAnimationPlayers.has(`asset:${category}:${appearanceId}`)) return;
-      if (activeAnimationPlayers.size >= MAX_AUTO_ANIMATIONS) return;
+      if (activeAnimationPlayers.size >= perfConfig.maxAutoAnimations) return;
 
       const details = detailCache.has(cacheKey)
         ? detailCache.get(cacheKey)!
@@ -383,7 +404,7 @@ export function initAssetCardAutoAnimation(
       const draw = () => {
         const frame = sequence.frames[frameIndex];
         if (frame) {
-          imgEl.src = frame;
+          redrawCanvas(canvasEl, frame);
         }
       };
       draw();

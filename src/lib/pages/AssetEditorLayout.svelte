@@ -3,6 +3,7 @@
   import Header from '../components/Header.svelte';
   import CategoryNav from '../components/CategoryNav.svelte';
   import CategoryView from '../components/CategoryView.svelte';
+  import StaticDataBrowser from '../components/StaticDataBrowser.svelte';
   import AssetDetailsModal from '../components/AssetDetailsModal.svelte';
   import ConfirmModal from '../components/ConfirmModal.svelte';
   import ImportStartIdModal from '../components/ImportStartIdModal.svelte';
@@ -12,8 +13,10 @@
 {#if assetsState.viewMode === 'categories'}
   <Header />
   <CategoryNav />
-{:else}
+{:else if assetsState.viewMode === 'grid'}
   <CategoryView />
+{:else if assetsState.viewMode === 'staticdata'}
+  <StaticDataBrowser />
 {/if}
 
 <AssetDetailsModal />

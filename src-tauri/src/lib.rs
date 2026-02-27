@@ -134,6 +134,23 @@ pub fn run() {
             features::settings::get_monster_base_path,
             features::settings::set_npc_base_path,
             features::settings::get_npc_base_path,
+            // StaticData & StaticMapData
+            features::staticdata::commands::io::load_staticdata_file,
+            features::staticdata::commands::io::list_staticdata_files,
+            features::staticdata::commands::io::save_staticdata_file,
+            features::staticdata::commands::io::remove_staticdata_item,
+            features::staticdata::commands::io::update_staticdata_creature,
+            features::staticdata::commands::io::update_staticdata_boss,
+            features::staticdata::commands::io::update_staticdata_quest,
+            features::staticdata::commands::io::update_staticdata_title,
+            features::staticdata::commands::io::get_staticdata_creatures,
+            features::staticdata::commands::io::get_staticdata_titles,
+            features::staticdata::commands::io::get_staticdata_houses,
+            features::staticdata::commands::io::get_staticdata_bosses,
+            features::staticdata::commands::io::get_staticdata_quests,
+            features::staticmapdata::commands::io::load_staticmapdata_file,
+            features::staticmapdata::commands::io::list_staticmapdata_files,
+            features::staticmapdata::commands::io::get_staticmapdata_houses,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

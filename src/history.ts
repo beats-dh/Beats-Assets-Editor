@@ -1,3 +1,5 @@
+import { perfConfig } from './stores/performanceConfig.svelte';
+
 export interface HistoryEntry {
   description: string;
   undo: () => Promise<void> | void;
@@ -6,7 +8,6 @@ export interface HistoryEntry {
 
 const undoStack: HistoryEntry[] = [];
 const redoStack: HistoryEntry[] = [];
-const HISTORY_LIMIT = 100;
 let isPerforming = false;
 
 export function recordAction(entry: HistoryEntry): void {
@@ -14,7 +15,7 @@ export function recordAction(entry: HistoryEntry): void {
     return;
   }
   undoStack.push(entry);
-  if (undoStack.length > HISTORY_LIMIT) {
+  if (undoStack.length > perfConfig.historyLimit) {
     undoStack.shift();
   }
   redoStack.length = 0;
@@ -43,7 +44,7 @@ export async function redo(): Promise<void> {
   try {
     await entry.redo();
     undoStack.push(entry);
-    if (undoStack.length > HISTORY_LIMIT) {
+    if (undoStack.length > perfConfig.historyLimit) {
       undoStack.shift();
     }
   } finally {

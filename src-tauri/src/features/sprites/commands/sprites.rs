@@ -9,12 +9,21 @@ use rayon::prelude::*;
 
 #[inline]
 fn resolve_sprite_bytes(state: &AppState, sprite_loader: &SpriteLoader, sprite_id: u32) -> Result<Vec<u8>, String> {
+    // 1. Imported sprites override everything
     if let Some(bytes) = state.imported_sprites.get(&sprite_id) {
         return Ok(bytes.clone());
     }
 
+    // 2. Check PNG cache (avoids re-encoding RGBA→PNG)
+    if let Some(cached_png) = state.png_cache.get(&sprite_id) {
+        return Ok((*cached_png).clone());
+    }
+
+    // 3. Cache miss: decode + encode + cache
     let sprite = sprite_loader.get_sprite(sprite_id).map_err(|e| format!("Failed to get sprite {}: {}", sprite_id, e))?;
-    sprite.to_png_bytes().map_err(|e| format!("Failed to convert sprite to PNG: {}", e))
+    let png_bytes = sprite.to_png_bytes().map_err(|e| format!("Failed to convert sprite to PNG: {}", e))?;
+    state.png_cache.insert(sprite_id, png_bytes.clone());
+    Ok(png_bytes)
 }
 
 #[inline]
@@ -227,10 +236,12 @@ pub async fn get_appearance_preview_sprite(category: AppearanceCategory, appeara
 pub async fn clear_sprite_cache(state: State<'_, AppState>) -> Result<usize, String> {
     let cache_size = state.sprite_cache.len();
     let preview_size = state.preview_cache.len();
+    let png_size = state.png_cache.len();
     state.sprite_cache.clear();
     state.preview_cache.clear();
-    log::info!("Cleared sprite cache ({} entries) and preview cache ({})", cache_size, preview_size);
-    Ok(cache_size + preview_size)
+    state.png_cache.clear();
+    log::info!("Cleared sprite cache ({} entries), preview cache ({}), png cache ({})", cache_size, preview_size, png_size);
+    Ok(cache_size + preview_size + png_size)
 }
 
 /// Get sprite cache statistics

@@ -138,6 +138,24 @@ export const COMMANDS = {
   GET_CACHE_STATISTICS: 'get_cache_statistics',
   CLEAR_ALL_CACHES: 'clear_all_caches',
   CLEAR_CACHE_TYPE: 'clear_cache_type',
+
+  // StaticData & StaticMapData
+  LOAD_STATICDATA_FILE: 'load_staticdata_file',
+  LIST_STATICDATA_FILES: 'list_staticdata_files',
+  SAVE_STATICDATA_FILE: 'save_staticdata_file',
+  REMOVE_STATICDATA_ITEM: 'remove_staticdata_item',
+  UPDATE_STATICDATA_CREATURE: 'update_staticdata_creature',
+  UPDATE_STATICDATA_BOSS: 'update_staticdata_boss',
+  UPDATE_STATICDATA_QUEST: 'update_staticdata_quest',
+  UPDATE_STATICDATA_TITLE: 'update_staticdata_title',
+  LOAD_STATICMAPDATA_FILE: 'load_staticmapdata_file',
+  LIST_STATICMAPDATA_FILES: 'list_staticmapdata_files',
+  GET_STATICDATA_CREATURES: 'get_staticdata_creatures',
+  GET_STATICDATA_TITLES: 'get_staticdata_titles',
+  GET_STATICDATA_HOUSES: 'get_staticdata_houses',
+  GET_STATICDATA_BOSSES: 'get_staticdata_bosses',
+  GET_STATICDATA_QUESTS: 'get_staticdata_quests',
+  GET_STATICMAPDATA_HOUSES: 'get_staticmapdata_houses',
 } as const;
 
 // Type for command names
@@ -206,23 +224,7 @@ export const CONSTANTS = {
   // Storage version
   STORAGE_VERSION: '1.0',
 
-  // Cache limits
-  MAX_SPRITE_CACHE_SIZE: 1000,
-  MAX_PREVIEW_CACHE_SIZE: 500,
-  MAX_QUERY_CACHE_SIZE: 100,
-
-  // Rendering
-  INITIAL_SPRITE_RENDER_COUNT: 48,
-  SPRITE_RENDER_CHUNK: 24,
-  PREVIEW_BATCH_SIZE: 12,
-  ANIMATION_BATCH_SIZE: 24,
-
-  // Timing
-  SEARCH_DEBOUNCE_MS: 300,
-  IDLE_CALLBACK_TIMEOUT: 300,
-
   // Defaults
-  DEFAULT_PAGE_SIZE: 100,
   DEFAULT_THEME: 'default',
   DEFAULT_LANGUAGE: 'en',
 } as const;

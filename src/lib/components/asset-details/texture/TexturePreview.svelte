@@ -2,7 +2,6 @@
   import { onMount, onDestroy } from 'svelte';
   import { computeSpriteIndex, computeGroupOffsetsFromDetails } from '../../../../animation';
   import { getSpriteUrl } from '../../../../utils/spriteUrlCache';
-  import { bufferToObjectUrl } from '../../../../spriteCache';
   import type { CompleteAppearanceItem, CompleteSpriteInfo } from '../../../../types';
   import { translate } from '../../../../i18n';
   interface Props {
@@ -75,7 +74,7 @@
       if (!textureDecodeWorker) { reject(new Error('Worker unavailable')); return; }
       textureDecodePending.set(id, (dataUrl) => { if (!dataUrl) { reject(new Error('Decode failed')); return; } const img = new Image(); img.onload = () => { URL.revokeObjectURL(dataUrl); resolve(img); }; img.onerror = (err) => { URL.revokeObjectURL(dataUrl); reject(err); }; img.src = dataUrl; });
       textureDecodeWorker.postMessage({ id, sprite: buffer }, [buffer]);
-    }).catch((err) => { console.warn('Falling back to main thread decode', index, err); return new Promise<HTMLImageElement>((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = (error) => reject(error); img.src = bufferToObjectUrl(sprite); }); });
+    }).catch((err) => { console.warn('Falling back to main thread decode', index, err); return new Promise<HTMLImageElement>((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = (error) => reject(error); img.src = getSpriteUrl(sprite); }); });
     cache.set(index, promise); return promise;
   }
 

@@ -1,17 +1,18 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { invoke } from '../../../../utils/invoke';
-  import { getAppearanceSprites, bufferToObjectUrl } from '../../../../spriteCache';
-  import { computeSpriteIndex, computeGroupOffsetsFromDetails } from '../../../../animation';
+  import { getAppearanceSprites, pixelSprite } from '../../../../spriteCache';
   import { getSpriteUrl } from '../../../../utils/spriteUrlCache';
+  import { computeSpriteIndex, computeGroupOffsetsFromDetails } from '../../../../animation';
   import { outfitColorIdToRgb } from '../utils';
   import type { CompleteAppearanceItem, CompleteSpriteInfo } from '../../../../types';
   import type { MonsterOutfit } from '../../../../monsterTypes';
 
   interface Props {
     outfit: MonsterOutfit;
+    showInfo?: boolean;
   }
-  let { outfit }: Props = $props();
+  let { outfit, showInfo = true }: Props = $props();
 
   let spriteSrc = $state("");
   let previewDirections = $state<any[]>([]);
@@ -163,7 +164,7 @@
       }
       const fallback = sprites[0];
       if (!fallback) return [];
-      return [{ direction: 0, frames: [bufferToObjectUrl(fallback)], durations: [250] }];
+      return [{ direction: 0, frames: [getSpriteUrl(fallback)], durations: [250] }];
   }
 
   async function getOutfitSpriteMetadata(lookType: number) {
@@ -292,7 +293,7 @@
 <div class="outfit-preview">
     <div class="outfit-sprite-container">
         {#if spriteSrc}
-            <img src={spriteSrc} class="outfit-sprite-image" alt="Outfit Preview" style="width: 80%; height: 80%; object-fit: contain; image-rendering: pixelated;" />
+            <canvas use:pixelSprite={spriteSrc} class="outfit-sprite-image" style="width:80%;height:80%;"></canvas>
         {:else}
             <div class="sprite-placeholder-text" style="display: flex; align-items: center; justify-content: center; height: 100%;">{spritePlaceholder}</div>
         {/if}
@@ -301,6 +302,7 @@
         </button>
     </div>
     
+    {#if showInfo}
     <div class="outfit-info">
         <div class="outfit-info-item"><div class="outfit-info-label">Type</div><div class="outfit-info-value">{outfit.lookType}</div></div>
         <div class="outfit-info-item"><div class="outfit-info-label">Head</div><div class="outfit-info-value">{outfit.lookHead}</div></div>
@@ -309,6 +311,7 @@
         <div class="outfit-info-item"><div class="outfit-info-label">Feet</div><div class="outfit-info-value">{outfit.lookFeet}</div></div>
         <div class="outfit-info-item"><div class="outfit-info-label">Addons</div><div class="outfit-info-value">{outfit.lookAddons}</div></div>
     </div>
+    {/if}
 </div>
 
 <style>

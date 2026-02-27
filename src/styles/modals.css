@@ -29,8 +29,8 @@
 
 .modal-content {
   position: relative;
-  background: linear-gradient(135deg, #1a1d29 0%, #0f1117 100%);
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: var(--primary-bg);
+  border: 1px solid var(--border-soft);
   border-radius: 16px;
   max-width: 900px;
   max-height: 90vh;
@@ -45,11 +45,11 @@
 
 .modal-header {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  border-bottom: 1px solid var(--border-soft-20);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+  background: var(--primary-bg);
 }
 
 .modal-tabs {
@@ -138,10 +138,7 @@
 .modal-header h3 {
   font-size: 1.5rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -210,11 +207,11 @@ body.modal-open {
   margin-bottom: 0;
 }
 
-.edit-section > p {
+.edit-section>p {
   display: none;
 }
 
-.edit-section > h3 {
+.edit-section>h3 {
   margin: 0;
   margin-bottom: var(--space-sm);
   color: var(--text-primary);
@@ -293,7 +290,7 @@ body.modal-open {
   gap: var(--space-md);
 }
 
-#add-sound-content > p {
+#add-sound-content>p {
   display: none;
 }
 

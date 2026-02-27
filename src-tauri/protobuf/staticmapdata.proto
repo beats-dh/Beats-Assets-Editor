@@ -1,0 +1,53 @@
+syntax = "proto2";
+
+package tibia.protobuf.staticmapdata;
+
+import "shared.proto";
+
+message StaticMapData {
+  repeated HouseDetail houses = 1;
+}
+
+message HouseDetail {
+  optional uint32 house_id = 1;
+  optional HouseLayout layout = 2;
+}
+
+message HouseLayout {
+  optional shared.Coordinate position = 1;
+  optional AreaSize size = 2;
+  optional HouseTiles tiles = 3;
+}
+
+message AreaSize {
+  optional uint32 width = 1;
+  optional uint32 height = 2;
+  optional uint32 floors = 3;
+}
+
+message HouseTiles {
+  optional HouseFloorData floor_data = 2;
+}
+
+message HouseFloorData {
+  repeated HouseTileRow rows = 3;
+}
+
+message HouseTileRow {
+  repeated HouseTile tiles = 1;
+  optional uint32 flags = 2;
+}
+
+message HouseTile {
+  optional uint32 object_id = 1;
+  optional HouseTileWall wall_info = 101;
+  optional HouseTileDoor door_info = 102;
+}
+
+message HouseTileWall {
+  optional bool is_wall = 2;
+}
+
+message HouseTileDoor {
+  optional bool is_door = 2;
+}

@@ -8,6 +8,8 @@ let appearancesLoaded = false;
 let appearancesLoadPromise: Promise<void> | null = null;
 let lastTibiaPath: string | null = null;
 let cachedStats: AppearanceStats | null = null;
+let cachedStaticDataStats: any | null = null;
+let cachedStaticMapDataStats: any | null = null;
 
 async function requestTibiaPath(): Promise<string> {
   try {
@@ -55,6 +57,24 @@ async function loadAppearancesFromPathInternal(tibiaPath: string): Promise<void>
   const appearancePath = await join(assetsDir, selectedFile);
 
   cachedStats = await invoke<AppearanceStats>(COMMANDS.LOAD_APPEARANCES_FILE, { path: appearancePath });
+
+  // Custom: Try to load static data
+  try {
+    const staticDataFiles = await invoke<string[]>(COMMANDS.LIST_STATICDATA_FILES, { tibiaPath });
+    if (staticDataFiles && staticDataFiles.length > 0) {
+      const sdPath = await join(assetsDir, staticDataFiles[0]);
+      cachedStaticDataStats = await invoke(COMMANDS.LOAD_STATICDATA_FILE, { path: sdPath });
+    }
+  } catch (e) { console.error('Failed to load staticdata:', e); }
+
+  try {
+    const staticMapDataFiles = await invoke<string[]>(COMMANDS.LIST_STATICMAPDATA_FILES, { tibiaPath });
+    if (staticMapDataFiles && staticMapDataFiles.length > 0) {
+      const smdPath = await join(assetsDir, staticMapDataFiles[0]);
+      cachedStaticMapDataStats = await invoke(COMMANDS.LOAD_STATICMAPDATA_FILE, { path: smdPath });
+    }
+  } catch (e) { console.error('Failed to load staticmapdata:', e); }
+
   appearancesLoaded = true;
   lastTibiaPath = tibiaPath;
 }
@@ -98,4 +118,12 @@ export function areAppearancesLoaded(): boolean {
 
 export function getCachedAppearanceStats(): AppearanceStats | null {
   return cachedStats;
+}
+
+export function getCachedStaticDataStats(): any | null {
+  return cachedStaticDataStats;
+}
+
+export function getCachedStaticMapDataStats(): any | null {
+  return cachedStaticMapDataStats;
 }

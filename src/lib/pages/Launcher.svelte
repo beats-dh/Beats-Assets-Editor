@@ -6,7 +6,7 @@
   import { assetsState } from '../../stores/assetsState.svelte';
   import { invoke } from '../../utils/invoke';
   import { COMMANDS } from '../../commands';
-  import { loadAppearancesForAssetsEditor } from '../../appearanceLoader';
+  import { loadAppearancesForAssetsEditor, getCachedStaticDataStats, getCachedStaticMapDataStats } from '../../appearanceLoader';
   import { loadSpecialMeaningIds } from '../../specialMeaning';
   import { showStatus } from '../../utils';
   import {
@@ -55,6 +55,8 @@
       await loadSpecialMeaningIds();
 
       assetsState.currentStats = result;
+      assetsState.staticDataStats = getCachedStaticDataStats();
+      assetsState.staticMapDataStats = getCachedStaticMapDataStats();
       appState.currentView = 'assets-editor';
     } catch (error) {
       console.error('Error loading appearances:', error);

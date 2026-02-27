@@ -38,7 +38,7 @@ async function applyTemplate(
 ): Promise<void> {
   const templateBitmap = await bufferToBitmap(templateBuffer);
   const tempCanvas = new OffscreenCanvas(templateBitmap.width, templateBitmap.height);
-  const tempCtx = tempCanvas.getContext('2d');
+  const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
   if (!tempCtx) return;
 
   tempCtx.drawImage(templateBitmap, 0, 0);
@@ -73,7 +73,7 @@ async function composeOutfit(request: OutfitComposeRequestMessage): Promise<Arra
 
   const baseBitmap = await bufferToBitmap(request.layers[0].sprite);
   const canvas = new OffscreenCanvas(baseBitmap.width, baseBitmap.height);
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return null;
 
   for (const layer of request.layers) {

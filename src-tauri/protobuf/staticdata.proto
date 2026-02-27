@@ -1,0 +1,70 @@
+syntax = "proto2";
+
+package tibia.protobuf.staticdata;
+
+import "shared.proto";
+
+message StaticData {
+  repeated CreatureType creatures = 1;
+  repeated Title titles = 2;
+  repeated HouseData houses = 3;
+  repeated BossData bosses = 4;
+  repeated QuestData quests = 5;
+}
+
+message CreatureType {
+  optional uint32 id = 1;
+  optional string name = 2;
+  optional OutfitLook outfit = 3;
+  optional uint32 difficulty = 4;
+  optional uint32 occurrence = 5;
+  optional bool is_npc = 6;
+  optional bool is_hostile = 7;
+}
+
+message OutfitLook {
+  optional uint32 looktype = 1;
+  optional OutfitColors colors = 2;
+  optional uint32 addons = 3;
+  optional uint32 mount = 4;
+}
+
+message OutfitColors {
+  optional uint32 head = 1;
+  optional uint32 body = 2;
+  optional uint32 legs = 3;
+  optional uint32 feet = 4;
+}
+
+message Title {
+  optional uint32 id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional uint32 grade = 4;
+}
+
+message HouseData {
+  optional uint32 id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional uint32 rent = 4;
+  optional uint32 size = 5;
+  optional shared.Coordinate position = 6;
+  optional uint32 beds = 7;
+  optional bool guildhall = 8;
+  optional string town = 9;
+  optional bool is_premium = 10;
+}
+
+message BossData {
+  optional uint32 id = 1;
+  optional string name = 2;
+  optional OutfitLook outfit = 3;
+  optional bool is_archfoe = 4;
+}
+
+message QuestData {
+  optional uint32 id = 1;
+  optional string name = 2;
+}
+

@@ -10,6 +10,8 @@ use std::sync::Arc;
 use crate::core::cache::LRUCache;
 use crate::features::appearances::{Appearances, CompleteFlags};
 use crate::features::sprites::parsers::SpriteLoader;
+use crate::features::staticdata::StaticData;
+use crate::features::staticmapdata::StaticMapData;
 
 /// Application state to hold loaded appearances and sprites
 /// EXTREME OPTIMIZATIONS:
@@ -22,10 +24,15 @@ pub struct AppState {
     pub appearances: RwLock<Option<Appearances>>,
     pub sprite_loader: RwLock<Option<SpriteLoader>>,
     pub tibia_path: Mutex<Option<PathBuf>>,
+    
+    // StaticData
+    pub staticdata: RwLock<Option<StaticData>>,
+    pub staticmapdata: RwLock<Option<StaticMapData>>,
 
     // ✅ OPTIMIZED: Bounded LRU caches (prevents memory exhaustion)
-    pub sprite_cache: LRUCache<String, Vec<Vec<u8>>>, // Max 1000 entries
-    pub preview_cache: LRUCache<String, Vec<u8>>,     // Max 500 entries
+    pub sprite_cache: LRUCache<String, Vec<Vec<u8>>>, // Max 5000 entries (appearance sprites)
+    pub preview_cache: LRUCache<String, Vec<u8>>,     // Max 5000 entries (preview sprites)
+    pub png_cache: LRUCache<u32, Vec<u8>>,             // Max 5000 entries (individual PNG by sprite ID)
 
     // O(1) lookup indexes - no more O(n) linear scans!
     // Maps: ID -> index in Vec for instant lookups
@@ -53,10 +60,13 @@ impl AppState {
             appearances: RwLock::new(None),
             sprite_loader: RwLock::new(None),
             tibia_path: Mutex::new(None),
+            staticdata: RwLock::new(None),
+            staticmapdata: RwLock::new(None),
 
             // LRU caches with size limits
-            sprite_cache: LRUCache::new(1000), // ~100MB max
-            preview_cache: LRUCache::new(500), // ~25MB max
+            sprite_cache: LRUCache::new(5000),
+            preview_cache: LRUCache::new(5000),
+            png_cache: LRUCache::new(5000),  // ~250MB max (5000 × ~50KB avg PNG)
 
             // Indexes
             object_index: DashMap::with_hasher(ahash::RandomState::new()),
@@ -80,6 +90,7 @@ impl AppState {
         CacheStatistics {
             sprite_cache: self.sprite_cache.stats(),
             preview_cache: self.preview_cache.stats(),
+            png_cache: self.png_cache.stats(),
             search_cache_size: self.search_cache.len(),
         }
     }
@@ -88,6 +99,7 @@ impl AppState {
     pub fn clear_caches(&self) {
         self.sprite_cache.clear();
         self.preview_cache.clear();
+        self.png_cache.clear();
         self.search_cache.clear();
         log::info!("All caches cleared");
     }
@@ -104,5 +116,6 @@ impl Default for AppState {
 pub struct CacheStatistics {
     pub sprite_cache: crate::core::cache::CacheStats,
     pub preview_cache: crate::core::cache::CacheStats,
+    pub png_cache: crate::core::cache::CacheStats,
     pub search_cache_size: usize,
 }

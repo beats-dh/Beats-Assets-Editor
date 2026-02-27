@@ -3,7 +3,8 @@
   import type { DndEvent } from 'svelte-dnd-action';
   import type { CompleteAppearanceItem } from '../../../../types';
   import { computeGroupOffsetsFromDetails } from '../../../../animation';
-  import { bufferToObjectUrl } from '../../../../spriteCache';
+  import { pixelSprite } from '../../../../spriteCache';
+  import { getSpriteUrl } from '../../../../utils/spriteUrlCache';
   import { translate } from '../../../../i18n';
   interface Props {
     sprites: Uint8Array[];
@@ -102,7 +103,7 @@
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="texture-sprite-chip" class:is-selected={selectedIndices.has(item.localIndex)} data-id={item.id} role="button" tabindex="0" onclick={(e) => handleSelection(e, item.localIndex)}>
           <div class="texture-sprite-thumb">
-            {#if item.spriteData && item.spriteData.byteLength > 0}<img src={bufferToObjectUrl(item.spriteData)} alt="Sprite {item.spriteId}" draggable="false" />
+            {#if item.spriteData && item.spriteData.byteLength > 0}<canvas use:pixelSprite={getSpriteUrl(item.spriteData)} style="width:32px;height:32px;"></canvas>
             {:else}<div class="texture-sprite-placeholder">?</div>{/if}
           </div>
           <div class="texture-sprite-meta"><span class="texture-sprite-id">#{item.spriteId}</span><span class="texture-sprite-slot">{translate('texture.spriteList.slotLabel', { value: item.localIndex + 1 })}</span></div>

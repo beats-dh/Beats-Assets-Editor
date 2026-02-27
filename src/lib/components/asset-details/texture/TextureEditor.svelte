@@ -2,7 +2,7 @@
   import type { CompleteAppearanceItem } from '../../../../types';
   import { assetsState } from '../../../../stores/assetsState.svelte';
   import { computeGroupOffsetsFromDetails } from '../../../../animation';
-  import { getAppearanceSprites, getSpriteById } from '../../../../spriteCache';
+  import { getAppearanceSprites, getSpriteById, invalidateAppearanceCache, removeCachedAppearanceSprites, appendCachedAppearanceSprites } from '../../../../spriteCache';
   import TexturePreview from './TexturePreview.svelte';
   import TextureControls from './TextureControls.svelte';
   import TextureSpriteList from './TextureSpriteList.svelte';
@@ -64,7 +64,8 @@
       await invoke('save_appearances_file');
       spriteInfo.sprite_ids = reordered; if (details.frame_groups[state.frameGroupIndex]) details.frame_groups[state.frameGroupIndex].sprite_info = spriteInfo;
       const offset = getGroupOffset(); const count = spriteInfo.sprite_ids.length; const current = sprites.slice(); const groupSprites = current.slice(offset, offset + count); const reorderedSprites = detail.newOrder.map(index => groupSprites[index] ?? new Uint8Array()); current.splice(offset, count, ...reorderedSprites); sprites = current;
-      refreshDetailPreviews(); void loadSprites(); showStatus(translate('status.spriteReplaced'), 'success');
+      invalidateAppearanceCache(activeTextureCategory!, details.id);
+      refreshDetailPreviews(); showStatus(translate('status.spriteReplaced'), 'success');
     } catch (err) { console.error('Failed to reorder sprites:', err); showStatus(translate('status.spriteReplaceFailed'), 'error'); }
   }
 
@@ -78,7 +79,9 @@
       if (details.frame_groups[state.frameGroupIndex]) details.frame_groups[state.frameGroupIndex].sprite_info = spriteInfo;
       const offset = getGroupOffset(); const current = sprites.slice();
       indices.slice().sort((a, b) => b - a).forEach(i => { const t = offset + i; if (t >= 0 && t < current.length) current.splice(t, 1); });
-      sprites = current; refreshDetailPreviews(); void loadSprites(); showStatus(translate('status.spriteRemoved'), 'success');
+      sprites = current;
+      removeCachedAppearanceSprites(activeTextureCategory!, details.id, indices.map(i => offset + i));
+      refreshDetailPreviews(); showStatus(translate('status.spriteRemoved'), 'success');
     } catch (err) { console.error('Failed to remove sprite:', err); showStatus(translate('status.spriteRemoveFailed'), 'error'); }
   }
 
@@ -97,7 +100,9 @@
         const current = sprites.slice();
         if (updates.length > 0) { const buffers = await fetchSpriteBuffers(updates.map(u => u.sprite_id)); updates.forEach((u, ui) => { const t = offset + u.index; if (t >= 0 && t < current.length) current[t] = buffers[ui] ?? new Uint8Array(); }); }
         if (appendIds.length > 0) { const buffers = await fetchSpriteBuffers(appendIds); current.splice(offset + previousCount, 0, ...buffers); }
-        sprites = current; refreshDetailPreviews(); void loadSprites(); showStatus(translate('status.spriteReplaced'), 'success');
+        sprites = current;
+        invalidateAppearanceCache(activeTextureCategory!, details.id);
+        refreshDetailPreviews(); showStatus(translate('status.spriteReplaced'), 'success');
       }
     } catch (err) { console.error('Failed to replace sprites:', err); showStatus(translate('status.spriteReplaceFailed'), 'error'); }
   }
@@ -111,7 +116,8 @@
       await invoke('save_appearances_file');
       spriteInfo.sprite_ids.push(...spriteIds); if (details.frame_groups[state.frameGroupIndex]) details.frame_groups[state.frameGroupIndex].sprite_info = { ...spriteInfo };
       const current = sprites.slice(); const buffers = await fetchSpriteBuffers(spriteIds); current.splice(offset + previousCount, 0, ...buffers); sprites = current;
-      refreshDetailPreviews(); void loadSprites(); showStatus(translate('status.spriteReplaced'), 'success');
+      appendCachedAppearanceSprites(activeTextureCategory!, details.id, buffers);
+      refreshDetailPreviews(); showStatus(translate('status.spriteReplaced'), 'success');
     } catch (err) { console.error('Failed to append sprites:', err); showStatus(translate('status.spriteReplaceFailed'), 'error'); }
   }
 
@@ -128,7 +134,11 @@
   async function handleSaveSettings() {
     const update = collectTextureUpdatePayload(); if (!update) return;
     const category = activeTextureCategory; if (!category) return;
-    try { await invoke('update_appearance_texture_settings', { category, id: details.id, update }); await invoke('save_appearances_file'); showStatus(translate('status.textureSaved'), 'success'); loadSprites(); }
+    try {
+      await invoke('update_appearance_texture_settings', { category, id: details.id, update }); await invoke('save_appearances_file');
+      invalidateAppearanceCache(category, details.id);
+      showStatus(translate('status.textureSaved'), 'success'); loadSprites();
+    }
     catch (err) { console.error('Failed to save texture settings:', err); showStatus(translate('status.textureSaveFailed'), 'error'); }
   }
 </script>

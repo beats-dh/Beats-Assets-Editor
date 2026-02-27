@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { assetsState, setCategory } from '../../stores/assetsState.svelte';
+  import { assetsState, setCategory, selectStaticDataMode } from '../../stores/assetsState.svelte';
   import { translate } from '../../i18n';
 
   function selectCategory(cat: string, sub: string = 'All') {
@@ -146,5 +146,42 @@
         </button>
       </div>
     </div>
+
+    <!-- World Data Section -->
+    {#if assetsState.staticDataStats || assetsState.staticMapDataStats}
+    <div class="subcategories-section" style="margin-top: 2rem;">
+      <h3 class="subcategories-title">World Data (staticdata)</h3>
+      <div class="world-stats-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+        {#if assetsState.staticDataStats}
+          <div class="subcategory-card" onclick={() => selectStaticDataMode('creatures')}>
+            <span class="subcat-icon">🐉</span>
+            <span class="subcat-name">{assetsState.staticDataStats.total_creatures} Creatures</span>
+          </div>
+          <div class="subcategory-card" onclick={() => selectStaticDataMode('bosses')}>
+            <span class="subcat-icon">👑</span>
+            <span class="subcat-name">{assetsState.staticDataStats.total_bosses} Bosses</span>
+          </div>
+          <div class="subcategory-card" onclick={() => selectStaticDataMode('quests')}>
+            <span class="subcat-icon">📜</span>
+            <span class="subcat-name">{assetsState.staticDataStats.total_quests} Quests</span>
+          </div>
+          <div class="subcategory-card" onclick={() => selectStaticDataMode('titles')}>
+            <span class="subcat-icon">🏅</span>
+            <span class="subcat-name">{assetsState.staticDataStats.total_titles} Titles</span>
+          </div>
+          <div class="subcategory-card" onclick={() => selectStaticDataMode('houses')}>
+            <span class="subcat-icon">🏘️</span>
+            <span class="subcat-name">{assetsState.staticDataStats.total_houses} Houses</span>
+          </div>
+        {/if}
+        {#if assetsState.staticMapDataStats}
+          <div class="subcategory-card" onclick={() => selectStaticDataMode('map_houses')}>
+            <span class="subcat-icon">🗺️</span>
+            <span class="subcat-name">{assetsState.staticMapDataStats.total_houses_details} Map Houses</span>
+          </div>
+        {/if}
+      </div>
+    </div>
+    {/if}
   </div>
 </nav>

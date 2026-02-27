@@ -2,7 +2,7 @@
   import { dndzone } from 'svelte-dnd-action';
   import type { DndEvent } from 'svelte-dnd-action';
   import { translate } from '../../i18n';
-  import { getSpriteById, getCachedSpriteById } from '../../spriteCache';
+  import { getSpriteById, getCachedSpriteById, pixelSprite } from '../../spriteCache';
   import { getSpriteUrl as getUnifiedSpriteUrl } from '../../utils/spriteUrlCache';
   import { showStatus } from '../../utils';
   import { spriteLibraryState, closeSpriteLibrary } from '../../stores/spriteLibraryState.svelte';
@@ -226,7 +226,7 @@
             >
               <div class="texture-sprite-thumb">
                 {#if spriteUrls.has(item.spriteId)}
-                  <img src={spriteUrls.get(item.spriteId)} alt="Sprite {item.spriteId}" draggable="false" />
+                  <canvas use:pixelSprite={spriteUrls.get(item.spriteId)} style="width:32px;height:32px;"></canvas>
                 {:else}
                   <div class="texture-sprite-placeholder">…</div>
                 {/if}

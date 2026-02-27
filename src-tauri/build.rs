@@ -9,6 +9,7 @@ fn main() {
     let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR not set");
 
     prost_build::Config::new()
+        .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
         .out_dir(&out_dir)
         .compile_protos(
             &[
@@ -17,6 +18,8 @@ fn main() {
                 "protobuf/sounds-common.proto",
                 "protobuf/map.proto",
                 "protobuf/shared.proto",
+                "protobuf/staticdata.proto",
+                "protobuf/staticmapdata.proto",
             ],
             &["protobuf"],
         )

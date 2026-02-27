@@ -7,3 +7,5 @@ pub mod npcs;
 pub mod settings;
 pub mod sounds;
 pub mod sprites;
+pub mod staticdata;
+pub mod staticmapdata;

@@ -9,8 +9,113 @@ export interface AppearanceStats {
   // Additional info - actual item counts in file
   actual_objects: number;
   actual_outfits: number;
-  actual_effects: number;
   actual_missiles: number;
+}
+
+export interface StaticDataStats {
+  total_creatures: number;
+  total_titles: number;
+  total_houses: number;
+  total_bosses: number;
+  total_quests: number;
+}
+
+export interface StaticMapDataStats {
+  total_houses_details: number;
+}
+
+export interface OutfitColors {
+  head?: number;
+  body?: number;
+  legs?: number;
+  feet?: number;
+}
+
+export interface OutfitLook {
+  looktype?: number;
+  colors?: OutfitColors;
+  addons?: number;
+  mount?: number;
+}
+
+// Static Data entities
+export interface StaticCreature {
+  id: number;
+  name: string;
+  outfit?: OutfitLook;
+  difficulty: number;
+  occurrence: number;
+  is_npc: boolean;
+  is_hostile: boolean;
+}
+
+export interface StaticTitle {
+  id: number;
+  name: string;
+  description: string;
+  grade: number;
+}
+
+export interface StaticQuest {
+  id: number;
+  name: string;
+}
+
+export interface StaticBoss {
+  id: number;
+  name: string;
+  outfit?: OutfitLook;
+  is_archfoe: boolean;
+}
+
+export interface StaticHouse {
+  id: number;
+  name: string;
+  description: string;
+  rent: number;
+  size: number;
+  position?: Coordinate;
+  beds: number;
+  guildhall: boolean;
+  town: string;
+  is_premium: boolean;
+}
+
+// Static Map Data Entities
+export interface StaticMapHouseDetail {
+  house_id?: number;
+  layout?: StaticMapHouseLayout;
+}
+
+export interface StaticMapHouseLayout {
+  position?: Coordinate;
+  size?: StaticMapAreaSize;
+  tiles?: StaticMapHouseTiles;
+}
+
+export interface StaticMapAreaSize {
+  width?: number;
+  height?: number;
+  floors?: number;
+}
+
+export interface StaticMapHouseTiles {
+  floor_data?: StaticMapHouseFloorData;
+}
+
+export interface StaticMapHouseFloorData {
+  rows: StaticMapHouseTileRow[];
+}
+
+export interface StaticMapHouseTileRow {
+  tiles: StaticMapHouseTile[];
+  flags?: number;
+}
+
+export interface StaticMapHouseTile {
+  object_id?: number;
+  wall_info?: { is_wall?: boolean };
+  door_info?: { is_door?: boolean };
 }
 
 // Complete appearance types matching Rust backend

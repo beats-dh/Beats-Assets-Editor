@@ -105,12 +105,13 @@
   display: none;
   flex-direction: column;
   gap: var(--space-md);
-  background: var(--control-bg);
+  background: var(--surface-bg, #0f172a);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
   padding: var(--space-md);
   z-index: 100;
+  backdrop-filter: blur(24px) saturate(1.2);
 }
 
 .settings-menu.show {
@@ -203,7 +204,7 @@
 
 /* Modern Header Styles */
 .modern-header {
-  background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+  background: var(--gradient-surface);
   border-bottom: 1px solid var(--border-soft-20);
   padding: var(--space-sm) var(--space-md);
   display: flex;
@@ -344,19 +345,16 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: white;
+  background: var(--surface-bg);
+  border: 1px solid var(--border-soft);
+  color: var(--text-primary);
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 0.9rem;
   font-weight: 600;
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.3),
-    0 2px 4px -1px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.2);
   position: relative;
   overflow: hidden;
 }
@@ -368,17 +366,15 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
   transition: left 0.5s ease;
 }
 
 .modern-back-btn:hover {
-  background: linear-gradient(135deg, #5b52f0 0%, #8b5cf6 100%);
+  background: var(--elevated-bg);
+  border-color: var(--border-hover);
   transform: translateY(-2px);
-  box-shadow:
-    0 8px 15px -3px rgba(0, 0, 0, 0.4),
-    0 4px 6px -2px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 6px -2px rgba(0, 0, 0, 0.3);
 }
 
 .modern-back-btn:hover::before {

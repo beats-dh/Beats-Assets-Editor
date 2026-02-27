@@ -16,11 +16,11 @@ const urlRegistry = new Set<string>();
 export function getSpriteUrl(buffer: Uint8Array): string {
   const cached = spriteUrlCache.get(buffer);
   if (cached) return cached;
-  
+
   // Usar slice() para garantir ArrayBuffer (evita SharedArrayBuffer)
   const arrayBuffer = buffer.slice().buffer;
   const url = URL.createObjectURL(new Blob([arrayBuffer], { type: 'image/png' }));
-  
+
   spriteUrlCache.set(buffer, url);
   urlRegistry.add(url);
   return url;
@@ -35,19 +35,3 @@ export function clearSpriteUrlCache(): void {
   urlRegistry.clear();
 }
 
-/**
- * Obtém estatísticas do cache
- * @returns Número de URLs registradas
- */
-export function getSpriteUrlCacheStats(): number {
-  return urlRegistry.size;
-}
-
-/**
- * Verifica se um buffer já tem URL cacheada
- * @param buffer - Buffer para verificar
- * @returns true se já tiver URL cacheada
- */
-export function hasSpriteUrl(buffer: Uint8Array): boolean {
-  return spriteUrlCache.has(buffer);
-}

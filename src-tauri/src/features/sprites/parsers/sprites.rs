@@ -134,7 +134,8 @@ impl SpriteCatalog {
 struct CatalogBackend {
     catalog: SpriteCatalog,
     assets_dir: PathBuf,
-    sprite_cache: DashMap<String, Arc<Vec<TibiaSprite>>>, // filename -> sprites
+    sprite_cache: DashMap<String, Arc<Vec<TibiaSprite>>>, // filename -> decompressed sprites
+    preloaded_files: DashMap<String, Arc<Vec<u8>>>,       // filename -> compressed bytes (in-RAM)
 }
 
 impl CatalogBackend {
@@ -155,10 +156,31 @@ impl CatalogBackend {
         sprites_arc.get(sprite_index).cloned().ok_or_else(|| anyhow!("Sprite {} not found in sheet {}", sprite_id, entry.file))
     }
 
-    fn load_sprite_sheet_for_entry(&self, entry: &SpriteCatalogEntry) -> Result<Vec<TibiaSprite>> {
-        let file_path = self.assets_dir.join(&entry.file);
+    /// Preload all CWM files into RAM (still compressed). Eliminates disk I/O on sprite access.
+    fn preload_all_files(&self) {
+        let filenames: Vec<String> = self.catalog.entries.iter().map(|e| e.file.clone()).collect();
+        let loaded: Vec<(String, Arc<Vec<u8>>)> = filenames
+            .par_iter()
+            .filter_map(|filename| {
+                let path = self.assets_dir.join(filename);
+                fs::read(&path).ok().map(|data| (filename.clone(), Arc::new(data)))
+            })
+            .collect();
+        let count = loaded.len();
+        for (name, data) in loaded {
+            self.preloaded_files.insert(name, data);
+        }
+        log::info!("Preloaded {} sprite files into RAM", count);
+    }
 
-        let compressed_data = fs::read(&file_path).context(format!("Failed to read sprite file: {:?}", file_path))?;
+    fn load_sprite_sheet_for_entry(&self, entry: &SpriteCatalogEntry) -> Result<Vec<TibiaSprite>> {
+        // Try preloaded RAM data first, fall back to disk I/O
+        let compressed_data: Vec<u8> = if let Some(preloaded) = self.preloaded_files.get(&entry.file) {
+            (**preloaded).clone()
+        } else {
+            let file_path = self.assets_dir.join(&entry.file);
+            fs::read(&file_path).context(format!("Failed to read sprite file: {:?}", file_path))?
+        };
 
         let bitmap_data = self.decompress_lzma(&compressed_data)?;
 
@@ -359,17 +381,22 @@ pub struct SpriteLoader {
 }
 
 impl SpriteLoader {
-    /// Create a new sprite loader with catalog and assets directory
+    /// Create a new sprite loader with catalog and assets directory.
+    /// Preloads all CWM files into RAM (compressed) to eliminate disk I/O.
     pub fn new<P: AsRef<Path>>(catalog_path: P, assets_dir: P) -> Result<Self> {
         let catalog = SpriteCatalog::load(catalog_path)?;
         let assets_dir = assets_dir.as_ref().to_path_buf();
 
+        let backend = CatalogBackend {
+            catalog,
+            assets_dir,
+            sprite_cache: DashMap::new(),
+            preloaded_files: DashMap::new(),
+        };
+        backend.preload_all_files();
+
         Ok(SpriteLoader {
-            backend: SpriteBackend::Catalog(CatalogBackend {
-                catalog,
-                assets_dir,
-                sprite_cache: DashMap::new(),
-            }),
+            backend: SpriteBackend::Catalog(backend),
         })
     }
 

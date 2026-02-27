@@ -114,19 +114,19 @@ function renderVirtualList(): void {
 
   const scrollTop = list.scrollTop;
   const containerHeight = list.clientHeight;
-  
+
   calculateVisibleRange(scrollTop, containerHeight);
-  
+
   // Criar container com altura total
   const totalHeight = visibleRange.length * itemHeight;
   list.innerHTML = `<div style="height: ${totalHeight}px; position: relative;"></div>`;
   const container = list.firstElementChild;
-  
+
   if (!container) return;
-  
+
   // Renderizar apenas itens visíveis
   const fragment = document.createDocumentFragment();
-  
+
   for (let i = visibleStartIndex; i <= visibleEndIndex; i++) {
     const id = visibleRange[i];
     const cachedUrl = getSpriteUrl(id);
@@ -137,7 +137,7 @@ function renderVirtualList(): void {
     button.style.height = `${itemHeight}px`;
     fragment.appendChild(button);
   }
-  
+
   container.appendChild(fragment);
 }
 
@@ -150,15 +150,36 @@ function createSpriteButton(id: number, cachedUrl: string | null): HTMLButtonEle
     button.classList.add('is-selected');
   }
   button.dataset.spriteId = String(id);
-  button.innerHTML = `
-    <div class="texture-sprite-thumb">
-      ${cachedUrl ? `<img src="${cachedUrl}" alt="Sprite ${id}">` : '<div class="texture-sprite-placeholder">…</div>'}
-    </div>
-    <div class="texture-sprite-meta">
-      <span class="texture-sprite-id">#${id}</span>
-      <span class="texture-sprite-slot">${translate('texture.spriteList.slotLabel', { value: id })}</span>
-    </div>
+
+  const thumb = document.createElement('div');
+  thumb.className = 'texture-sprite-thumb';
+  if (cachedUrl) {
+    const canvas = document.createElement('canvas');
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = '32px';
+    canvas.style.height = '32px';
+    canvas.width = Math.round(32 * dpr);
+    canvas.height = Math.round(32 * dpr);
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.imageSmoothingEnabled = false;
+      const img = new Image();
+      img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
+      img.src = cachedUrl;
+    }
+    thumb.appendChild(canvas);
+  } else {
+    thumb.innerHTML = '<div class="texture-sprite-placeholder">…</div>';
+  }
+  button.appendChild(thumb);
+
+  const meta = document.createElement('div');
+  meta.className = 'texture-sprite-meta';
+  meta.innerHTML = `
+    <span class="texture-sprite-id">#${id}</span>
+    <span class="texture-sprite-slot">${translate('texture.spriteList.slotLabel', { value: id })}</span>
   `;
+  button.appendChild(meta);
 
   button.addEventListener('click', (event) => {
     const multiSelect = event.ctrlKey || event.metaKey;
@@ -215,7 +236,7 @@ function renderList(): void {
   if (renderTimeout) {
     cancelAnimationFrame(renderTimeout);
   }
-  
+
   // Usar requestAnimationFrame para performance
   renderTimeout = requestAnimationFrame(() => {
     if (visibleRange.length > 500) {
