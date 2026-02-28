@@ -2722,6 +2722,9 @@ const translationEntries = {
   'asset.sound.edit.countedTypesComma': { default: 'Appearance types (comma-separated)', 'pt-BR': 'Tipos de aparência (vírgula)', en: 'Appearance types (comma-separated)', es: 'Tipos (separados por coma)', ru: 'Типы (через запятую)' },
   'asset.sound.edit.confirmDeleteTitle': { default: 'Delete Sound?', 'pt-BR': 'Deletar Som?', en: 'Delete Sound?', es: '¿Eliminar sonido?', ru: 'Удалить звук?' },
   'asset.sound.edit.confirmDelete': { default: 'Are you sure you want to delete this sound?', 'pt-BR': 'Tem certeza que deseja deletar este som?', en: 'Are you sure you want to delete this sound?', es: '¿Estás seguro de eliminar este sonido?', ru: 'Вы уверены, что хотите удалить этот звук?' },
+  'asset.sound.edit.title': { default: 'Editar {{type}}', 'pt-BR': 'Editar {{type}}', en: 'Edit {{type}}', es: 'Editar {{type}}', ru: 'Редактировать {{type}}' },
+  'asset.sound.edit.saveFail': { default: 'Falha ao salvar som: {{err}}', 'pt-BR': 'Falha ao salvar som: {{err}}', en: 'Failed to save sound: {{err}}', es: 'Error al guardar sonido: {{err}}', ru: 'Ошибка сохранения звука: {{err}}' },
+  'asset.sound.edit.deleteFail': { default: 'Falha ao deletar som: {{err}}', 'pt-BR': 'Falha ao deletar som: {{err}}', en: 'Failed to delete sound: {{err}}', es: 'Error al eliminar sonido: {{err}}', ru: 'Ошибка al eliminar sonido: {{err}}' },
 
   // Sound Types
   'asset.sound.type.spellAttack': { default: 'Spell Attack', 'pt-BR': 'Ataque de Magia', en: 'Spell Attack', es: 'Ataque de hechizo', ru: 'Магическая атака' },

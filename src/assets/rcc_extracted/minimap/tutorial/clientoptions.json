@@ -1,0 +1,59 @@
+{
+  "clientOptionsVersion": 6,
+  "convertedLegacyConfiguration": true,
+  "options": {
+    "lightAmbientLevel": 0.25,
+    "lightAttenuationCloudsIndoor": 0.75,
+    "lightEffectsEnabled": true,
+    "lightLevelSeparatorLevel": 0.800000011920929,
+    "combatShowFrames": false,
+    "gameWindowShowAttackAnimation": true,
+    "quickLogin": true,
+    "controlSchemeIndex": 2,
+    "mapWindowHeight": 350,
+    "actionBarBottomLocked": true,
+    "screenshotsAutoScreenshotsEnabled": false,
+    "statusBarEnabled": false,
+    "statusPanelEnabled": true
+  },
+  "rendererChangeConfirmationRequired": false,
+  "hotkeyOptions": {
+    "autoSwitchHotkeyPreset": false,
+    "currentHotkeySetName": "Druid",
+    "hotkeySets": {
+      "Druid": {
+        "actionBarOptions": {
+          "mappings": [
+            {
+              "actionBar": 1,
+              "actionButton": 1,
+              "actionsetting": {
+                "useObject": 7876,
+                "useType": "UseOnYourself"
+              }
+            },
+            {
+              "actionBar": 1,
+              "actionButton": 2,
+              "actionsetting": {
+                "useObject": 268,
+                "useType": "UseOnYourself"
+              }
+            },
+            {
+              "actionBar": 1,
+              "actionButton": 3,
+              "actionsetting": {
+                "chatText": "exori frigo",
+                "sendAutomatically": true
+              }
+            }
+          ]
+        },
+        "chatOff": [],
+        "chatOn": []
+      }
+    },
+    "showStaticHotkeysFirst": true
+  }
+}

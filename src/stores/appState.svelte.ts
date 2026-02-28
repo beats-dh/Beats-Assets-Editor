@@ -1,5 +1,5 @@
 // Application-level state using Svelte 5 runes
-export type AppView = 'launcher' | 'assets-editor' | 'monster-editor' | 'npc-editor';
+export type AppView = 'launcher' | 'assets-editor' | 'monster-editor' | 'npc-editor' | 'proficiency-editor';
 
 // Reactive state with localStorage persistence
 function createAppState() {
@@ -8,6 +8,7 @@ function createAppState() {
         tibiaPath: localStorage.getItem('lastTibiaPath') || '',
         monsterPath: localStorage.getItem('lastMonsterPath') || '',
         npcPath: localStorage.getItem('lastNpcPath') || '',
+        proficiencyFilePath: localStorage.getItem('lastProficiencyFilePath') || '',
     });
 
     // Persist paths to localStorage reactively
@@ -31,6 +32,13 @@ function createAppState() {
                 localStorage.setItem('lastNpcPath', state.npcPath);
             } else {
                 localStorage.removeItem('lastNpcPath');
+            }
+        });
+        $effect(() => {
+            if (state.proficiencyFilePath) {
+                localStorage.setItem('lastProficiencyFilePath', state.proficiencyFilePath);
+            } else {
+                localStorage.removeItem('lastProficiencyFilePath');
             }
         });
     });

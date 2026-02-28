@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from "svelte";
+    import { onDestroy } from "svelte";
     import { invoke } from "../../../../utils/invoke";
     import { getAppearanceSprites, pixelSprite } from "../../../../spriteCache";
     import { getSpriteUrl } from "../../../../utils/spriteUrlCache";

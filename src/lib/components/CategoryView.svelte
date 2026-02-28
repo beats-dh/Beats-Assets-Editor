@@ -74,17 +74,6 @@
     }
   });
 
-  function handleSelectAll() {
-    const cat = assetsState.currentCategory;
-    assetsState.assets.forEach((asset) => {
-      setAssetSelection(cat, asset.id, true, false);
-    });
-  }
-
-  function handleDeselectAll() {
-    clearAssetSelection();
-  }
-
   // --- Actions ---
 
   async function handleImport() {
@@ -268,7 +257,7 @@
               "Ambience Object Streams": "subcategory.ambienceObjectStreams",
               "Music Templates": "subcategory.musicTemplates",
             };
-            return { value: t, label: key[t] ? translate(key[t]) : t };
+            return { value: t, label: key[t] ? translate(key[t] as any) : t };
           }),
           {
             value: "Ambience Streams",
@@ -316,7 +305,7 @@
     showAddSoundModal = false;
   }
 
-  function handleSoundCreated(id: number) {
+  function handleSoundCreated(_id: number) {
     loadAssetsData();
   }
 </script>

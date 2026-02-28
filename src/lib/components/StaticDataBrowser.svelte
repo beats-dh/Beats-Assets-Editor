@@ -14,7 +14,6 @@
     StaticBoss,
     StaticQuest,
   } from "../../types";
-  import { onMount, tick } from "svelte";
   import {
     getAppearancePreviewSpritesBatch,
     loadSprites,
@@ -456,7 +455,7 @@
             <div class="static-data-visual">
               {#if (currentDataType === "creatures" || currentDataType === "bosses") && item.outfit?.looktype && outfitSprites.has(item.outfit.looktype)}
                 <canvas
-                  use:pixelSprite={outfitSprites.get(item.outfit.looktype)}
+                  use:pixelSprite={outfitSprites.get(item.outfit.looktype) ?? null}
                   class="static-data-img"
                   style="width:64px;height:64px;"
                 ></canvas>

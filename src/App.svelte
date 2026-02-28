@@ -4,6 +4,7 @@
   import AssetEditorLayout from './lib/pages/AssetEditorLayout.svelte';
   import MonsterEditorPage from './lib/pages/MonsterEditorPage.svelte';
   import NpcEditorPage from './lib/pages/NpcEditorPage.svelte';
+  import ProficiencyEditorPage from './lib/pages/ProficiencyEditorPage.svelte';
 
   // Global Styles
   import './styles/main.css';
@@ -20,5 +21,7 @@
   <MonsterEditorPage />
 {:else if appState.currentView === 'npc-editor'}
   <NpcEditorPage />
+{:else if appState.currentView === 'proficiency-editor'}
+  <ProficiencyEditorPage />
 {/if}
 

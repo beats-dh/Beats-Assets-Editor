@@ -9,7 +9,7 @@
   import { translate } from "../../i18n";
   import { loadDetailSprites } from "../../utils/spriteLoading";
   import { invoke } from "../../utils/invoke";
-  import type { CompleteAppearanceItem } from "../../types";
+  import type { CompleteAppearanceItem, CompleteFlags } from "../../types";
 
   // Sub-components
   import AssetBasicInfo from "./asset-details/AssetBasicInfo.svelte";
@@ -155,8 +155,8 @@
       }
 
       // Boolean flags
-      const originalFlags = original.flags || {};
-      const updatedFlags = updated.flags || {};
+      const originalFlags: CompleteFlags = original.flags || {} as CompleteFlags;
+      const updatedFlags: CompleteFlags = updated.flags || {} as CompleteFlags;
       const getBool = (obj: any, key: string) => !!obj[key];
       const boolFlags = [
         "clip",

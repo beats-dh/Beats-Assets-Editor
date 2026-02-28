@@ -157,6 +157,11 @@ export const COMMANDS = {
   GET_STATICDATA_QUESTS: 'get_staticdata_quests',
   GET_STATICMAPDATA_HOUSES: 'get_staticmapdata_houses',
 
+  // Proficiency Editor Commands
+  LOAD_PROFICIENCY_FILE: 'load_proficiency_file',
+  SAVE_PROFICIENCY_FILE: 'save_proficiency_file',
+  INSPECT_PROFICIENCY_FILE: 'inspect_proficiency_file',
+
   // QM Translation Editor Commands
   QM_FIND_FILES: 'qm_find_files',
   QM_LOAD: 'qm_load',

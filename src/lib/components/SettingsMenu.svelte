@@ -34,7 +34,7 @@
   function setTheme(newTheme: string) {
     settingsState.theme = newTheme;
     showStatus(
-      translate("status.themeApplied", { theme: getThemeLabel(newTheme) }),
+      translate("status.themeApplied", { theme: getThemeLabel(newTheme as any) }),
       "success",
     );
   }
@@ -43,7 +43,7 @@
     settingsState.language = newLang;
     showStatus(
       translate("status.languageUpdated", {
-        language: getLanguageOptionLabel(newLang),
+        language: getLanguageOptionLabel(newLang as any),
       }),
       "success",
     );
@@ -202,7 +202,7 @@
               data-theme={t}
               onclick={() => setTheme(t)}
             >
-              <span class="theme-name">{translate(`theme.${t}`)}</span>
+              <span class="theme-name">{translate(`theme.${t}` as any)}</span>
               <span class="theme-preview">
                 {#if t === "default"}
                   <span class="color-swatch" style="background: #4f46e5;"

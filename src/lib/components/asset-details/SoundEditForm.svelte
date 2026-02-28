@@ -2,8 +2,8 @@
   import { invoke } from "../../../utils/invoke";
   import { translate } from "../../../i18n";
   import { assetsState } from "../../../stores/assetsState.svelte";
-  import { confirmState } from "../../../stores/confirmState.svelte";
-  import { selectionState } from "../../../stores/selectionState.svelte";
+  import { confirm } from "../../../stores/confirmState.svelte";
+  import { closeAssetDetails } from "../../../stores/selectionState.svelte";
   import { loadAssetsData } from "../../../services/assetService";
   interface Props {
     id: number;
@@ -12,7 +12,7 @@
   let { id, onSave }: Props = $props();
   let data = $state<any>(null);
   let loading = $state(false);
-  let error = $state("");
+  let _error = $state("");
   let subcategory = $derived(assetsState.currentSubcategory || "All");
 
   // Form fields

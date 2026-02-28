@@ -1,0 +1,44 @@
+{
+  "id": 3,
+  "prefixText": "",
+  "postfixText": "",
+  "compareDate": "2020-03-23",
+  "dateOfCurrentChanges": 1585040400,
+  "monsters": [
+    {
+      "race": 1620,
+      "dropChanceChange": "no change",
+      "dropChanceChangeBefore": "no change",
+      "xpChange": "<span style='color:green'>+1495</span>",
+      "xpChangeBefore": "7475 (9200)"
+    },
+    {
+      "race": 1621,
+      "dropChanceChange": "no change",
+      "dropChanceChangeBefore": "no change",
+      "xpChange": "<span style='color:green'>+1463</span>",
+      "xpChangeBefore": "7313 (9000)"
+    },
+    {
+      "race": 1622,
+      "dropChanceChange": "no change",
+      "dropChanceChangeBefore": "no change",
+      "xpChange": "<span style='color:green'>+1414</span>",
+      "xpChangeBefore": "7069 (8700)"
+    },
+    {
+      "race": 1544,
+      "dropChanceChange": "<span style='color:red'>-25%</span>",
+      "dropChanceChangeBefore": "-25%",
+      "xpChange": "<span style='color:red'>-420</span>",
+      "xpChangeBefore": "2380 (2800)"
+    },
+    {
+      "race": 1545,
+      "dropChanceChange": "<span style='color:red'>-25%</span>",
+      "dropChanceChangeBefore": "-25%",
+      "xpChange": "<span style='color:red'>-600</span>",
+      "xpChangeBefore": "3400 (4000)"
+    }  
+  ]
+}

@@ -42,7 +42,7 @@
   // Audio playback
   let currentAudio = $state<HTMLAudioElement | null>(null);
   let isPlaying = $state(false);
-  let playingSequence = $state(false);
+  let _playingSequence = $state(false);
   let sequenceAbort = $state(false);
 
   // Upload section
@@ -115,7 +115,7 @@
       currentAudio = null;
     }
     isPlaying = false;
-    playingSequence = false;
+    _playingSequence = false;
     sequenceAbort = true;
   }
 
@@ -139,7 +139,7 @@
   async function playSequence(ids: number[]) {
     if (!ids || ids.length === 0) return;
     sequenceAbort = false;
-    playingSequence = true;
+    _playingSequence = true;
     isPlaying = true;
     stopAudio();
     for (let i = 0; i < ids.length; i++) {

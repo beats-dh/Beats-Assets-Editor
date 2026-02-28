@@ -161,6 +161,10 @@ pub fn run() {
             features::qm::commands::qm_export_csv,
             features::qm::commands::qm_import_csv,
             features::qm::commands::qm_debug_raw,
+            // Proficiency Editor API
+            features::proficiency::load_proficiency_file,
+            features::proficiency::save_proficiency_file,
+            features::proficiency::inspect_proficiency_file,
             // RCC Editor API
             features::rcc::commands::rcc_load,
             features::rcc::commands::rcc_get_resource,

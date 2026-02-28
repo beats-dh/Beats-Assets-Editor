@@ -2,7 +2,6 @@
   import { translate } from "../../i18n";
   import "../../styles/modals.css";
   import MonsterOutfitPreview from "./monster-editor/cards/MonsterOutfitPreview.svelte";
-  import { assetsState } from "../../stores/assetsState.svelte";
 
   let { isOpen, dataType, onClose, onSubmit } = $props<{
     isOpen: boolean;

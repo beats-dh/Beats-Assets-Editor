@@ -34,7 +34,13 @@
       "Bash(npx svelte-check --tsconfig tsconfig.json)",
       "Bash(findstr /i \"RccBrowser\")",
       "Bash(Select-String \"RccBrowser\")",
-      "Bash(python -c \"import sys; lines=[l for l in sys.stdin if ''Rcc'' in l]; print\\(''''.join\\(lines\\)\\)\")"
+      "Bash(python -c \"import sys; lines=[l for l in sys.stdin if ''Rcc'' in l]; print\\(''''.join\\(lines\\)\\)\")",
+      "Bash(grep -rn \"CompleteAppearanceItem\" src/types*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(netstat -ano)",
+      "Bash(node_modules/.bin/svelte-check --tsconfig ./tsconfig.json)",
+      "Bash(node \"C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js\" run check)",
+      "Bash(node \"C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js\" run build)"
     ],
     "deny": [
       "Bash(cargo build --release)"

@@ -1,6 +1,5 @@
 <script lang="ts">
   import { appState } from '../../stores/appState.svelte';
-  import { assetsState } from '../../stores/assetsState.svelte';
   import { translate } from '../../i18n';
   import { loadAssetsData as loadAssets } from '../../services/assetService';
   import { clearPreviewSpriteCaches } from '../../utils/spriteLoading';

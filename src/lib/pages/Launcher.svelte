@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { open } from '@tauri-apps/plugin-dialog';
   import { appState } from '../../stores/appState.svelte';
   import { settingsState } from '../../stores/settingsState.svelte';
@@ -15,18 +14,11 @@
   import '../../mainMenu.css';
 
   const SUPPORTED_THEMES = ['default', 'ocean', 'aurora', 'ember', 'forest', 'dusk'];
-  const THEME_LABELS: Record<string, string> = {
-    default: 'Royal (default)',
-    ocean: 'Oceanic',
-    aurora: 'Aurora',
-    ember: 'Ember',
-    forest: 'Forest',
-    dusk: 'Dusk',
-  };
 
   let isLaunching = $state(false);
   let isLoadingMonster = $state(false);
   let isLoadingNpc = $state(false);
+  let isLoadingProficiency = $state(false);
 
   // Browse for Tibia path
   async function browsePath() {
@@ -176,6 +168,39 @@
     selectNpcEditor(forceSelect);
   }
 
+  async function selectProficiencyEditor(forceSelect = false) {
+    isLoadingProficiency = true;
+    try {
+      let filePath: string | null = null;
+
+      if (!forceSelect) {
+        filePath = appState.proficiencyFilePath || null;
+      }
+
+      if (!filePath) {
+        const selection = await open({
+          directory: false,
+          multiple: false,
+          filters: [{ name: 'JSON', extensions: ['json'] }],
+        });
+        if (typeof selection !== 'string' || !selection) return;
+        filePath = selection;
+        appState.proficiencyFilePath = filePath;
+      }
+
+      appState.currentView = 'proficiency-editor';
+    } catch (error) {
+      console.error('Failed to open proficiency editor:', error);
+    } finally {
+      isLoadingProficiency = false;
+    }
+  }
+
+  function handleProficiencyClick(e: MouseEvent) {
+    const forceSelect = e.shiftKey || e.altKey;
+    selectProficiencyEditor(forceSelect);
+  }
+
   function reloadApp() {
     window.location.reload();
   }
@@ -294,6 +319,25 @@
           {/if}
         </button>
 
+        <!-- Proficiency Editor -->
+        <button
+          type="button"
+          class="launcher-option"
+          class:disabled={isLoadingProficiency}
+          disabled={isLoadingProficiency}
+          onclick={handleProficiencyClick}
+          title="Shift/Alt: reselecionar arquivo"
+        >
+          <div class="launcher-option-icon">⚔️</div>
+          <h3>Proficiency Editor</h3>
+          <p>Edite árvores de maestria de armas e bônus de proficiência.</p>
+          {#if appState.proficiencyFilePath}
+            <span class="launcher-option-badge active">Pronto</span>
+          {:else if isLoadingProficiency}
+            <span class="launcher-option-badge">Carregando...</span>
+          {/if}
+        </button>
+
         <!-- Map Editor -->
         <button type="button" class="launcher-option disabled" disabled>
           <div class="launcher-option-icon">🗺️</div>
@@ -316,7 +360,7 @@
             bind:value={settingsState.theme}
           >
             {#each SUPPORTED_THEMES as t}
-              <option value={t}>{translate(`theme.${t}`)}</option>
+              <option value={t}>{translate(`theme.${t}` as any)}</option>
             {/each}
           </select>
         </div>
@@ -335,7 +379,7 @@
               <option value={l}
                 >{l === "default"
                   ? translate("launcher.config.language.auto")
-                  : translate(`language.option.${l.split("-")[0]}`)}</option
+                  : translate(`language.option.${l.split("-")[0]}` as any)}</option
               >
             {/each}
           </select>

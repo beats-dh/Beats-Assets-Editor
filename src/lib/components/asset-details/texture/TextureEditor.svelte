@@ -20,18 +20,18 @@
 
   let sprites = $state<Uint8Array[]>([]);
   const defaultState = { frameGroupIndex: 0, direction: 0, addon: 0, mount: 0, frame: 0, headColor: '#ffc107', bodyColor: '#ff5722', legsColor: '#4caf50', feetColor: '#2196f3', backgroundColor: '#262626', blendLayers: true, showFullAddons: true, showBoundingBoxes: true, autoAnimate: false, patternX: 0, patternY: 0, patternZ: 0, layer: 0 };
-  let state = $state({ ...defaultState });
+  let viewState = $state({ ...defaultState });
   let lastDetailsId = $state<number | null>(null);
 
   let textureCategory = $derived((assetsState.currentCategory === 'Outfits' || assetsState.currentCategory === 'Objects') ? assetsState.currentCategory : 'Other');
   let isOutfit = $derived(textureCategory === 'Outfits');
   let isUnsupported = $derived(textureCategory === 'Other');
   let activeTextureCategory = $derived(isOutfit ? 'Outfits' : textureCategory === 'Objects' ? 'Objects' : null);
-  let currentFrameGroup = $derived(details?.frame_groups ? details.frame_groups[state.frameGroupIndex] : undefined);
+  let currentFrameGroup = $derived(details?.frame_groups ? details.frame_groups[viewState.frameGroupIndex] : undefined);
   let spriteInfo = $derived(currentFrameGroup?.sprite_info);
 
   $effect(() => {
-    if (details && details.id !== lastDetailsId) { lastDetailsId = details.id; state = { ...defaultState }; loadSprites(); }
+    if (details && details.id !== lastDetailsId) { lastDetailsId = details.id; viewState = { ...defaultState }; loadSprites(); }
   });
 
   async function loadSprites() {
@@ -39,7 +39,7 @@
     try { sprites = await getAppearanceSprites(activeTextureCategory, details.id); } catch (err) { console.error('Failed to load sprites:', err); }
   }
 
-  function getGroupOffset(): number { if (!details) return 0; return (computeGroupOffsetsFromDetails(details))[state.frameGroupIndex] ?? 0; }
+  function getGroupOffset(): number { if (!details) return 0; return (computeGroupOffsetsFromDetails(details))[viewState.frameGroupIndex] ?? 0; }
   async function fetchSpriteBuffers(spriteIds: number[]): Promise<Uint8Array[]> { return Promise.all(spriteIds.map(async (id) => (await getSpriteById(id)) ?? new Uint8Array())); }
 
   function refreshDetailPreviews(): void {
@@ -50,8 +50,8 @@
   }
 
   function handleStateChange(newState: any) {
-    if (newState.frameGroupIndex !== undefined && newState.frameGroupIndex !== state.frameGroupIndex) { state = { ...state, frameGroupIndex: newState.frameGroupIndex, direction: 0, addon: 0, mount: 0, frame: 0, patternX: 0, patternY: 0, patternZ: 0, layer: 0 }; return; }
-    state = { ...state, ...newState };
+    if (newState.frameGroupIndex !== undefined && newState.frameGroupIndex !== viewState.frameGroupIndex) { viewState = { ...viewState, frameGroupIndex: newState.frameGroupIndex, direction: 0, addon: 0, mount: 0, frame: 0, patternX: 0, patternY: 0, patternZ: 0, layer: 0 }; return; }
+    viewState = { ...viewState, ...newState };
   }
 
   async function handleReorder(detail: { newOrder: number[] }) {
@@ -60,9 +60,9 @@
     if (reordered.length !== ids.length) return;
     const updates = reordered.map((spriteId, index) => ({ index, sprite_id: spriteId }));
     try {
-      await invoke('replace_appearance_sprites', { category, id: details.id, update: { frame_group_index: state.frameGroupIndex, updates } });
+      await invoke('replace_appearance_sprites', { category, id: details.id, update: { frame_group_index: viewState.frameGroupIndex, updates } });
       await invoke('save_appearances_file');
-      spriteInfo.sprite_ids = reordered; if (details.frame_groups[state.frameGroupIndex]) details.frame_groups[state.frameGroupIndex].sprite_info = spriteInfo;
+      spriteInfo.sprite_ids = reordered; if (details.frame_groups[viewState.frameGroupIndex]) details.frame_groups[viewState.frameGroupIndex].sprite_info = spriteInfo;
       const offset = getGroupOffset(); const count = spriteInfo.sprite_ids.length; const current = sprites.slice(); const groupSprites = current.slice(offset, offset + count); const reorderedSprites = detail.newOrder.map(index => groupSprites[index] ?? new Uint8Array()); current.splice(offset, count, ...reorderedSprites); sprites = current;
       invalidateAppearanceCache(activeTextureCategory!, details.id);
       refreshDetailPreviews(); showStatus(translate('status.spriteReplaced'), 'success');
@@ -73,10 +73,10 @@
     const category = activeTextureCategory; if (!category || !spriteInfo?.sprite_ids) return;
     const indices = Array.from(new Set(detail.indices)).filter(i => Number.isInteger(i)).sort((a, b) => a - b); if (indices.length === 0) return;
     try {
-      await invoke('remove_appearance_sprites', { category, id: details.id, update: { frame_group_index: state.frameGroupIndex, indices } });
+      await invoke('remove_appearance_sprites', { category, id: details.id, update: { frame_group_index: viewState.frameGroupIndex, indices } });
       await invoke('save_appearances_file');
-      indices.slice().sort((a, b) => b - a).forEach(i => spriteInfo.sprite_ids?.splice(i, 1));
-      if (details.frame_groups[state.frameGroupIndex]) details.frame_groups[state.frameGroupIndex].sprite_info = spriteInfo;
+      indices.slice().sort((a, b) => b - a).forEach(i => spriteInfo!.sprite_ids?.splice(i, 1));
+      if (details.frame_groups[viewState.frameGroupIndex]) details.frame_groups[viewState.frameGroupIndex].sprite_info = spriteInfo;
       const offset = getGroupOffset(); const current = sprites.slice();
       indices.slice().sort((a, b) => b - a).forEach(i => { const t = offset + i; if (t >= 0 && t < current.length) current.splice(t, 1); });
       sprites = current;
@@ -90,13 +90,13 @@
     const { index, spriteIds } = detail; if (!spriteIds?.length) return;
     const offset = getGroupOffset(); const previousCount = spriteInfo.sprite_ids.length;
     const updates: Array<{ index: number; sprite_id: number }> = []; const appendIds: number[] = [];
-    spriteIds.forEach((spriteId, off) => { const ti = index + off; if (ti < spriteInfo.sprite_ids.length) updates.push({ index: ti, sprite_id: spriteId }); else appendIds.push(spriteId); });
+    spriteIds.forEach((spriteId, off) => { const ti = index + off; if (ti < spriteInfo!.sprite_ids.length) updates.push({ index: ti, sprite_id: spriteId }); else appendIds.push(spriteId); });
     try {
-      if (updates.length > 0) { await invoke('replace_appearance_sprites', { category, id: details.id, update: { frame_group_index: state.frameGroupIndex, updates } }); updates.forEach(u => { if (spriteInfo.sprite_ids && u.index < spriteInfo.sprite_ids.length) spriteInfo.sprite_ids[u.index] = u.sprite_id; }); }
-      if (appendIds.length > 0) { await invoke('append_appearance_sprites', { category, id: details.id, update: { frame_group_index: state.frameGroupIndex, sprite_ids: appendIds } }); spriteInfo.sprite_ids.push(...appendIds); }
+      if (updates.length > 0) { await invoke('replace_appearance_sprites', { category, id: details.id, update: { frame_group_index: viewState.frameGroupIndex, updates } }); updates.forEach(u => { if (spriteInfo!.sprite_ids && u.index < spriteInfo!.sprite_ids.length) spriteInfo!.sprite_ids[u.index] = u.sprite_id; }); }
+      if (appendIds.length > 0) { await invoke('append_appearance_sprites', { category, id: details.id, update: { frame_group_index: viewState.frameGroupIndex, sprite_ids: appendIds } }); spriteInfo!.sprite_ids.push(...appendIds); }
       if (updates.length > 0 || appendIds.length > 0) {
         await invoke('save_appearances_file');
-        if (details.frame_groups[state.frameGroupIndex]) details.frame_groups[state.frameGroupIndex].sprite_info = { ...spriteInfo };
+        if (details.frame_groups[viewState.frameGroupIndex]) details.frame_groups[viewState.frameGroupIndex].sprite_info = { ...spriteInfo };
         const current = sprites.slice();
         if (updates.length > 0) { const buffers = await fetchSpriteBuffers(updates.map(u => u.sprite_id)); updates.forEach((u, ui) => { const t = offset + u.index; if (t >= 0 && t < current.length) current[t] = buffers[ui] ?? new Uint8Array(); }); }
         if (appendIds.length > 0) { const buffers = await fetchSpriteBuffers(appendIds); current.splice(offset + previousCount, 0, ...buffers); }
@@ -112,9 +112,9 @@
     const { spriteIds } = detail; if (!spriteIds?.length) return;
     const offset = getGroupOffset(); const previousCount = spriteInfo.sprite_ids.length;
     try {
-      await invoke('append_appearance_sprites', { category, id: details.id, update: { frame_group_index: state.frameGroupIndex, sprite_ids: spriteIds } });
+      await invoke('append_appearance_sprites', { category, id: details.id, update: { frame_group_index: viewState.frameGroupIndex, sprite_ids: spriteIds } });
       await invoke('save_appearances_file');
-      spriteInfo.sprite_ids.push(...spriteIds); if (details.frame_groups[state.frameGroupIndex]) details.frame_groups[state.frameGroupIndex].sprite_info = { ...spriteInfo };
+      spriteInfo.sprite_ids.push(...spriteIds); if (details.frame_groups[viewState.frameGroupIndex]) details.frame_groups[viewState.frameGroupIndex].sprite_info = { ...spriteInfo };
       const current = sprites.slice(); const buffers = await fetchSpriteBuffers(spriteIds); current.splice(offset + previousCount, 0, ...buffers); sprites = current;
       appendCachedAppearanceSprites(activeTextureCategory!, details.id, buffers);
       refreshDetailPreviews(); showStatus(translate('status.spriteReplaced'), 'success');
@@ -125,7 +125,7 @@
 
   function collectTextureUpdatePayload() {
     if (!spriteInfo) return null;
-    const payload: any = { frame_group_index: state.frameGroupIndex, pattern_width: Number(spriteInfo.pattern_width || 0), pattern_height: Number(spriteInfo.pattern_height || 0), pattern_depth: Number(spriteInfo.pattern_depth || 0), layers: Number(spriteInfo.layers || 1), bounding_square: Number(spriteInfo.bounding_square || 0), is_opaque: !!spriteInfo.is_opaque, bounding_boxes: spriteInfo.bounding_boxes || [] };
+    const payload: any = { frame_group_index: viewState.frameGroupIndex, pattern_width: Number(spriteInfo.pattern_width || 0), pattern_height: Number(spriteInfo.pattern_height || 0), pattern_depth: Number(spriteInfo.pattern_depth || 0), layers: Number(spriteInfo.layers || 1), bounding_square: Number(spriteInfo.bounding_square || 0), is_opaque: !!spriteInfo.is_opaque, bounding_boxes: spriteInfo.bounding_boxes || [] };
     if (spriteInfo.animation) { const a = spriteInfo.animation; payload.animation = { loop_type: Number(a.loop_type || 0), loop_count: Number(a.loop_count || 0), synchronized: !!a.synchronized, phases: a.phases?.map(p => ({ duration_min: Number(p.duration_min || 100), duration_max: Number(p.duration_max || 100) })) || [] }; }
     else payload.animation = null;
     return payload;
@@ -148,9 +148,9 @@
 {:else}
   <div class="texture-layout">
     <div class="texture-preview-column">
-      <TexturePreview {details} {sprites} previewState={state} {spriteInfo} {isOutfit} onDropSprites={(d) => handleAppend(d)} onStateChange={(d) => handleStateChange(d)} />
-      <TextureControls previewState={state} {spriteInfo} {isOutfit} {details} onChange={(d) => handleStateChange(d)} />
-      <TextureSpriteList {sprites} {details} frameGroupIndex={state.frameGroupIndex} onReorder={handleReorder} onRemove={handleRemove} onReplace={handleReplace} onAppend={handleAppend} onAdd={() => openBrowse()} />
+      <TexturePreview {details} {sprites} previewState={viewState} {spriteInfo} {isOutfit} onDropSprites={(d) => handleAppend(d)} onStateChange={(d) => handleStateChange(d)} />
+      <TextureControls previewState={viewState} {spriteInfo} {isOutfit} {details} onChange={(d) => handleStateChange(d)} />
+      <TextureSpriteList {sprites} {details} frameGroupIndex={viewState.frameGroupIndex} onReorder={handleReorder} onRemove={handleRemove} onReplace={handleReplace} onAppend={handleAppend} onAdd={() => openBrowse()} />
       <TextureBoundingBox bind:spriteInfo={spriteInfo} onChange={handleSettingsChange} />
     </div>
     <div class="texture-settings-column">

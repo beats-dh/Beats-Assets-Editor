@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { CompleteAppearanceItem, CompleteFlags } from "../../../types";
+  import type { CompleteAppearanceItem } from "../../../types";
   import { translate } from "../../../i18n";
-  import { spriteLibraryState } from "../../../stores/spriteLibraryState.svelte";
-  import { onMount, untrack } from "svelte";
+  import { openSelect } from "../../../stores/spriteLibraryState.svelte";
+  import { untrack } from "svelte";
 
   interface Props {
     details: CompleteAppearanceItem;
@@ -10,7 +10,7 @@
     onSave?: (updated: CompleteAppearanceItem) => void;
     bindDetails?: (getEditedData: () => CompleteAppearanceItem) => void;
   }
-  let { details, category = "", onSave, bindDetails }: Props = $props();
+  let { details, onSave, bindDetails }: Props = $props();
 
   let name = $state(details.name || "");
   let description = $state(details.description || "");
@@ -96,11 +96,7 @@
   ];
 
   function openSpriteSelector(callback: (id: number) => void) {
-    spriteLibraryState.openSelect(callback);
-  }
-
-  function handleSave() {
-    onSave({ ...details, name, description, flags });
+    openSelect(callback);
   }
 </script>
 
@@ -425,7 +421,7 @@
     <div
       style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;"
     >
-      {#each [1, 2, 3, 4] as vocName, i}
+      {#each [1, 2, 3, 4] as _, i}
         <label
           style="display: flex; align-items: center; gap: 0.5rem; color: #ccc;"
         >
@@ -433,14 +429,14 @@
             type="checkbox"
             checked={flags.restrict_to_vocation.includes(i + 1)}
             onchange={(e) => {
-              if (e.target.checked)
+              if ((e.currentTarget as HTMLInputElement).checked)
                 flags.restrict_to_vocation = [
                   ...flags.restrict_to_vocation,
                   i + 1,
                 ];
               else
                 flags.restrict_to_vocation = flags.restrict_to_vocation.filter(
-                  (v) => v !== i + 1,
+                  (v: number) => v !== i + 1,
                 );
             }}
           />
@@ -461,7 +457,7 @@
           }
         }}>{translate("asset.edit.btn.addVoc")}</button
       >
-      {#each flags.restrict_to_vocation.filter((v) => v > 4) as extraVoc}
+      {#each flags.restrict_to_vocation.filter((v: number) => v > 4) as extraVoc}
         <div
           style="display: flex; align-items: center; justify-content: space-between; background: #222; padding: 0.5rem; border-radius: 4px;"
         >
@@ -473,7 +469,7 @@
             style="padding: 0.2rem 0.5rem;"
             onclick={() =>
               (flags.restrict_to_vocation = flags.restrict_to_vocation.filter(
-                (v) => v !== extraVoc,
+                (v: number) => v !== extraVoc,
               ))}>{translate("asset.edit.btn.remove")}</button
           >
         </div>
@@ -500,7 +496,7 @@
           class="btn-secondary"
           onclick={() =>
             (flags.npc_sale_data = flags.npc_sale_data.filter(
-              (_, i) => i !== index,
+              (_: unknown, i: number) => i !== index,
             ))}>{translate("asset.edit.btn.remove")}</button
         >
       </div>

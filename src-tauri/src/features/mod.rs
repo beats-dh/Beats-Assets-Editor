@@ -4,6 +4,7 @@
 pub mod appearances;
 pub mod monsters;
 pub mod npcs;
+pub mod proficiency;
 pub mod qm;
 pub mod rcc;
 pub mod settings;

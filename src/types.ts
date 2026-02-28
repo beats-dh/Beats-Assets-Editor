@@ -138,6 +138,7 @@ export interface CompleteSpriteInfo {
   pattern_height?: number;
   pattern_depth?: number;
   layers?: number;
+  pattern_layers?: number;
   sprite_ids: number[];
   bounding_square?: number;
   animation?: SpriteAnimation;
@@ -221,6 +222,7 @@ export interface CompleteFlags {
   lenshelp?: { id?: number };
   clothes?: { slot?: number };
   default_action?: { action?: number };
+  weapon_type?: number;
   market?: {
     category?: number;
     trade_as_object_id?: number;
@@ -237,7 +239,6 @@ export interface CompleteFlags {
   // Extras
   restrict_to_vocation: number[];
   minimum_level?: number;
-  weapon_type?: number;
 }
 
 export interface FlagNPC {
@@ -292,4 +293,33 @@ export interface SpriteDecomposition {
 export interface GroupMapping {
   groupIndex: number;
   localIndex: number;
+}
+
+// Proficiency Editor types (matches real client format)
+export interface ProficiencyPerk {
+  Type: number;
+  Value: number;
+  SkillId?: number;
+  AugmentType?: number;
+  SpellId?: number;
+}
+
+export interface ProficiencyLevel {
+  Perks: ProficiencyPerk[];
+  XpRequired?: number;
+}
+
+export interface ProficiencyEntry {
+  Name: string;
+  ProficiencyId: number;
+  Version?: number;
+  Levels: ProficiencyLevel[];
+}
+
+export interface RawFileInfo {
+  preview: string;
+  topLevelType: string;
+  topLevelKeys: string[];
+  arrayLength?: number;
+  firstValueType?: string;
 }
