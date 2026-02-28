@@ -27,7 +27,14 @@
       "Bash(npx vite build)",
       "Bash(comm -23 /tmp/svelte_keys.txt /tmp/i18n_keys.txt)",
       "Bash(npx tsc --noEmit)",
-      "Bash(cargo build --manifest-path src-tauri/Cargo.toml)"
+      "Bash(cargo build --manifest-path src-tauri/Cargo.toml)",
+      "Bash(npm run check)",
+      "Bash(npm run)",
+      "Bash(npx svelte-check)",
+      "Bash(npx svelte-check --tsconfig tsconfig.json)",
+      "Bash(findstr /i \"RccBrowser\")",
+      "Bash(Select-String \"RccBrowser\")",
+      "Bash(python -c \"import sys; lines=[l for l in sys.stdin if ''Rcc'' in l]; print\\(''''.join\\(lines\\)\\)\")"
     ],
     "deny": [
       "Bash(cargo build --release)"
