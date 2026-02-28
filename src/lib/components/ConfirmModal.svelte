@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { translate } from "../../i18n";
   import { confirmState, closeConfirm } from "../../stores/confirmState.svelte";
 
   function handleConfirm() {
@@ -23,8 +24,10 @@
     <div class="confirm-dialog" role="document">
       <div class="confirm-header">
         <h2>{confirmState.options.title}</h2>
-        <button class="confirm-close" onclick={handleCancel} aria-label="Close"
-          >✕</button
+        <button
+          class="confirm-close"
+          onclick={handleCancel}
+          aria-label={translate("modal.aria.close")}>✕</button
         >
       </div>
       <div class="confirm-body">
@@ -32,10 +35,10 @@
       </div>
       <div class="confirm-actions">
         <button class="confirm-btn danger" onclick={handleConfirm}>
-          {confirmState.options.confirmLabel || "Confirm"}
+          {confirmState.options.confirmLabel || translate("modal.btn.confirm")}
         </button>
         <button class="confirm-btn secondary" onclick={handleCancel}>
-          {confirmState.options.cancelLabel || "Cancel"}
+          {confirmState.options.cancelLabel || translate("modal.btn.cancel")}
         </button>
       </div>
     </div>

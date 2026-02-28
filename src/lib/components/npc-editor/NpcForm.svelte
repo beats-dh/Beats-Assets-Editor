@@ -1,15 +1,16 @@
 <script lang="ts">
-  import { npcState } from '../../../stores/npcState.svelte';
-  import { invoke } from '../../../utils/invoke';
-  import { COMMANDS } from '../../../commands';
+  import { npcState } from "../../../stores/npcState.svelte";
+  import { invoke } from "../../../utils/invoke";
+  import { COMMANDS } from "../../../commands";
+  import { translate } from "../../../i18n";
 
-  import BasicInfoCard from './cards/BasicInfoCard.svelte';
-  import OutfitCard from './cards/OutfitCard.svelte';
-  import FlagsCard from './cards/FlagsCard.svelte';
-  import VoicesCard from './cards/VoicesCard.svelte';
-  import ShopCard from './cards/ShopCard.svelte';
-  import DialoguesCard from './cards/DialoguesCard.svelte';
-  import ScriptingCard from './cards/ScriptingCard.svelte';
+  import BasicInfoCard from "./cards/BasicInfoCard.svelte";
+  import OutfitCard from "./cards/OutfitCard.svelte";
+  import FlagsCard from "./cards/FlagsCard.svelte";
+  import VoicesCard from "./cards/VoicesCard.svelte";
+  import ShopCard from "./cards/ShopCard.svelte";
+  import DialoguesCard from "./cards/DialoguesCard.svelte";
+  import ScriptingCard from "./cards/ScriptingCard.svelte";
 
   async function handleSave() {
     if (!npcState.currentNpc || !npcState.currentFilePath) return;
@@ -23,20 +24,22 @@
         filePath: npcState.currentFilePath,
         npc: npcState.currentNpc,
       });
-      alert('NPC salvo com sucesso!');
-      window.dispatchEvent(new CustomEvent('reload-npc-list'));
+      alert(translate("npc.form.saved"));
+      window.dispatchEvent(new CustomEvent("reload-npc-list"));
     } catch (err) {
-      alert(`Falha ao salvar: ${err}`);
+      alert(translate("npc.form.error.save", { err: String(err) }));
     }
   }
 </script>
 
 <div class="monster-editor-area">
   {#if !npcState.currentNpc}
-    <div class="monster-editor-empty">Selecione um NPC na lista ao lado para começar</div>
+    <div class="monster-editor-empty">{translate("npc.form.empty")}</div>
   {:else}
     <div class="monster-editor-toolbar">
-      <button class="btn-primary" onclick={handleSave}>Salvar NPC</button>
+      <button class="btn-primary" onclick={handleSave}
+        >{translate("npc.form.saveBtn")}</button
+      >
     </div>
 
     <div class="monster-content-area">

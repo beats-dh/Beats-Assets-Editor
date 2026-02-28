@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { npcState } from '../../../stores/npcState.svelte';
-  import { invoke } from '../../../utils/invoke';
-  import NpcCategoryList from './NpcCategoryList.svelte';
-  import type { NpcListEntry } from '../../../npcTypes';
+  import { onMount, onDestroy } from "svelte";
+  import { npcState } from "../../../stores/npcState.svelte";
+  import { invoke } from "../../../utils/invoke";
+  import { translate } from "../../../i18n";
+  import NpcCategoryList from "./NpcCategoryList.svelte";
+  import type { NpcListEntry } from "../../../npcTypes";
 
   let searchInput: HTMLInputElement;
 
@@ -11,20 +12,24 @@
     const path = npcState.npcsRootPath;
     if (!path) return;
 
-    if (!forceReload && npcState.cachedNpcsPath === path && npcState.npcList.length > 0) {
-      console.log('NPC list already cached, skipping reload');
+    if (
+      !forceReload &&
+      npcState.cachedNpcsPath === path &&
+      npcState.npcList.length > 0
+    ) {
+      console.log("NPC list already cached, skipping reload");
       return;
     }
 
     npcState.isLoading = true;
     try {
       const [entries] = await Promise.all([
-        invoke<NpcListEntry[]>('list_npc_files', { npcsPath: path }),
+        invoke<NpcListEntry[]>("list_npc_files", { npcsPath: path }),
       ]);
       npcState.npcList = entries;
       npcState.cachedNpcsPath = path;
     } catch (err) {
-      console.error('Failed to load npcs:', err);
+      console.error("Failed to load npcs:", err);
       npcState.npcList = [];
     } finally {
       npcState.isLoading = false;
@@ -36,12 +41,12 @@
   }
 
   onMount(() => {
-    window.addEventListener('reload-npc-list', handleReloadEvent);
+    window.addEventListener("reload-npc-list", handleReloadEvent);
     if (npcState.npcsRootPath) loadNpcs();
   });
 
   onDestroy(() => {
-    window.removeEventListener('reload-npc-list', handleReloadEvent);
+    window.removeEventListener("reload-npc-list", handleReloadEvent);
   });
 
   let lastReactivePath = $state<string | null>(null);
@@ -62,18 +67,18 @@
     bind:this={searchInput}
     type="text"
     class="monster-search"
-    placeholder="Buscar NPCs..."
+    placeholder={translate("npc.sidebar.search")}
     value={npcState.npcSearchQuery}
     oninput={handleSearch}
   />
 
   <div class="monster-list">
     {#if npcState.isLoading}
-      <div class="loading">Carregando NPCs...</div>
+      <div class="loading">{translate("npc.sidebar.loading")}</div>
     {:else if !npcState.npcsRootPath}
-      <div class="empty">Por favor selecione a pasta de NPCs em data/npc</div>
+      <div class="empty">{translate("npc.sidebar.emptyDir")}</div>
     {:else if npcState.npcList.length === 0}
-      <div class="empty">Nenhum NPC encontrado</div>
+      <div class="empty">{translate("npc.sidebar.noNpcs")}</div>
     {:else}
       <NpcCategoryList />
     {/if}

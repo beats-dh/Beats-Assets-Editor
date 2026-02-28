@@ -6,6 +6,7 @@
     import { openConfirmModal } from "../../stores/confirmState.svelte";
     import { open, save } from "@tauri-apps/plugin-dialog";
     import { onMount } from "svelte";
+    import { translate } from "../../i18n";
 
     const RCC_CACHE_KEY = "lastRccPath";
 
@@ -78,7 +79,7 @@
 
     async function loadRccFile(path: string) {
         isLoading = true;
-        statusMessage = "Loading RCC...";
+        statusMessage = translate("rcc.status.loading");
         try {
             const result = await invoke<RccLoadResult>(COMMANDS.RCC_LOAD, {
                 path,
@@ -91,9 +92,12 @@
             selectedFile = null;
             previewUrl = null;
             localStorage.setItem(RCC_CACHE_KEY, path);
-            statusMessage = `Loaded ${totalFiles} files (${formatSize(totalSize)})`;
+            statusMessage = translate("rcc.status.loaded", {
+                count: totalFiles,
+                size: formatSize(totalSize),
+            });
         } catch (e) {
-            statusMessage = `Error: ${e}`;
+            statusMessage = translate("rcc.status.error", { err: String(e) });
             throw e;
         } finally {
             isLoading = false;
@@ -152,7 +156,7 @@
 
     async function openRccFile() {
         const selected = await open({
-            title: "Open RCC File",
+            title: translate("rcc.dialog.openTitle"),
             filters: [{ name: "Qt Resource", extensions: ["rcc"] }],
         });
         if (!selected) return;
@@ -211,7 +215,9 @@
         if (!selectedFile) return;
         const ext = getFileExtension(selectedFile.name);
         const selected = await open({
-            title: `Replace ${selectedFile.name}`,
+            title: translate("rcc.dialog.replaceTitle", {
+                name: selectedFile.name,
+            }),
             filters: [
                 {
                     name: "Images",
@@ -257,15 +263,29 @@
                         dims.width !== EXPECTED_WIDTH ||
                         dims.height !== EXPECTED_HEIGHT
                     ) {
-                        statusMessage = `⚠️ Warning: image is ${dims.width}×${dims.height} (expected ${EXPECTED_WIDTH}×${EXPECTED_HEIGHT})`;
+                        statusMessage = translate("rcc.status.warningDim", {
+                            width: dims.width,
+                            height: dims.height,
+                            expWidth: EXPECTED_WIDTH,
+                            expHeight: EXPECTED_HEIGHT,
+                        });
                     } else {
-                        statusMessage = `✅ Replaced ${updated.name} (${dims.width}×${dims.height}, ${formatSize(updated.size)})`;
+                        statusMessage = translate("rcc.status.replaced", {
+                            name: updated.name,
+                            size: formatSize(updated.size),
+                        });
                     }
                 } catch {
-                    statusMessage = `Replaced ${updated.name} (${formatSize(updated.size)})`;
+                    statusMessage = translate("rcc.status.replaced", {
+                        name: updated.name,
+                        size: formatSize(updated.size),
+                    });
                 }
             } else {
-                statusMessage = `Replaced ${updated.name} (${formatSize(updated.size)})`;
+                statusMessage = translate("rcc.status.replaced", {
+                    name: updated.name,
+                    size: formatSize(updated.size),
+                });
             }
 
             // Update local state
@@ -284,12 +304,12 @@
         const name = selectedFile.name;
 
         const confirmed = await openConfirmModal(
-            `<p>Are you sure you want to delete <span class="confirm-filename">${name}</span>?</p>` +
-                `<div class="confirm-detail"><span class="detail-label">Path</span><span class="detail-value">${selectedFile.path}</span></div>` +
-                `<div class="confirm-warning">⚠ This action cannot be undone</div>`,
-            "🗑️ Delete Resource",
-            "Delete",
-            "Cancel",
+            translate("rcc.dialog.deleteMsg", { name }) +
+                `<div class="confirm-detail"><span class="detail-label">${translate("rcc.preview.path")}</span><span class="detail-value">${selectedFile.path}</span></div>` +
+                `<div class="confirm-warning">${translate("rcc.dialog.deleteWarning")}</div>`,
+            translate("rcc.dialog.deleteTitle"),
+            translate("rcc.btn.delete").replace(/^[^\w]*/, ""),
+            translate("modal.btn.cancel"),
         );
         if (!confirmed) return;
 
@@ -305,15 +325,15 @@
             totalSize = updatedFiles.reduce((sum, f) => sum + f.size, 0);
             selectedFile = null;
             previewUrl = null;
-            statusMessage = `Deleted ${name}`;
+            statusMessage = translate("rcc.status.deleted", { name });
         } catch (e) {
-            statusMessage = `Delete error: ${e}`;
+            statusMessage = translate("rcc.status.error", { err: String(e) });
         }
     }
 
     async function addResource() {
         const selected = await open({
-            title: "Add New Resource",
+            title: translate("rcc.dialog.addTitle"),
             multiple: true,
             filters: [
                 {
@@ -340,10 +360,7 @@
         const defaultDir = selectedFile
             ? selectedFile.path.substring(0, selectedFile.path.lastIndexOf("/"))
             : "";
-        const targetDir = prompt(
-            `Enter the RCC path for the resource(s):\n(e.g. minimap/images/myfile.png)\n\nLeave empty to auto-detect from filename.`,
-            defaultDir,
-        );
+        const targetDir = prompt(translate("rcc.prompt.rccPath"), defaultDir);
         if (targetDir === null) return; // cancelled
 
         try {
@@ -364,29 +381,31 @@
             files = updatedFiles;
             totalFiles = updatedFiles.length;
             totalSize = updatedFiles.reduce((sum, f) => sum + f.size, 0);
-            statusMessage = `✅ Added ${filePaths.length} resource(s)`;
+            statusMessage = translate("rcc.status.added", {
+                count: filePaths.length,
+            });
         } catch (e) {
-            statusMessage = `Add error: ${e}`;
+            statusMessage = translate("rcc.status.error", { err: String(e) });
         }
     }
 
     async function extractAll() {
         const dir = await save({
-            title: "Extract All Resources To",
+            title: translate("rcc.dialog.extractAllTitle"),
             defaultPath: "rcc_extracted",
         });
         if (!dir) return;
 
         isLoading = true;
-        statusMessage = "Extracting...";
+        statusMessage = translate("rcc.status.extracting");
         try {
             // Use dialog to pick folder
             const count = await invoke<number>(COMMANDS.RCC_EXTRACT_ALL, {
                 outputDir: dir,
             });
-            statusMessage = `Extracted ${count} files`;
+            statusMessage = translate("rcc.status.extractedCount", { count });
         } catch (e) {
-            statusMessage = `Extract error: ${e}`;
+            statusMessage = translate("rcc.status.error", { err: String(e) });
         } finally {
             isLoading = false;
         }
@@ -395,7 +414,9 @@
     async function extractSingle() {
         if (!selectedFile) return;
         const dest = await save({
-            title: `Save ${selectedFile.name}`,
+            title: translate("rcc.dialog.saveFile", {
+                name: selectedFile.name,
+            }),
             defaultPath: selectedFile.name,
         });
         if (!dest) return;
@@ -405,7 +426,9 @@
                 index: selectedFile.index,
                 outputPath: dest,
             });
-            statusMessage = `Saved ${selectedFile.name}`;
+            statusMessage = translate("rcc.status.saved", {
+                path: selectedFile.name,
+            });
         } catch (e) {
             statusMessage = `Save error: ${e}`;
         }
@@ -413,21 +436,21 @@
 
     async function saveRcc() {
         const dest = await save({
-            title: "Save Modified RCC",
+            title: translate("rcc.dialog.saveTitle"),
             defaultPath: loadedPath || "output.rcc",
             filters: [{ name: "Qt Resource", extensions: ["rcc"] }],
         });
         if (!dest) return;
 
         isLoading = true;
-        statusMessage = "Saving...";
+        statusMessage = translate("rcc.status.saving");
         try {
             const saved = await invoke<string>(COMMANDS.RCC_SAVE, {
                 outputPath: dest,
             });
-            statusMessage = `Saved to ${saved}`;
+            statusMessage = translate("rcc.status.saved", { path: saved });
         } catch (e) {
-            statusMessage = `Save error: ${e}`;
+            statusMessage = translate("rcc.status.error", { err: String(e) });
         } finally {
             isLoading = false;
         }
@@ -442,16 +465,17 @@
     <!-- Toolbar -->
     <div class="rcc-toolbar">
         <button class="modern-back-btn" onclick={goBack}>
-            <span>←</span> Back
+            <span>←</span>
+            {translate("rcc.back")}
         </button>
-        <h2 class="rcc-title">🗂️ RCC Resource Editor</h2>
+        <h2 class="rcc-title">{translate("rcc.title")}</h2>
         <div class="toolbar-actions">
             <button
                 class="rcc-btn primary"
                 onclick={openRccFile}
                 disabled={isLoading}
             >
-                📂 Open RCC
+                {translate("rcc.btn.open")}
             </button>
             {#if files.length > 0}
                 <button
@@ -459,21 +483,21 @@
                     onclick={extractAll}
                     disabled={isLoading}
                 >
-                    📤 Extract All
+                    {translate("rcc.btn.extractAll")}
                 </button>
                 <button
                     class="rcc-btn primary"
                     onclick={addResource}
                     disabled={isLoading}
                 >
-                    ➕ Add
+                    {translate("rcc.btn.add")}
                 </button>
                 <button
                     class="rcc-btn accent"
                     onclick={saveRcc}
                     disabled={isLoading}
                 >
-                    💾 Save RCC
+                    {translate("rcc.btn.save")}
                 </button>
             {/if}
         </div>
@@ -482,7 +506,9 @@
     {#if loadedPath}
         <!-- Stats bar -->
         <div class="rcc-stats">
-            <span class="stat-item">📄 {totalFiles} files</span>
+            <span class="stat-item"
+                >📄 {totalFiles} {translate("rcc.stats.files")}</span
+            >
             <span class="stat-item">💾 {formatSize(totalSize)}</span>
             <span class="stat-item">🏷️ v{rccVersion}</span>
             <span class="stat-item path-item" title={loadedPath}
@@ -497,11 +523,13 @@
         <div class="rcc-search">
             <input
                 type="text"
-                placeholder="Search resources..."
+                placeholder={translate("rcc.search.placeholder")}
                 bind:value={searchQuery}
                 class="search-input"
             />
-            <span class="search-count">{filteredFiles.length} results</span>
+            <span class="search-count"
+                >{filteredFiles.length} {translate("rcc.search.results")}</span
+            >
         </div>
 
         <!-- Content area -->
@@ -534,27 +562,35 @@
                                 class="rcc-btn small primary"
                                 onclick={replaceResource}
                             >
-                                🔄 Replace
+                                {translate("rcc.btn.replace")}
                             </button>
                             <button
                                 class="rcc-btn small"
                                 onclick={extractSingle}
                             >
-                                📥 Export
+                                {translate("rcc.btn.export")}
                             </button>
                             <button
                                 class="rcc-btn small danger"
                                 onclick={deleteResource}
                             >
-                                🗑️ Delete
+                                {translate("rcc.btn.delete")}
                             </button>
                         </div>
                     </div>
                     <div class="preview-meta">
-                        <span>Path: {selectedFile.path}</span>
-                        <span>Size: {formatSize(selectedFile.size)}</span>
+                        <span
+                            >{translate("rcc.preview.path")}: {selectedFile.path}</span
+                        >
+                        <span
+                            >{translate("rcc.preview.size")}: {formatSize(
+                                selectedFile.size,
+                            )}</span
+                        >
                         {#if selectedFile.compressed}
-                            <span class="badge compressed">Compressed</span>
+                            <span class="badge compressed"
+                                >{translate("rcc.preview.compressed")}</span
+                            >
                         {/if}
                     </div>
                     <div class="preview-content">
@@ -565,16 +601,20 @@
                                 class="preview-image"
                             />
                         {:else if isImageFile(selectedFile.name)}
-                            <p class="preview-loading">Loading preview...</p>
+                            <p class="preview-loading">
+                                {translate("rcc.preview.loading")}
+                            </p>
                         {:else}
                             <div class="preview-placeholder">
                                 <span class="big-icon"
                                     >{getFileIcon(selectedFile.name)}</span
                                 >
                                 <p>
-                                    No preview available for .{getFileExtension(
-                                        selectedFile.name,
-                                    )} files
+                                    {translate("rcc.preview.none", {
+                                        ext: getFileExtension(
+                                            selectedFile.name,
+                                        ),
+                                    })}
                                 </p>
                             </div>
                         {/if}
@@ -582,7 +622,7 @@
                 {:else}
                     <div class="preview-placeholder">
                         <span class="big-icon">👆</span>
-                        <p>Select a resource to preview</p>
+                        <p>{translate("rcc.preview.select")}</p>
                     </div>
                 {/if}
             </div>
@@ -591,10 +631,10 @@
         <!-- Empty state -->
         <div class="rcc-empty">
             <div class="empty-icon">🗂️</div>
-            <h3>No RCC File Loaded</h3>
-            <p>Open an .rcc file to browse and edit Qt compiled resources</p>
+            <h3>{translate("rcc.empty.title")}</h3>
+            <p>{translate("rcc.empty.desc")}</p>
             <button class="rcc-btn primary large" onclick={openRccFile}>
-                📂 Open RCC File
+                {translate("rcc.empty.btn")}
             </button>
         </div>
     {/if}

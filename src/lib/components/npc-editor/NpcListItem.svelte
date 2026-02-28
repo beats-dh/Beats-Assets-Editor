@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { npcState } from '../../../stores/npcState.svelte';
-  import { invoke } from '../../../utils/invoke';
-  import type { NpcListEntry, Npc } from '../../../npcTypes';
+  import { npcState } from "../../../stores/npcState.svelte";
+  import { invoke } from "../../../utils/invoke";
+  import { translate } from "../../../i18n";
+  import type { NpcListEntry, Npc } from "../../../npcTypes";
 
   interface Props {
     entry: NpcListEntry;
@@ -14,7 +15,9 @@
   async function loadNpc() {
     if (npcState.isLoading) return;
     try {
-      const npc = await invoke<Npc>('load_npc_file', { filePath: entry.filePath });
+      const npc = await invoke<Npc>("load_npc_file", {
+        filePath: entry.filePath,
+      });
       if (npc) {
         if (!npc.meta) npc.meta = { missingFields: [], touchedFields: [] };
       }
@@ -22,7 +25,7 @@
       npcState.currentFilePath = entry.filePath;
     } catch (err) {
       console.error(err);
-      alert(`Failed to load npc: ${err}`);
+      alert(translate("npc.list.error.load", { err: String(err) }));
     }
   }
 </script>

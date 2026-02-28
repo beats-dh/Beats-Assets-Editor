@@ -157,6 +157,17 @@ export const COMMANDS = {
   GET_STATICDATA_QUESTS: 'get_staticdata_quests',
   GET_STATICMAPDATA_HOUSES: 'get_staticmapdata_houses',
 
+  // QM Translation Editor Commands
+  QM_FIND_FILES: 'qm_find_files',
+  QM_LOAD: 'qm_load',
+  QM_GET_ENTRIES: 'qm_get_entries',
+  QM_UPDATE_TRANSLATION: 'qm_update_translation',
+  QM_UPDATE_TRANSLATIONS: 'qm_update_translations',
+  QM_SAVE: 'qm_save',
+  QM_EXPORT_CSV: 'qm_export_csv',
+  QM_IMPORT_CSV: 'qm_import_csv',
+  QM_DEBUG_RAW: 'qm_debug_raw',
+
   // RCC Editor Commands
   RCC_LOAD: 'rcc_load',
   RCC_GET_RESOURCE: 'rcc_get_resource',

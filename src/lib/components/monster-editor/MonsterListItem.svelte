@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { monsterState } from '../../../stores/monsterState.svelte';
-  import { invoke } from '../../../utils/invoke';
-  import type { MonsterListEntry, Monster } from '../../../monsterTypes';
+  import { monsterState } from "../../../stores/monsterState.svelte";
+  import { invoke } from "../../../utils/invoke";
+  import { translate } from "../../../i18n";
+  import type { MonsterListEntry, Monster } from "../../../monsterTypes";
 
   interface Props {
     entry: MonsterListEntry;
@@ -14,16 +15,19 @@
   async function loadMonster() {
     if (monsterState.isLoading) return;
     try {
-      const monster = await invoke<Monster>('load_monster_file', { filePath: entry.filePath });
+      const monster = await invoke<Monster>("load_monster_file", {
+        filePath: entry.filePath,
+      });
       if (monster) {
-        if (!monster.meta) monster.meta = { missingFields: [], touchedFields: [] };
+        if (!monster.meta)
+          monster.meta = { missingFields: [], touchedFields: [] };
         if (!monster.events) monster.events = [];
       }
       monsterState.currentMonster = monster;
       monsterState.currentFilePath = entry.filePath;
     } catch (err) {
       console.error(err);
-      alert(`Failed to load monster: ${err}`);
+      alert(translate("monster.list.error.load", { err: String(err) }));
     }
   }
 </script>

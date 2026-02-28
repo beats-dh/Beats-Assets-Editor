@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { open as openDialog } from "@tauri-apps/plugin-dialog";
+  import { translate } from "../../i18n";
   import {
     getAllSounds,
     refreshSounds,
@@ -215,7 +216,7 @@
         error = "";
         const ext = (file.split(".").pop() || "").toLowerCase();
         if (ext !== "ogg") {
-          error = "Formato não suportado. Selecione um arquivo .ogg.";
+          error = translate("modal.audio.error.format");
           selectedFilePath = null;
         }
       }
@@ -226,7 +227,7 @@
 
   async function handleImportAndAdd() {
     if (!selectedFilePath) {
-      error = "Selecione um arquivo .ogg primeiro.";
+      error = translate("modal.audio.error.select");
       return;
     }
     uploading = true;
@@ -248,7 +249,7 @@
       isStream = false;
     } catch (e) {
       console.error("Failed to import sound:", e);
-      error = `Erro ao importar: ${e}`;
+      error = translate("modal.audio.error.import", { err: String(e) });
     } finally {
       uploading = false;
     }
@@ -284,7 +285,7 @@
       handleClose();
     } catch (e) {
       console.error("Failed to add sound effect:", e);
-      error = "Falha ao adicionar som. Veja o console para detalhes.";
+      error = translate("modal.audio.error.add");
     }
   }
 
@@ -315,7 +316,7 @@
 
     <div class="modal-content" role="document">
       <div class="modal-header">
-        <h2 id="add-sound-title">Adicionar Som</h2>
+        <h2 id="add-sound-title">{translate("modal.sound.add")}</h2>
         <button
           class="close-btn"
           type="button"
@@ -340,7 +341,7 @@
                 checked={mode === "simple"}
                 onchange={() => handleModeChange("simple")}
               />
-              Simples
+              {translate("modal.sound.mode.simple")}
             </label>
             <label>
               <input
@@ -350,13 +351,13 @@
                 checked={mode === "random"}
                 onchange={() => handleModeChange("random")}
               />
-              Aleatório
+              {translate("modal.sound.mode.random")}
             </label>
           </fieldset>
 
           <div class="form-grid">
             <label>
-              Tipo
+              {translate("modal.sound.type")}
               <select class="modern-select" bind:value={soundType}>
                 {#each typeOptions as t}
                   <option value={t}>{t}</option>
@@ -365,7 +366,7 @@
             </label>
             {#if mode === "simple"}
               <label>
-                ID do arquivo de som
+                {translate("modal.sound.id")}
                 <input
                   type="number"
                   class="modern-input"
@@ -374,12 +375,12 @@
               </label>
             {:else}
               <label>
-                IDs aleatórios (separados por vírgula)
+                {translate("modal.sound.randomIds")}
                 <input
                   type="text"
                   class="modern-input"
                   bind:value={randomIds}
-                  placeholder="ex: 101, 102, 103"
+                  placeholder={translate("modal.sound.randomIdsPl")}
                 />
               </label>
             {/if}
@@ -387,7 +388,8 @@
 
           <div class="form-grid">
             <label
-              >Pitch Min <input
+              >{translate("modal.sound.pitchMin")}
+              <input
                 type="number"
                 step="0.01"
                 class="modern-input"
@@ -395,7 +397,8 @@
               /></label
             >
             <label
-              >Pitch Max <input
+              >{translate("modal.sound.pitchMax")}
+              <input
                 type="number"
                 step="0.01"
                 class="modern-input"
@@ -405,7 +408,8 @@
           </div>
           <div class="form-grid">
             <label
-              >Volume Min <input
+              >{translate("modal.sound.volumeMin")}
+              <input
                 type="number"
                 step="0.01"
                 class="modern-input"
@@ -413,7 +417,8 @@
               /></label
             >
             <label
-              >Volume Max <input
+              >{translate("modal.sound.volumeMax")}
+              <input
                 type="number"
                 step="0.01"
                 class="modern-input"
@@ -424,21 +429,24 @@
 
           <!-- Upload Section -->
           <div class="upload-section">
-            <h4>Importar novo arquivo</h4>
+            <h4>{translate("modal.sound.import.title")}</h4>
             <div class="form-grid">
               <div class="file-select">
                 <button type="button" class="btn-secondary" onclick={selectFile}
-                  >Selecionar arquivo .ogg</button
+                  >{translate("modal.sound.import.btn")}</button
                 >
                 <span class="file-name"
-                  >{selectedFilePath || "Nenhum arquivo selecionado"}</span
+                  >{selectedFilePath ||
+                    translate("modal.sound.import.noFile")}</span
                 >
               </div>
               <label class="checkbox-label"
-                ><input type="checkbox" bind:checked={isStream} /> Stream</label
+                ><input type="checkbox" bind:checked={isStream} />
+                {translate("modal.sound.import.strm")}</label
               >
               <label
-                >ID (opcional) <input
+                >{translate("modal.sound.import.id")}
+                <input
                   type="number"
                   class="modern-input"
                   bind:value={uploadId}
@@ -450,7 +458,9 @@
                 onclick={handleImportAndAdd}
                 disabled={uploading || !selectedFilePath}
               >
-                {uploading ? "Importando..." : "Importar e adicionar"}
+                {uploading
+                  ? translate("modal.sound.import.actLoad")
+                  : translate("modal.sound.import.act")}
               </button>
             </div>
           </div>
@@ -461,7 +471,7 @@
               <input
                 type="text"
                 class="modern-input"
-                placeholder="Buscar por ID ou nome..."
+                placeholder={translate("modal.sound.search")}
                 bind:value={searchFilter}
                 aria-label="Buscar sons"
               />
@@ -470,15 +480,20 @@
                   type="button"
                   class="btn-secondary"
                   onclick={togglePlaySelected}
-                  aria-label={isPlaying ? "Pausar" : "Reproduzir todos"}
+                  aria-label={isPlaying
+                    ? translate("modal.sound.search.pause")
+                    : translate("modal.sound.search.play")}
                 >
-                  {isPlaying ? "Pausar" : "Reproduzir todos"}
+                  {isPlaying
+                    ? translate("modal.sound.search.pause")
+                    : translate("modal.sound.search.play")}
                 </button>
                 <button
                   type="button"
                   class="btn-secondary"
                   onclick={clearSelection}
-                  aria-label="Limpar seleção">Limpar</button
+                  aria-label={translate("modal.sound.search.clr")}
+                  >{translate("modal.sound.search.clr")}</button
                 >
               </div>
             </div>
@@ -490,7 +505,7 @@
                     type="button"
                     class="chip"
                     onclick={() => removeSelected(id)}
-                    aria-label="Remover {id}"
+                    aria-label={translate("modal.audio.aria.remove", { id })}
                   >
                     {id}<span class="chip-remove" aria-hidden="true">✕</span>
                   </button>
@@ -498,9 +513,13 @@
               </div>
             {/if}
 
-            <div class="sound-list" role="listbox" aria-label="Lista de sons">
+            <div
+              class="sound-list"
+              role="listbox"
+              aria-label={translate("modal.audio.aria.list")}
+            >
               {#if loading}
-                <div class="loading">Carregando sons...</div>
+                <div class="loading">{translate("modal.sound.loading")}</div>
               {:else}
                 {#each filteredSounds as sound}
                   <div
@@ -518,15 +537,17 @@
                         type="button"
                         class="btn-icon"
                         onclick={() => playSingle(sound.id)}
-                        aria-label="Reproduzir {sound.id}">▶</button
+                        aria-label={translate("modal.audio.aria.play", {
+                          id: sound.id,
+                        })}>▶</button
                       >
                       <button
                         type="button"
                         class="btn-icon"
                         onclick={() => selectSound(sound.id)}
                         aria-label={mode === "random"
-                          ? "Adicionar"
-                          : "Selecionar"}
+                          ? translate("modal.audio.btn.add")
+                          : translate("modal.audio.btn.select")}
                       >
                         {mode === "random" ? "+" : "✓"}
                       </button>
@@ -541,10 +562,10 @@
 
       <div class="modal-footer">
         <button type="button" class="btn-save" onclick={handleSave}
-          >Salvar</button
+          >{translate("modal.btn.save")}</button
         >
         <button type="button" class="btn-secondary" onclick={handleClose}
-          >Cancelar</button
+          >{translate("modal.btn.cancel")}</button
         >
       </div>
     </div>

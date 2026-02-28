@@ -151,6 +151,16 @@ pub fn run() {
             features::staticmapdata::commands::io::load_staticmapdata_file,
             features::staticmapdata::commands::io::list_staticmapdata_files,
             features::staticmapdata::commands::io::get_staticmapdata_houses,
+            // QM Translation Editor API
+            features::qm::commands::qm_find_files,
+            features::qm::commands::qm_load,
+            features::qm::commands::qm_get_entries,
+            features::qm::commands::qm_update_translation,
+            features::qm::commands::qm_update_translations,
+            features::qm::commands::qm_save,
+            features::qm::commands::qm_export_csv,
+            features::qm::commands::qm_import_csv,
+            features::qm::commands::qm_debug_raw,
             // RCC Editor API
             features::rcc::commands::rcc_load,
             features::rcc::commands::rcc_get_resource,

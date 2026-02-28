@@ -4,6 +4,7 @@
     setCategory,
     selectStaticDataMode,
     selectRccMode,
+    selectQmMode,
   } from "../../stores/assetsState.svelte";
   import { translate } from "../../i18n";
 
@@ -23,7 +24,11 @@
         <div class="card-icon">📦</div>
         <div class="card-content">
           <h3>{translate("category.objects")}</h3>
-          <p>{assetsState.currentStats?.object_count || 0} items</p>
+          <p>
+            {translate("category.itemsCount", {
+              count: assetsState.currentStats?.object_count || 0,
+            })}
+          </p>
         </div>
         <div class="card-arrow">→</div>
       </button>
@@ -33,7 +38,11 @@
         <div class="card-icon">👕</div>
         <div class="card-content">
           <h3>{translate("category.outfits")}</h3>
-          <p>{assetsState.currentStats?.outfit_count || 0} items</p>
+          <p>
+            {translate("category.itemsCount", {
+              count: assetsState.currentStats?.outfit_count || 0,
+            })}
+          </p>
         </div>
         <div class="card-arrow">→</div>
       </button>
@@ -43,7 +52,11 @@
         <div class="card-icon">✨</div>
         <div class="card-content">
           <h3>{translate("category.effects")}</h3>
-          <p>{assetsState.currentStats?.effect_count || 0} items</p>
+          <p>
+            {translate("category.itemsCount", {
+              count: assetsState.currentStats?.effect_count || 0,
+            })}
+          </p>
         </div>
         <div class="card-arrow">→</div>
       </button>
@@ -53,7 +66,11 @@
         <div class="card-icon">🏹</div>
         <div class="card-content">
           <h3>{translate("category.missiles")}</h3>
-          <p>{assetsState.currentStats?.missile_count || 0} items</p>
+          <p>
+            {translate("category.itemsCount", {
+              count: assetsState.currentStats?.missile_count || 0,
+            })}
+          </p>
         </div>
         <div class="card-arrow">→</div>
       </button>
@@ -63,7 +80,7 @@
         <div class="card-icon">🔊</div>
         <div class="card-content">
           <h3>{translate("category.sounds")}</h3>
-          <p>items</p>
+          <p>{translate("category.itemsCount", { count: "" }).trim()}</p>
         </div>
         <div class="card-arrow">→</div>
       </button>
@@ -188,7 +205,7 @@
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "DistanceWeapons")}
+          onclick={() => selectCategory("Objects", "Distance")}
         >
           <span class="subcat-icon">🏹</span>
           <span class="subcat-name">{translate("subcategory.distance")}</span>
@@ -213,68 +230,86 @@
     <!-- World Data Section -->
     {#if assetsState.staticDataStats || assetsState.staticMapDataStats}
       <div class="subcategories-section" style="margin-top: 2rem;">
-        <h3 class="subcategories-title">World Data (staticdata)</h3>
+        <h3 class="subcategories-title">{translate("category.worldData")}</h3>
         <div
           class="world-stats-grid"
           style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;"
         >
           {#if assetsState.staticDataStats}
-            <div
+            <button
+              type="button"
               class="subcategory-card"
               onclick={() => selectStaticDataMode("creatures")}
             >
               <span class="subcat-icon">🐉</span>
               <span class="subcat-name"
-                >{assetsState.staticDataStats.total_creatures} Creatures</span
+                >{translate("category.creaturesCount", {
+                  count: assetsState.staticDataStats.total_creatures,
+                })}</span
               >
-            </div>
-            <div
+            </button>
+            <button
+              type="button"
               class="subcategory-card"
               onclick={() => selectStaticDataMode("bosses")}
             >
               <span class="subcat-icon">👑</span>
               <span class="subcat-name"
-                >{assetsState.staticDataStats.total_bosses} Bosses</span
+                >{translate("category.bossesCount", {
+                  count: assetsState.staticDataStats.total_bosses,
+                })}</span
               >
-            </div>
-            <div
+            </button>
+            <button
+              type="button"
               class="subcategory-card"
               onclick={() => selectStaticDataMode("quests")}
             >
               <span class="subcat-icon">📜</span>
               <span class="subcat-name"
-                >{assetsState.staticDataStats.total_quests} Quests</span
+                >{translate("category.questsCount", {
+                  count: assetsState.staticDataStats.total_quests,
+                })}</span
               >
-            </div>
-            <div
+            </button>
+            <button
+              type="button"
               class="subcategory-card"
               onclick={() => selectStaticDataMode("titles")}
             >
               <span class="subcat-icon">🏅</span>
               <span class="subcat-name"
-                >{assetsState.staticDataStats.total_titles} Titles</span
+                >{translate("category.titlesCount", {
+                  count: assetsState.staticDataStats.total_titles,
+                })}</span
               >
-            </div>
-            <div
+            </button>
+            <button
+              type="button"
               class="subcategory-card"
               onclick={() => selectStaticDataMode("houses")}
             >
               <span class="subcat-icon">🏘️</span>
               <span class="subcat-name"
-                >{assetsState.staticDataStats.total_houses} Houses</span
+                >{translate("category.housesCount", {
+                  count: assetsState.staticDataStats.total_houses,
+                })}</span
               >
-            </div>
+            </button>
           {/if}
           {#if assetsState.staticMapDataStats}
-            <div
+            <button
+              type="button"
               class="subcategory-card"
               onclick={() => selectStaticDataMode("map_houses")}
             >
               <span class="subcat-icon">🗺️</span>
               <span class="subcat-name"
-                >{assetsState.staticMapDataStats.total_houses_details} Map Houses</span
+                >{translate("category.mapHousesCount", {
+                  count: assetsState.staticMapDataStats.total_houses_details,
+                })}</span
               >
-            </div>
+            </button>
           {/if}
         </div>
       </div>
@@ -282,14 +317,26 @@
 
     <!-- Tools Section -->
     <div class="subcategories-section" style="margin-top: 2rem;">
-      <h3 class="subcategories-title">Tools</h3>
+      <h3 class="subcategories-title">{translate("category.tools")}</h3>
       <div
         class="world-stats-grid"
         style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;"
       >
-        <button class="subcategory-card" onclick={() => selectRccMode()}>
+        <button
+          type="button"
+          class="subcategory-card"
+          onclick={() => selectRccMode()}
+        >
           <span class="subcat-icon">🗂️</span>
-          <span class="subcat-name">RCC Editor</span>
+          <span class="subcat-name">{translate("category.rccEditor")}</span>
+        </button>
+        <button
+          type="button"
+          class="subcategory-card"
+          onclick={() => selectQmMode()}
+        >
+          <span class="subcat-icon">🌐</span>
+          <span class="subcat-name">{translate("category.qmEditor")}</span>
         </button>
       </div>
     </div>

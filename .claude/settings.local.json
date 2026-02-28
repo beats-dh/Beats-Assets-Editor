@@ -23,9 +23,15 @@
       "Bash(src-tauri/src/features/appearances/commands/query.rs.backup)",
       "Bash(src-tauri/src/features/appearances/commands/import_export.rs)",
       "Bash(src-tauri/src/features/appearances/commands/conversion.rs)",
-      "Bash(src-tauri/src/features/appearances/commands/io.rs)"
+      "Bash(src-tauri/src/features/appearances/commands/io.rs)",
+      "Bash(npx vite build)",
+      "Bash(comm -23 /tmp/svelte_keys.txt /tmp/i18n_keys.txt)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(cargo build --manifest-path src-tauri/Cargo.toml)"
     ],
-    "deny": ["Bash(cargo build --release)"],
+    "deny": [
+      "Bash(cargo build --release)"
+    ],
     "ask": []
   }
 }

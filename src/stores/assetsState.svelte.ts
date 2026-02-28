@@ -23,7 +23,7 @@ function createAssetsState() {
         currentPage: 0,
         pageSize: 100,
         totalItems: 0,
-        viewMode: 'categories' as 'categories' | 'grid' | 'staticdata' | 'rcc',
+        viewMode: 'categories' as 'categories' | 'grid' | 'staticdata' | 'rcc' | 'qm',
         currentStaticDataType: 'creatures' as 'creatures' | 'bosses' | 'quests' | 'titles' | 'houses' | 'map_houses',
         isLoading: false,
         loadingProgress: 0,
@@ -71,4 +71,8 @@ export function updateStaticDataState(category: string, updatedList: any[]) {
 
 export function selectRccMode() {
     assetsState.viewMode = 'rcc';
+}
+
+export function selectQmMode() {
+    assetsState.viewMode = 'qm';
 }
