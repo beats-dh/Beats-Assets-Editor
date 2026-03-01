@@ -1,0 +1,815 @@
+.tibia-bg {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #000;
+    height: 100vh;
+    padding: 20px;
+    font-family: "Verdana", sans-serif;
+    font-size: 11px;
+    color: #c0c0c0;
+    user-select: none;
+}
+
+.pe-window {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    width: 1000px;
+    height: 572px;
+    position: relative;
+}
+
+.window-content {
+    display: flex;
+    flex: 1;
+    gap: 11px;
+    padding: 12px;
+    position: relative;
+    background: #404040;
+    margin: 4px;
+    border: 1px solid #1c1c1c;
+}
+
+.window-tibia {
+    border-image: url("../assets/ui/popupwindow.png") 17 4 4 4 fill !important;
+    border-width: 17px 4px 4px 4px;
+    border-style: solid;
+    image-rendering: pixelated;
+    background: transparent;
+}
+
+/* Deep sunken panel style */
+.panel-sunken {
+    background: #2b2b2b;
+    border-image: url("../assets/ui/t2pixel-up-frame-borderimage.png") 30 30 30 30 fill !important;
+    border-width: 30px;
+    border-style: solid;
+    image-rendering: pixelated;
+}
+
+.t2-panel {
+    border-image: url("../assets/ui/t2pixel-up-frame-borderimage.png") 30 30 30 30 fill !important;
+    border-width: 30px;
+    border-style: solid;
+    image-rendering: pixelated;
+}
+
+.textedit-panel {
+    border-image: url("../assets/ui/textedit.png") 3 3 3 3 fill !important;
+    border-width: 3px;
+    border-style: solid;
+    image-rendering: pixelated;
+}
+
+.window-header {
+    background: #2e2e2e;
+    color: #fff;
+    text-align: center;
+    font-weight: bold;
+    padding: 0;
+    font-size: 11px;
+    margin-top: -16px;
+    margin-bottom: 2px;
+    border: none;
+    text-shadow: 1px 1px 0 #000;
+}
+
+/* ── LEFT SIDEBAR ───────────────────────────────────────────────────── */
+
+.sidebar {
+    width: 202px;
+    display: block;
+}
+
+.weapon-info-box {
+    width: 202px;
+    height: 149px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    box-sizing: border-box;
+    margin-bottom: 11px;
+}
+
+.weapon-name {
+    color: #a4a4a4;
+    font-weight: bold;
+    margin-top: 2px;
+    margin-bottom: 0px;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    text-align: center;
+}
+
+.weapon-icon-wrapper {
+    position: relative;
+    width: 190px;
+    height: 84px;
+    margin-top: 22px;
+    margin-bottom: 4px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    image-rendering: pixelated;
+}
+
+.main-sprite-container {
+    width: 64px;
+    height: 64px;
+    margin-top: 4px;
+}
+
+:global(.main-sprite-container canvas) {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    object-fit: contain;
+}
+
+.info-circle {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid #888;
+    color: #888;
+    font-size: 9px;
+    line-height: 12px;
+    text-align: center;
+    cursor: help;
+    background: #222;
+}
+
+.mastery-level-indicators {
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: -1px;
+}
+
+.mastery-star {
+    width: 10px;
+    height: 10px;
+    image-rendering: pixelated;
+}
+
+.weapon-xp {
+    text-align: center;
+    color: #a4a4a4;
+    font-size: 10px;
+    line-height: 1.3;
+    margin-top: 2px;
+}
+
+.xp-progress {
+    color: #d4c49a;
+}
+
+.filter-toggles {
+    display: flex;
+    gap: 5px;
+    margin-top: 11px;
+    width: 202px;
+}
+
+.tibia-btn-toggle {
+    width: 47px;
+    height: 20px;
+    background: #353535;
+    border: 1px solid #1a1a1a;
+    box-shadow:
+        inset 1px 1px 0 #5c5c5c,
+        inset -1px -1px 0 #202020;
+    color: #c0c0c0;
+    font-size: 10px;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tibia-btn-toggle.active {
+    background: #2a2a2a;
+    box-shadow: inset 1px 1px 2px #111;
+    color: #fff;
+}
+
+.combobox {
+    margin-top: 6px;
+    width: 202px;
+    height: 20px;
+    padding: 0 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-size: 11px;
+    box-sizing: border-box;
+    background: #404040;
+}
+
+.search-box {
+    margin-top: 6px;
+    width: 202px;
+    height: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-sizing: border-box;
+    background: #404040;
+}
+
+.search-box input {
+    background: none;
+    border: none;
+    color: #c0c0c0;
+    outline: none;
+    flex: 1;
+    font-size: 11px;
+    padding: 2px 4px;
+}
+
+.search-box input:focus {
+    color: #fff;
+}
+
+.clear-search {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    margin: 1px;
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    image-rendering: pixelated;
+}
+
+.clear-search:hover {
+    background-position: 0 -20px;
+}
+
+.clear-search:active {
+    background-position: 0 -20px;
+}
+
+.items-grid {
+    margin-top: 7px;
+    width: 202px;
+    height: 256px;
+    overflow-y: scroll;
+    padding: 4px;
+    display: grid;
+    grid-template-columns: repeat(5, 34px);
+    grid-auto-rows: 34px;
+    gap: 3px;
+    background: #202020;
+    box-sizing: border-box;
+}
+
+.items-grid::-webkit-scrollbar {
+    width: 12px;
+}
+
+.items-grid::-webkit-scrollbar-track {
+    background: #2b2b2b;
+    border-left: 1px solid #1a1a1a;
+}
+
+.items-grid::-webkit-scrollbar-thumb {
+    background: #3e3e3e;
+    border: 1px solid #1a1a1a;
+    box-shadow: inset 1px 1px 0 #5c5c5c;
+}
+
+.item-slot {
+    background: #2d2d2d;
+    border: 1px solid #1a1a1a;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+}
+
+.item-slot:hover {
+    filter: brightness(1.2);
+}
+
+.item-slot.selected {
+    background: #3a3a3a;
+}
+
+.item-slot.selected .slot-highlight {
+    position: absolute;
+    inset: 0;
+    border: 1px solid #48b848;
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.list-sprite-container {
+    width: 32px;
+    height: 32px;
+    pointer-events: none;
+}
+
+:global(.list-sprite-container canvas) {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    object-fit: contain;
+}
+
+/* ── RIGHT MAIN AREA ────────────────────────────────────────────────── */
+
+.main-area {
+    width: 756px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Stars Header Row ─────────────────────────────────────────────── */
+
+.stars-header {
+    width: 756px;
+    height: 20px;
+    display: grid;
+    grid-template-columns: repeat(7, 108px);
+    box-sizing: border-box;
+    image-rendering: pixelated;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+}
+
+.star-col {
+    width: 108px;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.star-progress-fill {
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    left: 1px;
+    background-repeat: no-repeat;
+    background-size: 106px 18px;
+    image-rendering: pixelated;
+    z-index: 1;
+    transition: width 0.3s ease;
+}
+
+.star-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+}
+
+.star-icon {
+    width: 9px;
+    height: 10px;
+    image-rendering: pixelated;
+}
+
+.star-icon.disabled {
+    opacity: 0.3;
+}
+
+/* ── XP Progress Bar ──────────────────────────────────────────────── */
+
+.progress-bar-container {
+    width: 756px;
+    height: 14px;
+    margin-top: 6px;
+    position: relative;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    image-rendering: pixelated;
+}
+
+.progress-bar-fill {
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    left: 1px;
+    background-repeat: repeat-x;
+    image-rendering: pixelated;
+}
+
+/* ── Tree Grid (7 columns x 354px) ────────────────────────────────── */
+
+.tree-grid {
+    width: 756px;
+    height: 354px;
+    position: relative;
+    display: flex;
+    margin-top: 11px;
+}
+
+.tree-columns {
+    position: relative;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: repeat(7, 108px);
+    width: 100%;
+    height: 100%;
+}
+
+.tree-col {
+    width: 108px;
+    height: 354px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background-size: 108px 354px;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+}
+
+/* Column progress overlay (fills when level is unlocked) */
+.col-progress-fill {
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    left: 1px;
+    right: 1px;
+    background-size: 106px 352px;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    z-index: 1;
+}
+
+/* ── Perk Containers (positional layout matching OTC) ─────────────── */
+
+.perks-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 5;
+    width: 108px;
+    height: 354px;
+}
+
+/* 1 perk: centered vertically */
+.perks-container.perks-count-1 {
+    justify-content: center;
+}
+
+/* 2 perks: first at top 49px, second at bottom 49px */
+.perks-container.perks-count-2 {
+    justify-content: space-between;
+    padding-top: 49px;
+    padding-bottom: 49px;
+}
+
+/* 3 perks: first at top 20px, gaps of ~38px between */
+.perks-container.perks-count-3 {
+    justify-content: flex-start;
+    padding-top: 20px;
+    gap: 38px;
+}
+
+/* ── Perk Node (80x80 matching OTC BonusIcon) ─────────────────────── */
+
+.perk-node {
+    width: 80px;
+    height: 80px;
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Highlight overlay (shows on hover) */
+.node-highlight {
+    position: absolute;
+    inset: 0;
+    width: 80px;
+    height: 80px;
+    background-size: 80px 80px;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 1;
+    transition: opacity 0.15s;
+}
+
+.perk-node:hover .node-highlight {
+    opacity: 1;
+}
+
+.perk-node.selected .node-highlight {
+    opacity: 1;
+}
+
+/* Icon wrapper (64x64) */
+.node-icon-wrapper {
+    width: 64px;
+    height: 64px;
+    overflow: hidden;
+    position: relative;
+    z-index: 2;
+}
+
+.node-icon-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    image-rendering: pixelated;
+}
+
+/* Border frame (76x76 centered in 80x80) */
+.node-border {
+    position: absolute;
+    width: 76px;
+    height: 76px;
+    left: 2px;
+    top: 2px;
+    image-rendering: pixelated;
+    z-index: 3;
+    pointer-events: none;
+}
+
+.perk-node.selected {
+    filter: drop-shadow(0 0 3px #dfd800);
+}
+
+/* Augment overlay (32x32, top-right of icon, offset -16) */
+.augment-overlay {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    z-index: 4;
+    pointer-events: none;
+}
+
+/* Lock on perk (18x28, bottom center) */
+.perk-lock {
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 18px;
+    height: 28px;
+    image-rendering: pixelated;
+    z-index: 5;
+    pointer-events: none;
+}
+
+/* Add perk button */
+.add-perk-node {
+    width: 80px;
+    height: 80px;
+    border: 1px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.add-perk-node:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-color: #fff;
+}
+
+/* ── Bonus Detail Wrapper (contains detail row + config overlay) ───── */
+
+.bonus-detail-wrapper {
+    position: relative;
+    width: 756px;
+    height: 77px;
+    margin-top: 11px;
+}
+
+.bonus-detail-row {
+    width: 756px;
+    height: 77px;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    box-sizing: border-box;
+}
+
+.detail-panel {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-sizing: border-box;
+    padding: 4px;
+    border-right: 1px solid #1a1a1a;
+}
+
+.detail-panel:last-child {
+    border-right: none;
+}
+
+.lock-icon {
+    width: 9px;
+    height: 14px;
+    image-rendering: pixelated;
+    opacity: 0.8;
+}
+
+.detail-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.detail-name {
+    color: #c0c0c0;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 1.2;
+    text-align: left;
+    word-wrap: break-word;
+}
+
+.detail-value {
+    color: #d4c49a;
+    font-size: 10px;
+}
+
+.detail-placeholder {
+    color: #666;
+    font-size: 10px;
+    text-align: center;
+}
+
+/* ── Perk Config Panel (overlays detail row when a perk is selected) ── */
+
+.perk-config {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 756px;
+    height: 77px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    justify-content: center;
+    background: rgba(30, 30, 30, 0.97);
+    border: 1px solid #333;
+    box-sizing: border-box;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 20;
+}
+
+.perk-config.has-selection {
+    pointer-events: auto;
+    opacity: 1;
+}
+
+.config-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.config-row label {
+    color: #c0c0c0;
+    font-size: 10px;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.tibia-input {
+    background: #111;
+    border: 1px solid #333;
+    color: #fff;
+    padding: 2px 4px;
+    font-size: 10px;
+    width: 45px;
+}
+
+.type-name-label {
+    color: #cca34d;
+    font-size: 10px;
+    width: 120px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.tibia-btn-danger {
+    color: #ff8888;
+    margin-left: auto;
+}
+
+.no-selection {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.no-sel-msg {
+    color: #888;
+    font-size: 11px;
+    text-align: center;
+    width: 100%;
+    display: block;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────── */
+
+.bottom-sep {
+    position: absolute;
+    bottom: 42px;
+    left: 12px;
+    right: 12px;
+    height: 2px;
+    background: #3a3a3a;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+.window-footer {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.footer-left,
+.footer-right {
+    display: flex;
+    gap: 5px;
+}
+
+.tibia-btn {
+    width: 43px;
+    height: 20px;
+    background: #363636;
+    border: 1px solid #1a1a1a;
+    box-shadow:
+        inset 1px 1px 0 #5c5c5c,
+        inset -1px -1px 0 #202020;
+    color: #c0c0c0;
+    font-size: 11px;
+    font-family: "Verdana", sans-serif;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+}
+
+.footer-left .tibia-btn {
+    width: auto;
+    padding: 0 8px;
+}
+
+.tibia-btn:active:not(:disabled) {
+    box-shadow:
+        inset 1px 1px 0 #1a1a1a,
+        inset -1px -1px 0 #5c5c5c;
+    padding: 5px 13px 3px 15px;
+}
+
+.tibia-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

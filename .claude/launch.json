@@ -4,8 +4,8 @@
     {
       "name": "beats-assets-editor-dev",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js", "run", "dev"],
-      "port": 1420
+      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--port", "3000", "--strictPort", "false"],
+      "port": 3000
     }
   ]
 }

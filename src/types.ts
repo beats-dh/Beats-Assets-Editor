@@ -302,6 +302,11 @@ export interface ProficiencyPerk {
   SkillId?: number;
   AugmentType?: number;
   SpellId?: number;
+  BestiaryId?: number;
+  BestiaryName?: string;
+  DamageType?: number;
+  ElementId?: number;
+  Range?: number;
 }
 
 export interface ProficiencyLevel {

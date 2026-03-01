@@ -105,7 +105,7 @@ function enqueueAnimations(category: string, ids: number[]): void {
   }
 }
 
-export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], category: string): Promise<void> {
+export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], category: string, prefix: string = "sprite-"): Promise<void> {
   if (assets.length === 0) return;
 
   // ✅ OPTIMIZED: Performance monitoring
@@ -119,7 +119,7 @@ export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], cat
   const readyToAnimate: number[] = [];
 
   for (const asset of assets) {
-    const container = document.getElementById(`sprite-${asset.id}`);
+    const container = document.getElementById(`${prefix}${asset.id}`);
     if (!container) continue;
 
     container.innerHTML = '';
