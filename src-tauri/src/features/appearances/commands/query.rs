@@ -100,7 +100,10 @@ pub async fn list_appearances_by_category(
                 if let Some(ref search_term_lower) = search_lower {
                     let matches = appearance.name.as_ref().map_or(false, |n| String::from_utf8_lossy(n).to_lowercase().contains(search_term_lower))
                         || appearance.description.as_ref().map_or(false, |d| String::from_utf8_lossy(d).to_lowercase().contains(search_term_lower))
-                        || id.to_string().contains(search_term_lower);
+                        || id.to_string().contains(search_term_lower)
+                        || appearance.flags.as_ref().and_then(|f| f.proficiency.as_ref()).and_then(|p| p.proficiency_id).map_or(false, |id| {
+                            search_term_lower.starts_with("proficiency-") && format!("proficiency-{}", id).contains(search_term_lower)
+                        });
 
                     if !matches {
                         return None;
@@ -137,7 +140,10 @@ pub async fn list_appearances_by_category(
                     // OPTIMIZATION: Convert to string only if we need to search
                     let matches = appearance.name.as_ref().map_or(false, |n| String::from_utf8_lossy(n).to_lowercase().contains(search_term_lower))
                         || appearance.description.as_ref().map_or(false, |d| String::from_utf8_lossy(d).to_lowercase().contains(search_term_lower))
-                        || id.to_string().contains(search_term_lower);
+                        || id.to_string().contains(search_term_lower)
+                        || appearance.flags.as_ref().and_then(|f| f.proficiency.as_ref()).and_then(|p| p.proficiency_id).map_or(false, |id| {
+                            search_term_lower.starts_with("proficiency-") && format!("proficiency-{}", id).contains(search_term_lower)
+                        });
 
                     if !matches {
                         return None;
@@ -357,7 +363,10 @@ pub async fn get_appearance_count(category: AppearanceCategory, search: Option<S
                 let search_lower = search_term.to_lowercase();
                 let matches = appearance.name.as_ref().map_or(false, |n| String::from_utf8_lossy(n).to_lowercase().contains(&search_lower))
                     || appearance.description.as_ref().map_or(false, |d| String::from_utf8_lossy(d).to_lowercase().contains(&search_lower))
-                    || id.to_string().contains(&search_lower);
+                    || id.to_string().contains(&search_lower)
+                    || appearance.flags.as_ref().and_then(|f| f.proficiency.as_ref()).and_then(|p| p.proficiency_id).map_or(false, |id| {
+                        search_lower.starts_with("proficiency-") && format!("proficiency-{}", id).contains(&search_lower)
+                    });
 
                 if !matches {
                     return false;
@@ -449,6 +458,35 @@ pub async fn get_complete_appearance(category: AppearanceCategory, id: u32, stat
     };
 
     Ok(CompleteAppearanceItem::from_protobuf(appearance))
+}
+
+/// Batch version of get_complete_appearance - returns multiple items in one IPC call.
+/// Each ID is O(1) lookup via index map.
+#[tauri::command]
+pub async fn get_complete_appearances_batch(category: AppearanceCategory, ids: Vec<u32>, state: State<'_, AppState>) -> Result<Vec<CompleteAppearanceItem>, String> {
+    let appearances_lock = state.appearances.read();
+
+    let appearances = match &*appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category(appearances, &category);
+    let index_map = get_index_for_category(&state, &category);
+
+    let mut results = Vec::with_capacity(ids.len());
+    for id in ids {
+        let appearance = if let Some(idx_ref) = index_map.get(&id) {
+            items.get(*idx_ref)
+        } else {
+            items.iter().find(|app| app.id.unwrap_or(0) == id)
+        };
+        if let Some(app) = appearance {
+            results.push(CompleteAppearanceItem::from_protobuf(app));
+        }
+    }
+
+    Ok(results)
 }
 
 /// Get special meaning appearance IDs (coins, chests, etc.)

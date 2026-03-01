@@ -7,5 +7,6 @@
       "runtimeArgs": ["node_modules/vite/bin/vite.js", "--port", "3000", "--strictPort", "false"],
       "port": 3000
     }
-  ]
+  ],
+  "autoVerify": false
 }

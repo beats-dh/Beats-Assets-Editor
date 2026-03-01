@@ -17,6 +17,7 @@ export const COMMANDS = {
   GET_APPEARANCE_COUNT: 'get_appearance_count',
   GET_ITEM_SUBCATEGORIES: 'get_item_subcategories',
   GET_COMPLETE_APPEARANCE: 'get_complete_appearance',
+  GET_COMPLETE_APPEARANCES_BATCH: 'get_complete_appearances_batch',
   GET_SPECIAL_MEANING_IDS: 'get_special_meaning_ids',
 
   // Appearance Updates

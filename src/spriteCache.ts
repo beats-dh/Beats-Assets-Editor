@@ -251,9 +251,8 @@ export function createSpriteImage(data: Uint8Array, className = 'sprite-image'):
   const displaySize = 64;
   const dpr = window.devicePixelRatio || 1;
 
-  // CSS size stays fixed; canvas resolution scales by DPR
-  canvas.style.width = `${displaySize}px`;
-  canvas.style.height = `${displaySize}px`;
+  // Dimensionamento CSS externo deve reger o tamanho do canvas (e.g no .list-sprite-container)
+  // O Canvas continuará recebendo o tamanho de display em JS apensamento para resolução
   canvas.width = Math.round(displaySize * dpr);
   canvas.height = Math.round(displaySize * dpr);
 

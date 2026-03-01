@@ -1,19 +1,30 @@
 <script lang="ts">
-  import { open } from '@tauri-apps/plugin-dialog';
-  import { appState } from '../../stores/appState.svelte';
-  import { settingsState } from '../../stores/settingsState.svelte';
-  import { assetsState } from '../../stores/assetsState.svelte';
-  import { invoke } from '../../utils/invoke';
-  import { COMMANDS } from '../../commands';
-  import { loadAppearancesForAssetsEditor, getCachedStaticDataStats, getCachedStaticMapDataStats } from '../../appearanceLoader';
-  import { loadSpecialMeaningIds } from '../../specialMeaning';
-  import { showStatus } from '../../utils';
-  import { SUPPORTED_LANGUAGES, translate } from '../../i18n';
+  import { open } from "@tauri-apps/plugin-dialog";
+  import { appState } from "../../stores/appState.svelte";
+  import { settingsState } from "../../stores/settingsState.svelte";
+  import { assetsState } from "../../stores/assetsState.svelte";
+  import { invoke } from "../../utils/invoke";
+  import { COMMANDS } from "../../commands";
+  import {
+    loadAppearancesForAssetsEditor,
+    getCachedStaticDataStats,
+    getCachedStaticMapDataStats,
+  } from "../../appearanceLoader";
+  import { loadSpecialMeaningIds } from "../../specialMeaning";
+  import { showStatus } from "../../utils";
+  import { SUPPORTED_LANGUAGES, translate } from "../../i18n";
 
   // Import styles
-  import '../../mainMenu.css';
+  import "../../mainMenu.css";
 
-  const SUPPORTED_THEMES = ['default', 'ocean', 'aurora', 'ember', 'forest', 'dusk'];
+  const SUPPORTED_THEMES = [
+    "default",
+    "ocean",
+    "aurora",
+    "ember",
+    "forest",
+    "dusk",
+  ];
 
   let isLaunching = $state(false);
   let isLoadingMonster = $state(false);
@@ -181,16 +192,16 @@
         const selection = await open({
           directory: false,
           multiple: false,
-          filters: [{ name: 'JSON', extensions: ['json'] }],
+          filters: [{ name: "JSON", extensions: ["json"] }],
         });
-        if (typeof selection !== 'string' || !selection) return;
+        if (typeof selection !== "string" || !selection) return;
         filePath = selection;
         appState.proficiencyFilePath = filePath;
       }
 
-      appState.currentView = 'proficiency-editor';
+      appState.currentView = "proficiency-editor";
     } catch (error) {
-      console.error('Failed to open proficiency editor:', error);
+      console.error("Failed to open proficiency editor:", error);
     } finally {
       isLoadingProficiency = false;
     }
@@ -339,14 +350,14 @@
         </button>
 
         <!-- Map Editor -->
-        <button type="button" class="launcher-option disabled" disabled>
+        <!-- <button type="button" class="launcher-option disabled" disabled>
           <div class="launcher-option-icon">🗺️</div>
           <h3>{translate("launcher.map.title")}</h3>
           <p>{translate("launcher.map.desc")}</p>
           <span class="launcher-option-badge upcoming"
             >{translate("launcher.status.upcoming")}</span
           >
-        </button>
+        </button> -->
       </div>
 
       <!-- Configurations -->
@@ -379,7 +390,9 @@
               <option value={l}
                 >{l === "default"
                   ? translate("launcher.config.language.auto")
-                  : translate(`language.option.${l.split("-")[0]}` as any)}</option
+                  : translate(
+                      `language.option.${l.split("-")[0]}` as any,
+                    )}</option
               >
             {/each}
           </select>

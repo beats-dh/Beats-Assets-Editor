@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { open, save } from "@tauri-apps/plugin-dialog";
   import { appState } from "../../stores/appState.svelte";
   import { assetsState } from "../../stores/assetsState.svelte";
@@ -108,25 +108,25 @@
   const AUGMENT_ICONS = asset("augment-icons.png");
 
   // Backgrounds OTUI
-  const BG_PANEL = asset("full-bonus-select-bg.png");
   const BG_STARS = asset("star-progress-bg.png");
   const BG_PROGRESS = asset("progress-bg.png");
   const BG_PROGRESS_FILL = asset("proficiency-progress.png");
   const MASTER_LEVEL_BG_BASE = "icon-masterylevel-";
 
-  function getMasteryLevelImage(levelCount: number): string {
-    if (levelCount <= 0) return asset(`${MASTER_LEVEL_BG_BASE}0.png`);
+  function getMasteryLevelBase(levelCount: number): string {
+    const clamped = Math.min(Math.max(0, levelCount), 7);
+    return asset(`${MASTER_LEVEL_BG_BASE}${clamped}.png`);
+  }
+
+  function getMasteryLevelOverlay(levelCount: number): string | null {
+    if (levelCount <= 0) return null;
     const clamped = Math.min(levelCount, 7);
     return asset(`${MASTER_LEVEL_BG_BASE}${clamped}-silver.png`);
   }
-  const BIG_LOCK = asset("big-icon-lock-grey.png");
   const HIGHLIGHT_BG = asset("backdrop_weaponmastery_highlight.png");
   const STAR_PROGRESS = asset("star-progress.png");
   const BONUS_COL_BG = asset("bonus-select-bg.png");
   const BONUS_COL_PROGRESS = asset("bonus-select-bg-progress.png");
-
-  const UI_BASE = "../../assets/ui/";
-  const ERASE_BTN = new URL(`${UI_BASE}erase-button.png`, import.meta.url).href;
 
   function getAugmentIconStyle(augmentType: number, active = true): string {
     const col = augmentType % 13;
@@ -136,10 +136,10 @@
     return `background-image:url(${AUGMENT_ICONS});background-position:${x}px ${y}px;background-size:416px 64px;background-repeat:no-repeat;width:32px;height:32px;display:inline-block;image-rendering:pixelated`;
   }
 
-  // ── State ──────────────────────────────────────────────────────────────────
-  let entries = $state<ProficiencyEntry[]>([]);
+  // ── State (restore from global cache to avoid flicker on re-mount) ────────
+  let entries = $state<ProficiencyEntry[]>(assetsState.proficiencyEntries);
   let filePath = $state(appState.proficiencyFilePath || "");
-  let selectedId = $state<number | null>(null);
+  let selectedId = $state<number | null>(assetsState.proficiencySelectedId);
   let isDirty = $state(false);
   let searchTerm = $state("");
 
@@ -148,16 +148,67 @@
   let selRow = $state<number | null>(null);
   let isHoveringAdd = $state<{ lvl: number } | null>(null);
 
-  // Vocation toggles (visual only for now)
-  let toggles = $state({ level: false, voc: false, h1: false, h2: false });
+  // Filter toggles
+  let toggles = $state({ level: false, h1: false, h2: false });
+  let vocFilter = $state<number | null>(null);
+  let weaponTypeFilter = $state<number | null>(null);
+
+  const VOC_LABELS: Record<number, string> = {
+    [-1]: "Any",
+    0: "None",
+    1: "Knight",
+    2: "Paladin",
+    3: "Sorcerer",
+    4: "Druid",
+    5: "Monk",
+    10: "Promoted",
+  };
+
+  const WEAPON_TYPE_LABELS: Record<number, string> = {
+    1: "Sword",
+    2: "Axe",
+    3: "Club",
+    4: "Fist",
+    5: "Bow",
+    6: "Crossbow",
+    7: "Wand/Rod",
+    8: "Throw",
+  };
 
   // ── Derived ────────────────────────────────────────────────────────────────
   let filtered = $derived(
-    entries.filter(
-      (e) =>
-        e.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(e.ProficiencyId).includes(searchTerm),
-    ),
+    entries.filter((e) => {
+      // Text search
+      const term = searchTerm.toLowerCase();
+      if (
+        term &&
+        !e.Name.toLowerCase().includes(term) &&
+        !String(e.ProficiencyId).includes(searchTerm)
+      )
+        return false;
+
+      const nameLower = e.Name.toLowerCase();
+
+      // 1H / 2H name filters
+      if (toggles.h1 && !nameLower.includes("1h")) return false;
+      if (toggles.h2 && !nameLower.includes("2h")) return false;
+
+      // Level / Vocation / Weapon type filters (require matching asset with flags)
+      const asset = getAssetForProficiency(e.ProficiencyId);
+      if (toggles.level && !asset?.flags?.minimum_level) return false;
+      if (
+        vocFilter !== null &&
+        !asset?.flags?.restrict_to_vocation?.includes(vocFilter)
+      )
+        return false;
+      if (
+        weaponTypeFilter !== null &&
+        asset?.flags?.weapon_type !== weaponTypeFilter
+      )
+        return false;
+
+      return true;
+    }),
   );
 
   let selectedEntry = $derived(
@@ -174,7 +225,8 @@
   ) as ProficiencyPerk | null;
 
   let masteryLevel = $derived(selectedEntry ? selectedEntry.Levels.length : 0);
-  let masteryImage = $derived(getMasteryLevelImage(masteryLevel));
+  let masteryBase = $derived(getMasteryLevelBase(masteryLevel));
+  let masteryOverlay = $derived(getMasteryLevelOverlay(masteryLevel));
 
   let displayLevels = $derived(
     selectedEntry ? selectedEntry.Levels.slice(0, 7) : [],
@@ -183,16 +235,62 @@
     Array.from({ length: 7 }).map((_, i) => displayLevels[i]),
   );
 
-  // Find corresponding sprites from assetsState
+  // Find corresponding sprites from local map first, then assetsState fallback
   function getAssetForProficiency(
     profId: number,
   ): CompleteAppearanceItem | null {
+    if (assetsState.proficiencyAssets[profId]) {
+      return assetsState.proficiencyAssets[profId];
+    }
     if (!assetsState.assets) return null;
     return (
       assetsState.assets.find(
         (a) => a.flags?.proficiency?.proficiency_id === profId,
       ) ?? null
     );
+  }
+
+  async function loadProficiencyAssets(profEntries: ProficiencyEntry[]) {
+    // Pular download se o cache global já tem as armas guardadas
+    if (Object.keys(assetsState.proficiencyAssets).length >= profEntries.length)
+      return;
+
+    try {
+      // 1) Buscar TODOS os items com proficiency em uma única chamada
+      const resp = await invoke<{
+        total: number;
+        items: { id: number }[];
+      }>(COMMANDS.LIST_APPEARANCES_BY_CATEGORY, {
+        category: "Objects",
+        page: 0,
+        pageSize: 5000,
+        search: "proficiency-",
+        subcategory: null,
+      });
+
+      if (!resp.items || resp.items.length === 0) return;
+
+      const ids = resp.items.map((item) => item.id);
+
+      // 2) Buscar dados completos de todos em uma única chamada batch
+      const completeItems = await invoke<CompleteAppearanceItem[]>(
+        COMMANDS.GET_COMPLETE_APPEARANCES_BATCH,
+        { category: "Objects", ids },
+      );
+
+      // 3) Montar mapa proficiency_id → CompleteAppearanceItem
+      const newAssets: Record<number, CompleteAppearanceItem> = {};
+      for (const item of completeItems) {
+        const profId = item.flags?.proficiency?.proficiency_id;
+        if (profId != null) {
+          newAssets[profId] = item;
+        }
+      }
+
+      assetsState.proficiencyAssets = newAssets;
+    } catch (e) {
+      console.error("Falha ao buscar assets de proficiency em batch", e);
+    }
   }
 
   onMount(() => {
@@ -203,28 +301,28 @@
 
   // Effect to load sprites for items rendered
   $effect(() => {
-    if (
-      filtered.length > 0 &&
-      assetsState.assets &&
-      assetsState.assets.length > 0
-    ) {
+    const profAssets = assetsState.proficiencyAssets;
+    if (filtered.length > 0 && Object.keys(profAssets).length > 0) {
       const itemsToLoad = filtered
-        .map((e) => getAssetForProficiency(e.ProficiencyId))
+        .map((e) => profAssets[e.ProficiencyId])
         .filter(Boolean) as CompleteAppearanceItem[];
       if (itemsToLoad.length > 0) {
-        requestAnimationFrame(() =>
-          loadSpritesForAssets(itemsToLoad, "Objects", "sprite-"),
+        tick().then(() =>
+          loadSpritesForAssets(itemsToLoad, "Objects", "sprite-", true),
         );
       }
     }
   });
 
   $effect(() => {
-    if (selectedId && assetsState.assets && assetsState.assets.length > 0) {
-      const mainAsset = getAssetForProficiency(selectedId);
+    // Only depend on proficiencyAssets (not assetsState.assets) to avoid
+    // loadId invalidation when loadAssetsData() completes concurrently
+    const profAssets = assetsState.proficiencyAssets;
+    if (selectedId && Object.keys(profAssets).length > 0) {
+      const mainAsset = profAssets[selectedId];
       if (mainAsset) {
-        requestAnimationFrame(() =>
-          loadSpritesForAssets([mainAsset], "Objects", "main-sprite-"),
+        tick().then(() =>
+          loadSpritesForAssets([mainAsset], "Objects", "main-sprite-", true),
         );
       }
     }
@@ -246,6 +344,9 @@
       isDirty = false;
       selLvl = null;
       selRow = null;
+
+      // Buscar assests individualmente pós-carregamento.
+      await loadProficiencyAssets(loaded);
     } catch (e) {
       showStatus("Erro ao carregar formato", "error");
     }
@@ -359,12 +460,22 @@
     markDirty();
   }
 
+  // Sync local state → global cache so re-mount is instant
+  $effect(() => {
+    assetsState.proficiencyEntries = entries;
+  });
+  $effect(() => {
+    assetsState.proficiencySelectedId = selectedId;
+  });
+
+  // Only load from backend if cache is empty
   $effect(() => {
     if (filePath && entries.length === 0) loadFile(filePath);
   });
 </script>
 
 <div class="tibia-bg">
+  <div class="pe-layout">
   <div class="pe-window window-tibia">
     <div class="window-header">Weapon Proficiency</div>
     <div class="window-content">
@@ -372,13 +483,29 @@
       <div class="sidebar">
         <!-- Weapon Info Box -->
         <div class="weapon-info-box t2-panel">
-          <div class="weapon-name" title={selectedEntry?.Name ?? "None"}>
-            {selectedEntry ? selectedEntry.Name.toLowerCase() : "Unknown Item"}
+          <div
+            class="weapon-name"
+            title={selectedEntry
+              ? (getAssetForProficiency(selectedEntry.ProficiencyId)?.name ??
+                selectedEntry.Name)
+              : "None"}
+          >
+            {selectedEntry
+              ? (getAssetForProficiency(
+                  selectedEntry.ProficiencyId,
+                )?.name?.toLowerCase() ?? selectedEntry.Name.toLowerCase())
+              : "Unknown Item"}
           </div>
           <div
             class="weapon-icon-wrapper"
-            style="background-image: url({masteryImage});"
+            style="background-image: url({masteryBase});"
           >
+            {#if masteryOverlay}
+              <div
+                class="mastery-overlay"
+                style="background-image: url({masteryOverlay});"
+              ></div>
+            {/if}
             {#if selectedEntry && getAssetForProficiency(selectedEntry.ProficiencyId)}
               {@const asset = getAssetForProficiency(
                 selectedEntry.ProficiencyId,
@@ -389,16 +516,9 @@
               ></div>
             {/if}
             <div class="info-circle" title="Item info">i</div>
-            <!-- Mastery stars inside the frame (like OTC) -->
-            <div class="mastery-level-indicators">
-              {#each Array(Math.min(masteryLevel, 7)) as _, i}
-                <img src={STAR_GOLD} class="mastery-star" alt="*" />
-              {/each}
-            </div>
           </div>
           <div class="weapon-xp">
-            <span class="xp-progress">0 / 0</span><br />
-            <span class="xp-next">0 XP for next level</span>
+            <!-- XP é gerenciado pelo servidor no cliente -->
           </div>
         </div>
 
@@ -409,42 +529,70 @@
             class:active={toggles.level}
             onclick={() => (toggles.level = !toggles.level)}>Level</button
           >
-          <button
-            class="tibia-btn-toggle"
-            class:active={toggles.voc}
-            onclick={() => (toggles.voc = !toggles.voc)}>Voc.</button
+          <select
+            class="tibia-select filter-voc-select"
+            value={vocFilter !== null ? String(vocFilter) : ""}
+            onchange={(e) => {
+              const v = e.currentTarget.value;
+              vocFilter = v === "" ? null : Number(v);
+            }}
           >
+            <option value="">Voc.</option>
+            {#each Object.entries(VOC_LABELS) as [id, label]}
+              <option value={id}>{label}</option>
+            {/each}
+          </select>
           <button
             class="tibia-btn-toggle"
             class:active={toggles.h1}
-            onclick={() => (toggles.h1 = !toggles.h1)}>1H</button
+            onclick={() => {
+              toggles.h1 = !toggles.h1;
+              if (toggles.h1) toggles.h2 = false;
+            }}>1H</button
           >
           <button
             class="tibia-btn-toggle"
             class:active={toggles.h2}
-            onclick={() => (toggles.h2 = !toggles.h2)}>2H</button
+            onclick={() => {
+              toggles.h2 = !toggles.h2;
+              if (toggles.h2) toggles.h1 = false;
+            }}>2H</button
           >
         </div>
 
-        <!-- Combobox -->
-        <div class="combobox textedit-panel">
-          <span class="combo-text">Weapons: All</span>
-          <span class="combo-arrow">▼</span>
-        </div>
+        <!-- Weapon Type Filter -->
+        <select
+          class="tibia-select filter-weapon-select"
+          value={weaponTypeFilter !== null ? String(weaponTypeFilter) : ""}
+          onchange={(e) => {
+            const v = e.currentTarget.value;
+            weaponTypeFilter = v === "" ? null : Number(v);
+          }}
+        >
+          <option value="">Weapons: All</option>
+          {#each Object.entries(WEAPON_TYPE_LABELS) as [id, label]}
+            <option value={id}>{label}</option>
+          {/each}
+        </select>
 
-        <!-- Search -->
+        <!-- Search Box -->
         <div class="search-box textedit-panel">
           <input
             type="text"
             placeholder="Type to search"
             bind:value={searchTerm}
           />
-          <button
-            class="clear-search"
-            aria-label="Clear Search"
-            onclick={() => (searchTerm = "")}
-            style="background-image: url({ERASE_BTN});"
-          ></button>
+          {#if searchTerm}
+            <button
+              class="clear-search"
+              onclick={() => (searchTerm = "")}
+              title="Clear Search"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10">
+                <path d="M1 1 L9 9 M9 1 L1 9" stroke="#888" stroke-width="2" />
+              </svg>
+            </button>
+          {/if}
         </div>
 
         <!-- Grid (Pixel perfect styling like Tibia Item list) -->
@@ -482,7 +630,9 @@
               <div class="star-col">
                 <div
                   class="star-progress-fill"
-                  style="background-image: url({STAR_PROGRESS}); width: {lvl ? '100%' : '0%'};"
+                  style="background-image: url({STAR_PROGRESS}); width: {lvl
+                    ? '100%'
+                    : '0%'};"
                 ></div>
                 <div class="star-cell">
                   {#if lvl}
@@ -502,7 +652,7 @@
           >
             <div
               class="progress-bar-fill"
-              style="background-image: url({BG_PROGRESS_FILL}); width: 60%;"
+              style="background-image: url({BG_PROGRESS_FILL}); width: 99.9%;"
             ></div>
           </div>
 
@@ -584,94 +734,31 @@
           <div class="bonus-detail-wrapper">
             <div class="bonus-detail-row textedit-panel">
               {#each paddedLevels as lvl, idx}
-                <div
-                  class="detail-panel"
-                  onclick={() => toggleUnlock(idx)}
-                >
+                <div class="detail-panel" onclick={() => toggleUnlock(idx)}>
                   {#if !lvl}
                     <img src={LOCK_ICON} alt="locked" class="lock-icon" />
                   {:else if selLvl === idx && selRow !== null && lvl.Perks[selRow]}
                     <div class="detail-text">
-                      <span class="detail-name">{getPerkLabel(lvl.Perks[selRow].Type)}</span>
-                      <span class="detail-value">+{lvl.Perks[selRow].Value}</span>
+                      <span class="detail-name"
+                        >{getPerkLabel(lvl.Perks[selRow].Type)}</span
+                      >
+                      <span class="detail-value-proficiency"
+                        >+{lvl.Perks[selRow].Value}</span
+                      >
                     </div>
                   {:else}
                     <div class="detail-text">
-                      <span class="detail-placeholder">{lvl.Perks.length} perk{lvl.Perks.length !== 1 ? 's' : ''}</span>
+                      <span class="detail-placeholder"
+                        >{lvl.Perks.length} perk{lvl.Perks.length !== 1
+                          ? "s"
+                          : ""}</span
+                      >
                     </div>
                   {/if}
                 </div>
               {/each}
             </div>
 
-            <!-- Settings panel for selected perk (overlays detail row) -->
-            <div
-              class="perk-config"
-              class:has-selection={selLvl !== null &&
-                selRow !== null &&
-                selectedPerk}
-            >
-            {#if selLvl !== null && selRow !== null && selectedPerk}
-              <div class="config-row">
-                <label
-                  >Type: <input
-                    type="number"
-                    class="tibia-input"
-                    value={selectedPerk.Type}
-                    oninput={(e) =>
-                      updateSelPerk("Type", Number(e.currentTarget.value))}
-                  /></label
-                >
-                <span class="type-name-label"
-                  >({getPerkLabel(selectedPerk.Type)})</span
-                >
-                <label
-                  >Val: <input
-                    type="number"
-                    class="tibia-input"
-                    step="0.01"
-                    value={selectedPerk.Value}
-                    oninput={(e) =>
-                      updateSelPerk("Value", Number(e.currentTarget.value))}
-                  /></label
-                >
-                <label
-                  >Augment: <input
-                    type="number"
-                    class="tibia-input"
-                    value={selectedPerk.AugmentType ?? ""}
-                    oninput={(e) =>
-                      updateSelPerkOptional(
-                        "AugmentType",
-                        e.currentTarget.value,
-                      )}
-                  /></label
-                >
-                <label
-                  >SkillId: <input
-                    type="number"
-                    class="tibia-input"
-                    value={selectedPerk.SkillId ?? ""}
-                    oninput={(e) =>
-                      updateSelPerkOptional("SkillId", e.currentTarget.value)}
-                  /></label
-                >
-                <label
-                  >SpellId: <input
-                    type="number"
-                    class="tibia-input"
-                    value={selectedPerk.SpellId ?? ""}
-                    oninput={(e) =>
-                      updateSelPerkOptional("SpellId", e.currentTarget.value)}
-                  /></label
-                >
-                <button
-                  class="tibia-btn tibia-btn-danger"
-                  onclick={removeSelPerk}>Remover</button
-                >
-              </div>
-            {/if}
-          </div>
           </div>
         {:else}
           <div class="no-selection panel-sunken">
@@ -709,4 +796,113 @@
       </div>
     </div>
   </div>
+
+  <!-- Side Panel: Perk Config -->
+  {#if selLvl !== null && selRow !== null && selectedPerk}
+    <div class="side-panel window-tibia">
+      <div class="window-header">Perk Config</div>
+      <div class="side-panel-content">
+        <div class="config-field">
+          <label>Type</label>
+          <input
+            type="number"
+            class="tibia-input"
+            value={selectedPerk.Type}
+            oninput={(e) => updateSelPerk("Type", Number(e.currentTarget.value))}
+          />
+        </div>
+        <span class="type-name-label">{getPerkLabel(selectedPerk.Type)}</span>
+        <div class="config-field">
+          <label>Value</label>
+          <input
+            type="number"
+            class="tibia-input"
+            step="0.01"
+            value={selectedPerk.Value}
+            oninput={(e) => updateSelPerk("Value", Number(e.currentTarget.value))}
+          />
+        </div>
+        <div class="config-field">
+          <label>Augment</label>
+          <input
+            type="number"
+            class="tibia-input"
+            value={selectedPerk.AugmentType ?? ""}
+            oninput={(e) => updateSelPerkOptional("AugmentType", e.currentTarget.value)}
+          />
+        </div>
+        <div class="config-field">
+          <label>SkillId</label>
+          <input
+            type="number"
+            class="tibia-input"
+            value={selectedPerk.SkillId ?? ""}
+            oninput={(e) => updateSelPerkOptional("SkillId", e.currentTarget.value)}
+          />
+        </div>
+        <div class="config-field">
+          <label>SpellId</label>
+          <input
+            type="number"
+            class="tibia-input"
+            value={selectedPerk.SpellId ?? ""}
+            oninput={(e) => updateSelPerkOptional("SpellId", e.currentTarget.value)}
+          />
+        </div>
+        <div class="config-field">
+          <label>ElementId</label>
+          <input
+            type="number"
+            class="tibia-input"
+            value={selectedPerk.ElementId ?? ""}
+            oninput={(e) => updateSelPerkOptional("ElementId", e.currentTarget.value)}
+          />
+        </div>
+        <div class="config-field">
+          <label>DmgType</label>
+          <input
+            type="number"
+            class="tibia-input"
+            value={selectedPerk.DamageType ?? ""}
+            oninput={(e) => updateSelPerkOptional("DamageType", e.currentTarget.value)}
+          />
+        </div>
+        <div class="config-field">
+          <label>Range</label>
+          <input
+            type="number"
+            class="tibia-input"
+            value={selectedPerk.Range ?? ""}
+            oninput={(e) => updateSelPerkOptional("Range", e.currentTarget.value)}
+          />
+        </div>
+        <div class="config-field">
+          <label>BestId</label>
+          <input
+            type="number"
+            class="tibia-input"
+            value={selectedPerk.BestiaryId ?? ""}
+            oninput={(e) => updateSelPerkOptional("BestiaryId", e.currentTarget.value)}
+          />
+        </div>
+        <div class="config-field">
+          <label>BestName</label>
+          <input
+            type="text"
+            class="tibia-input"
+            value={selectedPerk.BestiaryName ?? ""}
+            oninput={(e) => {
+              const val = e.currentTarget.value;
+              updateSelPerk("BestiaryName", val === "" ? undefined : val);
+            }}
+          />
+        </div>
+        <div class="side-panel-footer">
+          <button class="tibia-btn tibia-btn-danger" onclick={removeSelPerk}>Remover</button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  </div><!-- /pe-layout -->
 </div>

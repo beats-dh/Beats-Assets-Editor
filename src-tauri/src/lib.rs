@@ -29,6 +29,7 @@ pub fn run() {
             features::appearances::commands::get_appearance_count,
             features::appearances::commands::get_item_subcategories,
             features::appearances::commands::get_complete_appearance,
+            features::appearances::commands::get_complete_appearances_batch,
             features::appearances::commands::get_special_meaning_ids,
             features::appearances::commands::update_appearance_name,
             features::appearances::commands::update_appearance_description,

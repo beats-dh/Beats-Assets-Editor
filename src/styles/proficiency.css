@@ -1,4 +1,5 @@
 .tibia-bg {
+    --sidebar-w: 209px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -15,7 +16,7 @@
     display: flex;
     flex-direction: column;
     padding: 0;
-    width: 1000px;
+    width: 1009px;
     height: 572px;
     position: relative;
 }
@@ -23,6 +24,7 @@
 .window-content {
     display: flex;
     flex: 1;
+    min-height: 0;
     gap: 11px;
     padding: 12px;
     position: relative;
@@ -32,7 +34,7 @@
 }
 
 .window-tibia {
-    border-image: url("../assets/ui/popupwindow.png") 17 4 4 4 fill !important;
+    border-image: url("../assets/ui/popupwindow.png") 17 4 4 4 fill repeat !important;
     border-width: 17px 4px 4px 4px;
     border-style: solid;
     image-rendering: pixelated;
@@ -42,23 +44,25 @@
 /* Deep sunken panel style */
 .panel-sunken {
     background: #2b2b2b;
-    border-image: url("../assets/ui/t2pixel-up-frame-borderimage.png") 30 30 30 30 fill !important;
+    border-image: url("../assets/ui/t2pixel-up-frame-borderimage.png") 30 30 30 30 fill repeat !important;
     border-width: 30px;
     border-style: solid;
     image-rendering: pixelated;
 }
 
 .t2-panel {
-    border-image: url("../assets/ui/t2pixel-up-frame-borderimage.png") 30 30 30 30 fill !important;
+    border-image: url("../assets/ui/t2pixel-up-frame-borderimage.png") 30 30 30 30 fill repeat !important;
     border-width: 30px;
     border-style: solid;
     image-rendering: pixelated;
 }
 
 .textedit-panel {
-    border-image: url("../assets/ui/textedit.png") 3 3 3 3 fill !important;
-    border-width: 3px;
     border-style: solid;
+    border-width: 3px;
+    border-image: url('../assets/ui/1pixel-down-frame.png') 3 3 3 3 repeat;
+    background-color: #353535;
+    box-shadow: inset 1px 1px 1px #151515;
     image-rendering: pixelated;
 }
 
@@ -78,16 +82,13 @@
 /* ── LEFT SIDEBAR ───────────────────────────────────────────────────── */
 
 .sidebar {
-    width: 202px;
+    width: var(--sidebar-w);
     display: block;
 }
 
 .weapon-info-box {
-    width: 202px;
+    width: var(--sidebar-w);
     height: 149px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     position: relative;
     box-sizing: border-box;
     margin-bottom: 11px;
@@ -96,35 +97,56 @@
 .weapon-name {
     color: #a4a4a4;
     font-weight: bold;
-    margin-top: 2px;
-    margin-bottom: 0px;
+    position: absolute;
+    top: -28px;
+    /* Considera os 30px para ficar a 2px do topo da borda */
+    left: -30px;
+    right: -30px;
+    margin: 0;
     font-size: 11px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    width: 100%;
     text-align: center;
+    z-index: 10;
 }
 
 .weapon-icon-wrapper {
-    position: relative;
+    position: absolute;
+    top: -8px;
+    /* 22px margin-top - 30px border */
+    left: 50%;
+    transform: translateX(-50%);
     width: 190px;
     height: 84px;
-    margin-top: 22px;
-    margin-bottom: 4px;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     display: flex;
     justify-content: center;
-    align-items: center;
     image-rendering: pixelated;
 }
 
+.mastery-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
 .main-sprite-container {
-    width: 64px;
-    height: 64px;
-    margin-top: 4px;
+    position: absolute;
+    top: 22px;
+    left: 40%;
+    transform: translateX(calc(-50% + 15px));
+    width: 32px;
+    height: 32px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2;
 }
 
 :global(.main-sprite-container canvas) {
@@ -166,11 +188,15 @@
 }
 
 .weapon-xp {
+    position: absolute;
+    top: 81px;
+    /* 111px do topo exterior - 30px */
+    left: -30px;
+    right: -30px;
     text-align: center;
     color: #a4a4a4;
     font-size: 10px;
     line-height: 1.3;
-    margin-top: 2px;
 }
 
 .xp-progress {
@@ -179,9 +205,10 @@
 
 .filter-toggles {
     display: flex;
-    gap: 5px;
+    gap: 4px;
     margin-top: 11px;
-    width: 202px;
+    width: var(--sidebar-w);
+    align-items: center;
 }
 
 .tibia-btn-toggle {
@@ -199,43 +226,104 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
 }
 
 .tibia-btn-toggle.active {
     background: #2a2a2a;
-    box-shadow: inset 1px 1px 2px #111;
-    color: #fff;
+    border: 1px solid #1a1a1a;
+    box-shadow:
+        inset 1px 1px 0 #111111,
+        inset -1px -1px 0 #3a3a3a;
+    color: #dfdfdf;
+}
+
+.tibia-select {
+    height: 20px;
+    background: #353535;
+    border: 1px solid #1a1a1a;
+    box-shadow:
+        inset 1px 1px 0 #5c5c5c,
+        inset -1px -1px 0 #202020;
+    color: #c0c0c0;
+    font-size: 10px;
+    cursor: pointer;
+    padding: 0 2px;
+    outline: none;
+}
+
+.tibia-select option {
+    background: #353535;
+    color: #c0c0c0;
+}
+
+.filter-voc-select {
+    flex: 1;
+    min-width: 0;
+}
+
+.filter-weapon-select {
+    width: var(--sidebar-w);
+    margin-top: 6px;
+    height: 22px;
+    font-weight: bold;
+    color: #dfdfdf;
+    box-sizing: border-box;
 }
 
 .combobox {
     margin-top: 6px;
-    width: 202px;
+    width: var(--sidebar-w);
+    min-height: 20px;
     height: 20px;
-    padding: 0 6px;
+    padding: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
     font-size: 11px;
+    font-weight: bold;
+    color: #dfdfdf;
     box-sizing: border-box;
-    background: #404040;
+    background-color: #353535;
+    border: 1px solid #1a1a1a;
+    box-shadow:
+        inset 1px 1px 0 #5c5c5c,
+        inset -1px -1px 0 #202020;
+}
+
+.combo-text {
+    padding-left: 6px;
+}
+
+.combo-arrow {
+    width: 15px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    color: #888;
+    background-color: #2a2a2a;
+    border-left: 1px solid #1a1a1a;
+    box-shadow: inset 1px 0 0 #444;
 }
 
 .search-box {
     margin-top: 6px;
-    width: 202px;
+    width: var(--sidebar-w);
+    min-height: 20px;
     height: 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     box-sizing: border-box;
-    background: #404040;
 }
 
 .search-box input {
     background: none;
     border: none;
-    color: #c0c0c0;
+    color: #888;
     outline: none;
     flex: 1;
     font-size: 11px;
@@ -247,28 +335,50 @@
 }
 
 .clear-search {
-    background: transparent;
+    background-color: #2a2a2a;
     border: none;
+    border-left: 1px solid #1a1a1a;
+    box-shadow: inset 1px 0 0 #444;
     cursor: pointer;
-    width: 18px;
-    height: 18px;
-    margin: 1px;
-    background-repeat: no-repeat;
-    background-position: 0 0;
-    image-rendering: pixelated;
+    width: 15px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
 }
 
-.clear-search:hover {
-    background-position: 0 -20px;
+.weapons-dropdown {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    width: var(--sidebar-w);
+    background: #353535;
+    border-style: solid;
+    border-width: 3px;
+    border-image: url('../../assets/ui/t2pixel-down-frame-borderimage.png') 3 3 3 3 repeat;
+    box-shadow: inset 1px 1px 2px #111;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
 }
 
-.clear-search:active {
-    background-position: 0 -20px;
+.weapon-option {
+    padding: 4px 6px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #dfdfdf;
+    cursor: pointer;
+}
+
+.weapon-option:hover {
+    background: #505050;
+    color: #fff;
 }
 
 .items-grid {
-    margin-top: 7px;
-    width: 202px;
+    margin-top: 0px;
+    width: var(--sidebar-w);
     height: 256px;
     overflow-y: scroll;
     padding: 4px;
@@ -327,9 +437,10 @@
     pointer-events: none;
 }
 
-:global(.list-sprite-container canvas) {
-    width: 100%;
-    height: 100%;
+.list-sprite-container .sprite-image,
+.main-sprite-container .sprite-image {
+    width: 32px !important;
+    height: 32px !important;
     image-rendering: pixelated;
     object-fit: contain;
 }
@@ -405,6 +516,7 @@
     background-repeat: no-repeat;
     background-size: 100% 100%;
     image-rendering: pixelated;
+    flex-shrink: 0;
 }
 
 .progress-bar-fill {
@@ -471,6 +583,11 @@
     z-index: 5;
     width: 108px;
     height: 354px;
+}
+
+/* 0 perks: add button centered */
+.perks-container.perks-count-0 {
+    justify-content: center;
 }
 
 /* 1 perk: centered vertically */
@@ -660,7 +777,7 @@
     word-wrap: break-word;
 }
 
-.detail-value {
+.detail-value-proficiency {
     color: #d4c49a;
     font-size: 10px;
 }
@@ -671,69 +788,90 @@
     text-align: center;
 }
 
-/* ── Perk Config Panel (overlays detail row when a perk is selected) ── */
+/* ── Layout wrapper (main window + side panel) ─────────────────────── */
 
-.perk-config {
+.pe-layout {
+    position: relative;
+}
+
+/* ── Side Panel (Perk Config) ──────────────────────────────────────── */
+
+.side-panel {
     position: absolute;
+    left: 100%;
     top: 0;
-    left: 0;
-    width: 756px;
-    height: 77px;
-    padding: 6px;
+    margin-left: 8px;
+    width: 220px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    justify-content: center;
-    background: rgba(30, 30, 30, 0.97);
-    border: 1px solid #333;
-    box-sizing: border-box;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s;
-    z-index: 20;
 }
 
-.perk-config.has-selection {
-    pointer-events: auto;
-    opacity: 1;
-}
-
-.config-row {
+.side-panel-content {
     display: flex;
+    flex-direction: column;
     gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
+    padding: 10px;
+    background: #404040;
+    margin: 4px;
+    border: 1px solid #1c1c1c;
 }
 
-.config-row label {
-    color: #c0c0c0;
-    font-size: 10px;
+.config-field {
     display: flex;
-    gap: 4px;
     align-items: center;
+    gap: 6px;
+}
+
+.config-field label {
+    color: #c0c0c0;
+    font-size: 11px;
+    white-space: nowrap;
+    min-width: 52px;
+}
+
+.config-field .tibia-input {
+    flex: 1;
+    min-width: 0;
 }
 
 .tibia-input {
     background: #111;
     border: 1px solid #333;
     color: #fff;
-    padding: 2px 4px;
-    font-size: 10px;
-    width: 45px;
+    padding: 3px 4px;
+    font-size: 11px;
+    width: 50px;
+    height: 22px;
+    box-sizing: border-box;
+}
+
+.tibia-input::-webkit-inner-spin-button,
+.tibia-input::-webkit-outer-spin-button {
+    opacity: 1;
+    height: 20px;
+    width: 14px;
+    cursor: pointer;
 }
 
 .type-name-label {
     color: #cca34d;
-    font-size: 10px;
-    width: 120px;
+    font-size: 11px;
+    display: block;
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
 }
 
+.side-panel-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
+}
+
 .tibia-btn-danger {
     color: #ff8888;
-    margin-left: auto;
+    height: 22px;
+    font-size: 11px;
 }
 
 .no-selection {
@@ -754,23 +892,19 @@
 /* ── Footer ─────────────────────────────────────────────────────────── */
 
 .bottom-sep {
-    position: absolute;
-    bottom: 42px;
-    left: 12px;
-    right: 12px;
     height: 2px;
+    margin: 0 4px;
     background: #3a3a3a;
     border-bottom: 1px solid #1a1a1a;
+    flex-shrink: 0;
 }
 
 .window-footer {
-    position: absolute;
-    bottom: 12px;
-    left: 12px;
-    right: 12px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 6px 5px 8px;
+    flex-shrink: 0;
 }
 
 .footer-left,
@@ -780,7 +914,7 @@
 }
 
 .tibia-btn {
-    width: 43px;
+    width: 60px;
     height: 20px;
     background: #363636;
     border: 1px solid #1a1a1a;

@@ -63,7 +63,6 @@
   function toggleAutoAnimate() {
     autoAnimate = !autoAnimate;
     localStorage.setItem("autoAnimateGridEnabled", String(autoAnimate));
-    window.location.reload();
   }
 
   function handleResetPerf() {

@@ -23,7 +23,7 @@ const scheduleIdle = (cb: () => void): void => {
   }
 };
 
-let currentLoadId = 0;
+const prefixLoadIds = new Map<string, number>();
 
 export function clearPreviewSpriteCaches(): void {
   previewSpriteCache.clear();
@@ -105,14 +105,15 @@ function enqueueAnimations(category: string, ids: number[]): void {
   }
 }
 
-export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], category: string, prefix: string = "sprite-"): Promise<void> {
+export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], category: string, prefix: string = "sprite-", skipAnimations: boolean = false): Promise<void> {
   if (assets.length === 0) return;
 
   // ✅ OPTIMIZED: Performance monitoring
   performanceMonitor.mark('loadSprites');
 
-  // Increment load ID to invalidate previous load operations
-  const thisLoadId = ++currentLoadId;
+  // Increment load ID per prefix to invalidate previous load operations
+  const thisLoadId = (prefixLoadIds.get(prefix) || 0) + 1;
+  prefixLoadIds.set(prefix, thisLoadId);
   const loadCategory = category;
 
   const missingIds: number[] = [];
@@ -122,7 +123,14 @@ export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], cat
     const container = document.getElementById(`${prefix}${asset.id}`);
     if (!container) continue;
 
+    // Skip if already rendered with the correct sprite (avoid flicker on re-trigger)
+    if (container.querySelector('canvas') && container.dataset.spriteFor === String(asset.id)) {
+      readyToAnimate.push(asset.id);
+      continue;
+    }
+
     container.innerHTML = '';
+    container.dataset.spriteFor = String(asset.id);
     const cacheKey = getPreviewCacheKey(loadCategory, asset.id);
     const cachedPreview = previewSpriteCache.get(cacheKey);
     if (cachedPreview) {
@@ -134,7 +142,7 @@ export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], cat
     }
   }
 
-  if (readyToAnimate.length > 0) {
+  if (readyToAnimate.length > 0 && !skipAnimations) {
     enqueueAnimations(loadCategory, readyToAnimate);
   }
 
@@ -154,13 +162,13 @@ export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], cat
 
   // Render loaded previews into their DOM containers
   const renderPreviews = async (previews: Map<number, Uint8Array>): Promise<void> => {
-    if (thisLoadId !== currentLoadId) return;
+    if (thisLoadId !== prefixLoadIds.get(prefix)) return;
     const batchReady: number[] = [];
     for (const [assetId, previewSprite] of previews) {
       const asset = assetById.get(assetId);
       if (!asset) continue;
-      const container = document.getElementById(`sprite-${asset.id}`);
-      if (!container || container.querySelector('img')) continue; // Already rendered
+      const container = document.getElementById(`${prefix}${asset.id}`);
+      if (!container || container.querySelector('canvas')) continue; // Already rendered
       const decoded = await getDecodedSpriteBuffer(
         getPreviewDecodedCacheKey(loadCategory, asset.id),
         previewSprite
@@ -170,7 +178,7 @@ export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], cat
       container.appendChild(createSpriteImage(decoded));
       batchReady.push(asset.id);
     }
-    if (batchReady.length > 0) enqueueAnimations(loadCategory, batchReady);
+    if (batchReady.length > 0 && !skipAnimations) enqueueAnimations(loadCategory, batchReady);
   };
 
   // Chunking + progressive render handled inside getAppearancePreviewSpritesBatch

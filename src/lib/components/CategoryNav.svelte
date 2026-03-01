@@ -205,7 +205,7 @@
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Distance")}
+          onclick={() => selectCategory("Objects", "DistanceWeapons")}
         >
           <span class="subcat-icon">🏹</span>
           <span class="subcat-name">{translate("subcategory.distance")}</span>
