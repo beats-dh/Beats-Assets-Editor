@@ -388,6 +388,8 @@
               class="clear-search-btn"
               onclick={() => (searchQuery = "")}
               style="display: flex;"
+              aria-label="Limpar pesquisa"
+              title="Limpar pesquisa"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -455,7 +457,8 @@
             <div class="static-data-visual">
               {#if (currentDataType === "creatures" || currentDataType === "bosses") && item.outfit?.looktype && outfitSprites.has(item.outfit.looktype)}
                 <canvas
-                  use:pixelSprite={outfitSprites.get(item.outfit.looktype) ?? null}
+                  use:pixelSprite={outfitSprites.get(item.outfit.looktype) ??
+                    null}
                   class="static-data-img"
                   style="width:64px;height:64px;"
                 ></canvas>

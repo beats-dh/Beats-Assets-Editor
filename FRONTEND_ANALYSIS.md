@@ -1,6 +1,6 @@
 # 🎨 Frontend TypeScript - Análise Crítica de Performance e Arquitetura
 
-> **Análise completa do frontend TypeScript do Tibia Assets Editor**  
+> **Análise completa do frontend TypeScript do Canary Studio Editor**  
 > **Data**: 2024-11-21  
 > **Linhas de código**: ~19,279 linhas TypeScript + ~6,185 linhas CSS  
 > **Arquivos**: 43 arquivos TypeScript, 22 arquivos CSS  
@@ -718,7 +718,7 @@ export default defineConfig({
 
 ## 🎓 Conclusão
 
-O frontend TypeScript do Tibia Assets Editor demonstra **excelente arquitetura com otimizações avançadas implementadas**. O código é modular, type-safe, performático e utiliza APIs modernas.
+O frontend TypeScript do Canary Studio Editor demonstra **excelente arquitetura com otimizações avançadas implementadas**. O código é modular, type-safe, performático e utiliza APIs modernas.
 
 ### Pontuação Final: **9.5/10** 🏆
 

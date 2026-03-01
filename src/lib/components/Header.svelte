@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { appState } from '../../stores/appState.svelte';
-  import { translate } from '../../i18n';
-  import { loadAssetsData as loadAssets } from '../../services/assetService';
-  import { clearPreviewSpriteCaches } from '../../utils/spriteLoading';
-  import { showStatus } from '../../utils';
-  import SettingsMenu from './SettingsMenu.svelte';
+  import { appState } from "../../stores/appState.svelte";
+  import { translate } from "../../i18n";
+  import { loadAssetsData as loadAssets } from "../../services/assetService";
+  import { clearPreviewSpriteCaches } from "../../utils/spriteLoading";
+  import { showStatus } from "../../utils";
+  import SettingsMenu from "./SettingsMenu.svelte";
 
   // Import styles
-  import '../../styles/header.css';
+  import "../../styles/header.css";
 
   let isSettingsOpen = $state(false);
 
@@ -21,13 +21,13 @@
   }
 
   function goHome() {
-    appState.currentView = 'launcher';
+    appState.currentView = "launcher";
   }
 
   async function refresh() {
     clearPreviewSpriteCaches();
     await loadAssets();
-    showStatus(translate('status.assetsRefreshed'), 'success');
+    showStatus(translate("status.assetsRefreshed"), "success");
   }
 
   function onWindowClick() {
@@ -42,8 +42,8 @@
     <div class="logo-section">
       <div class="app-logo">⚔️</div>
       <div class="app-title">
-        <h1>{translate('app.title')}</h1>
-        <p class="app-subtitle">{translate('app.subtitle')}</p>
+        <h1>{translate("app.title")}</h1>
+        <p class="app-subtitle">{translate("app.subtitle")}</p>
       </div>
     </div>
 
@@ -52,23 +52,23 @@
     <div class="header-actions">
       <button
         class="icon-btn"
-        title={translate('header.settings.tooltip')}
-        onclick={toggleSettings}
-      >⚙️</button>
+        title={translate("header.settings.tooltip")}
+        onclick={toggleSettings}>⚙️</button
+      >
 
       <SettingsMenu show={isSettingsOpen} closeMenu={closeSettings} />
 
       <button
         class="icon-btn"
-        title={translate('header.home.tooltip')}
-        onclick={goHome}
-      >🏠</button>
+        title={translate("header.home.tooltip")}
+        onclick={goHome}>🏠</button
+      >
 
       <button
         class="icon-btn"
-        title={translate('header.refresh.tooltip')}
-        onclick={refresh}
-      >🔄</button>
+        title={translate("header.refresh.tooltip")}
+        onclick={refresh}>🔄</button
+      >
     </div>
   </div>
 </header>

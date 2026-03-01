@@ -7,6 +7,7 @@
     pixelSprite,
   } from "../../spriteCache";
   import { getSpriteUrl } from "../../utils/spriteUrlCache";
+  import { assetsState } from "../../stores/assetsState.svelte";
 
   let { isOpen, itemDetails, dataType, onClose, onDelete } = $props<{
     isOpen: boolean;

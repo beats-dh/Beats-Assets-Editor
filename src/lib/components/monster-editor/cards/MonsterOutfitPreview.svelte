@@ -427,17 +427,17 @@
     // Effect to reload when outfit properties change
     $effect(() => {
         if (outfit) {
-            // Dependencies to track
-            const {
-                lookType,
-                lookHead,
-                lookBody,
-                lookLegs,
-                lookFeet,
-                lookAddons,
-                lookMount,
-            } = outfit;
-            // Check if any property changed that requires reload
+            // Synchronously read dependencies to track them for the effect
+            // before any async execution in loadOutfitSprite
+            void outfit.lookType;
+            void outfit.lookHead;
+            void outfit.lookBody;
+            void outfit.lookLegs;
+            void outfit.lookFeet;
+            void outfit.lookAddons;
+            void outfit.lookMount;
+
+            // Re-render outfit sprite automatically
             loadOutfitSprite(outfit, true);
         }
     });

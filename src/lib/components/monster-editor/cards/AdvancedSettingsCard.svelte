@@ -16,13 +16,19 @@
         </h4>
         <div class="form-row">
           <div class="form-group">
-            <label>{translate("monster.card.advanced.level")}</label><input
+            <label for="adv-light-level"
+              >{translate("monster.card.advanced.level")}</label
+            ><input
+              id="adv-light-level"
               type="number"
               bind:value={m.light.level}
             />
           </div>
           <div class="form-group">
-            <label>{translate("monster.card.advanced.color")}</label><input
+            <label for="adv-light-color"
+              >{translate("monster.card.advanced.color")}</label
+            ><input
+              id="adv-light-color"
               type="number"
               bind:value={m.light.color}
             />
@@ -34,13 +40,19 @@
         </h4>
         <div class="form-row">
           <div class="form-group">
-            <label>{translate("monster.card.advanced.interval")}</label><input
+            <label for="adv-change-interval"
+              >{translate("monster.card.advanced.interval")}</label
+            ><input
+              id="adv-change-interval"
               type="number"
               bind:value={m.changeTarget.interval}
             />
           </div>
           <div class="form-group">
-            <label>{translate("monster.card.advanced.chance")}</label><input
+            <label for="adv-change-chance"
+              >{translate("monster.card.advanced.chance")}</label
+            ><input
+              id="adv-change-chance"
               type="number"
               bind:value={m.changeTarget.chance}
             />
@@ -52,23 +64,37 @@
         </h4>
         <div class="form-row">
           <div class="form-group">
-            <label>{translate("monster.card.advanced.nearest")}</label><input
+            <label for="adv-strat-nearest"
+              >{translate("monster.card.advanced.nearest")}</label
+            ><input
+              id="adv-strat-nearest"
               type="number"
               bind:value={m.strategiesTarget.nearest}
             />
           </div>
           <div class="form-group">
-            <label>{translate("monster.card.advanced.healthStrategy")}</label
-            ><input type="number" bind:value={m.strategiesTarget.health} />
+            <label for="adv-strat-health"
+              >{translate("monster.card.advanced.healthStrategy")}</label
+            ><input
+              id="adv-strat-health"
+              type="number"
+              bind:value={m.strategiesTarget.health}
+            />
           </div>
           <div class="form-group">
-            <label>{translate("monster.card.advanced.damage")}</label><input
+            <label for="adv-strat-damage"
+              >{translate("monster.card.advanced.damage")}</label
+            ><input
+              id="adv-strat-damage"
               type="number"
               bind:value={m.strategiesTarget.damage}
             />
           </div>
           <div class="form-group">
-            <label>{translate("monster.card.advanced.random")}</label><input
+            <label for="adv-strat-random"
+              >{translate("monster.card.advanced.random")}</label
+            ><input
+              id="adv-strat-random"
               type="number"
               bind:value={m.strategiesTarget.random}
             />

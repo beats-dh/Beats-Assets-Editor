@@ -155,8 +155,10 @@
       }
 
       // Boolean flags
-      const originalFlags: CompleteFlags = original.flags || {} as CompleteFlags;
-      const updatedFlags: CompleteFlags = updated.flags || {} as CompleteFlags;
+      const originalFlags: CompleteFlags =
+        original.flags || ({} as CompleteFlags);
+      const updatedFlags: CompleteFlags =
+        updated.flags || ({} as CompleteFlags);
       const getBool = (obj: any, key: string) => !!obj[key];
       const boolFlags = [
         "clip",

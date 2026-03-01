@@ -1,6 +1,6 @@
 # 🦀 Backend Rust - Análise Crítica de Performance e Arquitetura
 
-> **Análise completa do backend Rust do Tibia Assets Editor**  
+> **Análise completa do backend Rust do Canary Studio Editor**  
 > **Data**: 2024-11-21  
 > **Linhas de código**: ~8,274 linhas em 41 arquivos  
 > **Linguagem**: Rust 2021 Edition
@@ -634,7 +634,7 @@ overflow-checks = false    # Disable overflow checks
 
 ## 🎓 Conclusão
 
-O backend Rust do Tibia Assets Editor é **excepcionalmente bem arquitetado** com foco claro em performance. As otimizações implementadas (DashMap, parking_lot, Rayon, índices O(1), LRU caches, LZMA paralelo) demonstram profundo conhecimento de Rust e sistemas de alta performance.
+O backend Rust do Canary Studio Editor é **excepcionalmente bem arquitetado** com foco claro em performance. As otimizações implementadas (DashMap, parking_lot, Rayon, índices O(1), LRU caches, LZMA paralelo) demonstram profundo conhecimento de Rust e sistemas de alta performance.
 
 ### Pontuação Final: **9.8/10** 🏆
 

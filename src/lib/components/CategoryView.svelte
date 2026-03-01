@@ -5,7 +5,6 @@
     isAssetSelected,
     toggleAssetSelection,
     setAssetSelection,
-    clearAssetSelection,
     getCurrentSelection,
     openAssetDetails,
     selectionState,

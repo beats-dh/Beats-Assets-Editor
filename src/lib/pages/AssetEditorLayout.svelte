@@ -10,6 +10,7 @@
   import ConfirmModal from "../components/ConfirmModal.svelte";
   import ImportStartIdModal from "../components/ImportStartIdModal.svelte";
   import SpriteLibraryDrawer from "../components/SpriteLibraryDrawer.svelte";
+  import ProficiencyEditorPage from "./ProficiencyEditorPage.svelte";
 </script>
 
 {#if assetsState.viewMode === "categories"}
@@ -23,6 +24,8 @@
   <RccBrowser />
 {:else if assetsState.viewMode === "qm"}
   <QmTranslationEditor />
+{:else if assetsState.viewMode === "proficiency"}
+  <ProficiencyEditorPage />
 {/if}
 
 <AssetDetailsModal />

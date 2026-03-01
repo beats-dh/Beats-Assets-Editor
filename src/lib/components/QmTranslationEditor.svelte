@@ -50,9 +50,14 @@
   // Pagination
   let currentPage = $state(0);
   const PAGE_SIZE = 100;
-  let totalPages = $derived(Math.max(1, Math.ceil(filteredEntries.length / PAGE_SIZE)));
+  let totalPages = $derived(
+    Math.max(1, Math.ceil(filteredEntries.length / PAGE_SIZE)),
+  );
   let pageEntries = $derived(
-    filteredEntries.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)
+    filteredEntries.slice(
+      currentPage * PAGE_SIZE,
+      (currentPage + 1) * PAGE_SIZE,
+    ),
   );
 
   const STORAGE_KEY = "lastQmPath";
@@ -95,7 +100,7 @@
           e.source_text.toLowerCase().includes(q) ||
           e.context.toLowerCase().includes(q) ||
           e.comment.toLowerCase().includes(q) ||
-          (e.translation ?? "").toLowerCase().includes(q)
+          (e.translation ?? "").toLowerCase().includes(q),
       );
     }
     currentPage = 0;
@@ -138,7 +143,7 @@
       localStorage.setItem(STORAGE_KEY, path);
       setStatus(
         translate("qm.status.loaded", { count: String(result.total) }),
-        "success"
+        "success",
       );
     } catch (e) {
       setStatus(translate("qm.status.error", { err: String(e) }), "error");
@@ -217,7 +222,10 @@
       const count = await invoke<number>(COMMANDS.QM_EXPORT_CSV, {
         outputPath: dest,
       });
-      setStatus(translate("qm.status.exported", { count: String(count) }), "success");
+      setStatus(
+        translate("qm.status.exported", { count: String(count) }),
+        "success",
+      );
     } catch (e) {
       setStatus(translate("qm.status.error", { err: String(e) }), "error");
     }
@@ -241,7 +249,10 @@
       filteredEntries = entries; // trigger re-filter
       pendingEdits = new Map();
 
-      setStatus(translate("qm.status.imported", { count: String(count) }), "success");
+      setStatus(
+        translate("qm.status.imported", { count: String(count) }),
+        "success",
+      );
     } catch (e) {
       setStatus(translate("qm.status.error", { err: String(e) }), "error");
     }
@@ -288,7 +299,9 @@
 
   async function flushPendingEdits() {
     if (pendingEdits.size === 0) return;
-    const updates: [number, string | null][] = Array.from(pendingEdits.entries());
+    const updates: [number, string | null][] = Array.from(
+      pendingEdits.entries(),
+    );
     await invoke(COMMANDS.QM_UPDATE_TRANSLATIONS, { updates });
     // Merge into entries
     entries = entries.map((e) => {
@@ -309,6 +322,11 @@
 
   function clearSearch() {
     searchQuery = "";
+  }
+
+  function focusAction(node: HTMLElement) {
+    // Svelte action to safely focus the element without triggering a11y warnings
+    node.focus();
   }
 </script>
 
@@ -349,7 +367,11 @@
         <button class="btn-tool" onclick={importCsv} disabled={isLoading}>
           📥 {translate("qm.btn.importCsv")}
         </button>
-        <button class="btn-tool btn-debug" onclick={debugRaw} title="Debug: dump raw bytes from QM file">
+        <button
+          class="btn-tool btn-debug"
+          onclick={debugRaw}
+          title="Debug: dump raw bytes from QM file"
+        >
           🔬 Debug
         </button>
       {/if}
@@ -387,7 +409,8 @@
         {translate("qm.info.entries")}
         {#if pendingEdits.size > 0}
           <span class="badge-pending">
-            {pendingEdits.size} {translate("qm.info.unsaved")}
+            {pendingEdits.size}
+            {translate("qm.info.unsaved")}
           </span>
         {/if}
       </span>
@@ -402,7 +425,11 @@
         bind:value={searchQuery}
       />
       {#if searchQuery}
-        <button class="btn-clear-search" onclick={clearSearch} aria-label={translate("search.clear")}>
+        <button
+          class="btn-clear-search"
+          onclick={clearSearch}
+          aria-label={translate("search.clear")}
+        >
           ✕
         </button>
       {/if}
@@ -450,7 +477,7 @@
                     onkeydown={(e) => handleEditKeydown(e, entry.index)}
                     onblur={() => commitEdit(entry.index)}
                     rows={2}
-                    autofocus
+                    use:focusAction
                   ></textarea>
                 {:else}
                   <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -462,14 +489,21 @@
                     {#if getTranslation(entry)}
                       {getTranslation(entry)}
                     {:else}
-                      <em class="empty-translation">{translate("qm.empty.translation")}</em>
+                      <em class="empty-translation"
+                        >{translate("qm.empty.translation")}</em
+                      >
                     {/if}
                   </div>
                 {/if}
               </td>
 
               <td class="col-hash">
-                <code>{entry.hash.toString(16).toUpperCase().padStart(8, "0")}</code>
+                <code
+                  >{entry.hash
+                    .toString(16)
+                    .toUpperCase()
+                    .padStart(8, "0")}</code
+                >
               </td>
             </tr>
           {/each}
@@ -483,26 +517,26 @@
         <button
           class="btn-page"
           disabled={currentPage === 0}
-          onclick={() => (currentPage = 0)}
-        >«</button>
+          onclick={() => (currentPage = 0)}>«</button
+        >
         <button
           class="btn-page"
           disabled={currentPage === 0}
-          onclick={() => currentPage--}
-        >‹</button>
+          onclick={() => currentPage--}>‹</button
+        >
         <span class="page-info">
           {currentPage + 1} / {totalPages}
         </span>
         <button
           class="btn-page"
           disabled={currentPage >= totalPages - 1}
-          onclick={() => currentPage++}
-        >›</button>
+          onclick={() => currentPage++}>›</button
+        >
         <button
           class="btn-page"
           disabled={currentPage >= totalPages - 1}
-          onclick={() => (currentPage = totalPages - 1)}
-        >»</button>
+          onclick={() => (currentPage = totalPages - 1)}>»</button
+        >
       </div>
     {/if}
   {/if}
@@ -588,9 +622,18 @@
     font-size: 0.82rem;
     flex-shrink: 0;
   }
-  .qm-status--info { background: rgba(99, 102, 241, 0.1); color: #a5b4fc; }
-  .qm-status--success { background: rgba(34, 197, 94, 0.1); color: #86efac; }
-  .qm-status--error { background: rgba(239, 68, 68, 0.1); color: #fca5a5; }
+  .qm-status--info {
+    background: rgba(99, 102, 241, 0.1);
+    color: #a5b4fc;
+  }
+  .qm-status--success {
+    background: rgba(34, 197, 94, 0.1);
+    color: #86efac;
+  }
+  .qm-status--error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #fca5a5;
+  }
 
   /* ---- Empty / Loading ---- */
   .qm-empty {
@@ -602,9 +645,18 @@
     gap: 1rem;
     color: var(--text-secondary, #94a3b8);
   }
-  .qm-empty-icon { font-size: 3rem; }
-  .qm-empty h2 { font-size: 1.3rem; margin: 0; color: var(--text-primary, #e2e8f0); }
-  .qm-empty p { margin: 0; font-size: 0.9rem; }
+  .qm-empty-icon {
+    font-size: 3rem;
+  }
+  .qm-empty h2 {
+    font-size: 1.3rem;
+    margin: 0;
+    color: var(--text-primary, #e2e8f0);
+  }
+  .qm-empty p {
+    margin: 0;
+    font-size: 0.9rem;
+  }
 
   .btn-primary {
     background: var(--accent, #6366f1);
@@ -617,7 +669,9 @@
     font-weight: 600;
     transition: opacity 0.15s;
   }
-  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:hover {
+    opacity: 0.85;
+  }
 
   .qm-loading {
     flex: 1;
@@ -629,13 +683,18 @@
     color: var(--text-secondary, #94a3b8);
   }
   .spinner {
-    width: 36px; height: 36px;
+    width: 36px;
+    height: 36px;
     border: 3px solid var(--border-color, #2d3148);
     border-top-color: var(--accent, #6366f1);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   /* ---- Info bar ---- */
   .qm-info-bar {
@@ -686,7 +745,9 @@
     outline: none;
     transition: border-color 0.15s;
   }
-  .qm-search:focus { border-color: var(--accent, #6366f1); }
+  .qm-search:focus {
+    border-color: var(--accent, #6366f1);
+  }
 
   .btn-clear-search {
     background: none;
@@ -697,7 +758,9 @@
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
   }
-  .btn-clear-search:hover { color: var(--text-primary, #e2e8f0); }
+  .btn-clear-search:hover {
+    color: var(--text-primary, #e2e8f0);
+  }
 
   .badge-warn {
     background: rgba(251, 191, 36, 0.12);
@@ -751,11 +814,32 @@
   }
 
   /* Column widths */
-  .col-idx  { width: 60px; color: var(--text-muted, #4b5563); font-size: 0.75rem; }
-  .col-context { width: 14%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary, #94a3b8); }
-  .col-source { width: 35%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .col-translation { width: auto; }
-  .col-hash { width: 100px; color: var(--text-muted, #4b5563); font-size: 0.72rem; }
+  .col-idx {
+    width: 60px;
+    color: var(--text-muted, #4b5563);
+    font-size: 0.75rem;
+  }
+  .col-context {
+    width: 14%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary, #94a3b8);
+  }
+  .col-source {
+    width: 35%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .col-translation {
+    width: auto;
+  }
+  .col-hash {
+    width: 100px;
+    color: var(--text-muted, #4b5563);
+    font-size: 0.72rem;
+  }
 
   /* Translation cell */
   .translation-cell {
@@ -816,7 +900,10 @@
   .btn-page:hover:not(:disabled) {
     border-color: var(--accent, #6366f1);
   }
-  .btn-page:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-page:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
   .page-info {
     font-size: 0.82rem;
     color: var(--text-secondary, #94a3b8);

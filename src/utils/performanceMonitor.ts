@@ -9,7 +9,7 @@ export interface PerformanceMetrics {
   lcp?: number; // Largest Contentful Paint
   fid?: number; // First Input Delay
   cls?: number; // Cumulative Layout Shift
-  
+
   // Custom Metrics
   spriteLoadTime?: number;
   batchLoadTime?: number;
@@ -77,7 +77,7 @@ class PerformanceMonitor {
    */
   measure(name: string): number | null {
     if (!this.enabled) return null;
-    
+
     const startTime = this.marks.get(name);
     if (startTime === undefined) return null;
 
@@ -137,7 +137,7 @@ class PerformanceMonitor {
    */
   logMetrics(): void {
     console.group('📊 Performance Metrics');
-    
+
     if (this.metrics.lcp) {
       console.log(`LCP: ${this.metrics.lcp.toFixed(2)}ms`);
     }
@@ -159,7 +159,7 @@ class PerformanceMonitor {
     if (this.metrics.cacheHitRate !== undefined) {
       console.log(`Cache Hit Rate: ${this.metrics.cacheHitRate.toFixed(1)}%`);
     }
-    
+
     console.groupEnd();
   }
 

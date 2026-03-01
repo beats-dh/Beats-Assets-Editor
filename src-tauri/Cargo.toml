@@ -1,10 +1,10 @@
 [package]
-name = "tibia-assets-editor"
+name = "Canary-Studio"
 version = "0.1.0"
-description = "A Tibia Assets Editor"
+description = "A Canary Studio Editor"
 authors = ["Beats"]
 edition = "2021"
-default-run = "tibia-assets-editor" 
+default-run = "Canary-Studio" 
 
 [profile.release]
 opt-level = 3

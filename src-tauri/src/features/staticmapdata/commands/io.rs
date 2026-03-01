@@ -1,7 +1,6 @@
 use crate::features::staticmapdata::parsers::{load_staticmapdata, get_statistics, StaticMapDataStats};
 use crate::core::protobuf::staticmapdata::HouseDetail;
 use crate::state::AppState;
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::State;
 

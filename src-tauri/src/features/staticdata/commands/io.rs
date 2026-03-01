@@ -1,7 +1,6 @@
 use crate::features::staticdata::parsers::{load_staticdata, save_staticdata, get_statistics, StaticDataStats};
 use crate::core::protobuf::staticdata::{CreatureType, Title, HouseData, BossData, QuestData};
 use crate::state::AppState;
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::State;
 

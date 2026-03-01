@@ -1,4 +1,4 @@
-# 🎮 Tibia Assets Editor
+# 🎮 Canary Studio Editor
 
 Um editor moderno e profissional de assets do Tibia 15.x construído com **Rust + Tauri 2** no backend e **TypeScript + Vite 6** no frontend. Permite explorar, editar e gerenciar completamente os assets do Tibia, incluindo appearances (Objects, Outfits, Effects, Missiles), sprites e sons.
 
@@ -13,7 +13,7 @@ Um editor moderno e profissional de assets do Tibia 15.x construído com **Rust 
 
 ## ✨ Descrição do Projeto
 
-**Tibia Assets Editor** é uma aplicação desktop completa e profissional para gerenciamento de assets do Tibia 15.x, oferecendo performance excepcional e interface moderna:
+**Canary Studio Editor** é uma aplicação desktop completa e profissional para gerenciamento de assets do Tibia 15.x, oferecendo performance excepcional e interface moderna:
 
 ### 🎯 Funcionalidades Principais
 
@@ -336,7 +336,7 @@ tibia-assets-editor/
 
 ### Métricas de Performance
 
-O Tibia Assets Editor foi otimizado para oferecer performance excepcional:
+O Canary Studio Editor foi otimizado para oferecer performance excepcional:
 
 | Operação | Antes | Depois | Speedup |
 |----------|-------|--------|---------|
@@ -638,8 +638,8 @@ Este projeto está licenciado sob a **Creative Commons Attribution-NonCommercial
 
 Ao usar ou distribuir este software, você deve dar crédito apropriado:
 ```
-Based on Tibia Assets Editor (https://github.com/seu-usuario/tibia-assets-editor)
-by Tibia Assets Editor Contributors, licensed under CC BY-NC-SA 4.0
+Based on Canary Studio Editor (https://github.com/seu-usuario/tibia-assets-editor)
+by Canary Studio Editor Contributors, licensed under CC BY-NC-SA 4.0
 ```
 
 ### Uso Comercial
@@ -736,7 +736,7 @@ Para uso comercial, entre em contato com o mantenedor do projeto para obter uma 
 
 ## 📸 Screenshots
 
-![Tibia Assets Editor Demo](https://github.com/user-attachments/assets/3743432a-b795-49c3-a1a9-d7e9045d6f83)
+![Canary Studio Editor Demo](https://github.com/user-attachments/assets/3743432a-b795-49c3-a1a9-d7e9045d6f83)
 
 ---
 

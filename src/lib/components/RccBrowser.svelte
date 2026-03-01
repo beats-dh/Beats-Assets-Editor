@@ -146,7 +146,16 @@
 
     function isImageFile(name: string): boolean {
         const ext = getFileExtension(name);
-        return ["png", "jpg", "jpeg", "gif", "bmp", "svg", "webp", "ico"].includes(ext);
+        return [
+            "png",
+            "jpg",
+            "jpeg",
+            "gif",
+            "bmp",
+            "svg",
+            "webp",
+            "ico",
+        ].includes(ext);
     }
 
     function isAudioFile(name: string): boolean {
@@ -156,12 +165,26 @@
 
     function isTextFile(name: string): boolean {
         const ext = getFileExtension(name);
-        return ["css", "json", "js", "qml", "hints", "xml", "html", "txt", "ini", "cfg"].includes(ext);
+        return [
+            "css",
+            "json",
+            "js",
+            "qml",
+            "hints",
+            "xml",
+            "html",
+            "txt",
+            "ini",
+            "cfg",
+        ].includes(ext);
     }
 
     function getAudioMimeType(name: string): string {
         const mimes: Record<string, string> = {
-            wav: "audio/wav", ogg: "audio/ogg", mp3: "audio/mpeg", flac: "audio/flac",
+            wav: "audio/wav",
+            ogg: "audio/ogg",
+            mp3: "audio/mpeg",
+            flac: "audio/flac",
         };
         return mimes[getFileExtension(name)] ?? "audio/octet-stream";
     }
@@ -198,7 +221,12 @@
         const sample = bytes.slice(0, 512);
         let printable = 0;
         for (const b of sample) {
-            if ((b >= 0x20 && b < 0x7f) || b === 0x09 || b === 0x0a || b === 0x0d) {
+            if (
+                (b >= 0x20 && b < 0x7f) ||
+                b === 0x09 ||
+                b === 0x0a ||
+                b === 0x0d
+            ) {
                 printable++;
             }
         }
@@ -208,11 +236,19 @@
     function getFileIcon(name: string): string {
         const ext = getFileExtension(name);
         switch (ext) {
-            case "png": case "jpg": case "jpeg": case "gif": case "bmp": case "webp":
+            case "png":
+            case "jpg":
+            case "jpeg":
+            case "gif":
+            case "bmp":
+            case "webp":
                 return "🖼️";
             case "svg":
                 return "📐";
-            case "wav": case "ogg": case "mp3": case "flac":
+            case "wav":
+            case "ogg":
+            case "mp3":
+            case "flac":
                 return "🔊";
             case "css":
                 return "🎨";
@@ -250,7 +286,12 @@
 
     function parseDmpFile(bytes: Uint8Array): DmpInfo | null {
         if (bytes.length < 8) return null;
-        const magic = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
+        const magic = String.fromCharCode(
+            bytes[0],
+            bytes[1],
+            bytes[2],
+            bytes[3],
+        );
         if (magic !== "dmpd") return null;
 
         const version = (bytes[4] << 8) | bytes[5];
@@ -261,11 +302,15 @@
         let dataOffset = 80; // fallback
 
         for (let i = 8; i < Math.min(120, bytes.length); i++) {
-            if (bytes[i] === 0x40) { // '@'
+            if (bytes[i] === 0x40) {
+                // '@'
                 buildTag = new TextDecoder().decode(bytes.slice(i, i + 4));
                 let hashEnd = i + 4;
-                while (hashEnd < bytes.length && bytes[hashEnd] !== 0x7c) hashEnd++;
-                sessionHash = new TextDecoder().decode(bytes.slice(i + 4, hashEnd));
+                while (hashEnd < bytes.length && bytes[hashEnd] !== 0x7c)
+                    hashEnd++;
+                sessionHash = new TextDecoder().decode(
+                    bytes.slice(i + 4, hashEnd),
+                );
                 dataOffset = hashEnd + 2; // skip "|X"
                 break;
             }
@@ -294,21 +339,31 @@
                 skip = 1;
             }
 
-            if (len < 2 || len > 80 || i + 1 + skip + len > bytes.length) continue;
+            if (len < 2 || len > 80 || i + 1 + skip + len > bytes.length)
+                continue;
 
             const strBytes = bytes.slice(i + 1 + skip, i + 1 + skip + len);
             let allPrintable = true;
             let alphaCount = 0;
             for (const c of strBytes) {
                 if (c >= 0x20 && c <= 0x7e) {
-                    if ((c >= 0x41 && c <= 0x5a) || (c >= 0x61 && c <= 0x7a) || c === 0x20) alphaCount++;
+                    if (
+                        (c >= 0x41 && c <= 0x5a) ||
+                        (c >= 0x61 && c <= 0x7a) ||
+                        c === 0x20
+                    )
+                        alphaCount++;
                 } else {
                     allPrintable = false;
                     break;
                 }
             }
 
-            if (allPrintable && alphaCount / len >= 0.4 && /[a-zA-Z]/.test(String.fromCharCode(...strBytes))) {
+            if (
+                allPrintable &&
+                alphaCount / len >= 0.4 &&
+                /[a-zA-Z]/.test(String.fromCharCode(...strBytes))
+            ) {
                 const value = new TextDecoder().decode(strBytes).trim();
                 if (value.length >= 2 && !seen.has(value)) {
                     seen.add(value);
@@ -318,13 +373,27 @@
             }
         }
 
-        return { magic, version, buildTag, sessionHash, dataOffset, entries, fileSize: bytes.length };
+        return {
+            magic,
+            version,
+            buildTag,
+            sessionHash,
+            dataOffset,
+            entries,
+            fileSize: bytes.length,
+        };
     }
 
     async function selectResource(file: RccFileInfo) {
         // Cleanup previous blob URLs
-        if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
-        if (audioUrl) { URL.revokeObjectURL(audioUrl); audioUrl = null; }
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            previewUrl = null;
+        }
+        if (audioUrl) {
+            URL.revokeObjectURL(audioUrl);
+            audioUrl = null;
+        }
         textContent = null;
         originalTextContent = null;
         textModified = false;
@@ -339,21 +408,34 @@
             const bytes = new Uint8Array(data);
 
             if (isImageFile(file.name)) {
-                const blob = new Blob([bytes], { type: getImageMimeType(file.name) });
+                const blob = new Blob([bytes], {
+                    type: getImageMimeType(file.name),
+                });
                 previewUrl = URL.createObjectURL(blob);
             } else if (isAudioFile(file.name)) {
-                const blob = new Blob([bytes], { type: getAudioMimeType(file.name) });
+                const blob = new Blob([bytes], {
+                    type: getAudioMimeType(file.name),
+                });
                 audioUrl = URL.createObjectURL(blob);
             } else if (isTextFile(file.name)) {
                 let text = new TextDecoder("utf-8").decode(bytes);
                 if (getFileExtension(file.name) === "json") {
-                    try { text = JSON.stringify(JSON.parse(text), null, 2); } catch { /* keep raw */ }
+                    try {
+                        text = JSON.stringify(JSON.parse(text), null, 2);
+                    } catch {
+                        /* keep raw */
+                    }
                 }
                 textContent = text;
                 originalTextContent = text;
             } else if (getFileExtension(file.name) === "fnt") {
                 // BMFont binary starts with "BMF"; otherwise treat as text
-                if (bytes.length >= 3 && bytes[0] === 66 && bytes[1] === 77 && bytes[2] === 70) {
+                if (
+                    bytes.length >= 3 &&
+                    bytes[0] === 66 &&
+                    bytes[1] === 77 &&
+                    bytes[2] === 70
+                ) {
                     hexPreview = generateHexDump(bytes, 512);
                 } else if (looksLikeText(bytes)) {
                     const text = new TextDecoder("utf-8").decode(bytes);
@@ -382,10 +464,13 @@
         if (!selectedFile || textContent === null) return;
         try {
             const bytes = Array.from(new TextEncoder().encode(textContent));
-            const updated = await invoke<RccFileInfo>(COMMANDS.RCC_REPLACE_RESOURCE, {
-                index: selectedFile.index,
-                data: bytes,
-            });
+            const updated = await invoke<RccFileInfo>(
+                COMMANDS.RCC_REPLACE_RESOURCE,
+                {
+                    index: selectedFile.index,
+                    data: bytes,
+                },
+            );
             selectedFile = updated;
             originalTextContent = textContent;
             textModified = false;
@@ -436,11 +521,41 @@
         const ext = getFileExtension(selectedFile.name);
 
         const typeFilters = isImageFile(selectedFile.name)
-            ? [{ name: "Images", extensions: ["png", "jpg", "jpeg", "bmp", "gif", "svg", "webp", "ico"] }]
+            ? [
+                  {
+                      name: "Images",
+                      extensions: [
+                          "png",
+                          "jpg",
+                          "jpeg",
+                          "bmp",
+                          "gif",
+                          "svg",
+                          "webp",
+                          "ico",
+                      ],
+                  },
+              ]
             : isAudioFile(selectedFile.name)
               ? [{ name: "Audio", extensions: ["wav", "ogg", "mp3", "flac"] }]
-              : isTextFile(selectedFile.name) || getFileExtension(selectedFile.name) === "fnt"
-                ? [{ name: "Text Files", extensions: ["css", "json", "js", "qml", "hints", "xml", "txt", "fnt", "ini"] }]
+              : isTextFile(selectedFile.name) ||
+                  getFileExtension(selectedFile.name) === "fnt"
+                ? [
+                      {
+                          name: "Text Files",
+                          extensions: [
+                              "css",
+                              "json",
+                              "js",
+                              "qml",
+                              "hints",
+                              "xml",
+                              "txt",
+                              "fnt",
+                              "ini",
+                          ],
+                      },
+                  ]
                 : [];
 
         const selected = await open({
@@ -810,7 +925,12 @@
                             >
                         {/if}
                     </div>
-                    <div class="preview-content" class:text-mode={textContent !== null} class:hex-mode={hexPreview !== null} class:dmp-mode={dmpInfo !== null}>
+                    <div
+                        class="preview-content"
+                        class:text-mode={textContent !== null}
+                        class:hex-mode={hexPreview !== null}
+                        class:dmp-mode={dmpInfo !== null}
+                    >
                         {#if previewUrl}
                             <img
                                 src={previewUrl}
@@ -820,21 +940,43 @@
                         {:else if audioUrl}
                             <div class="audio-preview">
                                 <span class="audio-icon">🔊</span>
-                                <p class="audio-filename">{selectedFile.name}</p>
+                                <p class="audio-filename">
+                                    {selectedFile.name}
+                                </p>
                                 <!-- svelte-ignore a11y_media_has_caption -->
-                                <audio controls src={audioUrl} class="audio-player"></audio>
-                                <p class="audio-meta">{formatSize(selectedFile.size)} · {getFileExtension(selectedFile.name).toUpperCase()}</p>
+                                <audio
+                                    controls
+                                    src={audioUrl}
+                                    class="audio-player"
+                                ></audio>
+                                <p class="audio-meta">
+                                    {formatSize(selectedFile.size)} · {getFileExtension(
+                                        selectedFile.name,
+                                    ).toUpperCase()}
+                                </p>
                             </div>
                         {:else if textContent !== null}
                             <div class="text-editor">
                                 <div class="text-editor-toolbar">
-                                    <span class="text-ext-badge">{getFileExtension(selectedFile.name).toUpperCase()}</span>
-                                    <span class="text-char-count">{textContent.length} chars</span>
+                                    <span class="text-ext-badge"
+                                        >{getFileExtension(
+                                            selectedFile.name,
+                                        ).toUpperCase()}</span
+                                    >
+                                    <span class="text-char-count"
+                                        >{textContent.length} chars</span
+                                    >
                                     {#if textModified}
-                                        <button class="rcc-btn small primary" onclick={saveTextEdit}>
+                                        <button
+                                            class="rcc-btn small primary"
+                                            onclick={saveTextEdit}
+                                        >
                                             💾 Salvar
                                         </button>
-                                        <button class="rcc-btn small" onclick={discardTextEdit}>
+                                        <button
+                                            class="rcc-btn small"
+                                            onclick={discardTextEdit}
+                                        >
                                             ↩ Descartar
                                         </button>
                                     {/if}
@@ -849,61 +991,104 @@
                         {:else if dmpInfo !== null}
                             <div class="dmp-view">
                                 <div class="dmp-header-card">
-                                    <div class="dmp-card-title">💾 Tibia Dump File</div>
+                                    <div class="dmp-card-title">
+                                        💾 Tibia Dump File
+                                    </div>
                                     <div class="dmp-fields">
                                         <div class="dmp-field">
                                             <span class="dmp-label">Magic</span>
-                                            <code class="dmp-value">{dmpInfo.magic}</code>
+                                            <code class="dmp-value"
+                                                >{dmpInfo.magic}</code
+                                            >
                                         </div>
                                         <div class="dmp-field">
-                                            <span class="dmp-label">Version</span>
-                                            <code class="dmp-value">{dmpInfo.version}</code>
+                                            <span class="dmp-label"
+                                                >Version</span
+                                            >
+                                            <code class="dmp-value"
+                                                >{dmpInfo.version}</code
+                                            >
                                         </div>
                                         {#if dmpInfo.buildTag}
-                                        <div class="dmp-field">
-                                            <span class="dmp-label">Build</span>
-                                            <code class="dmp-value accent">{dmpInfo.buildTag}</code>
-                                        </div>
+                                            <div class="dmp-field">
+                                                <span class="dmp-label"
+                                                    >Build</span
+                                                >
+                                                <code class="dmp-value accent"
+                                                    >{dmpInfo.buildTag}</code
+                                                >
+                                            </div>
                                         {/if}
                                         <div class="dmp-field">
                                             <span class="dmp-label">Size</span>
-                                            <code class="dmp-value">{formatSize(dmpInfo.fileSize)}</code>
+                                            <code class="dmp-value"
+                                                >{formatSize(
+                                                    dmpInfo.fileSize,
+                                                )}</code
+                                            >
                                         </div>
                                         <div class="dmp-field">
-                                            <span class="dmp-label">Data offset</span>
-                                            <code class="dmp-value">0x{dmpInfo.dataOffset.toString(16).toUpperCase()}</code>
+                                            <span class="dmp-label"
+                                                >Data offset</span
+                                            >
+                                            <code class="dmp-value"
+                                                >0x{dmpInfo.dataOffset
+                                                    .toString(16)
+                                                    .toUpperCase()}</code
+                                            >
                                         </div>
                                     </div>
                                     {#if dmpInfo.sessionHash}
-                                    <div class="dmp-hash-row">
-                                        <span class="dmp-label">Session ID</span>
-                                        <code class="dmp-hash">{dmpInfo.sessionHash}</code>
-                                    </div>
+                                        <div class="dmp-hash-row">
+                                            <span class="dmp-label"
+                                                >Session ID</span
+                                            >
+                                            <code class="dmp-hash"
+                                                >{dmpInfo.sessionHash}</code
+                                            >
+                                        </div>
                                     {/if}
                                 </div>
                                 {#if dmpInfo.entries.length > 0}
-                                <div class="dmp-strings-section">
-                                    <div class="dmp-section-title">
-                                        Strings extraídas
-                                        <span class="dmp-count">{dmpInfo.entries.length}</span>
+                                    <div class="dmp-strings-section">
+                                        <div class="dmp-section-title">
+                                            Strings extraídas
+                                            <span class="dmp-count"
+                                                >{dmpInfo.entries.length}</span
+                                            >
+                                        </div>
+                                        <div class="dmp-string-list">
+                                            {#each dmpInfo.entries as entry}
+                                                <div class="dmp-string-item">
+                                                    <span class="dmp-field-tag"
+                                                        >f{entry.field}</span
+                                                    >
+                                                    <span
+                                                        class="dmp-string-value"
+                                                        >{entry.value}</span
+                                                    >
+                                                    <span class="dmp-offset"
+                                                        >0x{entry.offset.toString(
+                                                            16,
+                                                        )}</span
+                                                    >
+                                                </div>
+                                            {/each}
+                                        </div>
                                     </div>
-                                    <div class="dmp-string-list">
-                                        {#each dmpInfo.entries as entry}
-                                            <div class="dmp-string-item">
-                                                <span class="dmp-field-tag">f{entry.field}</span>
-                                                <span class="dmp-string-value">{entry.value}</span>
-                                                <span class="dmp-offset">0x{entry.offset.toString(16)}</span>
-                                            </div>
-                                        {/each}
-                                    </div>
-                                </div>
                                 {/if}
                             </div>
                         {:else if hexPreview !== null}
                             <div class="hex-preview">
                                 <div class="hex-toolbar">
-                                    <span class="text-ext-badge">{getFileExtension(selectedFile.name).toUpperCase()}</span>
-                                    <span class="text-char-count">{formatSize(selectedFile.size)} · binary</span>
+                                    <span class="text-ext-badge"
+                                        >{getFileExtension(
+                                            selectedFile.name,
+                                        ).toUpperCase()}</span
+                                    >
+                                    <span class="text-char-count"
+                                        >{formatSize(selectedFile.size)} · binary</span
+                                    >
                                 </div>
                                 <pre class="hex-content">{hexPreview}</pre>
                             </div>
@@ -913,8 +1098,16 @@
                             </p>
                         {:else}
                             <div class="preview-placeholder">
-                                <span class="big-icon">{getFileIcon(selectedFile.name)}</span>
-                                <p>{translate("rcc.preview.none", { ext: getFileExtension(selectedFile.name) })}</p>
+                                <span class="big-icon"
+                                    >{getFileIcon(selectedFile.name)}</span
+                                >
+                                <p>
+                                    {translate("rcc.preview.none", {
+                                        ext: getFileExtension(
+                                            selectedFile.name,
+                                        ),
+                                    })}
+                                </p>
                             </div>
                         {/if}
                     </div>

@@ -1,4 +1,4 @@
-// Type definitions for Tibia Assets Editor
+// Type definitions for Canary Studio Editor
 
 export interface AppearanceStats {
   // Primary counts (last IDs - like Assets Editor)

@@ -33,13 +33,19 @@
         {:else}
           <div class="form-row">
             <div class="form-group">
-              <label>{translate("monster.card.voices.interval")}</label><input
+              <label for="voices-interval-input"
+                >{translate("monster.card.voices.interval")}</label
+              ><input
+                id="voices-interval-input"
                 type="number"
                 bind:value={m.voices.interval}
               />
             </div>
             <div class="form-group">
-              <label>{translate("monster.card.voices.chance")}</label><input
+              <label for="voices-chance-input"
+                >{translate("monster.card.voices.chance")}</label
+              ><input
+                id="voices-chance-input"
                 type="number"
                 bind:value={m.voices.chance}
               />

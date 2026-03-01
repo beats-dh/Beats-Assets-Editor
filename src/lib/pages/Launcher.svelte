@@ -29,7 +29,6 @@
   let isLaunching = $state(false);
   let isLoadingMonster = $state(false);
   let isLoadingNpc = $state(false);
-  let isLoadingProficiency = $state(false);
 
   // Browse for Tibia path
   async function browsePath() {
@@ -179,39 +178,6 @@
     selectNpcEditor(forceSelect);
   }
 
-  async function selectProficiencyEditor(forceSelect = false) {
-    isLoadingProficiency = true;
-    try {
-      let filePath: string | null = null;
-
-      if (!forceSelect) {
-        filePath = appState.proficiencyFilePath || null;
-      }
-
-      if (!filePath) {
-        const selection = await open({
-          directory: false,
-          multiple: false,
-          filters: [{ name: "JSON", extensions: ["json"] }],
-        });
-        if (typeof selection !== "string" || !selection) return;
-        filePath = selection;
-        appState.proficiencyFilePath = filePath;
-      }
-
-      appState.currentView = "proficiency-editor";
-    } catch (error) {
-      console.error("Failed to open proficiency editor:", error);
-    } finally {
-      isLoadingProficiency = false;
-    }
-  }
-
-  function handleProficiencyClick(e: MouseEvent) {
-    const forceSelect = e.shiftKey || e.altKey;
-    selectProficiencyEditor(forceSelect);
-  }
-
   function reloadApp() {
     window.location.reload();
   }
@@ -327,25 +293,6 @@
             <span class="launcher-option-badge"
               >{translate("launcher.status.loading")}</span
             >
-          {/if}
-        </button>
-
-        <!-- Proficiency Editor -->
-        <button
-          type="button"
-          class="launcher-option"
-          class:disabled={isLoadingProficiency}
-          disabled={isLoadingProficiency}
-          onclick={handleProficiencyClick}
-          title="Shift/Alt: reselecionar arquivo"
-        >
-          <div class="launcher-option-icon">⚔️</div>
-          <h3>Proficiency Editor</h3>
-          <p>Edite árvores de maestria de armas e bônus de proficiência.</p>
-          {#if appState.proficiencyFilePath}
-            <span class="launcher-option-badge active">Pronto</span>
-          {:else if isLoadingProficiency}
-            <span class="launcher-option-badge">Carregando...</span>
           {/if}
         </button>
 

@@ -35,7 +35,7 @@ export class VirtualScroll<T> {
     this.container = container;
     this.config = config;
     this.onRenderItem = onRenderItem;
-    
+
     // Create viewport
     this.viewport = document.createElement('div');
     this.viewport.style.position = 'relative';

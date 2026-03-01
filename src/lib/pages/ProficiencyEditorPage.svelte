@@ -146,7 +146,6 @@
   // Edit popover states
   let selLvl = $state<number | null>(null);
   let selRow = $state<number | null>(null);
-  let isHoveringAdd = $state<{ lvl: number } | null>(null);
 
   // Filter toggles
   let toggles = $state({ level: false, h1: false, h2: false });
@@ -476,433 +475,503 @@
 
 <div class="tibia-bg">
   <div class="pe-layout">
-  <div class="pe-window window-tibia">
-    <div class="window-header">Weapon Proficiency</div>
-    <div class="window-content">
-      <!-- LEFT SIDEBAR -->
-      <div class="sidebar">
-        <!-- Weapon Info Box -->
-        <div class="weapon-info-box t2-panel">
-          <div
-            class="weapon-name"
-            title={selectedEntry
-              ? (getAssetForProficiency(selectedEntry.ProficiencyId)?.name ??
-                selectedEntry.Name)
-              : "None"}
-          >
-            {selectedEntry
-              ? (getAssetForProficiency(
+    <div class="pe-window window-tibia">
+      <div class="window-header">Weapon Proficiency</div>
+      <div class="window-content">
+        <!-- LEFT SIDEBAR -->
+        <div class="sidebar">
+          <!-- Weapon Info Box -->
+          <div class="weapon-info-box t2-panel">
+            <div
+              class="weapon-name"
+              title={selectedEntry
+                ? (getAssetForProficiency(selectedEntry.ProficiencyId)?.name ??
+                  selectedEntry.Name)
+                : "None"}
+            >
+              {selectedEntry
+                ? (getAssetForProficiency(
+                    selectedEntry.ProficiencyId,
+                  )?.name?.toLowerCase() ?? selectedEntry.Name.toLowerCase())
+                : "Unknown Item"}
+            </div>
+            <div
+              class="weapon-icon-wrapper"
+              style="background-image: url({masteryBase});"
+            >
+              {#if masteryOverlay}
+                <div
+                  class="mastery-overlay"
+                  style="background-image: url({masteryOverlay});"
+                ></div>
+              {/if}
+              {#if selectedEntry && getAssetForProficiency(selectedEntry.ProficiencyId)}
+                {@const asset = getAssetForProficiency(
                   selectedEntry.ProficiencyId,
-                )?.name?.toLowerCase() ?? selectedEntry.Name.toLowerCase())
-              : "Unknown Item"}
+                )}
+                <div
+                  class="main-sprite-container"
+                  id="main-sprite-{asset?.id}"
+                ></div>
+              {/if}
+              <div class="info-circle" title="Item info">i</div>
+            </div>
+            <div class="weapon-xp">
+              <!-- XP é gerenciado pelo servidor no cliente -->
+            </div>
           </div>
-          <div
-            class="weapon-icon-wrapper"
-            style="background-image: url({masteryBase});"
-          >
-            {#if masteryOverlay}
-              <div
-                class="mastery-overlay"
-                style="background-image: url({masteryOverlay});"
-              ></div>
-            {/if}
-            {#if selectedEntry && getAssetForProficiency(selectedEntry.ProficiencyId)}
-              {@const asset = getAssetForProficiency(
-                selectedEntry.ProficiencyId,
-              )}
-              <div
-                class="main-sprite-container"
-                id="main-sprite-{asset?.id}"
-              ></div>
-            {/if}
-            <div class="info-circle" title="Item info">i</div>
-          </div>
-          <div class="weapon-xp">
-            <!-- XP é gerenciado pelo servidor no cliente -->
-          </div>
-        </div>
 
-        <!-- Filter Toggles -->
-        <div class="filter-toggles">
-          <button
-            class="tibia-btn-toggle"
-            class:active={toggles.level}
-            onclick={() => (toggles.level = !toggles.level)}>Level</button
-          >
+          <!-- Filter Toggles -->
+          <div class="filter-toggles">
+            <button
+              class="tibia-btn-toggle"
+              class:active={toggles.level}
+              onclick={() => (toggles.level = !toggles.level)}>Level</button
+            >
+            <select
+              class="tibia-select filter-voc-select"
+              value={vocFilter !== null ? String(vocFilter) : ""}
+              onchange={(e) => {
+                const v = e.currentTarget.value;
+                vocFilter = v === "" ? null : Number(v);
+              }}
+            >
+              <option value="">Voc.</option>
+              {#each Object.entries(VOC_LABELS) as [id, label]}
+                <option value={id}>{label}</option>
+              {/each}
+            </select>
+            <button
+              class="tibia-btn-toggle"
+              class:active={toggles.h1}
+              onclick={() => {
+                toggles.h1 = !toggles.h1;
+                if (toggles.h1) toggles.h2 = false;
+              }}>1H</button
+            >
+            <button
+              class="tibia-btn-toggle"
+              class:active={toggles.h2}
+              onclick={() => {
+                toggles.h2 = !toggles.h2;
+                if (toggles.h2) toggles.h1 = false;
+              }}>2H</button
+            >
+          </div>
+
+          <!-- Weapon Type Filter -->
           <select
-            class="tibia-select filter-voc-select"
-            value={vocFilter !== null ? String(vocFilter) : ""}
+            class="tibia-select filter-weapon-select"
+            value={weaponTypeFilter !== null ? String(weaponTypeFilter) : ""}
             onchange={(e) => {
               const v = e.currentTarget.value;
-              vocFilter = v === "" ? null : Number(v);
+              weaponTypeFilter = v === "" ? null : Number(v);
             }}
           >
-            <option value="">Voc.</option>
-            {#each Object.entries(VOC_LABELS) as [id, label]}
+            <option value="">Weapons: All</option>
+            {#each Object.entries(WEAPON_TYPE_LABELS) as [id, label]}
               <option value={id}>{label}</option>
             {/each}
           </select>
-          <button
-            class="tibia-btn-toggle"
-            class:active={toggles.h1}
-            onclick={() => {
-              toggles.h1 = !toggles.h1;
-              if (toggles.h1) toggles.h2 = false;
-            }}>1H</button
-          >
-          <button
-            class="tibia-btn-toggle"
-            class:active={toggles.h2}
-            onclick={() => {
-              toggles.h2 = !toggles.h2;
-              if (toggles.h2) toggles.h1 = false;
-            }}>2H</button
-          >
-        </div>
 
-        <!-- Weapon Type Filter -->
-        <select
-          class="tibia-select filter-weapon-select"
-          value={weaponTypeFilter !== null ? String(weaponTypeFilter) : ""}
-          onchange={(e) => {
-            const v = e.currentTarget.value;
-            weaponTypeFilter = v === "" ? null : Number(v);
-          }}
-        >
-          <option value="">Weapons: All</option>
-          {#each Object.entries(WEAPON_TYPE_LABELS) as [id, label]}
-            <option value={id}>{label}</option>
-          {/each}
-        </select>
+          <!-- Search Box -->
+          <div class="search-box textedit-panel">
+            <input
+              type="text"
+              placeholder="Type to search"
+              bind:value={searchTerm}
+            />
+            {#if searchTerm}
+              <button
+                class="clear-search"
+                onclick={() => (searchTerm = "")}
+                title="Clear Search"
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10">
+                  <path
+                    d="M1 1 L9 9 M9 1 L1 9"
+                    stroke="#888"
+                    stroke-width="2"
+                  />
+                </svg>
+              </button>
+            {/if}
+          </div>
 
-        <!-- Search Box -->
-        <div class="search-box textedit-panel">
-          <input
-            type="text"
-            placeholder="Type to search"
-            bind:value={searchTerm}
-          />
-          {#if searchTerm}
-            <button
-              class="clear-search"
-              onclick={() => (searchTerm = "")}
-              title="Clear Search"
-            >
-              <svg width="10" height="10" viewBox="0 0 10 10">
-                <path d="M1 1 L9 9 M9 1 L1 9" stroke="#888" stroke-width="2" />
-              </svg>
-            </button>
-          {/if}
-        </div>
-
-        <!-- Grid (Pixel perfect styling like Tibia Item list) -->
-        <div class="items-grid textedit-panel">
-          {#each filtered as entry}
-            <div
-              class="item-slot"
-              class:selected={selectedId === entry.ProficiencyId}
-              onclick={() => {
-                selectedId = entry.ProficiencyId;
-                selLvl = null;
-                selRow = null;
-              }}
-            >
-              {#if getAssetForProficiency(entry.ProficiencyId)}
-                <div
-                  class="list-sprite-container"
-                  id="sprite-{getAssetForProficiency(entry.ProficiencyId)?.id}"
-                ></div>
-              {/if}
-              {#if selectedId === entry.ProficiencyId}
-                <div class="slot-highlight"></div>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      </div>
-
-      <!-- RIGHT MAIN AREA -->
-      <div class="main-area">
-        {#if selectedEntry}
-          <!-- Stars Header (7 columns with progress) -->
-          <div class="stars-header" style="background-image: url({BG_STARS});">
-            {#each paddedLevels as lvl}
-              <div class="star-col">
-                <div
-                  class="star-progress-fill"
-                  style="background-image: url({STAR_PROGRESS}); width: {lvl
-                    ? '100%'
-                    : '0%'};"
-                ></div>
-                <div class="star-cell">
-                  {#if lvl}
-                    <img src={STAR_GOLD} class="star-icon" alt="*" />
-                  {:else}
-                    <img src={STAR_SILVER} class="star-icon disabled" alt="*" />
-                  {/if}
-                </div>
+          <!-- Grid (Pixel perfect styling like Tibia Item list) -->
+          <div class="items-grid textedit-panel">
+            {#each filtered as entry}
+              <div
+                class="item-slot"
+                class:selected={selectedId === entry.ProficiencyId}
+                role="button"
+                tabindex="0"
+                onclick={() => {
+                  selectedId = entry.ProficiencyId;
+                  selLvl = null;
+                  selRow = null;
+                }}
+                onkeydown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    selectedId = entry.ProficiencyId;
+                    selLvl = null;
+                    selRow = null;
+                  }
+                }}
+              >
+                {#if getAssetForProficiency(entry.ProficiencyId)}
+                  <div
+                    class="list-sprite-container"
+                    id="sprite-{getAssetForProficiency(entry.ProficiencyId)
+                      ?.id}"
+                  ></div>
+                {/if}
+                {#if selectedId === entry.ProficiencyId}
+                  <div class="slot-highlight"></div>
+                {/if}
               </div>
             {/each}
           </div>
+        </div>
 
-          <!-- XP Progress row -->
-          <div
-            class="progress-bar-container"
-            style="background-image: url({BG_PROGRESS});"
-          >
+        <!-- RIGHT MAIN AREA -->
+        <div class="main-area">
+          {#if selectedEntry}
+            <!-- Stars Header (7 columns with progress) -->
             <div
-              class="progress-bar-fill"
-              style="background-image: url({BG_PROGRESS_FILL}); width: 99.9%;"
-            ></div>
-          </div>
+              class="stars-header"
+              style="background-image: url({BG_STARS});"
+            >
+              {#each paddedLevels as lvl}
+                <div class="star-col">
+                  <div
+                    class="star-progress-fill"
+                    style="background-image: url({STAR_PROGRESS}); width: {lvl
+                      ? '100%'
+                      : '0%'};"
+                  ></div>
+                  <div class="star-cell">
+                    {#if lvl}
+                      <img src={STAR_GOLD} class="star-icon" alt="*" />
+                    {:else}
+                      <img
+                        src={STAR_SILVER}
+                        class="star-icon disabled"
+                        alt="*"
+                      />
+                    {/if}
+                  </div>
+                </div>
+              {/each}
+            </div>
 
-          <!-- Tree Grid (7 columns) -->
-          <div class="tree-grid">
-            <div class="tree-columns">
-              {#each paddedLevels as lvl, cIdx}
-                <div
-                  class="tree-col"
-                  style="background-image: url({BONUS_COL_BG});"
-                  onmouseenter={() => (isHoveringAdd = { lvl: cIdx })}
-                  onmouseleave={() => (isHoveringAdd = null)}
-                >
-                  <!-- Column progress overlay -->
-                  {#if lvl}
-                    <div
-                      class="col-progress-fill"
-                      style="background-image: url({BONUS_COL_PROGRESS});"
-                    ></div>
-                  {/if}
+            <!-- XP Progress row -->
+            <div
+              class="progress-bar-container"
+              style="background-image: url({BG_PROGRESS});"
+            >
+              <div
+                class="progress-bar-fill"
+                style="background-image: url({BG_PROGRESS_FILL}); width: 99.9%;"
+              ></div>
+            </div>
 
-                  {#if lvl}
-                    <div class="perks-container perks-count-{lvl.Perks.length}">
-                      {#each lvl.Perks as perk, rIdx}
-                        <div
-                          class="perk-node"
-                          class:selected={selLvl === cIdx && selRow === rIdx}
-                          onclick={() => {
-                            selLvl = cIdx;
-                            selRow = rIdx;
-                          }}
-                        >
-                          <!-- Highlight overlay (visible on hover) -->
+            <!-- Tree Grid (7 columns) -->
+            <div class="tree-grid">
+              <div class="tree-columns">
+                {#each paddedLevels as lvl, cIdx}
+                  <div
+                    class="tree-col"
+                    style="background-image: url({BONUS_COL_BG});"
+                  >
+                    <!-- Column progress overlay -->
+                    {#if lvl}
+                      <div
+                        class="col-progress-fill"
+                        style="background-image: url({BONUS_COL_PROGRESS});"
+                      ></div>
+                    {/if}
+
+                    {#if lvl}
+                      <div
+                        class="perks-container perks-count-{lvl.Perks.length}"
+                      >
+                        {#each lvl.Perks as perk, rIdx}
                           <div
-                            class="node-highlight"
-                            style="background-image: url({HIGHLIGHT_BG});"
-                          ></div>
-                          <!-- Icon -->
-                          <div class="node-icon-wrapper">
+                            class="perk-node"
+                            class:selected={selLvl === cIdx && selRow === rIdx}
+                            role="button"
+                            tabindex="0"
+                            onclick={() => {
+                              selLvl = cIdx;
+                              selRow = rIdx;
+                            }}
+                            onkeydown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                selLvl = cIdx;
+                                selRow = rIdx;
+                              }
+                            }}
+                          >
+                            <!-- Highlight overlay (visible on hover) -->
                             <div
-                              class="node-icon-bg"
-                              style={getPerkIconStyle(perk.Type)}
+                              class="node-highlight"
+                              style="background-image: url({HIGHLIGHT_BG});"
                             ></div>
+                            <!-- Icon -->
+                            <div class="node-icon-wrapper">
+                              <div
+                                class="node-icon-bg"
+                                style={getPerkIconStyle(perk.Type)}
+                              ></div>
+                            </div>
+                            <!-- Border frame -->
+                            <img
+                              src={selLvl === cIdx && selRow === rIdx
+                                ? BORDER_ACTIVE
+                                : BORDER_INACTIVE}
+                              class="node-border"
+                              alt=""
+                            />
+                            <!-- Augment icon -->
+                            {#if perk.AugmentType}
+                              <span
+                                class="augment-overlay"
+                                style={getAugmentIconStyle(perk.AugmentType)}
+                              ></span>
+                            {/if}
+                            <!-- Lock on perk (for empty/locked perk slots) -->
                           </div>
-                          <!-- Border frame -->
-                          <img
-                            src={selLvl === cIdx && selRow === rIdx
-                              ? BORDER_ACTIVE
-                              : BORDER_INACTIVE}
-                            class="node-border"
-                            alt=""
-                          />
-                          <!-- Augment icon -->
-                          {#if perk.AugmentType}
-                            <span
-                              class="augment-overlay"
-                              style={getAugmentIconStyle(perk.AugmentType)}
-                            ></span>
-                          {/if}
-                          <!-- Lock on perk (for empty/locked perk slots) -->
-                        </div>
-                      {/each}
-                      {#if isHoveringAdd?.lvl === cIdx && lvl.Perks.length < 3}
-                        <div
-                          class="add-perk-node"
-                          onclick={() => addPerkToLevel(cIdx)}
+                        {/each}
+                        {#if lvl.Perks.length < 3}
+                          <div
+                            class="add-perk-node"
+                            role="button"
+                            tabindex="0"
+                            onclick={() => addPerkToLevel(cIdx)}
+                            onkeydown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                addPerkToLevel(cIdx);
+                              }
+                            }}
+                          >
+                            +
+                          </div>
+                        {/if}
+                      </div>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            </div>
+
+            <!-- Bonus Detail + Config wrapper -->
+            <div class="bonus-detail-wrapper">
+              <div class="bonus-detail-row textedit-panel">
+                {#each paddedLevels as lvl, idx}
+                  <div
+                    class="detail-panel"
+                    role="button"
+                    tabindex="0"
+                    onclick={() => toggleUnlock(idx)}
+                    onkeydown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleUnlock(idx);
+                      }
+                    }}
+                  >
+                    {#if !lvl}
+                      <img src={LOCK_ICON} alt="locked" class="lock-icon" />
+                    {:else if selLvl === idx && selRow !== null && lvl.Perks[selRow]}
+                      <div class="detail-text">
+                        <span class="detail-name"
+                          >{getPerkLabel(lvl.Perks[selRow].Type)}</span
                         >
-                          +
-                        </div>
-                      {/if}
-                    </div>
-                  {/if}
-                </div>
-              {/each}
+                        <span class="detail-value-proficiency"
+                          >+{lvl.Perks[selRow].Value}</span
+                        >
+                      </div>
+                    {:else}
+                      <div class="detail-text">
+                        <span class="detail-placeholder"
+                          >{lvl.Perks.length} perk{lvl.Perks.length !== 1
+                            ? "s"
+                            : ""}</span
+                        >
+                      </div>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
             </div>
-          </div>
-
-          <!-- Bonus Detail + Config wrapper -->
-          <div class="bonus-detail-wrapper">
-            <div class="bonus-detail-row textedit-panel">
-              {#each paddedLevels as lvl, idx}
-                <div class="detail-panel" onclick={() => toggleUnlock(idx)}>
-                  {#if !lvl}
-                    <img src={LOCK_ICON} alt="locked" class="lock-icon" />
-                  {:else if selLvl === idx && selRow !== null && lvl.Perks[selRow]}
-                    <div class="detail-text">
-                      <span class="detail-name"
-                        >{getPerkLabel(lvl.Perks[selRow].Type)}</span
-                      >
-                      <span class="detail-value-proficiency"
-                        >+{lvl.Perks[selRow].Value}</span
-                      >
-                    </div>
-                  {:else}
-                    <div class="detail-text">
-                      <span class="detail-placeholder"
-                        >{lvl.Perks.length} perk{lvl.Perks.length !== 1
-                          ? "s"
-                          : ""}</span
-                      >
-                    </div>
-                  {/if}
-                </div>
-              {/each}
+          {:else}
+            <div class="no-selection panel-sunken">
+              <span class="no-sel-msg">Selecione uma arma à esquerda.</span>
             </div>
+          {/if}
+        </div>
+      </div>
 
-          </div>
-        {:else}
-          <div class="no-selection panel-sunken">
-            <span class="no-sel-msg">Selecione uma arma à esquerda.</span>
-          </div>
-        {/if}
+      <!-- HORIZONTAL SEPARATOR -->
+      <div class="bottom-sep"></div>
+
+      <!-- FOOTER BOTÕES -->
+      <div class="window-footer">
+        <div class="footer-left">
+          <button class="tibia-btn" onclick={openFilePicker}>Load Data</button>
+          <button class="tibia-btn" onclick={saveAs}>Save As</button>
+        </div>
+        <div class="footer-right">
+          <button
+            class="tibia-btn"
+            onclick={() => {
+              saveFile();
+              assetsState.viewMode = "categories";
+            }}>Ok</button
+          >
+          <button class="tibia-btn" onclick={saveFile} disabled={!isDirty}
+            >Apply</button
+          >
+          <button class="tibia-btn" onclick={() => loadFile()}>Reset</button>
+          <button
+            class="tibia-btn"
+            onclick={() => (assetsState.viewMode = "categories")}>Close</button
+          >
+        </div>
       </div>
     </div>
 
-    <!-- HORIZONTAL SEPARATOR -->
-    <div class="bottom-sep"></div>
-
-    <!-- FOOTER BOTÕES -->
-    <div class="window-footer">
-      <div class="footer-left">
-        <button class="tibia-btn" onclick={openFilePicker}>Load Data</button>
-        <button class="tibia-btn" onclick={saveAs}>Save As</button>
+    <!-- Side Panel: Perk Config -->
+    {#if selLvl !== null && selRow !== null && selectedPerk}
+      <div class="side-panel window-tibia">
+        <div class="window-header">Perk Config</div>
+        <div class="side-panel-content">
+          <div class="config-field">
+            <label for="perk-type">Type</label>
+            <input
+              id="perk-type"
+              type="number"
+              class="tibia-input"
+              value={selectedPerk.Type}
+              oninput={(e) =>
+                updateSelPerk("Type", Number(e.currentTarget.value))}
+            />
+          </div>
+          <span class="type-name-label">{getPerkLabel(selectedPerk.Type)}</span>
+          <div class="config-field">
+            <label for="perk-value">Value</label>
+            <input
+              id="perk-value"
+              type="number"
+              class="tibia-input"
+              step="0.01"
+              value={selectedPerk.Value}
+              oninput={(e) =>
+                updateSelPerk("Value", Number(e.currentTarget.value))}
+            />
+          </div>
+          <div class="config-field">
+            <label for="perk-augment">Augment</label>
+            <input
+              id="perk-augment"
+              type="number"
+              class="tibia-input"
+              value={selectedPerk.AugmentType ?? ""}
+              oninput={(e) =>
+                updateSelPerkOptional("AugmentType", e.currentTarget.value)}
+            />
+          </div>
+          <div class="config-field">
+            <label for="perk-skillId">SkillId</label>
+            <input
+              id="perk-skillId"
+              type="number"
+              class="tibia-input"
+              value={selectedPerk.SkillId ?? ""}
+              oninput={(e) =>
+                updateSelPerkOptional("SkillId", e.currentTarget.value)}
+            />
+          </div>
+          <div class="config-field">
+            <label for="perk-spellId">SpellId</label>
+            <input
+              id="perk-spellId"
+              type="number"
+              class="tibia-input"
+              value={selectedPerk.SpellId ?? ""}
+              oninput={(e) =>
+                updateSelPerkOptional("SpellId", e.currentTarget.value)}
+            />
+          </div>
+          <div class="config-field">
+            <label for="perk-elementId">ElementId</label>
+            <input
+              id="perk-elementId"
+              type="number"
+              class="tibia-input"
+              value={selectedPerk.ElementId ?? ""}
+              oninput={(e) =>
+                updateSelPerkOptional("ElementId", e.currentTarget.value)}
+            />
+          </div>
+          <div class="config-field">
+            <label for="perk-dmgType">DmgType</label>
+            <input
+              id="perk-dmgType"
+              type="number"
+              class="tibia-input"
+              value={selectedPerk.DamageType ?? ""}
+              oninput={(e) =>
+                updateSelPerkOptional("DamageType", e.currentTarget.value)}
+            />
+          </div>
+          <div class="config-field">
+            <label for="perk-range">Range</label>
+            <input
+              id="perk-range"
+              type="number"
+              class="tibia-input"
+              value={selectedPerk.Range ?? ""}
+              oninput={(e) =>
+                updateSelPerkOptional("Range", e.currentTarget.value)}
+            />
+          </div>
+          <div class="config-field">
+            <label for="perk-bestId">BestId</label>
+            <input
+              id="perk-bestId"
+              type="number"
+              class="tibia-input"
+              value={selectedPerk.BestiaryId ?? ""}
+              oninput={(e) =>
+                updateSelPerkOptional("BestiaryId", e.currentTarget.value)}
+            />
+          </div>
+          <div class="config-field">
+            <label for="perk-bestName">BestName</label>
+            <input
+              id="perk-bestName"
+              type="text"
+              class="tibia-input"
+              value={selectedPerk.BestiaryName ?? ""}
+              oninput={(e) => {
+                const val = e.currentTarget.value;
+                updateSelPerk("BestiaryName", val === "" ? undefined : val);
+              }}
+            />
+          </div>
+          <div class="side-panel-footer">
+            <button class="tibia-btn tibia-btn-danger" onclick={removeSelPerk}
+              >Remover</button
+            >
+          </div>
+        </div>
       </div>
-      <div class="footer-right">
-        <button
-          class="tibia-btn"
-          onclick={() => {
-            appState.currentView = "launcher";
-            saveFile();
-          }}>Ok</button
-        >
-        <button class="tibia-btn" onclick={saveFile} disabled={!isDirty}
-          >Apply</button
-        >
-        <button class="tibia-btn" onclick={() => loadFile()}>Reset</button>
-        <button
-          class="tibia-btn"
-          onclick={() => (appState.currentView = "launcher")}>Close</button
-        >
-      </div>
-    </div>
+    {/if}
   </div>
-
-  <!-- Side Panel: Perk Config -->
-  {#if selLvl !== null && selRow !== null && selectedPerk}
-    <div class="side-panel window-tibia">
-      <div class="window-header">Perk Config</div>
-      <div class="side-panel-content">
-        <div class="config-field">
-          <label>Type</label>
-          <input
-            type="number"
-            class="tibia-input"
-            value={selectedPerk.Type}
-            oninput={(e) => updateSelPerk("Type", Number(e.currentTarget.value))}
-          />
-        </div>
-        <span class="type-name-label">{getPerkLabel(selectedPerk.Type)}</span>
-        <div class="config-field">
-          <label>Value</label>
-          <input
-            type="number"
-            class="tibia-input"
-            step="0.01"
-            value={selectedPerk.Value}
-            oninput={(e) => updateSelPerk("Value", Number(e.currentTarget.value))}
-          />
-        </div>
-        <div class="config-field">
-          <label>Augment</label>
-          <input
-            type="number"
-            class="tibia-input"
-            value={selectedPerk.AugmentType ?? ""}
-            oninput={(e) => updateSelPerkOptional("AugmentType", e.currentTarget.value)}
-          />
-        </div>
-        <div class="config-field">
-          <label>SkillId</label>
-          <input
-            type="number"
-            class="tibia-input"
-            value={selectedPerk.SkillId ?? ""}
-            oninput={(e) => updateSelPerkOptional("SkillId", e.currentTarget.value)}
-          />
-        </div>
-        <div class="config-field">
-          <label>SpellId</label>
-          <input
-            type="number"
-            class="tibia-input"
-            value={selectedPerk.SpellId ?? ""}
-            oninput={(e) => updateSelPerkOptional("SpellId", e.currentTarget.value)}
-          />
-        </div>
-        <div class="config-field">
-          <label>ElementId</label>
-          <input
-            type="number"
-            class="tibia-input"
-            value={selectedPerk.ElementId ?? ""}
-            oninput={(e) => updateSelPerkOptional("ElementId", e.currentTarget.value)}
-          />
-        </div>
-        <div class="config-field">
-          <label>DmgType</label>
-          <input
-            type="number"
-            class="tibia-input"
-            value={selectedPerk.DamageType ?? ""}
-            oninput={(e) => updateSelPerkOptional("DamageType", e.currentTarget.value)}
-          />
-        </div>
-        <div class="config-field">
-          <label>Range</label>
-          <input
-            type="number"
-            class="tibia-input"
-            value={selectedPerk.Range ?? ""}
-            oninput={(e) => updateSelPerkOptional("Range", e.currentTarget.value)}
-          />
-        </div>
-        <div class="config-field">
-          <label>BestId</label>
-          <input
-            type="number"
-            class="tibia-input"
-            value={selectedPerk.BestiaryId ?? ""}
-            oninput={(e) => updateSelPerkOptional("BestiaryId", e.currentTarget.value)}
-          />
-        </div>
-        <div class="config-field">
-          <label>BestName</label>
-          <input
-            type="text"
-            class="tibia-input"
-            value={selectedPerk.BestiaryName ?? ""}
-            oninput={(e) => {
-              const val = e.currentTarget.value;
-              updateSelPerk("BestiaryName", val === "" ? undefined : val);
-            }}
-          />
-        </div>
-        <div class="side-panel-footer">
-          <button class="tibia-btn tibia-btn-danger" onclick={removeSelPerk}>Remover</button>
-        </div>
-      </div>
-    </div>
-  {/if}
-
-  </div><!-- /pe-layout -->
+  <!-- /pe-layout -->
 </div>

@@ -10,7 +10,7 @@ pub fn run() {
     // Initialize logger
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug")).init();
 
-    log::info!("Starting Tibia Assets Editor - EXTREME PERFORMANCE MODE");
+    log::info!("Starting Canary Studio Editor - EXTREME PERFORMANCE MODE");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

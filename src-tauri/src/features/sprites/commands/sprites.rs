@@ -73,13 +73,13 @@ pub async fn auto_load_sprites(tibia_path: String, state: State<'_, AppState>) -
     let tibia_dir = PathBuf::from(&tibia_path);
     let tibia_assets_dir = tibia_dir.join("assets");
 
-    // Try catalog first (project root or tibia assets)
+    // Try catalog first (project root or Canary Studio)
     let sprite_loader = if project_catalog_path.exists() {
         log::info!("Found catalog-content.json in project root: {:?}", project_catalog_path);
         SpriteLoader::new(&project_catalog_path, &project_root)
     } else {
         let tibia_catalog_path = tibia_assets_dir.join("catalog-content.json");
-        log::info!("Looking for catalog in Tibia assets directory: {:?}", tibia_catalog_path);
+        log::info!("Looking for catalog in Canary Studio directory: {:?}", tibia_catalog_path);
 
         if tibia_catalog_path.exists() {
             SpriteLoader::new(&tibia_catalog_path, &tibia_assets_dir)

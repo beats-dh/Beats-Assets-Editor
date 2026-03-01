@@ -15,18 +15,18 @@ export const LANGUAGE_LOCALES: Record<LanguageCode, string> = {
 
 const translationEntries = {
   'app.title': {
-    default: 'Tibia Assets Editor',
-    'pt-BR': 'Tibia Assets Editor',
-    en: 'Tibia Assets Editor',
-    es: 'Editor de Recursos de Tibia',
-    ru: 'Редактор ресурсов Tibia'
+    default: 'Canary Studio',
+    'pt-BR': 'Canary Studio',
+    en: 'Canary Studio',
+    es: 'Canary Studio',
+    ru: 'Canary Studio'
   },
   'launcher.hero.title': {
-    default: 'Tibia creation suite',
-    'pt-BR': 'Suíte de criação Tibia',
-    en: 'Tibia creation suite',
-    es: 'Suite de creación de Tibia',
-    ru: 'Набор для создания Tibia'
+    default: 'Canary Studio',
+    'pt-BR': 'Canary Studio',
+    en: 'Canary Studio',
+    es: 'Canary Studio',
+    ru: 'Canary Studio'
   },
   'launcher.hero.subtitle': {
     default: 'Choose an editor to get started or adjust your preferences before diving in.',

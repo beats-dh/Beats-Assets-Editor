@@ -40,10 +40,9 @@
       <div class="card-content">
         <div class="form-row">
           <div class="form-group">
-            <label>{translate("monster.card.class.raceId")}</label><input
-              type="number"
-              bind:value={m.raceId}
-            />
+            <label for="class-race-id"
+              >{translate("monster.card.class.raceId")}</label
+            ><input id="class-race-id" type="number" bind:value={m.raceId} />
           </div>
         </div>
 
@@ -71,51 +70,85 @@
             <div class="classification-section-body">
               <div class="form-row">
                 <div class="form-group">
-                  <label>{translate("monster.card.class.class")}</label><input
+                  <label for="best-class"
+                    >{translate("monster.card.class.class")}</label
+                  ><input
+                    id="best-class"
                     type="text"
                     bind:value={m.bestiary.class}
                   />
                 </div>
                 <div class="form-group">
-                  <label>{translate("monster.card.basic.race")}</label><input
+                  <label for="best-race"
+                    >{translate("monster.card.basic.race")}</label
+                  ><input
+                    id="best-race"
                     type="text"
                     bind:value={m.bestiary.race}
                   />
                 </div>
                 <div class="form-group">
-                  <label>{translate("monster.card.class.stars")}</label><input
+                  <label for="best-stars"
+                    >{translate("monster.card.class.stars")}</label
+                  ><input
+                    id="best-stars"
                     type="number"
                     bind:value={m.bestiary.stars}
                   />
                 </div>
                 <div class="form-group">
-                  <label>{translate("monster.card.class.occurrence")}</label
-                  ><input type="number" bind:value={m.bestiary.occurrence} />
+                  <label for="best-occurrence"
+                    >{translate("monster.card.class.occurrence")}</label
+                  ><input
+                    id="best-occurrence"
+                    type="number"
+                    bind:value={m.bestiary.occurrence}
+                  />
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label>{translate("monster.card.class.toKill")}</label><input
+                  <label for="best-tokill"
+                    >{translate("monster.card.class.toKill")}</label
+                  ><input
+                    id="best-tokill"
                     type="number"
                     bind:value={m.bestiary.toKill}
                   />
                 </div>
                 <div class="form-group">
-                  <label>{translate("monster.card.class.firstUnlock")}</label
-                  ><input type="number" bind:value={m.bestiary.firstUnlock} />
+                  <label for="best-first-unlock"
+                    >{translate("monster.card.class.firstUnlock")}</label
+                  ><input
+                    id="best-first-unlock"
+                    type="number"
+                    bind:value={m.bestiary.firstUnlock}
+                  />
                 </div>
                 <div class="form-group">
-                  <label>{translate("monster.card.class.secondUnlock")}</label
-                  ><input type="number" bind:value={m.bestiary.secondUnlock} />
+                  <label for="best-second-unlock"
+                    >{translate("monster.card.class.secondUnlock")}</label
+                  ><input
+                    id="best-second-unlock"
+                    type="number"
+                    bind:value={m.bestiary.secondUnlock}
+                  />
                 </div>
                 <div class="form-group">
-                  <label>{translate("monster.card.class.charmsPoints")}</label
-                  ><input type="number" bind:value={m.bestiary.charmsPoints} />
+                  <label for="best-charms"
+                    >{translate("monster.card.class.charmsPoints")}</label
+                  ><input
+                    id="best-charms"
+                    type="number"
+                    bind:value={m.bestiary.charmsPoints}
+                  />
                 </div>
               </div>
               <div class="form-group">
-                <label>{translate("monster.card.class.locations")}</label
-                ><textarea bind:value={m.bestiary.locations}></textarea>
+                <label for="best-locations"
+                  >{translate("monster.card.class.locations")}</label
+                ><textarea id="best-locations" bind:value={m.bestiary.locations}
+                ></textarea>
               </div>
             </div>
           {/if}
@@ -144,12 +177,22 @@
             {#if m.bosstiary}
               <div class="form-row">
                 <div class="form-group">
-                  <label>{translate("monster.card.class.bossRaceId")}</label
-                  ><input type="number" bind:value={m.bosstiary.bossRaceId} />
+                  <label for="boss-race-id"
+                    >{translate("monster.card.class.bossRaceId")}</label
+                  ><input
+                    id="boss-race-id"
+                    type="number"
+                    bind:value={m.bosstiary.bossRaceId}
+                  />
                 </div>
                 <div class="form-group">
-                  <label>{translate("monster.card.class.bossRaceConst")}</label
-                  ><input type="text" bind:value={m.bosstiary.bossRace} />
+                  <label for="boss-race-const"
+                    >{translate("monster.card.class.bossRaceConst")}</label
+                  ><input
+                    id="boss-race-const"
+                    type="text"
+                    bind:value={m.bosstiary.bossRace}
+                  />
                 </div>
               </div>
             {:else}

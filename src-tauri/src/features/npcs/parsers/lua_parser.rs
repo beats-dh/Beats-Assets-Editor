@@ -319,7 +319,7 @@ impl LuaNpcParser {
         // 4. Raw Code Extraction
         let kw_handler_marker = "local keywordHandler = KeywordHandler:new()";
         if let Some(pos) = content.find(kw_handler_marker) {
-            let mut raw_bottom = content[pos..].to_string();
+            let raw_bottom = content[pos..].to_string();
             
             let safe_marker = "npcType.onCloseChannel";
             if let Some(safe_pos) = raw_bottom.find(safe_marker) {

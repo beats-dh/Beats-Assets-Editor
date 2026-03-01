@@ -13,19 +13,28 @@
       <div class="card-content">
         <div class="form-row">
           <div class="form-group">
-            <label>{translate("monster.card.combat.defense")}</label><input
+            <label for="combat-defense"
+              >{translate("monster.card.combat.defense")}</label
+            ><input
+              id="combat-defense"
               type="number"
               bind:value={m.defenses.defense}
             />
           </div>
           <div class="form-group">
-            <label>{translate("monster.card.combat.armor")}</label><input
+            <label for="combat-armor"
+              >{translate("monster.card.combat.armor")}</label
+            ><input
+              id="combat-armor"
               type="number"
               bind:value={m.defenses.armor}
             />
           </div>
           <div class="form-group">
-            <label>{translate("monster.card.combat.mitigation")}</label><input
+            <label for="combat-mitigation"
+              >{translate("monster.card.combat.mitigation")}</label
+            ><input
+              id="combat-mitigation"
               type="number"
               step="0.01"
               bind:value={m.defenses.mitigation}

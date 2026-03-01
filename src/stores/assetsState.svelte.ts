@@ -26,7 +26,7 @@ function createAssetsState() {
         currentPage: 0,
         pageSize: 100,
         totalItems: 0,
-        viewMode: 'categories' as 'categories' | 'grid' | 'staticdata' | 'rcc' | 'qm',
+        viewMode: 'categories' as 'categories' | 'grid' | 'staticdata' | 'rcc' | 'qm' | 'proficiency',
         currentStaticDataType: 'creatures' as 'creatures' | 'bosses' | 'quests' | 'titles' | 'houses' | 'map_houses',
         isLoading: false,
         loadingProgress: 0,
@@ -78,4 +78,8 @@ export function selectRccMode() {
 
 export function selectQmMode() {
     assetsState.viewMode = 'qm';
+}
+
+export function selectProficiencyMode() {
+    assetsState.viewMode = 'proficiency';
 }

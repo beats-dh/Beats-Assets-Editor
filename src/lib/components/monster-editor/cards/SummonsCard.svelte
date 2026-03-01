@@ -32,7 +32,10 @@
           >
         {:else}
           <div class="form-group">
-            <label>{translate("monster.card.summons.max")}</label><input
+            <label for="max-summons-input"
+              >{translate("monster.card.summons.max")}</label
+            ><input
+              id="max-summons-input"
               type="number"
               bind:value={m.summon.maxSummons}
             />

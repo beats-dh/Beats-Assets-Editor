@@ -34,7 +34,9 @@
   function setTheme(newTheme: string) {
     settingsState.theme = newTheme;
     showStatus(
-      translate("status.themeApplied", { theme: getThemeLabel(newTheme as any) }),
+      translate("status.themeApplied", {
+        theme: getThemeLabel(newTheme as any),
+      }),
       "success",
     );
   }
@@ -469,6 +471,7 @@
       border-color 0.2s,
       box-shadow 0.2s;
     -moz-appearance: textfield;
+    appearance: textfield;
   }
   .perf-input::-webkit-inner-spin-button,
   .perf-input::-webkit-outer-spin-button {

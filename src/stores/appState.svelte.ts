@@ -1,5 +1,5 @@
 // Application-level state using Svelte 5 runes
-export type AppView = 'launcher' | 'assets-editor' | 'monster-editor' | 'npc-editor' | 'proficiency-editor';
+export type AppView = 'launcher' | 'assets-editor' | 'monster-editor' | 'npc-editor';
 
 // Reactive state with localStorage persistence
 function createAppState() {

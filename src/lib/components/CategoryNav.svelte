@@ -5,6 +5,7 @@
     selectStaticDataMode,
     selectRccMode,
     selectQmMode,
+    selectProficiencyMode,
   } from "../../stores/assetsState.svelte";
   import { translate } from "../../i18n";
 
@@ -81,6 +82,15 @@
         <div class="card-content">
           <h3>{translate("category.sounds")}</h3>
           <p>{translate("category.itemsCount", { count: "" }).trim()}</p>
+        </div>
+        <div class="card-arrow">→</div>
+      </button>
+
+      <!-- Proficiency Editor -->
+      <button class="category-card" onclick={() => selectProficiencyMode()}>
+        <div class="card-icon">⚔️</div>
+        <div class="card-content">
+          <h3>Proficiency</h3>
         </div>
         <div class="card-arrow">→</div>
       </button>
