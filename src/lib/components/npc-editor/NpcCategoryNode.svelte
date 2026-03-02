@@ -7,6 +7,7 @@
   } from "./utils";
   import NpcListItem from "./NpcListItem.svelte";
   import NpcCategoryNodeComponent from "./NpcCategoryNode.svelte";
+  import { npcState } from "../../../stores/npcState.svelte";
 
   interface Props {
     node: NpcCategoryNode;
@@ -15,17 +16,20 @@
   }
   let { node, depth = 0, forceExpanded = false }: Props = $props();
 
-  // Handle open state inline since we don't have expandedCategories in npcState yet or don't need persistent exp
-  let isOpen = $state(false);
-
-  $effect(() => {
-    isOpen = forceExpanded;
-  });
+  let isOpen = $derived(
+    forceExpanded || npcState.expandedCategories.has(node.path),
+  );
 
   function toggleOpen(e: Event) {
+    e.preventDefault();
     if (forceExpanded) {
-      e.preventDefault();
       return;
+    }
+
+    if (isOpen) {
+      npcState.expandedCategories.delete(node.path);
+    } else {
+      npcState.expandedCategories.add(node.path);
     }
   }
 
@@ -39,7 +43,7 @@
   );
 </script>
 
-<details class="monster-category" bind:open={isOpen}>
+<details class="monster-category" open={isOpen}>
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <summary
     class="monster-category-header"

@@ -1,5 +1,6 @@
 // src/stores/npcState.svelte.ts
 import type { Npc, NpcListEntry } from '../npcTypes';
+import { SvelteSet } from 'svelte/reactivity';
 
 function createNpcState() {
     const state = $state({
@@ -10,6 +11,7 @@ function createNpcState() {
         isLoading: false,
         npcSearchQuery: '',
         cachedNpcsPath: null as string | null,
+        expandedCategories: new SvelteSet<string>(['__root__']),
     });
 
     return state;

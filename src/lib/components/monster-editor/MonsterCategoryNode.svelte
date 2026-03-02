@@ -26,14 +26,8 @@
 
     if (isOpen) {
       monsterState.expandedCategories.delete(node.path);
-      monsterState.expandedCategories = new Set(
-        monsterState.expandedCategories,
-      );
     } else {
       monsterState.expandedCategories.add(node.path);
-      monsterState.expandedCategories = new Set(
-        monsterState.expandedCategories,
-      );
     }
   }
 

@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount } from "svelte";
+  import { on } from "svelte/events";
   import { monsterState } from "../../../stores/monsterState.svelte";
   import { invoke } from "../../../utils/invoke";
   import { translate } from "../../../i18n";
   import MonsterCategoryList from "./MonsterCategoryList.svelte";
   import type { MonsterListEntry } from "../../../monsterTypes";
-
-  let searchInput: HTMLInputElement;
 
   async function loadMonsters(forceReload = false) {
     const path = monsterState.monstersRootPath;
@@ -77,13 +76,13 @@
     loadMonsters(true);
   }
 
-  onMount(() => {
-    window.addEventListener("reload-monster-list", handleReloadEvent);
-    if (monsterState.monstersRootPath) loadMonsters();
+  $effect(() => {
+    const off = on(window, "reload-monster-list", handleReloadEvent);
+    return () => off();
   });
 
-  onDestroy(() => {
-    window.removeEventListener("reload-monster-list", handleReloadEvent);
+  onMount(() => {
+    if (monsterState.monstersRootPath) loadMonsters();
   });
 
   // React to path changes
@@ -105,7 +104,6 @@
 
 <aside class="monster-sidebar">
   <input
-    bind:this={searchInput}
     type="text"
     class="monster-search"
     placeholder={translate("monster.sidebar.search")}

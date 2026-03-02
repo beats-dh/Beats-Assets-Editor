@@ -5,6 +5,7 @@
   import { invoke } from "../../utils/invoke";
   import { COMMANDS } from "../../commands";
   import { translate } from "../../i18n";
+  import { SvelteMap } from "svelte/reactivity";
 
   // ---------------------------------------------------------------------------
   // Types
@@ -42,7 +43,7 @@
   let statusType = $state<"info" | "success" | "error">("info");
 
   // Pending edits: index → new translation string (or null to clear)
-  let pendingEdits = $state<Map<number, string | null>>(new Map());
+  let pendingEdits = $state(new SvelteMap<number, string | null>());
   // Which row is being edited inline
   let editingIndex = $state<number | null>(null);
   let editingValue = $state("");
@@ -138,7 +139,7 @@
       totalEntries = result.total;
       hasSourceText = result.has_source_text;
       loadedPath = result.path;
-      pendingEdits = new Map();
+      pendingEdits.clear();
       editingIndex = null;
       localStorage.setItem(STORAGE_KEY, path);
       setStatus(
@@ -247,7 +248,7 @@
       const updated = await invoke<QmEntry[]>(COMMANDS.QM_GET_ENTRIES);
       entries = updated;
       filteredEntries = entries; // trigger re-filter
-      pendingEdits = new Map();
+      pendingEdits.clear();
 
       setStatus(
         translate("qm.status.imported", { count: String(count) }),
@@ -267,9 +268,7 @@
   }
 
   function commitEdit(index: number) {
-    const newMap = new Map(pendingEdits);
-    newMap.set(index, editingValue || null);
-    pendingEdits = newMap;
+    pendingEdits.set(index, editingValue || null);
     editingIndex = null;
     editingValue = "";
   }
@@ -310,7 +309,7 @@
       }
       return e;
     });
-    pendingEdits = new Map();
+    pendingEdits.clear();
   }
 
   // ---------------------------------------------------------------------------

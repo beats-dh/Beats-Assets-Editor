@@ -106,17 +106,15 @@
 
       // Progressive rendering via onProgress callback (chunking is internal)
       const updateSprites = (batchResult: Map<number, Uint8Array>) => {
-        const newMap = new Map(assetsState.outfitSprites);
         for (const [id, buffer] of batchResult.entries()) {
-          if (!newMap.has(id)) {
+          if (!assetsState.outfitSprites.has(id)) {
             try {
-              newMap.set(id, getSpriteUrl(buffer));
+              assetsState.outfitSprites.set(id, getSpriteUrl(buffer));
             } catch (e) {
               console.warn(`Failed to buffer URL for LookType ${id}`);
             }
           }
         }
-        assetsState.outfitSprites = newMap;
       };
 
       const batchResult = await getAppearancePreviewSpritesBatch(

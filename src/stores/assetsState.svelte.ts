@@ -1,5 +1,6 @@
 // Assets state using Svelte 5 runes
 import type { CompleteAppearanceItem, AppearanceStats, ProficiencyEntry } from '../types';
+import { SvelteMap } from 'svelte/reactivity';
 
 function createAssetsState() {
     const state = $state({
@@ -12,7 +13,7 @@ function createAssetsState() {
         titles: [] as any[],
         houses: [] as any[],
         mapHouses: [] as any[],
-        outfitSprites: new Map<number, string>(),
+        outfitSprites: new SvelteMap<number, string>(),
         proficiencyAssets: {} as Record<number, CompleteAppearanceItem>,
         proficiencyEntries: [] as ProficiencyEntry[],
         proficiencySelectedId: null as number | null,

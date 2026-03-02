@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount } from "svelte";
+  import { on } from "svelte/events";
   import { npcState } from "../../../stores/npcState.svelte";
   import { invoke } from "../../../utils/invoke";
   import { translate } from "../../../i18n";
   import NpcCategoryList from "./NpcCategoryList.svelte";
   import type { NpcListEntry } from "../../../npcTypes";
-
-  let searchInput: HTMLInputElement;
 
   async function loadNpcs(forceReload = false) {
     const path = npcState.npcsRootPath;
@@ -40,13 +39,13 @@
     loadNpcs(true);
   }
 
-  onMount(() => {
-    window.addEventListener("reload-npc-list", handleReloadEvent);
-    if (npcState.npcsRootPath) loadNpcs();
+  $effect(() => {
+    const off = on(window, "reload-npc-list", handleReloadEvent);
+    return () => off();
   });
 
-  onDestroy(() => {
-    window.removeEventListener("reload-npc-list", handleReloadEvent);
+  onMount(() => {
+    if (npcState.npcsRootPath) loadNpcs();
   });
 
   let lastReactivePath = $state<string | null>(null);
@@ -64,7 +63,6 @@
 
 <aside class="monster-sidebar">
   <input
-    bind:this={searchInput}
     type="text"
     class="monster-search"
     placeholder={translate("npc.sidebar.search")}

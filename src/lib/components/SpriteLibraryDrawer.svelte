@@ -13,6 +13,7 @@
     spriteLibraryState,
     closeSpriteLibrary,
   } from "../../stores/spriteLibraryState.svelte";
+  import { SvelteMap, SvelteSet } from "svelte/reactivity";
   import "../../styles/texture.css";
 
   type SpriteItem = {
@@ -26,9 +27,8 @@
   let order = $state<"asc" | "desc">("asc");
 
   let visibleRange = $state<number[]>([]);
-  let spriteUrls = $state<Map<number, string>>(new Map());
-  let selectedIds = $state<Set<number>>(new Set());
-  let loading = $state(false);
+  let spriteUrls = $state(new SvelteMap<number, string>());
+  let selectedIds = $state(new SvelteSet<number>());
 
   let spriteItems = $derived(
     visibleRange.map((spriteId) => ({
@@ -107,14 +107,12 @@
   }
 
   async function loadSpriteImages(ids: number[]) {
-    loading = true;
     let loadedCount = 0;
 
     for (const id of ids) {
       const cached = getCachedSpriteById(id);
       if (cached) spriteUrls.set(id, getUnifiedSpriteUrl(cached));
     }
-    spriteUrls = new Map(spriteUrls);
 
     for (const id of ids) {
       if (getCachedSpriteById(id)) continue;
@@ -122,12 +120,8 @@
       if (data) {
         spriteUrls.set(id, getUnifiedSpriteUrl(data));
         loadedCount++;
-        if (loadedCount % 10 === 0) spriteUrls = new Map(spriteUrls);
       }
     }
-
-    spriteUrls = new Map(spriteUrls);
-    loading = false;
 
     if (loadedCount > 0) {
       showStatus(
@@ -186,7 +180,6 @@
         selectedIds.add(spriteId);
       }
     }
-    selectedIds = new Set(selectedIds);
   }
 
   function handleDndConsider(e: CustomEvent<DndEvent<SpriteItem>>) {

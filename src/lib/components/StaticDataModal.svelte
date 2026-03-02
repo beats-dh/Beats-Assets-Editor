@@ -53,9 +53,7 @@
         previewSpriteUrl = url;
 
         // Alimentar o memory store retroativamente
-        const newMap = new Map(assetsState.outfitSprites);
-        newMap.set(looktype, url);
-        assetsState.outfitSprites = newMap;
+        assetsState.outfitSprites.set(looktype, url);
       }
     } catch (e) {
       console.warn(

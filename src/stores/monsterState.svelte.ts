@@ -1,5 +1,6 @@
 // Monster editor state using Svelte 5 runes
 import type { Monster, MonsterListEntry } from '../monsterTypes';
+import { SvelteSet } from 'svelte/reactivity';
 
 function createMonsterState() {
     const state = $state({
@@ -9,7 +10,7 @@ function createMonsterState() {
         monstersRootPath: null as string | null,
         isLoading: false,
         monsterSearchQuery: '',
-        expandedCategories: new Set<string>(['__root__']),
+        expandedCategories: new SvelteSet<string>(['__root__']),
         bestiaryClassOrder: [] as string[],
         cachedMonstersPath: null as string | null,
     });
