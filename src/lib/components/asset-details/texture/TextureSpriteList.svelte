@@ -154,7 +154,6 @@
       </div>
     {:else}
       {#each spriteItems as item (item.id)}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="texture-sprite-chip"
           class:is-selected={selectedIndices.has(item.localIndex)}

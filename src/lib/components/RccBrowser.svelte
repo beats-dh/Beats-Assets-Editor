@@ -943,12 +943,13 @@
                                 <p class="audio-filename">
                                     {selectedFile.name}
                                 </p>
-                                <!-- svelte-ignore a11y_media_has_caption -->
                                 <audio
                                     controls
                                     src={audioUrl}
                                     class="audio-player"
-                                ></audio>
+                                >
+                                    <track kind="captions" />
+                                </audio>
                                 <p class="audio-meta">
                                     {formatSize(selectedFile.size)} · {getFileExtension(
                                         selectedFile.name,

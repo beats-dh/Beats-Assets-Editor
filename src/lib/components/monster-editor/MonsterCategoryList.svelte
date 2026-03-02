@@ -5,7 +5,6 @@
     getBestiaryClassLabel,
     sortCategoryNodes,
     UNKNOWN_CLASS_NAME,
-    type MonsterCategoryNode,
   } from "./utils";
   import MonsterCategoryNodeComponent from "./MonsterCategoryNode.svelte";
   import MonsterListItem from "./MonsterListItem.svelte";

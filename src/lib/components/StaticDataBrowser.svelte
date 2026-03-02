@@ -442,12 +442,17 @@
     {:else}
       <div class="modern-assets-grid">
         {#each filteredList as item}
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_interactive_supports_focus -->
           <div
             class="static-data-card"
             onclick={() => openModal(item)}
+            onkeydown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                openModal(item);
+              }
+            }}
             role="button"
+            tabindex="0"
           >
             <div class="static-data-id">
               #{item.id !== undefined ? item.id : item.house_id}

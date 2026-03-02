@@ -506,11 +506,12 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="texture-preview-card texture-drop-zone"
   id="texture-drop-zone"
   bind:this={dropZone}
+  role="region"
+  aria-label={translate("texture.drop.title")}
   ondragover={handleDragOver}
   ondragleave={handleDragLeave}
   ondrop={handleDrop}

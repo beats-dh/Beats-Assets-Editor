@@ -25,16 +25,25 @@
   function removeEvent(i: number) {
     events = events.filter((_, idx) => idx !== i);
   }
+
+  function onClose() {
+    isOpen = false;
+  }
 </script>
 
 {#if isOpen}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="monster-modal-backdrop"
-    onclick={(e) => {
-      if (e.target === e.currentTarget) isOpen = false;
+    role="button"
+    tabindex="0"
+    onclick={onClose}
+    onkeydown={(e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onClose();
+      }
     }}
+    aria-label="Close"
   >
     <div class="monster-modal">
       <div class="monster-modal-header">

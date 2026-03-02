@@ -18,9 +18,19 @@
     role="dialog"
     aria-modal="true"
   >
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="confirm-backdrop" onclick={handleCancel}></div>
+    <div
+      class="confirm-backdrop"
+      role="button"
+      tabindex="0"
+      onclick={handleCancel}
+      onkeydown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleCancel();
+        }
+      }}
+      aria-label="Close confirm"
+    ></div>
     <div class="confirm-dialog" role="document">
       <div class="confirm-header">
         <h2>{confirmState.options.title}</h2>

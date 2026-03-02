@@ -1,10 +1,6 @@
 <script lang="ts">
   import { npcState } from "../../../stores/npcState.svelte";
-  import {
-    buildNpcTree,
-    sortCategoryNodes,
-    type NpcCategoryNode,
-  } from "./utils";
+  import { buildNpcTree, sortCategoryNodes } from "./utils";
   import NpcCategoryNodeComponent from "./NpcCategoryNode.svelte";
   import NpcListItem from "./NpcListItem.svelte";
 

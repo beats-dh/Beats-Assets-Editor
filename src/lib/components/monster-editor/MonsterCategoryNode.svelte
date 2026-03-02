@@ -45,11 +45,16 @@
 </script>
 
 <details class="monster-category" open={isOpen}>
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <summary
     class="monster-category-header"
     style="padding-left: {depth * 12 + 8}px"
     onclick={toggleOpen}
+    onkeydown={(e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleOpen(e as any);
+      }
+    }}
   >
     <span class="category-icon">{getCategoryIcon(node.name)}</span>
     <span class="category-name">{node.name}</span>

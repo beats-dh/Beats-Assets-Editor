@@ -42,7 +42,6 @@
   // Audio playback
   let currentAudio = $state<HTMLAudioElement | null>(null);
   let isPlaying = $state(false);
-  let _playingSequence = $state(false);
   let sequenceAbort = $state(false);
 
   // Upload section
@@ -115,7 +114,6 @@
       currentAudio = null;
     }
     isPlaying = false;
-    _playingSequence = false;
     sequenceAbort = true;
   }
 
@@ -139,7 +137,6 @@
   async function playSequence(ids: number[]) {
     if (!ids || ids.length === 0) return;
     sequenceAbort = false;
-    _playingSequence = true;
     isPlaying = true;
     stopAudio();
     for (let i = 0; i < ids.length; i++) {
@@ -310,9 +307,19 @@
     aria-modal="true"
     aria-labelledby="add-sound-title"
   >
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="modal-backdrop" onclick={handleClose}></div>
+    <div
+      class="modal-backdrop"
+      role="button"
+      tabindex="0"
+      onclick={handleClose}
+      onkeydown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleClose();
+        }
+      }}
+      aria-label="Close form"
+    ></div>
 
     <div class="modal-content" role="document">
       <div class="modal-header">

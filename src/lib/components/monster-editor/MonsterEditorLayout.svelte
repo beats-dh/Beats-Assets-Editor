@@ -12,7 +12,6 @@
 
   let isInitializing = $state(true);
   let initError = $state("");
-
   function goBack() {
     appState.currentView = "launcher";
   }

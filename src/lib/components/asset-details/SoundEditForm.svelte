@@ -12,7 +12,6 @@
   let { id, onSave }: Props = $props();
   let data = $state<any>(null);
   let loading = $state(false);
-  let _error = $state("");
   let subcategory = $derived(assetsState.currentSubcategory || "All");
 
   // Form fields
@@ -64,7 +63,6 @@
 
   async function loadData(soundId: number) {
     loading = true;
-    error = "";
     data = null;
     try {
       if (subcategory === "Ambience Streams") {
@@ -97,7 +95,7 @@
         randomVolumeMax = data.random_volume_max;
       }
     } catch (e) {
-      error = String(e);
+      console.error(e);
     } finally {
       loading = false;
     }
@@ -155,21 +153,21 @@
 
   async function handleDelete() {
     if (data._type !== "Sound Effect") return;
-    confirmState.show(
-      translate("asset.sound.edit.confirmDelete"),
-      translate("asset.sound.edit.confirmDeleteTitle"),
-      async () => {
+    confirm({
+      message: translate("asset.sound.edit.confirmDelete"),
+      title: translate("asset.sound.edit.confirmDeleteTitle"),
+      onConfirm: async () => {
         try {
           await invoke("delete_numeric_sound_effect", { id });
           await invoke("save_sounds_file");
-          selectionState.closeDetails();
+          closeAssetDetails();
           await loadAssetsData();
         } catch (e) {
           console.error("Failed to delete sound", e);
           alert(translate("asset.sound.edit.deleteFail", { err: String(e) }));
         }
       },
-    );
+    });
   }
 
   function addDelayedEffect() {

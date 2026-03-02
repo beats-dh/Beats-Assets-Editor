@@ -52,15 +52,22 @@
 </script>
 
 {#if importExportState.isModalOpen && importExportState.context}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="modal-backdrop"
     onclick={handleCancel}
+    onkeydown={(e) => {
+      if (e.key === "Enter" || e.key === " " || e.key === "Escape")
+        handleCancel();
+    }}
     role="button"
-    tabindex="-1"
+    tabindex="0"
   >
-    <div class="modal-content" onclick={(e) => e.stopPropagation()}>
+    <div
+      class="modal-content"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
+      role="presentation"
+    >
       <div class="modal-header">
         <h3>{translate("importStartIds.title")}</h3>
         <button class="close-btn" onclick={handleCancel}>&times;</button>

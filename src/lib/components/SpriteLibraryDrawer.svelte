@@ -192,9 +192,19 @@
 
 {#if spriteLibraryState.isOpen}
   <div id="sprite-library-drawer" class="is-open" aria-hidden="false">
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="sprite-library-backdrop" onclick={closeDrawer}></div>
+    <div
+      class="sprite-library-backdrop"
+      role="button"
+      tabindex="0"
+      onclick={closeDrawer}
+      onkeydown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          closeDrawer();
+        }
+      }}
+      aria-label="Close"
+    ></div>
     <div
       class="sprite-library-panel"
       role="dialog"

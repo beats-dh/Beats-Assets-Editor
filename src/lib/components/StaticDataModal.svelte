@@ -103,9 +103,19 @@
     aria-modal="true"
     style="display: flex;"
   >
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="modal-backdrop" onclick={close}></div>
+    <div
+      class="modal-backdrop"
+      role="button"
+      tabindex="0"
+      onclick={onClose}
+      onkeydown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClose();
+        }
+      }}
+      aria-label="Close modal"
+    ></div>
     <div class="modal-content" style="max-width: 500px; max-height: 80vh;">
       <div class="modal-header" style="justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 0.5rem;">

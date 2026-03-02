@@ -479,10 +479,14 @@
                     use:focusAction
                   ></textarea>
                 {:else}
-                  <!-- svelte-ignore a11y_no_static_element_interactions -->
                   <div
                     class="translation-cell"
+                    role="button"
+                    tabindex="0"
                     ondblclick={() => startEdit(entry)}
+                    onkeydown={(e) => {
+                      if (e.key === "Enter") startEdit(entry);
+                    }}
                     title={translate("qm.hint.dblclick")}
                   >
                     {#if getTranslation(entry)}

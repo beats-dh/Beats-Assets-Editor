@@ -131,7 +131,7 @@
     await serviceDelete(sel);
   }
 
-  function handleAssetClick(e: MouseEvent, asset: any) {
+  function handleAssetClick(e: MouseEvent | KeyboardEvent, asset: any) {
     if (e.ctrlKey || e.metaKey || e.shiftKey) {
       e.preventDefault();
       e.stopPropagation();
@@ -520,8 +520,6 @@
         </div>
       {:else}
         {#each assetsState.assets as asset (asset.id)}
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="asset-item"
             class:is-selected={isAssetSelected(
@@ -531,17 +529,27 @@
             class:sound-item={assetsState.currentCategory === "Sounds"}
             data-asset-id={asset.id}
             data-category={assetsState.currentCategory}
-            onclick={(e) => handleAssetClick(e, asset)}
+            onclick={(e) => {
+              if ((e.target as HTMLElement).closest(".asset-select-control"))
+                return;
+              handleAssetClick(e, asset);
+            }}
+            onkeydown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                if ((e.target as HTMLElement).closest(".asset-select-control"))
+                  return;
+                e.preventDefault();
+                handleAssetClick(e, asset);
+              }
+            }}
             role="button"
             tabindex="0"
           >
-            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
             <label
               class="asset-select-control"
               aria-label={translate("categoryView.aria.selectAsset", {
                 id: asset.id,
               })}
-              onclick={(e) => handleCheckboxClick(e, asset)}
             >
               <input
                 type="checkbox"
@@ -549,7 +557,7 @@
                 data-asset-id={asset.id}
                 data-category={assetsState.currentCategory}
                 checked={isAssetSelected(assetsState.currentCategory, asset.id)}
-                onchange={() => {}}
+                onchange={(e) => handleCheckboxClick(e, asset)}
               />
               <span class="asset-select-indicator" aria-hidden="true"></span>
             </label>

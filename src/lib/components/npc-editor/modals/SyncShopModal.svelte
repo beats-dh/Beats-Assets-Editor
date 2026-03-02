@@ -415,12 +415,18 @@
 </script>
 
 {#if isOpen}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="monster-modal-backdrop"
+    role="button"
+    tabindex="0"
     onclick={(e) => {
       if (e.target === e.currentTarget) close();
+    }}
+    onkeydown={(e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        close();
+      }
     }}
   >
     <div class="monster-modal" style="max-width: 650px;">
