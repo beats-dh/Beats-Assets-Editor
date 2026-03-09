@@ -23,29 +23,26 @@
 //   Hashes section: array of [hash:u32be, offset:u32be] sorted by hash
 //   offset points into the Messages section data.
 
-pub const MAGIC: [u8; 16] = [
-    0x3C, 0xB8, 0x64, 0x18, 0xCA, 0xEF, 0x9C, 0x95,
-    0xCD, 0x21, 0x1C, 0xBF, 0x60, 0xA1, 0xBD, 0xDD,
-];
+pub const MAGIC: [u8; 16] = [0x3C, 0xB8, 0x64, 0x18, 0xCA, 0xEF, 0x9C, 0x95, 0xCD, 0x21, 0x1C, 0xBF, 0x60, 0xA1, 0xBD, 0xDD];
 
 // Section tags — from Qt source: qtranslator.cpp
-pub const SECTION_CONTEXTS: u8 = 0x2F;     // legacy Qt ≤ 3
-pub const SECTION_HASHES: u8 = 0x42;       // lookup table (hash → message offset)
+pub const SECTION_CONTEXTS: u8 = 0x2F; // legacy Qt ≤ 3
+pub const SECTION_HASHES: u8 = 0x42; // lookup table (hash → message offset)
 pub const SECTION_DEPENDENCIES: u8 = 0x46; // dependency list
-pub const SECTION_LANGUAGE: u8 = 0x4C;     // language string
-pub const SECTION_MESSAGES: u8 = 0x69;     // actual message data
+pub const SECTION_LANGUAGE: u8 = 0x4C; // language string
+pub const SECTION_MESSAGES: u8 = 0x69; // actual message data
 pub const SECTION_NUMERUS_RULES: u8 = 0x88; // plural form rules
 
 // Message chunk tags — from Qt source qtranslator.cpp enum Tag {}
 // Reference: Qt5/6 qtranslator.cpp, qmsgfmt.cpp (linguist lrelease)
 pub const CHUNK_END: u8 = 0x01;
 pub const CHUNK_SOURCE_TEXT16: u8 = 0x02; // Qt ≤3 compat: UTF-16BE source text
-pub const CHUNK_TRANSLATION: u8 = 0x03;   // UTF-16BE translation (Qt 4+)
-pub const CHUNK_CONTEXT16: u8 = 0x04;     // Qt ≤3 compat: UTF-16BE context
-// 0x05 = Tag_Obsolete1 (never written, skip)
-pub const CHUNK_SOURCE_TEXT: u8 = 0x06;   // UTF-8 source text (Qt 4+)
-pub const CHUNK_COMMENT: u8 = 0x07;       // UTF-8 comment (Qt 4+)
-// 0x08 = Tag_Obsolete2 (never written, skip)
+pub const CHUNK_TRANSLATION: u8 = 0x03; // UTF-16BE translation (Qt 4+)
+pub const CHUNK_CONTEXT16: u8 = 0x04; // Qt ≤3 compat: UTF-16BE context
+                                      // 0x05 = Tag_Obsolete1 (never written, skip)
+pub const CHUNK_SOURCE_TEXT: u8 = 0x06; // UTF-8 source text (Qt 4+)
+pub const CHUNK_COMMENT: u8 = 0x07; // UTF-8 comment (Qt 4+)
+                                    // 0x08 = Tag_Obsolete2 (never written, skip)
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QmEntry {
@@ -81,11 +78,7 @@ pub fn parse_qm(data: &[u8]) -> Result<QmFile, String> {
         return Err("File too small to be a QM file".to_string());
     }
     if &data[..16] != MAGIC {
-        return Err(format!(
-            "Invalid QM magic: expected {:02X?}, got {:02X?}",
-            MAGIC,
-            &data[..16]
-        ));
+        return Err(format!("Invalid QM magic: expected {:02X?}, got {:02X?}", MAGIC, &data[..16]));
     }
 
     let mut pos = 16usize;
@@ -105,12 +98,7 @@ pub fn parse_qm(data: &[u8]) -> Result<QmFile, String> {
         pos += 4;
 
         if pos + size > data.len() {
-            return Err(format!(
-                "Section 0x{:02X} claims size {} but only {} bytes remain",
-                tag,
-                size,
-                data.len() - pos
-            ));
+            return Err(format!("Section 0x{:02X} claims size {} but only {} bytes remain", tag, size, data.len() - pos));
         }
 
         let section_data = &data[pos..pos + size];
@@ -127,10 +115,7 @@ pub fn parse_qm(data: &[u8]) -> Result<QmFile, String> {
 
     // Parse hashes: fixed-size entries [hash:u32be][offset:u32be]
     if hashes.len() % 8 != 0 {
-        return Err(format!(
-            "Hashes section size {} is not a multiple of 8",
-            hashes.len()
-        ));
+        return Err(format!("Hashes section size {} is not a multiple of 8", hashes.len()));
     }
 
     let num_entries = hashes.len() / 8;
@@ -188,19 +173,11 @@ fn bytes_to_string(b: &[u8]) -> String {
 }
 
 fn utf16be_to_string(b: &[u8]) -> String {
-    let chars: Vec<u16> = b
-        .chunks_exact(2)
-        .map(|ch| u16::from_be_bytes([ch[0], ch[1]]))
-        .collect();
+    let chars: Vec<u16> = b.chunks_exact(2).map(|ch| u16::from_be_bytes([ch[0], ch[1]])).collect();
     String::from_utf16_lossy(&chars)
 }
 
-fn parse_message(
-    data: &[u8],
-    start: usize,
-    index: usize,
-    hash: u32,
-) -> Result<QmEntry, String> {
+fn parse_message(data: &[u8], start: usize, index: usize, hash: u32) -> Result<QmEntry, String> {
     let mut pos = start;
     let mut context = String::new();
     let mut source_text = String::new();

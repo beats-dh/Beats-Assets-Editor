@@ -3,10 +3,7 @@
 // Reconstructs a valid QM file from QmFile entries.
 // Write order: Magic → Messages section → Hashes section → extra sections (preserved)
 
-use super::qm_parser::{
-    QmFile, CHUNK_COMMENT, CHUNK_END, CHUNK_SOURCE_TEXT, CHUNK_TRANSLATION, MAGIC,
-    SECTION_HASHES, SECTION_MESSAGES,
-};
+use super::qm_parser::{QmFile, CHUNK_COMMENT, CHUNK_END, CHUNK_SOURCE_TEXT, CHUNK_TRANSLATION, MAGIC, SECTION_HASHES, SECTION_MESSAGES};
 
 fn encode_utf16be(s: &str) -> Vec<u8> {
     let mut out = Vec::with_capacity(s.len() * 2);

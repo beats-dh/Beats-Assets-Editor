@@ -21,12 +21,8 @@ pub fn write_rcc(entries: &[RccEntry]) -> Result<Vec<u8>, String> {
         data_offsets.push(offset);
 
         // Write: 4-byte size + raw data (no compression for simplicity)
-        data_section
-            .write_u32::<BigEndian>(entry.data.len() as u32)
-            .map_err(|e| e.to_string())?;
-        data_section
-            .write_all(&entry.data)
-            .map_err(|e| e.to_string())?;
+        data_section.write_u32::<BigEndian>(entry.data.len() as u32).map_err(|e| e.to_string())?;
+        data_section.write_all(&entry.data).map_err(|e| e.to_string())?;
     }
 
     // Phase 2: Build names section (UTF-16BE with hash)
@@ -40,19 +36,13 @@ pub fn write_rcc(entries: &[RccEntry]) -> Result<Vec<u8>, String> {
         let utf16: Vec<u16> = entry.name.encode_utf16().collect();
 
         // Length (2 bytes) + hash (4 bytes) + UTF-16BE chars
-        names_section
-            .write_u16::<BigEndian>(utf16.len() as u16)
-            .map_err(|e| e.to_string())?;
+        names_section.write_u16::<BigEndian>(utf16.len() as u16).map_err(|e| e.to_string())?;
 
         let hash = qt_hash(&entry.name);
-        names_section
-            .write_u32::<BigEndian>(hash)
-            .map_err(|e| e.to_string())?;
+        names_section.write_u32::<BigEndian>(hash).map_err(|e| e.to_string())?;
 
         for ch in &utf16 {
-            names_section
-                .write_u16::<BigEndian>(*ch)
-                .map_err(|e| e.to_string())?;
+            names_section.write_u16::<BigEndian>(*ch).map_err(|e| e.to_string())?;
         }
     }
 
@@ -61,40 +51,24 @@ pub fn write_rcc(entries: &[RccEntry]) -> Result<Vec<u8>, String> {
 
     for (i, entry) in entries.iter().enumerate() {
         // Name offset (4 bytes)
-        tree_section
-            .write_u32::<BigEndian>(name_offsets[i])
-            .map_err(|e| e.to_string())?;
+        tree_section.write_u32::<BigEndian>(name_offsets[i]).map_err(|e| e.to_string())?;
 
         if entry.is_directory {
             // Flags: directory
-            tree_section
-                .write_u16::<BigEndian>(0x02)
-                .map_err(|e| e.to_string())?;
+            tree_section.write_u16::<BigEndian>(0x02).map_err(|e| e.to_string())?;
             // Child count
-            tree_section
-                .write_u32::<BigEndian>(entry.children.len() as u32)
-                .map_err(|e| e.to_string())?;
+            tree_section.write_u32::<BigEndian>(entry.children.len() as u32).map_err(|e| e.to_string())?;
             // First child index
             let first = entry.children.first().copied().unwrap_or(0) as u32;
-            tree_section
-                .write_u32::<BigEndian>(first)
-                .map_err(|e| e.to_string())?;
+            tree_section.write_u32::<BigEndian>(first).map_err(|e| e.to_string())?;
         } else {
             // Flags: file (no compression)
-            tree_section
-                .write_u16::<BigEndian>(0x00)
-                .map_err(|e| e.to_string())?;
+            tree_section.write_u16::<BigEndian>(0x00).map_err(|e| e.to_string())?;
             // Country + Language
-            tree_section
-                .write_u16::<BigEndian>(entry.country)
-                .map_err(|e| e.to_string())?;
-            tree_section
-                .write_u16::<BigEndian>(entry.language)
-                .map_err(|e| e.to_string())?;
+            tree_section.write_u16::<BigEndian>(entry.country).map_err(|e| e.to_string())?;
+            tree_section.write_u16::<BigEndian>(entry.language).map_err(|e| e.to_string())?;
             // Data offset
-            tree_section
-                .write_u32::<BigEndian>(data_offsets[i])
-                .map_err(|e| e.to_string())?;
+            tree_section.write_u32::<BigEndian>(data_offsets[i]).map_err(|e| e.to_string())?;
         }
     }
 
@@ -105,37 +79,23 @@ pub fn write_rcc(entries: &[RccEntry]) -> Result<Vec<u8>, String> {
     let names_start = data_start + data_section.len() as u32;
     let tree_start = names_start + names_section.len() as u32;
 
-    let mut output = Vec::with_capacity(
-        header_size as usize + data_section.len() + names_section.len() + tree_section.len(),
-    );
+    let mut output = Vec::with_capacity(header_size as usize + data_section.len() + names_section.len() + tree_section.len());
 
     // Magic
     output.write_all(b"qres").map_err(|e| e.to_string())?;
     // Version 1
-    output
-        .write_u32::<BigEndian>(1)
-        .map_err(|e| e.to_string())?;
+    output.write_u32::<BigEndian>(1).map_err(|e| e.to_string())?;
     // Tree offset
-    output
-        .write_u32::<BigEndian>(tree_start)
-        .map_err(|e| e.to_string())?;
+    output.write_u32::<BigEndian>(tree_start).map_err(|e| e.to_string())?;
     // Data offset
-    output
-        .write_u32::<BigEndian>(data_start)
-        .map_err(|e| e.to_string())?;
+    output.write_u32::<BigEndian>(data_start).map_err(|e| e.to_string())?;
     // Names offset
-    output
-        .write_u32::<BigEndian>(names_start)
-        .map_err(|e| e.to_string())?;
+    output.write_u32::<BigEndian>(names_start).map_err(|e| e.to_string())?;
 
     // Sections
     output.write_all(&data_section).map_err(|e| e.to_string())?;
-    output
-        .write_all(&names_section)
-        .map_err(|e| e.to_string())?;
-    output
-        .write_all(&tree_section)
-        .map_err(|e| e.to_string())?;
+    output.write_all(&names_section).map_err(|e| e.to_string())?;
+    output.write_all(&tree_section).map_err(|e| e.to_string())?;
 
     Ok(output)
 }

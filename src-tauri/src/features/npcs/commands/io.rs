@@ -157,9 +157,9 @@ pub(crate) fn generate_lua_from_npc(npc: &Npc) -> Result<String> {
     // Basic info
     lua.push_str("npcConfig.name = internalNpcName\n");
     if !npc.description.is_empty() {
-      lua.push_str(&format!("npcConfig.description = \"{}\"\n", npc.description));
+        lua.push_str(&format!("npcConfig.description = \"{}\"\n", npc.description));
     } else {
-      lua.push_str("npcConfig.description = internalNpcName\n");
+        lua.push_str("npcConfig.description = internalNpcName\n");
     }
 
     lua.push('\n');
@@ -260,7 +260,7 @@ pub(crate) fn generate_lua_from_npc(npc: &Npc) -> Result<String> {
     // Interaction system appending
     lua.push_str("local keywordHandler = KeywordHandler:new()\n");
     lua.push_str("local npcHandler = NpcHandler:new(keywordHandler)\n\n");
-    
+
     lua.push_str("npcType.onThink = function(npc, interval)\n\tnpcHandler:onThink(npc, interval)\nend\n\n");
     lua.push_str("npcType.onAppear = function(npc, creature)\n\tnpcHandler:onAppear(npc, creature)\nend\n\n");
     lua.push_str("npcType.onDisappear = function(npc, creature)\n\tnpcHandler:onDisappear(npc, creature)\nend\n\n");
@@ -289,17 +289,19 @@ pub(crate) fn generate_lua_from_npc(npc: &Npc) -> Result<String> {
                 clean_words.push(format!("\"{}\"", w));
             }
         }
-        
-        let handler_type = if is_greet { "addGreetKeyword" } else { "addKeyword" };
+
+        let handler_type = if is_greet {
+            "addGreetKeyword"
+        } else {
+            "addKeyword"
+        };
         let words_joined = clean_words.join(", ");
-        
+
         if is_greet {
-            lua.push_str(&format!("keywordHandler:{}({{ {} }}, {{ npcHandler = npcHandler, text = \"{}\" }})\n", 
-                handler_type, words_joined, keyword.response));
+            lua.push_str(&format!("keywordHandler:{}({{ {} }}, {{ npcHandler = npcHandler, text = \"{}\" }})\n", handler_type, words_joined, keyword.response));
         } else {
             // Standard StdModule.say response
-            lua.push_str(&format!("keywordHandler:{}({{ {} }}, StdModule.say, {{ npcHandler = npcHandler, onlyUnfocus = true, text = \"{}\" }})\n", 
-                handler_type, words_joined, keyword.response));
+            lua.push_str(&format!("keywordHandler:{}({{ {} }}, StdModule.say, {{ npcHandler = npcHandler, onlyUnfocus = true, text = \"{}\" }})\n", handler_type, words_joined, keyword.response));
         }
     }
 

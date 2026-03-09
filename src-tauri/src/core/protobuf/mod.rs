@@ -38,4 +38,3 @@ pub mod staticmapdata {
 
 pub use appearances::*;
 pub use shared::*;
-

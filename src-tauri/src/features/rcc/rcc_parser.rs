@@ -65,10 +65,7 @@ impl RccFile {
 
         // Validate magic
         if &data[0..4] != RCC_MAGIC {
-            return Err(format!(
-                "Invalid RCC magic: expected 'qres', got '{}'",
-                String::from_utf8_lossy(&data[0..4])
-            ));
+            return Err(format!("Invalid RCC magic: expected 'qres', got '{}'", String::from_utf8_lossy(&data[0..4])));
         }
 
         let mut cursor = Cursor::new(data);
@@ -134,11 +131,7 @@ impl RccFile {
     }
 
     /// Parse tree section, recursively building entries
-    fn parse_tree(
-        data: &[u8],
-        header: &RccHeader,
-        entries: &mut Vec<RccEntry>,
-    ) -> Result<(), String> {
+    fn parse_tree(data: &[u8], header: &RccHeader, entries: &mut Vec<RccEntry>) -> Result<(), String> {
         let tree_start = header.tree_offset as usize;
         let tree_data = &data[tree_start..];
         let mut cursor = Cursor::new(tree_data);
@@ -149,7 +142,11 @@ impl RccFile {
         // We need to figure out how many nodes there are.
         // Read nodes until we hit the end or names section.
         let tree_size = data.len() - tree_start;
-        let node_size = if header.version >= 2 { 22 } else { 14 };
+        let node_size = if header.version >= 2 {
+            22
+        } else {
+            14
+        };
 
         let node_count = tree_size / node_size;
 
@@ -263,12 +260,7 @@ impl RccFile {
     }
 
     /// Read and decompress data from the data section
-    fn read_data(
-        data: &[u8],
-        data_base: usize,
-        data_offset: u32,
-        flags: u16,
-    ) -> Result<(Vec<u8>, bool), String> {
+    fn read_data(data: &[u8], data_base: usize, data_offset: u32, flags: u16) -> Result<(Vec<u8>, bool), String> {
         let pos = data_base + data_offset as usize;
         if pos + 4 > data.len() {
             return Err(format!("Data offset {} out of bounds", data_offset));
@@ -293,9 +285,7 @@ impl RccFile {
             let _uncompressed_size = sz_cursor.read_u32::<BigEndian>().map_err(|e| e.to_string())?;
 
             let compressed_data = &remaining[4..size];
-            Self::decompress_zlib(compressed_data)
-                .map(|d| (d, true))
-                .map_err(|e| format!("Zlib decompress failed: {}", e))
+            Self::decompress_zlib(compressed_data).map(|d| (d, true)).map_err(|e| format!("Zlib decompress failed: {}", e))
         } else {
             let end = std::cmp::min(size, remaining.len());
             Ok((remaining[..end].to_vec(), false))
@@ -307,19 +297,12 @@ impl RccFile {
         use flate2::read::ZlibDecoder;
         let mut decoder = ZlibDecoder::new(data);
         let mut decompressed = Vec::new();
-        decoder
-            .read_to_end(&mut decompressed)
-            .map_err(|e| format!("Zlib decompression error: {}", e))?;
+        decoder.read_to_end(&mut decompressed).map_err(|e| format!("Zlib decompression error: {}", e))?;
         Ok(decompressed)
     }
 
     /// Recursively build full paths for all entries
-    fn build_paths(
-        entries: &[RccEntry],
-        index: usize,
-        prefix: &str,
-        path_map: &mut HashMap<usize, String>,
-    ) {
+    fn build_paths(entries: &[RccEntry], index: usize, prefix: &str, path_map: &mut HashMap<usize, String>) {
         if index >= entries.len() {
             return;
         }

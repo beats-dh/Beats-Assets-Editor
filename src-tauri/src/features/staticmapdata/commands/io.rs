@@ -36,7 +36,7 @@ pub async fn list_staticmapdata_files(tibia_path: String) -> Result<Vec<String>,
     let assets_path = PathBuf::from(tibia_path).join("assets");
     let entries = fs::read_dir(&assets_path).map_err(|e| format!("Failed to read assets directory: {}", e))?;
     let mut files_data: Vec<(String, u64)> = Vec::new();
-    
+
     for entry in entries {
         let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
         let path = entry.path();
@@ -48,7 +48,7 @@ pub async fn list_staticmapdata_files(tibia_path: String) -> Result<Vec<String>,
             }
         }
     }
-    
+
     files_data.sort_by(|(_, size_a), (_, size_b)| size_b.cmp(size_a));
     Ok(files_data.into_iter().map(|(name, _)| name).collect())
 }

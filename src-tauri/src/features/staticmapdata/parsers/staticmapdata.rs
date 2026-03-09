@@ -23,10 +23,7 @@ pub fn load_staticmapdata<P: AsRef<Path>>(path: P) -> Result<StaticMapData> {
     let decompressed = crate::core::lzma::decompress(&data).context("Failed to decompress staticmapdata data (LZMA/XZ)")?;
     let staticmapdata = StaticMapData::decode(&decompressed[..]).context("Failed to decode staticmapdata protobuf data after decompression")?;
 
-    log::info!(
-        "Successfully parsed staticmapdata: {} houses details",
-        staticmapdata.houses.len()
-    );
+    log::info!("Successfully parsed staticmapdata: {} houses details", staticmapdata.houses.len());
 
     Ok(staticmapdata)
 }

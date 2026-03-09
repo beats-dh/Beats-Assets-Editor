@@ -795,8 +795,7 @@ pub fn appearance_signature(appearance: &Appearance, state: &AppState) -> Result
     }
 
     let sprite_loader_lock = state.sprite_loader.read();
-    let sprite_loader = sprite_loader_lock.as_ref()
-        .ok_or_else(|| "No sprite loaded for signature".to_string())?;
+    let sprite_loader = sprite_loader_lock.as_ref().ok_or_else(|| "No sprite loaded for signature".to_string())?;
 
     for fg in &appearance.frame_group {
         if let Some(info) = &fg.sprite_info {
@@ -804,8 +803,7 @@ pub fn appearance_signature(appearance: &Appearance, state: &AppState) -> Result
                 let bytes = if let Some(mem_bytes) = state.imported_sprites.get(sprite_id) {
                     mem_bytes.clone()
                 } else {
-                    let sprite = sprite_loader.get_sprite(*sprite_id)
-                        .map_err(|e| format!("Failed getting sprite {}: {}", sprite_id, e))?;
+                    let sprite = sprite_loader.get_sprite(*sprite_id).map_err(|e| format!("Failed getting sprite {}: {}", sprite_id, e))?;
                     sprite.to_png_bytes().map_err(|e| format!("Failed to export png: {}", e))?
                 };
                 bytes.hash(&mut hasher);
@@ -905,9 +903,7 @@ fn detect_import_presence(paths: &[String]) -> Result<ImportPresence, String> {
 }
 
 fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> Result<(), String> {
-    let total_sprites: usize = appearances.iter().map(|appearance| {
-        appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).map(|info| info.sprite_id.len()).sum::<usize>()
-    }).sum();
+    let total_sprites: usize = appearances.iter().map(|appearance| appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).map(|info| info.sprite_id.len()).sum::<usize>()).sum();
     if total_sprites == 0 {
         return Ok(());
     }
@@ -919,7 +915,7 @@ fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> R
     for appearance in appearances.iter() {
         let sprite_loader_lock = state.sprite_loader.read();
         let sprite_loader = sprite_loader_lock.as_ref();
-        
+
         let sprite_ids: Vec<u32> = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()).collect();
         for sprite_id in sprite_ids {
             let sprite_bytes = if let Some(mem_bytes) = state.imported_sprites.get(&sprite_id) {
@@ -933,7 +929,7 @@ fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> R
             } else {
                 Vec::new()
             };
-            
+
             if sprite_bytes.is_empty() {
                 continue;
             }

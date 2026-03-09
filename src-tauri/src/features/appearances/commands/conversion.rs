@@ -2,8 +2,8 @@ use crate::core::protobuf::Box as ProtoBoundingBox;
 use crate::core::protobuf::{
     Appearance, AppearanceFlagAutomap, AppearanceFlagBank, AppearanceFlagChangedToExpire, AppearanceFlagClothes, AppearanceFlagCyclopedia, AppearanceFlagDefaultAction, AppearanceFlagHeight,
     AppearanceFlagHook, AppearanceFlagImbueable, AppearanceFlagLenshelp, AppearanceFlagLight, AppearanceFlagMarket, AppearanceFlagNpc, AppearanceFlagProficiency, AppearanceFlagShift,
-    AppearanceFlagSkillWheelGem, AppearanceFlagUpgradeClassification, AppearanceFlagWrite, AppearanceFlagWriteOnce, AppearanceFlags, FrameGroup,
-    SpriteAnimation as ProtoSpriteAnimation, SpriteInfo as ProtoSpriteInfo, SpritePhase as ProtoSpritePhase,
+    AppearanceFlagSkillWheelGem, AppearanceFlagUpgradeClassification, AppearanceFlagWrite, AppearanceFlagWriteOnce, AppearanceFlags, FrameGroup, SpriteAnimation as ProtoSpriteAnimation,
+    SpriteInfo as ProtoSpriteInfo, SpritePhase as ProtoSpritePhase,
 };
 use crate::features::appearances::{
     CompleteAppearanceItem, CompleteFlags, CompleteFrameGroup, CompleteSpriteInfo, FlagAutomap, FlagBank, FlagChangedToExpire, FlagClothes, FlagCyclopedia, FlagDefaultAction, FlagHeight, FlagHook,

@@ -72,7 +72,7 @@ pub async fn list_staticdata_files(tibia_path: String) -> Result<Vec<String>, St
     let assets_path = PathBuf::from(tibia_path).join("assets");
     let entries = fs::read_dir(&assets_path).map_err(|e| format!("Failed to read assets directory: {}", e))?;
     let mut files_data: Vec<(String, u64)> = Vec::new();
-    
+
     for entry in entries {
         let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
         let path = entry.path();
@@ -84,7 +84,7 @@ pub async fn list_staticdata_files(tibia_path: String) -> Result<Vec<String>, St
             }
         }
     }
-    
+
     files_data.sort_by(|(_, size_a), (_, size_b)| size_b.cmp(size_a));
     Ok(files_data.into_iter().map(|(name, _)| name).collect())
 }
@@ -93,10 +93,8 @@ pub async fn list_staticdata_files(tibia_path: String) -> Result<Vec<String>, St
 pub fn save_staticdata_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
     let staticdata_lock = state.staticdata.read();
     match &*staticdata_lock {
-        Some(sd) => {
-            save_staticdata(path, sd).map_err(|e| format!("Failed to save staticdata: {}", e))
-        }
-        None => Err("No staticdata loaded to save".to_string())
+        Some(sd) => save_staticdata(path, sd).map_err(|e| format!("Failed to save staticdata: {}", e)),
+        None => Err("No staticdata loaded to save".to_string()),
     }
 }
 

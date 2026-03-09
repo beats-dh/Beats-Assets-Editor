@@ -47,12 +47,7 @@ pub fn qm_find_files(base_path: String) -> Result<Vec<String>, String> {
     let base = PathBuf::from(&base_path);
     let mut results = Vec::new();
 
-    let search_dirs = vec![
-        base.clone(),
-        base.join("bin"),
-        base.parent().unwrap_or(&base).to_path_buf(),
-        base.parent().unwrap_or(&base).join("bin"),
-    ];
+    let search_dirs = vec![base.clone(), base.join("bin"), base.parent().unwrap_or(&base).to_path_buf(), base.parent().unwrap_or(&base).join("bin")];
 
     for dir in search_dirs {
         if dir.is_dir() {
@@ -82,8 +77,7 @@ pub fn qm_load(path: String) -> Result<QmLoadResult, String> {
     let p = PathBuf::from(&path);
     let data = std::fs::read(&p).map_err(|e| format!("Failed to read {path}: {e}"))?;
 
-    let qm = super::qm_parser::parse_qm(&data)
-        .map_err(|e| format!("Failed to parse QM: {e}"))?;
+    let qm = super::qm_parser::parse_qm(&data).map_err(|e| format!("Failed to parse QM: {e}"))?;
 
     let result = QmLoadResult {
         total: qm.entries.len(),
@@ -111,18 +105,11 @@ pub fn qm_get_entries() -> Result<Vec<QmEntry>, String> {
 
 /// Update the translation for a single entry (by its index)
 #[command]
-pub fn qm_update_translation(
-    index: usize,
-    translation: Option<String>,
-) -> Result<(), String> {
+pub fn qm_update_translation(index: usize, translation: Option<String>) -> Result<(), String> {
     let mut state = QM_STATE.lock();
     let file = state.file.as_mut().ok_or("No QM file loaded")?;
 
-    let entry = file
-        .entries
-        .iter_mut()
-        .find(|e| e.index == index)
-        .ok_or(format!("Entry with index {index} not found"))?;
+    let entry = file.entries.iter_mut().find(|e| e.index == index).ok_or(format!("Entry with index {index} not found"))?;
 
     entry.translation = translation;
     Ok(())
@@ -130,9 +117,7 @@ pub fn qm_update_translation(
 
 /// Batch-update multiple translations at once
 #[command]
-pub fn qm_update_translations(
-    updates: Vec<(usize, Option<String>)>,
-) -> Result<usize, String> {
+pub fn qm_update_translations(updates: Vec<(usize, Option<String>)>) -> Result<usize, String> {
     let mut state = QM_STATE.lock();
     let file = state.file.as_mut().ok_or("No QM file loaded")?;
 
@@ -154,15 +139,11 @@ pub fn qm_save(output_path: Option<String>) -> Result<String, String> {
 
     let dest: PathBuf = match &output_path {
         Some(p) => PathBuf::from(p),
-        None => state
-            .source_path
-            .clone()
-            .ok_or("No output path specified and no source path known")?,
+        None => state.source_path.clone().ok_or("No output path specified and no source path known")?,
     };
 
     let bytes = qm_writer::write_qm(file);
-    std::fs::write(&dest, &bytes)
-        .map_err(|e| format!("Failed to write {}: {e}", dest.display()))?;
+    std::fs::write(&dest, &bytes).map_err(|e| format!("Failed to write {}: {e}", dest.display()))?;
 
     Ok(dest.to_string_lossy().to_string())
 }
@@ -187,8 +168,7 @@ pub fn qm_export_csv(output_path: String) -> Result<usize, String> {
         ));
     }
 
-    std::fs::write(&output_path, csv.as_bytes())
-        .map_err(|e| format!("Failed to write CSV: {e}"))?;
+    std::fs::write(&output_path, csv.as_bytes()).map_err(|e| format!("Failed to write CSV: {e}"))?;
 
     Ok(file.entries.len())
 }
@@ -197,8 +177,7 @@ pub fn qm_export_csv(output_path: String) -> Result<usize, String> {
 /// Only the `index` and `translation` columns are used; others are ignored.
 #[command]
 pub fn qm_import_csv(file_path: String) -> Result<usize, String> {
-    let data = std::fs::read_to_string(&file_path)
-        .map_err(|e| format!("Failed to read CSV: {e}"))?;
+    let data = std::fs::read_to_string(&file_path).map_err(|e| format!("Failed to read CSV: {e}"))?;
 
     let mut updates: Vec<(usize, Option<String>)> = Vec::new();
     let mut lines = data.lines();
@@ -207,19 +186,21 @@ pub fn qm_import_csv(file_path: String) -> Result<usize, String> {
     if let Some(header) = lines.next() {
         let cols: Vec<&str> = header.split(',').collect();
         let index_col = cols.iter().position(|&c| c.trim() == "index").unwrap_or(0);
-        let trans_col = cols
-            .iter()
-            .position(|&c| c.trim() == "translation")
-            .unwrap_or(5);
+        let trans_col = cols.iter().position(|&c| c.trim() == "translation").unwrap_or(5);
 
         for line in lines {
             let fields = parse_csv_line(line);
-            if let (Some(idx_str), Some(trans)) =
-                (fields.get(index_col), fields.get(trans_col))
-            {
+            if let (Some(idx_str), Some(trans)) = (fields.get(index_col), fields.get(trans_col)) {
                 if let Ok(idx) = idx_str.trim().parse::<usize>() {
                     let t = trans.trim().to_string();
-                    updates.push((idx, if t.is_empty() { None } else { Some(t) }));
+                    updates.push((
+                        idx,
+                        if t.is_empty() {
+                            None
+                        } else {
+                            Some(t)
+                        },
+                    ));
                 }
             }
         }
@@ -264,7 +245,9 @@ pub fn qm_debug_raw() -> Result<String, String> {
     while pos + 5 <= data.len() {
         let tag = data[pos];
         pos += 1;
-        if pos + 4 > data.len() { break; }
+        if pos + 4 > data.len() {
+            break;
+        }
         let size = u32::from_be_bytes(data[pos..pos + 4].try_into().unwrap()) as usize;
         pos += 4;
         let label = match tag {
@@ -278,8 +261,14 @@ pub fn qm_debug_raw() -> Result<String, String> {
         };
         out.push_str(&format!("  0x{:02X} {:20} {:>8} bytes at offset {}\n", tag, label, size, pos));
         match tag {
-            0x69 => { messages_start = pos; messages_size = size; }
-            0x42 => { hashes_start = pos; hashes_size = size; }
+            0x69 => {
+                messages_start = pos;
+                messages_size = size;
+            }
+            0x42 => {
+                hashes_start = pos;
+                hashes_size = size;
+            }
             _ => {}
         }
         pos += size;
@@ -310,10 +299,15 @@ pub fn qm_debug_raw() -> Result<String, String> {
         let mut trans_raw: Vec<u8> = Vec::new();
 
         while p < section_end {
-            let tag = data[p]; p += 1;
-            if tag == 0x01 { break; } // End
-            if p + 4 > section_end { break; }
-            let raw_len = u32::from_be_bytes(data[p..p+4].try_into().unwrap());
+            let tag = data[p];
+            p += 1;
+            if tag == 0x01 {
+                break;
+            } // End
+            if p + 4 > section_end {
+                break;
+            }
+            let raw_len = u32::from_be_bytes(data[p..p + 4].try_into().unwrap());
             p += 4;
             if raw_len == 0xFFFF_FFFF {
                 if tag == 0x03 {
@@ -323,21 +317,26 @@ pub fn qm_debug_raw() -> Result<String, String> {
                 continue;
             }
             let len = raw_len as usize;
-            if p + len > section_end { break; }
-            let chunk = &data[p..p+len];
+            if p + len > section_end {
+                break;
+            }
+            let chunk = &data[p..p + len];
             p += len;
             match tag {
-                0x03 => { // Translation
+                0x03 => {
+                    // Translation
                     trans_raw = chunk.to_vec();
-                    let be_chars: Vec<u16> = chunk.chunks_exact(2)
-                        .map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
+                    let be_chars: Vec<u16> = chunk.chunks_exact(2).map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
                     trans_be = String::from_utf16_lossy(&be_chars).to_string();
-                    let le_chars: Vec<u16> = chunk.chunks_exact(2)
-                        .map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
+                    let le_chars: Vec<u16> = chunk.chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
                     trans_le = String::from_utf16_lossy(&le_chars).to_string();
                 }
-                0x06 => { src_text = String::from_utf8_lossy(chunk).to_string(); }
-                0x07 => { comment = String::from_utf8_lossy(chunk).to_string(); }
+                0x06 => {
+                    src_text = String::from_utf8_lossy(chunk).to_string();
+                }
+                0x07 => {
+                    comment = String::from_utf8_lossy(chunk).to_string();
+                }
                 _ => {}
             }
         }

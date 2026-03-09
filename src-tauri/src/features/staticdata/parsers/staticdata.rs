@@ -62,7 +62,7 @@ pub fn save_staticdata<P: AsRef<Path>>(path: P, staticdata: &StaticData) -> Resu
     staticdata.encode(&mut buf).context("Failed to encode StaticData to protobuf buffer")?;
 
     fs::write(path, buf).context(format!("Failed to write staticdata file: {:?}", path))?;
-    
+
     log::info!("StaticData successfully saved. Size: {} bytes", staticdata.encoded_len());
     Ok(())
 }

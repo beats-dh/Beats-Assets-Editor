@@ -96,14 +96,17 @@ pub async fn list_appearances_by_category(
             .filter_map(|appearance| {
                 let id = appearance.id.unwrap_or(0);
 
-                    // Apply search filter if provided
+                // Apply search filter if provided
                 if let Some(ref search_term_lower) = search_lower {
                     let matches = appearance.name.as_ref().map_or(false, |n| String::from_utf8_lossy(n).to_lowercase().contains(search_term_lower))
                         || appearance.description.as_ref().map_or(false, |d| String::from_utf8_lossy(d).to_lowercase().contains(search_term_lower))
                         || id.to_string().contains(search_term_lower)
-                        || appearance.flags.as_ref().and_then(|f| f.proficiency.as_ref()).and_then(|p| p.proficiency_id).map_or(false, |id| {
-                            search_term_lower.starts_with("proficiency-") && format!("proficiency-{}", id).contains(search_term_lower)
-                        });
+                        || appearance
+                            .flags
+                            .as_ref()
+                            .and_then(|f| f.proficiency.as_ref())
+                            .and_then(|p| p.proficiency_id)
+                            .map_or(false, |id| search_term_lower.starts_with("proficiency-") && format!("proficiency-{}", id).contains(search_term_lower));
 
                     if !matches {
                         return None;
@@ -141,9 +144,12 @@ pub async fn list_appearances_by_category(
                     let matches = appearance.name.as_ref().map_or(false, |n| String::from_utf8_lossy(n).to_lowercase().contains(search_term_lower))
                         || appearance.description.as_ref().map_or(false, |d| String::from_utf8_lossy(d).to_lowercase().contains(search_term_lower))
                         || id.to_string().contains(search_term_lower)
-                        || appearance.flags.as_ref().and_then(|f| f.proficiency.as_ref()).and_then(|p| p.proficiency_id).map_or(false, |id| {
-                            search_term_lower.starts_with("proficiency-") && format!("proficiency-{}", id).contains(search_term_lower)
-                        });
+                        || appearance
+                            .flags
+                            .as_ref()
+                            .and_then(|f| f.proficiency.as_ref())
+                            .and_then(|p| p.proficiency_id)
+                            .map_or(false, |id| search_term_lower.starts_with("proficiency-") && format!("proficiency-{}", id).contains(search_term_lower));
 
                     if !matches {
                         return None;
@@ -364,9 +370,12 @@ pub async fn get_appearance_count(category: AppearanceCategory, search: Option<S
                 let matches = appearance.name.as_ref().map_or(false, |n| String::from_utf8_lossy(n).to_lowercase().contains(&search_lower))
                     || appearance.description.as_ref().map_or(false, |d| String::from_utf8_lossy(d).to_lowercase().contains(&search_lower))
                     || id.to_string().contains(&search_lower)
-                    || appearance.flags.as_ref().and_then(|f| f.proficiency.as_ref()).and_then(|p| p.proficiency_id).map_or(false, |id| {
-                        search_lower.starts_with("proficiency-") && format!("proficiency-{}", id).contains(&search_lower)
-                    });
+                    || appearance
+                        .flags
+                        .as_ref()
+                        .and_then(|f| f.proficiency.as_ref())
+                        .and_then(|p| p.proficiency_id)
+                        .map_or(false, |id| search_lower.starts_with("proficiency-") && format!("proficiency-{}", id).contains(&search_lower));
 
                 if !matches {
                     return false;

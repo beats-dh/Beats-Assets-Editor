@@ -16,12 +16,7 @@ pub fn rcc_find_files(base_path: String) -> Result<Vec<String>, String> {
     let mut results = Vec::new();
 
     // Search in the given path and common relative locations
-    let search_dirs = vec![
-        base.clone(),
-        base.join("bin"),
-        base.parent().unwrap_or(&base).to_path_buf(),
-        base.parent().unwrap_or(&base).join("bin"),
-    ];
+    let search_dirs = vec![base.clone(), base.join("bin"), base.parent().unwrap_or(&base).to_path_buf(), base.parent().unwrap_or(&base).join("bin")];
 
     for dir in search_dirs {
         if dir.is_dir() {
@@ -71,8 +66,7 @@ pub struct RccLoadResult {
 /// Load an RCC file and return the list of resources
 #[command]
 pub fn rcc_load(path: String) -> Result<RccLoadResult, String> {
-    let data = std::fs::read(&path)
-        .map_err(|e| format!("Failed to read RCC file: {}", e))?;
+    let data = std::fs::read(&path).map_err(|e| format!("Failed to read RCC file: {}", e))?;
 
     let rcc = RccFile::parse(&data)?;
 
@@ -99,10 +93,7 @@ pub fn rcc_get_resource(index: usize) -> Result<Vec<u8>, String> {
     let state = RCC_STATE.lock();
     let rcc = state.file.as_ref().ok_or("No RCC file loaded")?;
 
-    let entry = rcc
-        .entries
-        .get(index)
-        .ok_or_else(|| format!("Invalid entry index: {}", index))?;
+    let entry = rcc.entries.get(index).ok_or_else(|| format!("Invalid entry index: {}", index))?;
 
     if entry.is_directory {
         return Err("Cannot get data for a directory entry".into());
@@ -117,10 +108,7 @@ pub fn rcc_replace_resource(index: usize, data: Vec<u8>) -> Result<RccFileInfo, 
     let mut state = RCC_STATE.lock();
     let rcc = state.file.as_mut().ok_or("No RCC file loaded")?;
 
-    let entry = rcc
-        .entries
-        .get_mut(index)
-        .ok_or_else(|| format!("Invalid entry index: {}", index))?;
+    let entry = rcc.entries.get_mut(index).ok_or_else(|| format!("Invalid entry index: {}", index))?;
 
     if entry.is_directory {
         return Err("Cannot replace data for a directory entry".into());
@@ -156,16 +144,12 @@ pub fn rcc_save(output_path: Option<String>) -> Result<String, String> {
     let save_path = if let Some(p) = output_path {
         PathBuf::from(p)
     } else {
-        state
-            .source_path
-            .clone()
-            .ok_or("No source path and no output path specified")?
+        state.source_path.clone().ok_or("No source path and no output path specified")?
     };
 
     let output = rcc_writer::write_rcc(&rcc.entries)?;
 
-    std::fs::write(&save_path, &output)
-        .map_err(|e| format!("Failed to write RCC: {}", e))?;
+    std::fs::write(&save_path, &output).map_err(|e| format!("Failed to write RCC: {}", e))?;
 
     Ok(save_path.to_string_lossy().to_string())
 }
@@ -188,12 +172,10 @@ pub fn rcc_extract_all(output_dir: String) -> Result<usize, String> {
 
         // Create parent directories
         if let Some(parent) = file_path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create directory: {}", e))?;
+            std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
         }
 
-        std::fs::write(&file_path, &entry.data)
-            .map_err(|e| format!("Failed to write {}: {}", entry.path, e))?;
+        std::fs::write(&file_path, &entry.data).map_err(|e| format!("Failed to write {}: {}", entry.path, e))?;
 
         count += 1;
     }
@@ -207,17 +189,13 @@ pub fn rcc_extract_single(index: usize, output_path: String) -> Result<(), Strin
     let state = RCC_STATE.lock();
     let rcc = state.file.as_ref().ok_or("No RCC file loaded")?;
 
-    let entry = rcc
-        .entries
-        .get(index)
-        .ok_or_else(|| format!("Invalid entry index: {}", index))?;
+    let entry = rcc.entries.get(index).ok_or_else(|| format!("Invalid entry index: {}", index))?;
 
     if entry.is_directory {
         return Err("Cannot extract a directory entry".into());
     }
 
-    std::fs::write(&output_path, &entry.data)
-        .map_err(|e| format!("Failed to write file: {}", e))?;
+    std::fs::write(&output_path, &entry.data).map_err(|e| format!("Failed to write file: {}", e))?;
 
     Ok(())
 }
@@ -233,16 +211,12 @@ pub fn rcc_get_files() -> Result<Vec<RccFileInfo>, String> {
 /// Replace a resource entry with data read from a file on disk
 #[command]
 pub fn rcc_replace_from_file(index: usize, file_path: String) -> Result<RccFileInfo, String> {
-    let new_data = std::fs::read(&file_path)
-        .map_err(|e| format!("Failed to read replacement file: {}", e))?;
+    let new_data = std::fs::read(&file_path).map_err(|e| format!("Failed to read replacement file: {}", e))?;
 
     let mut state = RCC_STATE.lock();
     let rcc = state.file.as_mut().ok_or("No RCC file loaded")?;
 
-    let entry = rcc
-        .entries
-        .get_mut(index)
-        .ok_or_else(|| format!("Invalid entry index: {}", index))?;
+    let entry = rcc.entries.get_mut(index).ok_or_else(|| format!("Invalid entry index: {}", index))?;
 
     if entry.is_directory {
         return Err("Cannot replace data for a directory entry".into());
@@ -274,10 +248,7 @@ pub fn rcc_delete_resource(index: usize) -> Result<Vec<RccFileInfo>, String> {
     let mut state = RCC_STATE.lock();
     let rcc = state.file.as_mut().ok_or("No RCC file loaded")?;
 
-    let entry = rcc
-        .entries
-        .get(index)
-        .ok_or_else(|| format!("Invalid entry index: {}", index))?;
+    let entry = rcc.entries.get(index).ok_or_else(|| format!("Invalid entry index: {}", index))?;
 
     if entry.is_directory {
         return Err("Cannot delete a directory entry directly".into());
@@ -317,13 +288,9 @@ pub fn rcc_delete_resource(index: usize) -> Result<Vec<RccFileInfo>, String> {
 /// Add a new resource from a file on disk
 #[command]
 pub fn rcc_add_resource(file_path: String, rcc_path: String) -> Result<Vec<RccFileInfo>, String> {
-    let data = std::fs::read(&file_path)
-        .map_err(|e| format!("Failed to read file: {}", e))?;
+    let data = std::fs::read(&file_path).map_err(|e| format!("Failed to read file: {}", e))?;
 
-    let file_name = std::path::Path::new(&file_path)
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| "unnamed".to_string());
+    let file_name = std::path::Path::new(&file_path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "unnamed".to_string());
 
     let mut state = RCC_STATE.lock();
     let rcc = state.file.as_mut().ok_or("No RCC file loaded")?;
@@ -333,7 +300,11 @@ pub fn rcc_add_resource(file_path: String, rcc_path: String) -> Result<Vec<RccFi
         file_name.clone()
     } else {
         let clean = rcc_path.trim_matches('/').to_string();
-        if clean.is_empty() { file_name.clone() } else { clean }
+        if clean.is_empty() {
+            file_name.clone()
+        } else {
+            clean
+        }
     };
 
     // Create a new file entry
@@ -356,15 +327,7 @@ pub fn rcc_add_resource(file_path: String, rcc_path: String) -> Result<Vec<RccFi
         let mut current_parent = 0usize; // root
 
         for seg in &segments[..segments.len() - 1] {
-            let found = rcc.entries[current_parent]
-                .children
-                .iter()
-                .find(|&&c| {
-                    c < rcc.entries.len()
-                        && rcc.entries[c].is_directory
-                        && rcc.entries[c].name == *seg
-                })
-                .copied();
+            let found = rcc.entries[current_parent].children.iter().find(|&&c| c < rcc.entries.len() && rcc.entries[c].is_directory && rcc.entries[c].name == *seg).copied();
 
             if let Some(dir_idx) = found {
                 current_parent = dir_idx;
@@ -415,4 +378,3 @@ pub fn rcc_add_resource(file_path: String, rcc_path: String) -> Result<Vec<RccFi
 
     Ok(rcc.files.clone())
 }
-

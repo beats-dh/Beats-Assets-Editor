@@ -9,7 +9,9 @@ pub struct LuaNpcParser {
 
 impl LuaNpcParser {
     pub fn new(content: String) -> Self {
-        Self { content }
+        Self {
+            content,
+        }
     }
 
     pub fn parse(&self) -> Result<Npc> {
@@ -18,7 +20,7 @@ impl LuaNpcParser {
 
         let internal_name = self.extract_string_field_with_default("name", "", &mut missing_fields)?;
         let internal_desc = self.extract_string_field_with_default("description", "", &mut missing_fields)?;
-        
+
         npc.name = internal_name;
         npc.description = internal_desc;
         npc.health = self.extract_number_field_with_default("health", 100, &mut missing_fields)? as u32;
@@ -37,7 +39,7 @@ impl LuaNpcParser {
 
         npc.shop = self.parse_shop(&mut missing_fields).unwrap_or(None);
         npc.voices = self.parse_voices(&mut missing_fields).unwrap_or(None);
-        
+
         npc.interactions = self.parse_interactions()?;
 
         let mut meta = NpcMeta::default();
@@ -59,11 +61,11 @@ impl LuaNpcParser {
             if let Some(m) = caps.get(1) {
                 return Ok(Some(m.as_str().to_string()));
             } else {
-                 // matched internalNpcName
-                 let internal_re = Regex::new(r#"local\s+internalNpcName\s*=\s*"([^"]+)""#)?;
-                 if let Some(internal_caps) = internal_re.captures(&self.content) {
-                     return Ok(Some(internal_caps[1].to_string()));
-                 }
+                // matched internalNpcName
+                let internal_re = Regex::new(r#"local\s+internalNpcName\s*=\s*"([^"]+)""#)?;
+                if let Some(internal_caps) = internal_re.captures(&self.content) {
+                    return Ok(Some(internal_caps[1].to_string()));
+                }
             }
         }
         Ok(None)
@@ -85,9 +87,9 @@ impl LuaNpcParser {
         if let Some(caps) = re.captures(&self.content) {
             if &caps[1] == "npcConfig.health" {
                 // Return extracting health
-                 let health_pattern = r"npcConfig\.health\s*=\s*(-?\d+)";
-                 let health_re = Regex::new(health_pattern)?;
-                 return Ok(health_re.captures(&self.content).and_then(|caps| caps.get(1).and_then(|m| m.as_str().parse().ok())));
+                let health_pattern = r"npcConfig\.health\s*=\s*(-?\d+)";
+                let health_re = Regex::new(health_pattern)?;
+                return Ok(health_re.captures(&self.content).and_then(|caps| caps.get(1).and_then(|m| m.as_str().parse().ok())));
             }
             return Ok(Some(caps[1].parse()?));
         }
@@ -133,12 +135,20 @@ impl LuaNpcParser {
         let len = bytes.len();
         let mut idx = start_pos + search.len();
 
-        while idx < len && bytes[idx].is_ascii_whitespace() { idx += 1; }
-        if idx >= len || bytes[idx] != b'=' { return Err(anyhow!("Failed to find '='")); }
+        while idx < len && bytes[idx].is_ascii_whitespace() {
+            idx += 1;
+        }
+        if idx >= len || bytes[idx] != b'=' {
+            return Err(anyhow!("Failed to find '='"));
+        }
         idx += 1;
-        
-        while idx < len && bytes[idx].is_ascii_whitespace() { idx += 1; }
-        if idx >= len || bytes[idx] != b'{' { return Err(anyhow!("Failed to locate opening brace")); }
+
+        while idx < len && bytes[idx].is_ascii_whitespace() {
+            idx += 1;
+        }
+        if idx >= len || bytes[idx] != b'{' {
+            return Err(anyhow!("Failed to locate opening brace"));
+        }
 
         let start = idx + 1;
         let mut depth = 1;
@@ -146,18 +156,28 @@ impl LuaNpcParser {
 
         while cursor < len {
             match bytes[cursor] {
-                b'{' => { depth += 1; cursor += 1; }
+                b'{' => {
+                    depth += 1;
+                    cursor += 1;
+                }
                 b'}' => {
                     depth -= 1;
-                    if depth == 0 { return Ok(content[start..cursor].to_string()); }
+                    if depth == 0 {
+                        return Ok(content[start..cursor].to_string());
+                    }
                     cursor += 1;
                 }
                 b'"' => {
                     cursor += 1;
                     while cursor < len {
-                        if bytes[cursor] == b'\\' { cursor += 2; }
-                        else if bytes[cursor] == b'"' { cursor += 1; break; }
-                        else { cursor += 1; }
+                        if bytes[cursor] == b'\\' {
+                            cursor += 2;
+                        } else if bytes[cursor] == b'"' {
+                            cursor += 1;
+                            break;
+                        } else {
+                            cursor += 1;
+                        }
                     }
                 }
                 _ => cursor += 1,
@@ -190,24 +210,24 @@ impl LuaNpcParser {
         if !self.content.contains("npcConfig.shop") {
             return Ok(None);
         }
-        
+
         let re_direct = Regex::new(r"npcConfig\.shop\s*=\s*\{")?;
         if !re_direct.is_match(&self.content) {
             return Ok(None);
         }
-        
+
         let section = match self.extract_table("shop") {
             Ok(s) => s,
-            Err(_) => return Ok(None)
+            Err(_) => return Ok(None),
         };
-        
+
         let mut items = Vec::new();
         let item_re = Regex::new(r#"(?s)\{\s*(.*?)\s*\}"#)?;
-        
+
         for cap in item_re.captures_iter(&section) {
             let inner = &cap[1];
             let mut item = NpcShopItem::default();
-            
+
             if let Some(c) = Regex::new(r#"itemName\s*=\s*"([^"]+)""#)?.captures(inner) {
                 item.item_name = Some(c[1].to_string());
             } else if let Some(c) = Regex::new(r#"name\s*=\s*"([^"]+)""#)?.captures(inner) {
@@ -231,13 +251,15 @@ impl LuaNpcParser {
                 // `subType`/`subtype` is equivalent to `count` for NPC shop subtype in Canary.
                 item.count = Some(c[1].parse().unwrap_or(0));
             }
-            
+
             if item.item_name.is_some() || item.client_id.is_some() || item.item_id.is_some() {
                 items.push(item);
             }
         }
-        
-        if items.is_empty() { return Ok(None); }
+
+        if items.is_empty() {
+            return Ok(None);
+        }
         Ok(Some(items))
     }
 
@@ -245,12 +267,12 @@ impl LuaNpcParser {
         if !self.content.contains("npcConfig.voices") {
             return Ok(None);
         }
-        
+
         let section = match self.extract_table("voices") {
             Ok(s) => s,
-            Err(_) => return Ok(None)
+            Err(_) => return Ok(None),
         };
-        
+
         let mut voices = NpcVoices::default();
         if let Some(c) = Regex::new(r"interval\s*=\s*(\d+)")?.captures(&section) {
             voices.interval = c[1].parse().unwrap_or(0);
@@ -258,17 +280,20 @@ impl LuaNpcParser {
         if let Some(c) = Regex::new(r"chance\s*=\s*(\d+)")?.captures(&section) {
             voices.chance = c[1].parse().unwrap_or(0);
         }
-        
+
         let mut lines = Vec::new();
         let line_re = Regex::new(r#"(?s)\{\s*text\s*=\s*"([^"]+)"(?:,\s*yell\s*=\s*(true|false))?\s*\}"#)?;
-        
+
         for cap in line_re.captures_iter(&section) {
             let text = cap[1].to_string();
             let yell = cap.get(2).map_or(false, |m| m.as_str() == "true");
-            lines.push(NpcVoice { text, yell });
+            lines.push(NpcVoice {
+                text,
+                yell,
+            });
         }
         voices.lines = lines;
-        
+
         if voices.lines.is_empty() && voices.interval == 0 {
             return Ok(None);
         }
@@ -300,50 +325,53 @@ impl LuaNpcParser {
             let is_greet = cap.get(1).is_some();
             let words_str = cap[2].to_string();
             let response = cap[3].to_string();
-            
+
             let mut words = Vec::new();
             let word_re = Regex::new(r#""([^"]+)""#)?;
             for w_cap in word_re.captures_iter(&words_str) {
                 words.push(w_cap[1].to_string());
             }
 
-            // We differentiate simple keywords from greets natively later in IO writer or via custom flag, 
+            // We differentiate simple keywords from greets natively later in IO writer or via custom flag,
             // for now grouping them to display on the UI cleanly:
             if is_greet && !words.is_empty() {
-                 words[0] = format!("__greet:{}", words[0]); 
+                words[0] = format!("__greet:{}", words[0]);
             }
 
-            interactions.keywords.push(NpcKeyword { words, response });
+            interactions.keywords.push(NpcKeyword {
+                words,
+                response,
+            });
         }
 
         // 4. Raw Code Extraction
         let kw_handler_marker = "local keywordHandler = KeywordHandler:new()";
         if let Some(pos) = content.find(kw_handler_marker) {
             let raw_bottom = content[pos..].to_string();
-            
+
             let safe_marker = "npcType.onCloseChannel";
             if let Some(safe_pos) = raw_bottom.find(safe_marker) {
                 let mut after_events = raw_bottom[safe_pos..].to_string();
-                
+
                 // Jump past the onCloseChannel block
                 if let Some(end_idx) = after_events.find("end") {
                     after_events = after_events[end_idx + 3..].to_string();
                 }
-                
+
                 // Cleanup common footers so we only capture pure Custom Lua
                 let re_cleanup = Regex::new(r#"(?s)(npcHandler:addModule\([^)]+\)|npcType:register\([^)]+\)\s*|--\s*[^\n]+)"#)?;
                 let raw_code = re_cleanup.replace_all(&after_events, "").to_string();
-                
+
                 // Filter the already parsed keywords/messages to avoid duplicating them on IO rewrite
                 let re_kw_cleanup = Regex::new(r#"(?m)^.*keywordHandler:add.*Keyword.*\n?"#)?;
                 let raw_code = re_kw_cleanup.replace_all(&raw_code, "").to_string();
-                
+
                 let re_msg_cleanup = Regex::new(r#"(?m)^.*npcHandler:setMessage.*\n?"#)?;
                 let raw_code = re_msg_cleanup.replace_all(&raw_code, "").to_string();
 
                 let re_cb_cleanup = Regex::new(r#"(?m)^.*npcHandler:setCallback.*\n?"#)?;
                 let raw_code = re_cb_cleanup.replace_all(&raw_code, "").to_string();
-                
+
                 interactions.raw_code = raw_code.trim().to_string();
             }
         }

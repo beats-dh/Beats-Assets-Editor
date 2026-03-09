@@ -24,7 +24,7 @@ pub struct AppState {
     pub appearances: RwLock<Option<Appearances>>,
     pub sprite_loader: RwLock<Option<SpriteLoader>>,
     pub tibia_path: Mutex<Option<PathBuf>>,
-    
+
     // StaticData
     pub staticdata: RwLock<Option<StaticData>>,
     pub staticmapdata: RwLock<Option<StaticMapData>>,
@@ -32,7 +32,7 @@ pub struct AppState {
     // ✅ OPTIMIZED: Bounded LRU caches (prevents memory exhaustion)
     pub sprite_cache: LRUCache<String, Vec<Vec<u8>>>, // Max 5000 entries (appearance sprites)
     pub preview_cache: LRUCache<String, Vec<u8>>,     // Max 5000 entries (preview sprites)
-    pub png_cache: LRUCache<u32, Vec<u8>>,             // Max 5000 entries (individual PNG by sprite ID)
+    pub png_cache: LRUCache<u32, Vec<u8>>,            // Max 5000 entries (individual PNG by sprite ID)
 
     // O(1) lookup indexes - no more O(n) linear scans!
     // Maps: ID -> index in Vec for instant lookups
@@ -66,7 +66,7 @@ impl AppState {
             // LRU caches with size limits
             sprite_cache: LRUCache::new(5000),
             preview_cache: LRUCache::new(5000),
-            png_cache: LRUCache::new(5000),  // ~250MB max (5000 × ~50KB avg PNG)
+            png_cache: LRUCache::new(5000), // ~250MB max (5000 × ~50KB avg PNG)
 
             // Indexes
             object_index: DashMap::with_hasher(ahash::RandomState::new()),

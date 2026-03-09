@@ -603,10 +603,7 @@ pub async fn update_appearance_market(
 
     let flags = ensure_flags(appearance);
 
-    let market = if category_value.is_none()
-        && trade_as_object_id.is_none()
-        && show_as_object_id.is_none()
-    {
+    let market = if category_value.is_none() && trade_as_object_id.is_none() && show_as_object_id.is_none() {
         None
     } else {
         Some(crate::core::protobuf::AppearanceFlagMarket {
@@ -1410,7 +1407,7 @@ pub async fn update_appearance_npc_sale_data(category: AppearanceCategory, id: u
     };
 
     let flags = ensure_flags(appearance);
-    
+
     flags.npcsaledata.clear();
     for data in npc_sale_data {
         flags.npcsaledata.push(crate::core::protobuf::AppearanceFlagNpc {

@@ -73,12 +73,10 @@ pub struct RawFileInfo {
 
 #[command]
 pub async fn inspect_proficiency_file(file_path: String) -> Result<RawFileInfo, String> {
-    let content = fs::read_to_string(&file_path)
-        .map_err(|e| format!("Falha ao ler arquivo: {}", e))?;
+    let content = fs::read_to_string(&file_path).map_err(|e| format!("Falha ao ler arquivo: {}", e))?;
 
     let preview = content.chars().take(1000).collect::<String>();
-    let value: serde_json::Value = serde_json::from_str(&content)
-        .map_err(|e| format!("JSON inválido: {}", e))?;
+    let value: serde_json::Value = serde_json::from_str(&content).map_err(|e| format!("JSON inválido: {}", e))?;
 
     let (top_level_type, top_level_keys, array_length, first_value_type) = match &value {
         serde_json::Value::Array(arr) => {
@@ -93,7 +91,13 @@ pub async fn inspect_proficiency_file(file_path: String) -> Result<RawFileInfo, 
         other => (json_type_name(other), vec![], None, None),
     };
 
-    Ok(RawFileInfo { preview, top_level_type, top_level_keys, array_length, first_value_type })
+    Ok(RawFileInfo {
+        preview,
+        top_level_type,
+        top_level_keys,
+        array_length,
+        first_value_type,
+    })
 }
 
 fn json_type_name(v: &serde_json::Value) -> String {
@@ -104,17 +108,16 @@ fn json_type_name(v: &serde_json::Value) -> String {
         serde_json::Value::Number(_) => "number",
         serde_json::Value::Bool(_) => "bool",
         serde_json::Value::Null => "null",
-    }.to_string()
+    }
+    .to_string()
 }
 
 // ── Load ───────────────────────────────────────────────────────────────────
 
 #[command]
 pub async fn load_proficiency_file(file_path: String) -> Result<Vec<ProficiencyEntry>, String> {
-    let content = fs::read_to_string(&file_path)
-        .map_err(|e| format!("Falha ao ler arquivo: {}", e))?;
-    serde_json::from_str::<Vec<ProficiencyEntry>>(&content)
-        .map_err(|e| format!("Falha ao parsear proficiency: {}", e))
+    let content = fs::read_to_string(&file_path).map_err(|e| format!("Falha ao ler arquivo: {}", e))?;
+    serde_json::from_str::<Vec<ProficiencyEntry>>(&content).map_err(|e| format!("Falha ao parsear proficiency: {}", e))
 }
 
 // ── Save ───────────────────────────────────────────────────────────────────
@@ -155,8 +158,7 @@ fn preserve_number_formats(new_val: &mut serde_json::Value, original: &serde_jso
 
 #[command]
 pub async fn save_proficiency_file(file_path: String, data: Vec<ProficiencyEntry>) -> Result<(), String> {
-    let mut new_value = serde_json::to_value(&data)
-        .map_err(|e| format!("Falha ao serializar: {}", e))?;
+    let mut new_value = serde_json::to_value(&data).map_err(|e| format!("Falha ao serializar: {}", e))?;
 
     // Read the original file and preserve number formats for unchanged values
     if let Ok(original_content) = fs::read_to_string(&file_path) {
@@ -165,9 +167,7 @@ pub async fn save_proficiency_file(file_path: String, data: Vec<ProficiencyEntry
         }
     }
 
-    let json = serde_json::to_string_pretty(&new_value)
-        .map_err(|e| format!("Falha ao formatar JSON: {}", e))?;
-    fs::write(&file_path, json)
-        .map_err(|e| format!("Falha ao salvar arquivo: {}", e))?;
+    let json = serde_json::to_string_pretty(&new_value).map_err(|e| format!("Falha ao formatar JSON: {}", e))?;
+    fs::write(&file_path, json).map_err(|e| format!("Falha ao salvar arquivo: {}", e))?;
     Ok(())
 }
