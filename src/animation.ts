@@ -4,10 +4,10 @@ import { getAppearanceSprites } from './spriteCache';
 import { getSpriteUrl } from './utils/spriteUrlCache';
 import { buildAssetPreviewAnimation } from './features/previewAnimation/assetPreviewAnimator';
 import { perfConfig } from './stores/performanceConfig.svelte';
+import { unifiedSpriteCache } from './utils/unifiedSpriteCache';
 
 // Active animation players storage
 const activeAnimationPlayers = new Map<string, number>();
-const detailCache = new Map<string, CompleteAppearanceItem>();
 
 // Redraws a sprite URL onto an existing canvas (nearest-neighbor)
 function redrawCanvas(canvas: HTMLCanvasElement, url: string): void {
@@ -374,18 +374,18 @@ export function initAssetCardAutoAnimation(
   const canvasEl = container?.querySelector('canvas') as HTMLCanvasElement | null;
   if (!container || !canvasEl) return;
 
-  const cacheKey = `${category}:${appearanceId}`;
-
   const startAnimation = async (): Promise<void> => {
     try {
       if (!autoAnimateGridEnabled) return;
       if (activeAnimationPlayers.has(`asset:${category}:${appearanceId}`)) return;
       if (activeAnimationPlayers.size >= perfConfig.maxAutoAnimations) return;
 
-      const details = detailCache.has(cacheKey)
-        ? detailCache.get(cacheKey)!
-        : await invoke('get_complete_appearance', { category, id: appearanceId }) as CompleteAppearanceItem;
-      detailCache.set(cacheKey, details);
+      // Use unified cache for appearance details (elimina detailCache separado)
+      let details = unifiedSpriteCache.getDetails(category, appearanceId);
+      if (!details) {
+        details = await invoke('get_complete_appearance', { category, id: appearanceId }) as CompleteAppearanceItem;
+        unifiedSpriteCache.setDetails(category, appearanceId, details);
+      }
 
       const sprites = await getAppearanceSprites(category, appearanceId);
 

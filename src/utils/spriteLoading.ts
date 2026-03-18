@@ -1,15 +1,11 @@
 import { getAppearancePreviewSpritesBatch, createSpriteImage, createPlaceholderImage, getAppearanceSprites } from '../spriteCache';
 import { initAssetCardAutoAnimation, initDetailSpriteCardAnimations } from '../animation';
-import { getDecodedSpriteBuffer, invalidateDecodedSpriteCache } from './decodedSpriteCache';
+import { decodeSpriteOffThread } from './imageDecodeWorkerClient';
+import { unifiedSpriteCache } from './unifiedSpriteCache';
 import type { CompleteAppearanceItem } from '../types';
-import { LRUCache } from './lruCache';
 import { isElementIdInViewport } from './viewportUtils';
 import { performanceMonitor } from './performanceMonitor';
 import { perfConfig } from '../stores/performanceConfig.svelte';
-
-const previewSpriteCache = new LRUCache<string, Uint8Array>(
-  perfConfig.maxPreviewCacheSize
-);
 
 const animationQueue: Array<{ category: string; id: number }> = [];
 const enqueuedAnimations = new Set<string>();
@@ -26,8 +22,8 @@ const scheduleIdle = (cb: () => void): void => {
 const prefixLoadIds = new Map<string, number>();
 
 export function clearPreviewSpriteCaches(): void {
-  previewSpriteCache.clear();
-  invalidateDecodedSpriteCache('appearance-preview:');
+  // Previews now live in unified cache — clear only the preview field
+  unifiedSpriteCache.clearAllPreviews();
 }
 
 export function clearAssetsQueryCachesForSprites(): void {
@@ -36,18 +32,9 @@ export function clearAssetsQueryCachesForSprites(): void {
   processingAnimations = false;
 }
 
-function getPreviewCacheKey(category: string, id: number): string {
-  return `${category}:${id}`;
-}
-
-function getPreviewDecodedCacheKey(category: string, id: number): string {
-  return `appearance-preview:${category}:${id}`;
-}
-
 function invalidateAssetPreviewCache(category: string, id: number): void {
-  const previewKey = getPreviewCacheKey(category, id);
-  previewSpriteCache.delete(previewKey);
-  invalidateDecodedSpriteCache(getPreviewDecodedCacheKey(category, id));
+  // Clear only the preview (keeps raw sprites/details for reuse)
+  unifiedSpriteCache.clearPreview(category, id);
 }
 
 function enqueueAnimations(category: string, ids: number[]): void {
@@ -62,7 +49,6 @@ function enqueueAnimations(category: string, ids: number[]): void {
     processingAnimations = true;
 
     const process = (): void => {
-      // ✅ OPTIMIZED: Sort queue by viewport priority before processing
       animationQueue.sort((a, b) => {
         const aElement = document.getElementById(`sprite-${a.id}`);
         const bElement = document.getElementById(`sprite-${b.id}`);
@@ -82,7 +68,6 @@ function enqueueAnimations(category: string, ids: number[]): void {
       });
 
       let processed = 0;
-      // We need to access autoAnimateGridEnabled. For now we assume false or get from localStorage
       const stored = localStorage.getItem('autoAnimateGridEnabled');
       const autoAnimate = stored === 'true';
 
@@ -108,7 +93,6 @@ function enqueueAnimations(category: string, ids: number[]): void {
 export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], category: string, prefix: string = "sprite-", skipAnimations: boolean = false): Promise<void> {
   if (assets.length === 0) return;
 
-  // ✅ OPTIMIZED: Performance monitoring
   performanceMonitor.mark('loadSprites');
 
   // Increment load ID per prefix to invalidate previous load operations
@@ -131,8 +115,9 @@ export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], cat
 
     container.innerHTML = '';
     container.dataset.spriteFor = String(asset.id);
-    const cacheKey = getPreviewCacheKey(loadCategory, asset.id);
-    const cachedPreview = previewSpriteCache.get(cacheKey);
+
+    // Check unified cache for preview
+    const cachedPreview = unifiedSpriteCache.getPreview(loadCategory, asset.id);
     if (cachedPreview) {
       container.appendChild(createSpriteImage(cachedPreview));
       readyToAnimate.push(asset.id);
@@ -146,7 +131,6 @@ export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], cat
     enqueueAnimations(loadCategory, readyToAnimate);
   }
 
-  // ✅ OPTIMIZED: Track cache hit rate
   const totalRequests = assets.length;
   const cacheHits = readyToAnimate.length;
   performanceMonitor.trackCacheHitRate(cacheHits, totalRequests);
@@ -169,11 +153,17 @@ export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], cat
       if (!asset) continue;
       const container = document.getElementById(`${prefix}${asset.id}`);
       if (!container || container.querySelector('canvas')) continue; // Already rendered
-      const decoded = await getDecodedSpriteBuffer(
-        getPreviewDecodedCacheKey(loadCategory, asset.id),
-        previewSprite
-      );
-      previewSpriteCache.set(getPreviewCacheKey(loadCategory, asset.id), decoded);
+
+      // Decode via Worker direto (sem decodedSpriteCache intermediário)
+      let decoded = previewSprite;
+      try {
+        const result = await decodeSpriteOffThread(previewSprite);
+        if (result) decoded = new Uint8Array(result);
+      } catch { /* fallback: use raw */ }
+
+      // Store in unified cache
+      unifiedSpriteCache.setPreview(loadCategory, asset.id, decoded);
+
       container.innerHTML = '';
       container.appendChild(createSpriteImage(decoded));
       batchReady.push(asset.id);
@@ -205,76 +195,74 @@ export async function refreshAssetPreview(category: string, id: number): Promise
     return;
   }
 
-  const cacheKey = getPreviewCacheKey(category, id);
-  const decoded = await getDecodedSpriteBuffer(getPreviewDecodedCacheKey(category, id), previewSprite);
-  previewSpriteCache.set(cacheKey, decoded);
+  // Decode direto via Worker
+  let decoded = previewSprite;
+  try {
+    const result = await decodeSpriteOffThread(previewSprite);
+    if (result) decoded = new Uint8Array(result);
+  } catch { /* fallback */ }
+
+  unifiedSpriteCache.setPreview(category, id, decoded);
   spriteContainer.innerHTML = '';
   spriteContainer.appendChild(createSpriteImage(decoded));
   enqueueAnimations(category, [id]);
 }
 
 // ============================================================================
-// Detail Sprites Loading Logic (Ported from assetDetails.ts)
+// Detail Sprites Loading Logic
 // ============================================================================
 
-const detailSpriteCache = new Map<string, Uint8Array[]>();
-const detailSpritePromises = new Map<string, Promise<Uint8Array[]>>();
-
-function getDetailSpriteCacheKey(category: string, id: number): string {
-  return `${category}:${id}`;
-}
-
+/**
+ * Get raw sprites for an appearance, with request deduplication.
+ * Uses unified cache as single source of truth.
+ */
 export function getDetailSprites(category: string, id: number): Promise<Uint8Array[]> {
-  const key = getDetailSpriteCacheKey(category, id);
-  const cached = detailSpriteCache.get(key);
+  // Check unified cache for raw sprites
+  const cached = unifiedSpriteCache.getRawSprites(category, id);
   if (cached) {
     return Promise.resolve(cached);
   }
 
-  const inflight = detailSpritePromises.get(key);
+  // Check for in-flight request (dedup)
+  const inflight = unifiedSpriteCache.getInflightSprites(category, id);
   if (inflight) {
     return inflight;
   }
 
+  // Fetch from backend via spriteCache.ts (which also stores in unified cache)
   const promise = getAppearanceSprites(category, id)
     .then((sprites) => {
-      detailSpriteCache.set(key, sprites);
-      detailSpritePromises.delete(key);
+      unifiedSpriteCache.clearInflightSprites(category, id);
       return sprites;
     })
     .catch((error) => {
-      detailSpritePromises.delete(key);
+      unifiedSpriteCache.clearInflightSprites(category, id);
       throw error;
     });
 
-  detailSpritePromises.set(key, promise);
+  unifiedSpriteCache.setInflightSprites(category, id, promise);
   return promise;
-}
-
-function getDecodedSpriteCacheKey(category: string, id: number, spriteIndex: number): string {
-  return `appearance:${category}:${id}:${spriteIndex}`;
 }
 
 export type SpriteLoader = () => Promise<Uint8Array[]>;
 
+/**
+ * Creates a sprite loader that decodes all sprites via Web Worker.
+ * Uses unified cache to avoid re-decoding.
+ */
 export function createDetailSpriteLoader(category: string, id: number): SpriteLoader {
   const spritesPromise = getDetailSprites(category, id)
-    .then(async (sprites) => {
-      const decodedSprites = await Promise.all(
-        sprites.map((sprite, index) =>
-          getDecodedSpriteBuffer(getDecodedSpriteCacheKey(category, id, index), sprite)
-        )
-      );
-      return decodedSprites;
+    .then(async () => {
+      // Use unified cache's decode-on-demand
+      const decoded = await unifiedSpriteCache.getOrDecodeSprites(category, id);
+      return decoded ?? [];
     });
   return () => spritesPromise;
 }
 
 export function invalidateDetailSpriteCache(category: string, id: number): void {
-  const key = getDetailSpriteCacheKey(category, id);
-  detailSpriteCache.delete(key);
-  detailSpritePromises.delete(key);
-  invalidateDecodedSpriteCache(`appearance:${category}:${id}:`);
+  // Single invalidation point — clears everything for this appearance
+  unifiedSpriteCache.invalidate(category, id);
 }
 
 

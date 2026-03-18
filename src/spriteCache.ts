@@ -1,15 +1,13 @@
 import { invoke } from '@tauri-apps/api/core';
 import { clearPreviewAnimationCache } from './features/previewAnimation/assetPreviewAnimator';
 import { getSpriteUrl, clearSpriteUrlCache } from './utils/spriteUrlCache';
-import { getDecodedSpriteBuffer, invalidateDecodedSpriteCache } from './utils/decodedSpriteCache';
+import { decodeSpriteOffThread } from './utils/imageDecodeWorkerClient';
 import { perfConfig } from './stores/performanceConfig.svelte';
-import { createSimpleCache, createCacheWithEviction } from './utils/closureCache';
+import { createSimpleCache } from './utils/closureCache';
+import { unifiedSpriteCache } from './utils/unifiedSpriteCache';
 
-// Cache para sprites individuais por ID (closure — Map interno inacessível externamente)
+// Cache para sprites individuais por ID (key space diferente: sprite ID, não appearance ID)
 const singleSpriteCache = createSimpleCache<number, Uint8Array>();
-
-// Cache de appearances com eviction automática via closure (category:id -> Uint8Array[])
-const appearanceSpriteCache = createCacheWithEviction<string, Uint8Array[]>(perfConfig.appearanceCacheMax);
 
 let spritesLoaded = false;
 let spritesLoadAttempted = false;
@@ -37,11 +35,6 @@ export function getCachedSpriteById(spriteId: number): Uint8Array | null {
   return singleSpriteCache.get(spriteId) ?? null;
 }
 
-/** Direct access to the appearance cache entry (for granular updates) */
-function getAppearanceCacheEntry(category: string, id: number): Uint8Array[] | undefined {
-  return appearanceSpriteCache.get(getSpritesCacheKey(category, id));
-}
-
 export async function getSpriteById(spriteId: number): Promise<Uint8Array | null> {
   if (!Number.isFinite(spriteId)) return null;
 
@@ -61,7 +54,12 @@ export async function getSpriteById(spriteId: number): Promise<Uint8Array | null
     const sprite = await invoke('get_sprite_by_id', { spriteId }) as number[] | Uint8Array | null;
     const data = normalizeSpriteBuffer(sprite);
     if (data) {
-      const decoded = await getDecodedSpriteBuffer(`sprite:${spriteId}`, data);
+      // Decode direto via Worker (sem decodedSpriteCache intermediário)
+      let decoded = data;
+      try {
+        const result = await decodeSpriteOffThread(data);
+        if (result) decoded = new Uint8Array(result);
+      } catch { /* fallback: use raw */ }
       singleSpriteCache.set(spriteId, decoded);
       return decoded;
     }
@@ -74,8 +72,7 @@ export async function getSpriteById(spriteId: number): Promise<Uint8Array | null
 
 export function clearSpritesCache(): void {
   singleSpriteCache.clear();
-  appearanceSpriteCache.clear();
-  invalidateDecodedSpriteCache('sprite:');
+  unifiedSpriteCache.clear();
   clearSpriteUrlCache();
   clearPreviewAnimationCache();
 }
@@ -125,9 +122,8 @@ export async function getAppearanceSprites(category: string, appearanceId: numbe
     return [];
   }
 
-  // Check frontend cache first (avoids IPC)
-  const cacheKey = getSpritesCacheKey(category, appearanceId);
-  const cached = appearanceSpriteCache.get(cacheKey);
+  // Check unified cache (single source of truth)
+  const cached = unifiedSpriteCache.getRawSprites(category, appearanceId);
   if (cached) return cached;
 
   try {
@@ -140,8 +136,8 @@ export async function getAppearanceSprites(category: string, appearanceId: numbe
       .map(sprite => normalizeSpriteBuffer(sprite))
       .filter((sprite): sprite is Uint8Array => !!sprite);
 
-    // Eviction automática via closure cache — sem checagem manual
-    appearanceSpriteCache.set(cacheKey, normalized);
+    // Store in unified cache (LRU eviction automática)
+    unifiedSpriteCache.setRawSprites(category, appearanceId, normalized);
 
     return normalized;
   } catch (error) {
@@ -150,42 +146,32 @@ export async function getAppearanceSprites(category: string, appearanceId: numbe
   }
 }
 
-// --- Granular cache invalidation ---
+// --- Granular cache invalidation (delegates to unified cache) ---
 
 /** Update a single sprite at a specific index in the cached appearance */
 export function updateCachedAppearanceSprite(
   category: string, id: number, index: number, newBuffer: Uint8Array
 ): void {
-  const cached = getAppearanceCacheEntry(category, id);
-  if (cached && index >= 0 && index < cached.length) {
-    cached[index] = newBuffer;
-  }
+  unifiedSpriteCache.updateSprite(category, id, index, newBuffer);
 }
 
 /** Append sprite buffers to the cached appearance */
 export function appendCachedAppearanceSprites(
   category: string, id: number, buffers: Uint8Array[]
 ): void {
-  const cached = getAppearanceCacheEntry(category, id);
-  if (cached) cached.push(...buffers);
+  unifiedSpriteCache.appendSprites(category, id, buffers);
 }
 
 /** Remove sprites at specific indices from the cached appearance */
 export function removeCachedAppearanceSprites(
   category: string, id: number, indices: number[]
 ): void {
-  const cached = getAppearanceCacheEntry(category, id);
-  if (cached) {
-    const sorted = [...indices].sort((a, b) => b - a);
-    for (const i of sorted) {
-      if (i >= 0 && i < cached.length) cached.splice(i, 1);
-    }
-  }
+  unifiedSpriteCache.removeSprites(category, id, indices);
 }
 
 /** Full invalidation for structural changes (texture settings, frame groups) */
 export function invalidateAppearanceCache(category: string, id: number): void {
-  appearanceSpriteCache.delete(getSpritesCacheKey(category, id));
+  unifiedSpriteCache.invalidate(category, id);
 }
 
 /**
@@ -321,7 +307,8 @@ export function pixelSprite(canvas: HTMLCanvasElement, src: string | null) {
 export const debugCache = {
   getFrontendCacheStats: () => ({
     singleSpriteCacheSize: singleSpriteCache.size,
-    appearanceSpriteCacheSize: appearanceSpriteCache.size,
+    unifiedCacheSize: unifiedSpriteCache.size,
+    unifiedCacheStats: unifiedSpriteCache.getStats(),
   }),
   getBackendCacheStats: async () => {
     try {
