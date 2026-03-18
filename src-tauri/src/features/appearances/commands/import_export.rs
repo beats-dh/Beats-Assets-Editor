@@ -918,7 +918,6 @@ fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> R
     let sprite_loader = sprite_loader_lock.as_ref();
 
     for appearance in appearances.iter() {
-
         let sprite_ids: Vec<u32> = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()).collect();
         for sprite_id in sprite_ids {
             let sprite_bytes = if let Some(mem_bytes) = state.imported_sprites.get(&sprite_id) {
