@@ -94,7 +94,7 @@ pub fn parse_qm(data: &[u8]) -> Result<QmFile, String> {
         if pos + 4 > data.len() {
             break;
         }
-        let size = u32::from_be_bytes(data[pos..pos + 4].try_into().unwrap()) as usize;
+        let size = u32::from_be_bytes(data[pos..pos + 4].try_into().map_err(|_| format!("Failed to read section size at offset {}", pos))?) as usize;
         pos += 4;
 
         if pos + size > data.len() {
@@ -123,8 +123,8 @@ pub fn parse_qm(data: &[u8]) -> Result<QmFile, String> {
 
     for i in 0..num_entries {
         let base = i * 8;
-        let hash = u32::from_be_bytes(hashes[base..base + 4].try_into().unwrap());
-        let offset = u32::from_be_bytes(hashes[base + 4..base + 8].try_into().unwrap()) as usize;
+        let hash = u32::from_be_bytes(hashes[base..base + 4].try_into().map_err(|_| format!("Failed to read hash at entry {}", i))?);
+        let offset = u32::from_be_bytes(hashes[base + 4..base + 8].try_into().map_err(|_| format!("Failed to read offset at entry {}", i))?) as usize;
 
         if offset >= messages.len() {
             log::warn!("Hash entry {} has out-of-bounds offset {}", i, offset);

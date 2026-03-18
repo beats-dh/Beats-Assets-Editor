@@ -125,8 +125,8 @@
       const audio = new Audio(`data:audio/ogg;base64,${audioData}`);
       currentAudio = audio;
       isPlaying = true;
-      audio.addEventListener("ended", () => stopAudio());
-      audio.addEventListener("error", () => stopAudio());
+      audio.addEventListener("ended", () => stopAudio(), { once: true });
+      audio.addEventListener("error", () => stopAudio(), { once: true });
       await audio.play();
     } catch (e) {
       console.error("Failed to play sound:", id, e);

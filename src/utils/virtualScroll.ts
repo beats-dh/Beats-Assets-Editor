@@ -26,6 +26,7 @@ export class VirtualScroll<T> {
   private viewport: HTMLElement;
   private onRenderItem: (item: T, index: number) => HTMLElement;
   private renderedElements = new Map<number, HTMLElement>();
+  private scrollHandler: (() => void) | null = null;
 
   constructor(
     container: HTMLElement,
@@ -53,11 +54,12 @@ export class VirtualScroll<T> {
   }
 
   private setupScrollListener(): void {
-    this.container.addEventListener('scroll', () => {
+    this.scrollHandler = () => {
       this.state.scrollTop = this.container.scrollTop;
       this.updateVisibleRange();
       this.render();
-    });
+    };
+    this.container.addEventListener('scroll', this.scrollHandler, { passive: true });
   }
 
   private updateVisibleRange(): void {
@@ -142,6 +144,11 @@ export class VirtualScroll<T> {
   }
 
   destroy(): void {
+    // Remove scroll listener to prevent memory leaks
+    if (this.scrollHandler) {
+      this.container.removeEventListener('scroll', this.scrollHandler);
+      this.scrollHandler = null;
+    }
     this.clear();
     this.viewport.remove();
   }

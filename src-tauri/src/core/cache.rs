@@ -101,6 +101,19 @@ where
             size: self.cache.len(),
             max_size: self.max_size,
             utilization: (self.cache.len() as f64 / self.max_size as f64) * 100.0,
+            estimated_memory_bytes: 0, // Base stats without memory tracking
+        }
+    }
+
+    /// Get cache statistics with estimated memory usage.
+    /// `avg_value_bytes` is the estimated average size of each cached value in bytes.
+    pub fn stats_with_memory_estimate(&self, avg_value_bytes: u64) -> CacheStats {
+        let size = self.cache.len();
+        CacheStats {
+            size,
+            max_size: self.max_size,
+            utilization: (size as f64 / self.max_size as f64) * 100.0,
+            estimated_memory_bytes: size as u64 * avg_value_bytes,
         }
     }
 
@@ -139,12 +152,14 @@ where
     }
 }
 
-/// Cache statistics
+/// Cache statistics with memory estimation
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct CacheStats {
     pub size: usize,
     pub max_size: usize,
     pub utilization: f64,
+    /// Estimated memory usage in bytes (0 if not available)
+    pub estimated_memory_bytes: u64,
 }
 
 #[cfg(test)]

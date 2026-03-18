@@ -5,7 +5,29 @@ use crate::state::AppState;
 use tauri::State;
 use serde::Serialize;
 use std::sync::Arc;
+use std::hash::{Hash, Hasher};
 use rayon::prelude::*;
+
+/// Build a cache key using hashing instead of format!() to avoid string allocation in hot paths.
+/// Uses ahash for faster hashing (already a project dependency).
+#[inline]
+fn build_cache_key(category: &AppearanceCategory, search: &str, subcategory: &ItemSubcategory) -> String {
+    let mut hasher = ahash::AHasher::default();
+    std::mem::discriminant(category).hash(&mut hasher);
+    search.hash(&mut hasher);
+    std::mem::discriminant(subcategory).hash(&mut hasher);
+    // Use a compact numeric key instead of debug-formatted string
+    format!("{:x}", hasher.finish())
+}
+
+/// Build a cache key for position lookups (no search term).
+#[inline]
+fn build_position_cache_key(category: &AppearanceCategory, subcategory: &ItemSubcategory) -> String {
+    let mut hasher = ahash::AHasher::default();
+    std::mem::discriminant(category).hash(&mut hasher);
+    std::mem::discriminant(subcategory).hash(&mut hasher);
+    format!("p:{:x}", hasher.finish())
+}
 
 #[derive(Serialize)]
 pub struct AppearancePage {
@@ -27,8 +49,8 @@ pub async fn list_appearances_by_category(
     subcategory: Option<ItemSubcategory>,
     state: State<'_, AppState>,
 ) -> Result<AppearancePage, String> {
-    // Build cache key for this exact query
-    let cache_key = format!("{:?}:{}:{:?}", category, search.as_deref().unwrap_or(""), subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
+    // Build cache key using hash (avoids format!() string allocation in hot path)
+    let cache_key = build_cache_key(&category, search.as_deref().unwrap_or(""), subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
 
     // Check cache first (lock-free DashMap)
     if let Some(cached_ids) = state.search_cache.get(&cache_key) {
@@ -56,16 +78,18 @@ pub async fn list_appearances_by_category(
             });
         }
 
-        let result: Vec<AppearanceItem> = ids_slice[start..end]
-            .iter()
-            .filter_map(|&id| {
-                if let Some(idx) = index_map.get(&id) {
-                    items.get(*idx).map(|appearance| create_appearance_item_response(id, appearance))
-                } else {
-                    items.iter().find(|app| app.id.unwrap_or(0) == id).map(|appearance| create_appearance_item_response(id, appearance))
-                }
-            })
-            .collect();
+        let page_len = end - start;
+        let mut result: Vec<AppearanceItem> = Vec::with_capacity(page_len);
+        for &id in &ids_slice[start..end] {
+            let appearance = if let Some(idx) = index_map.get(&id) {
+                items.get(*idx)
+            } else {
+                items.iter().find(|app| app.id.unwrap_or(0) == id)
+            };
+            if let Some(app) = appearance {
+                result.push(create_appearance_item_response(id, app));
+            }
+        }
 
         return Ok(AppearancePage {
             total: ids_slice.len(),
@@ -200,18 +224,18 @@ pub async fn list_appearances_by_category(
     }
 
     let ids_slice = filtered_ids.as_ref();
-    let result: Vec<AppearanceItem> = ids_slice[start..end]
-        .iter()
-        .filter_map(|&id| {
-            let appearance = if let Some(idx) = index_map.get(&id) {
-                items.get(*idx)
-            } else {
-                items.iter().find(|app| app.id.unwrap_or(0) == id)
-            };
-
-            appearance.map(|appearance| create_appearance_item_response(id, appearance))
-        })
-        .collect();
+    let page_len = end - start;
+    let mut result: Vec<AppearanceItem> = Vec::with_capacity(page_len);
+    for &id in &ids_slice[start..end] {
+        let appearance = if let Some(idx) = index_map.get(&id) {
+            items.get(*idx)
+        } else {
+            items.iter().find(|app| app.id.unwrap_or(0) == id)
+        };
+        if let Some(app) = appearance {
+            result.push(create_appearance_item_response(id, app));
+        }
+    }
 
     Ok(AppearancePage {
         total,
@@ -225,8 +249,8 @@ pub async fn list_appearances_by_category(
 /// - parking_lot RwLock (3x faster)
 #[tauri::command]
 pub async fn find_appearance_position(category: AppearanceCategory, id: u32, subcategory: Option<ItemSubcategory>, state: State<'_, AppState>) -> Result<Option<usize>, String> {
-    // Build cache key (same as list_appearances_by_category)
-    let cache_key = format!("{:?}::{:?}", category, subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
+    // Build cache key using hash (same strategy as list_appearances_by_category)
+    let cache_key = build_position_cache_key(&category, subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
 
     // Check cache first
     if let Some(cached_ids) = state.search_cache.get(&cache_key) {
@@ -342,8 +366,8 @@ pub async fn get_appearance_details(category: AppearanceCategory, id: u32, state
 /// - parking_lot RwLock (3x faster)
 #[tauri::command]
 pub async fn get_appearance_count(category: AppearanceCategory, search: Option<String>, subcategory: Option<ItemSubcategory>, state: State<'_, AppState>) -> Result<usize, String> {
-    // Build cache key
-    let cache_key = format!("{:?}:{}:{:?}", category, search.as_deref().unwrap_or(""), subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
+    // Build cache key using hash
+    let cache_key = build_cache_key(&category, search.as_deref().unwrap_or(""), subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
 
     // Check cache first
     if let Some(cached_ids) = state.search_cache.get(&cache_key) {

@@ -85,13 +85,17 @@ impl AppState {
         }
     }
 
-    /// Get cache statistics for monitoring
+    /// Get cache statistics for monitoring with estimated memory usage
     pub fn cache_stats(&self) -> CacheStatistics {
         CacheStatistics {
-            sprite_cache: self.sprite_cache.stats(),
-            preview_cache: self.preview_cache.stats(),
-            png_cache: self.png_cache.stats(),
+            // Sprite cache: avg ~20KB per appearance (multiple sprite frames)
+            sprite_cache: self.sprite_cache.stats_with_memory_estimate(20_000),
+            // Preview cache: avg ~5KB per preview sprite
+            preview_cache: self.preview_cache.stats_with_memory_estimate(5_000),
+            // PNG cache: avg ~50KB per individual PNG
+            png_cache: self.png_cache.stats_with_memory_estimate(50_000),
             search_cache_size: self.search_cache.len(),
+            imported_sprites_count: self.imported_sprites.len(),
         }
     }
 
@@ -111,11 +115,18 @@ impl Default for AppState {
     }
 }
 
-/// Cache statistics for monitoring
+/// Cache statistics for monitoring with memory estimates
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct CacheStatistics {
     pub sprite_cache: crate::core::cache::CacheStats,
     pub preview_cache: crate::core::cache::CacheStats,
     pub png_cache: crate::core::cache::CacheStats,
     pub search_cache_size: usize,
+    pub imported_sprites_count: usize,
+}
+
+/// Tauri command to get cache memory statistics
+#[tauri::command]
+pub fn get_cache_memory_stats(state: tauri::State<'_, AppState>) -> CacheStatistics {
+    state.cache_stats()
 }

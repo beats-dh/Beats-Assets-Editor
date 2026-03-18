@@ -81,6 +81,8 @@ pub fn run() {
             features::sprites::commands::get_appearance_preview_sprite,
             features::sprites::commands::clear_sprite_cache,
             features::sprites::commands::get_sprite_cache_stats,
+            // Cache memory monitoring
+            state::get_cache_memory_stats,
             // Batch sprite loading - MASSIVE performance boost for preview grids
             features::sprites::commands::get_appearance_sprites_batch,
             features::sprites::commands::get_appearance_preview_sprites_batch,

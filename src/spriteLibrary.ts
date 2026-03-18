@@ -22,6 +22,9 @@ let pageSize = 100;
 let order: 'asc' | 'desc' = 'asc';
 let hasLoadedSprites = false;
 
+// Cleanup functions for event listeners (prevents memory leaks on re-init)
+let cleanupFns: (() => void)[] = [];
+
 // Virtual scrolling state
 let itemHeight = 80; // altura estimada de cada item em px
 let visibleStartIndex = 0;
@@ -375,54 +378,74 @@ function toggleDrawer(force?: boolean): void {
   }
 }
 
+/** Helper: adds event listener and tracks it for cleanup */
+function addTrackedListener<K extends keyof HTMLElementEventMap>(
+  el: HTMLElement | Document,
+  type: K,
+  handler: (ev: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions
+): void {
+  el.addEventListener(type, handler as EventListener, options);
+  cleanupFns.push(() => el.removeEventListener(type, handler as EventListener, options));
+}
+
+/** Remove all tracked event listeners (prevents leaks on re-init) */
+export function destroySpriteLibraryUI(): void {
+  for (const fn of cleanupFns) fn();
+  cleanupFns.length = 0;
+}
+
 export function initSpriteLibraryUI(): void {
+  // Clean up previous listeners if re-initializing
+  destroySpriteLibraryUI();
+
   const { backdrop, closeBtn, searchInput, searchBtn, loadBtn, startInput, sizeInput, orderBtn, prevBtn, nextBtn, list } = getElements();
 
-  closeBtn?.addEventListener('click', () => toggleDrawer(false));
-  backdrop?.addEventListener('click', () => toggleDrawer(false));
+  if (closeBtn) addTrackedListener(closeBtn, 'click', () => toggleDrawer(false));
+  if (backdrop) addTrackedListener(backdrop, 'click', () => toggleDrawer(false));
 
   // Virtual scroll listener
-  list?.addEventListener('scroll', () => {
+  if (list) addTrackedListener(list, 'scroll', () => {
     if (visibleRange.length > 500) {
       renderList();
     }
   }, { passive: true });
 
-  loadBtn?.addEventListener('click', async () => {
+  if (loadBtn) addTrackedListener(loadBtn, 'click', async () => {
     loadInputsFromUI();
     await loadPageFromState();
   });
 
-  searchBtn?.addEventListener('click', async () => {
+  if (searchBtn) addTrackedListener(searchBtn, 'click', async () => {
     if (!searchInput) return;
     await loadSprites(searchInput.value);
   });
 
-  searchInput?.addEventListener('keydown', async (event) => {
+  if (searchInput) addTrackedListener(searchInput, 'keydown', async (event) => {
     if (event.key === 'Enter') {
       event.preventDefault();
       await loadSprites(searchInput.value);
     }
   });
 
-  startInput?.addEventListener('change', () => loadInputsFromUI());
-  sizeInput?.addEventListener('change', () => loadInputsFromUI());
+  if (startInput) addTrackedListener(startInput, 'change', () => loadInputsFromUI());
+  if (sizeInput) addTrackedListener(sizeInput, 'change', () => loadInputsFromUI());
 
-  orderBtn?.addEventListener('click', () => {
+  if (orderBtn) addTrackedListener(orderBtn, 'click', () => {
     order = order === 'asc' ? 'desc' : 'asc';
     updateOrderButtonText();
     void loadPageFromState();
   });
 
-  prevBtn?.addEventListener('click', () => {
+  if (prevBtn) addTrackedListener(prevBtn, 'click', () => {
     goToPrevPage();
   });
 
-  nextBtn?.addEventListener('click', () => {
+  if (nextBtn) addTrackedListener(nextBtn, 'click', () => {
     goToNextPage();
   });
 
-  document.addEventListener('keydown', (event) => {
+  addTrackedListener(document, 'keydown', (event) => {
     if (event.key === 'Escape') {
       toggleDrawer(false);
     }
