@@ -3,12 +3,13 @@ import { clearPreviewAnimationCache } from './features/previewAnimation/assetPre
 import { getSpriteUrl, clearSpriteUrlCache } from './utils/spriteUrlCache';
 import { getDecodedSpriteBuffer, invalidateDecodedSpriteCache } from './utils/decodedSpriteCache';
 import { perfConfig } from './stores/performanceConfig.svelte';
+import { createSimpleCache, createCacheWithEviction } from './utils/closureCache';
 
-// Cache para sprites individuais por ID
-const singleSpriteCache = new Map<number, Uint8Array>();
+// Cache para sprites individuais por ID (closure — Map interno inacessível externamente)
+const singleSpriteCache = createSimpleCache<number, Uint8Array>();
 
-// Cache de appearances (category:id -> Uint8Array[]). Evita IPC repetido.
-const appearanceSpriteCache = new Map<string, Uint8Array[]>();
+// Cache de appearances com eviction automática via closure (category:id -> Uint8Array[])
+const appearanceSpriteCache = createCacheWithEviction<string, Uint8Array[]>(perfConfig.appearanceCacheMax);
 
 let spritesLoaded = false;
 let spritesLoadAttempted = false;
@@ -34,6 +35,11 @@ function normalizeSpriteBuffer(buffer: unknown): Uint8Array | null {
 
 export function getCachedSpriteById(spriteId: number): Uint8Array | null {
   return singleSpriteCache.get(spriteId) ?? null;
+}
+
+/** Direct access to the appearance cache entry (for granular updates) */
+function getAppearanceCacheEntry(category: string, id: number): Uint8Array[] | undefined {
+  return appearanceSpriteCache.get(getSpritesCacheKey(category, id));
 }
 
 export async function getSpriteById(spriteId: number): Promise<Uint8Array | null> {
@@ -134,11 +140,7 @@ export async function getAppearanceSprites(category: string, appearanceId: numbe
       .map(sprite => normalizeSpriteBuffer(sprite))
       .filter((sprite): sprite is Uint8Array => !!sprite);
 
-    // Cache result (LRU eviction when over limit)
-    if (appearanceSpriteCache.size >= perfConfig.appearanceCacheMax) {
-      const oldestKey = appearanceSpriteCache.keys().next().value;
-      if (oldestKey) appearanceSpriteCache.delete(oldestKey);
-    }
+    // Eviction automática via closure cache — sem checagem manual
     appearanceSpriteCache.set(cacheKey, normalized);
 
     return normalized;
@@ -154,7 +156,7 @@ export async function getAppearanceSprites(category: string, appearanceId: numbe
 export function updateCachedAppearanceSprite(
   category: string, id: number, index: number, newBuffer: Uint8Array
 ): void {
-  const cached = appearanceSpriteCache.get(getSpritesCacheKey(category, id));
+  const cached = getAppearanceCacheEntry(category, id);
   if (cached && index >= 0 && index < cached.length) {
     cached[index] = newBuffer;
   }
@@ -164,7 +166,7 @@ export function updateCachedAppearanceSprite(
 export function appendCachedAppearanceSprites(
   category: string, id: number, buffers: Uint8Array[]
 ): void {
-  const cached = appearanceSpriteCache.get(getSpritesCacheKey(category, id));
+  const cached = getAppearanceCacheEntry(category, id);
   if (cached) cached.push(...buffers);
 }
 
@@ -172,7 +174,7 @@ export function appendCachedAppearanceSprites(
 export function removeCachedAppearanceSprites(
   category: string, id: number, indices: number[]
 ): void {
-  const cached = appearanceSpriteCache.get(getSpritesCacheKey(category, id));
+  const cached = getAppearanceCacheEntry(category, id);
   if (cached) {
     const sorted = [...indices].sort((a, b) => b - a);
     for (const i of sorted) {
@@ -318,8 +320,8 @@ export function pixelSprite(canvas: HTMLCanvasElement, src: string | null) {
 // Export debug functions for console access
 export const debugCache = {
   getFrontendCacheStats: () => ({
-    singleSpriteCache: singleSpriteCache.size,
-    appearanceSpriteCache: appearanceSpriteCache.size,
+    singleSpriteCacheSize: singleSpriteCache.size,
+    appearanceSpriteCacheSize: appearanceSpriteCache.size,
   }),
   getBackendCacheStats: async () => {
     try {

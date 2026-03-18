@@ -8,12 +8,47 @@
     selectProficiencyMode,
   } from "../../stores/assetsState.svelte";
   import { translate } from "../../i18n";
+  import { bindHandler } from "../../utils/handlerFactories";
 
   function selectCategory(cat: string, sub: string = "All") {
     setCategory(cat);
     assetsState.currentSubcategory = sub;
     assetsState.viewMode = "grid";
   }
+
+  // Handler factories via closure — partial application evita recriar arrows a cada render
+  const selectObjects = bindHandler(selectCategory, "Objects");
+  const selectOutfits = bindHandler(selectCategory, "Outfits");
+  const selectEffects = bindHandler(selectCategory, "Effects");
+  const selectMissiles = bindHandler(selectCategory, "Missiles");
+  const selectSounds = bindHandler(selectCategory, "Sounds");
+
+  const selectSubArmors = bindHandler(selectCategory, "Objects", "Armors");
+  const selectSubAmulets = bindHandler(selectCategory, "Objects", "Amulets");
+  const selectSubBoots = bindHandler(selectCategory, "Objects", "Boots");
+  const selectSubContainers = bindHandler(selectCategory, "Objects", "Containers");
+  const selectSubDecoration = bindHandler(selectCategory, "Objects", "Decoration");
+  const selectSubFood = bindHandler(selectCategory, "Objects", "Food");
+  const selectSubHelmets = bindHandler(selectCategory, "Objects", "HelmetsHats");
+  const selectSubLegs = bindHandler(selectCategory, "Objects", "Legs");
+  const selectSubPotions = bindHandler(selectCategory, "Objects", "Potions");
+  const selectSubRings = bindHandler(selectCategory, "Objects", "Rings");
+  const selectSubRunes = bindHandler(selectCategory, "Objects", "Runes");
+  const selectSubShields = bindHandler(selectCategory, "Objects", "Shields");
+  const selectSubTools = bindHandler(selectCategory, "Objects", "Tools");
+  const selectSubValuables = bindHandler(selectCategory, "Objects", "Valuables");
+  const selectSubAxes = bindHandler(selectCategory, "Objects", "Axes");
+  const selectSubClubs = bindHandler(selectCategory, "Objects", "Clubs");
+  const selectSubDistance = bindHandler(selectCategory, "Objects", "DistanceWeapons");
+  const selectSubSwords = bindHandler(selectCategory, "Objects", "Swords");
+  const selectSubWands = bindHandler(selectCategory, "Objects", "WandsRods");
+
+  const selectCreatures = bindHandler(selectStaticDataMode, "creatures");
+  const selectBosses = bindHandler(selectStaticDataMode, "bosses");
+  const selectQuests = bindHandler(selectStaticDataMode, "quests");
+  const selectTitles = bindHandler(selectStaticDataMode, "titles");
+  const selectHouses = bindHandler(selectStaticDataMode, "houses");
+  const selectMapHouses = bindHandler(selectStaticDataMode, "map_houses");
 </script>
 
 <nav class="category-nav">
@@ -21,7 +56,7 @@
     <!-- Main Categories -->
     <div class="category-cards">
       <!-- Objects -->
-      <button class="category-card" onclick={() => selectCategory("Objects")}>
+      <button class="category-card" onclick={selectObjects}>
         <div class="card-icon">📦</div>
         <div class="card-content">
           <h3>{translate("category.objects")}</h3>
@@ -35,7 +70,7 @@
       </button>
 
       <!-- Outfits -->
-      <button class="category-card" onclick={() => selectCategory("Outfits")}>
+      <button class="category-card" onclick={selectOutfits}>
         <div class="card-icon">👕</div>
         <div class="card-content">
           <h3>{translate("category.outfits")}</h3>
@@ -49,7 +84,7 @@
       </button>
 
       <!-- Effects -->
-      <button class="category-card" onclick={() => selectCategory("Effects")}>
+      <button class="category-card" onclick={selectEffects}>
         <div class="card-icon">✨</div>
         <div class="card-content">
           <h3>{translate("category.effects")}</h3>
@@ -63,7 +98,7 @@
       </button>
 
       <!-- Missiles -->
-      <button class="category-card" onclick={() => selectCategory("Missiles")}>
+      <button class="category-card" onclick={selectMissiles}>
         <div class="card-icon">🏹</div>
         <div class="card-content">
           <h3>{translate("category.missiles")}</h3>
@@ -77,7 +112,7 @@
       </button>
 
       <!-- Sounds -->
-      <button class="category-card" onclick={() => selectCategory("Sounds")}>
+      <button class="category-card" onclick={selectSounds}>
         <div class="card-icon">🔊</div>
         <div class="card-content">
           <h3>{translate("category.sounds")}</h3>
@@ -87,7 +122,7 @@
       </button>
 
       <!-- Proficiency Editor -->
-      <button class="category-card" onclick={() => selectProficiencyMode()}>
+      <button class="category-card" onclick={selectProficiencyMode}>
         <div class="card-icon">⚔️</div>
         <div class="card-content">
           <h3>Proficiency</h3>
@@ -102,49 +137,49 @@
       <div class="subcategories-grid">
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Armors")}
+          onclick={selectSubArmors}
         >
           <span class="subcat-icon">🛡️</span>
           <span class="subcat-name">{translate("subcategory.armors")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Amulets")}
+          onclick={selectSubAmulets}
         >
           <span class="subcat-icon">📿</span>
           <span class="subcat-name">{translate("subcategory.amulets")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Boots")}
+          onclick={selectSubBoots}
         >
           <span class="subcat-icon">👢</span>
           <span class="subcat-name">{translate("subcategory.boots")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Containers")}
+          onclick={selectSubContainers}
         >
           <span class="subcat-icon">🎒</span>
           <span class="subcat-name">{translate("subcategory.containers")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Decoration")}
+          onclick={selectSubDecoration}
         >
           <span class="subcat-icon">🎨</span>
           <span class="subcat-name">{translate("subcategory.decoration")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Food")}
+          onclick={selectSubFood}
         >
           <span class="subcat-icon">🍖</span>
           <span class="subcat-name">{translate("subcategory.food")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "HelmetsHats")}
+          onclick={selectSubHelmets}
         >
           <span class="subcat-icon">⛑️</span>
           <span class="subcat-name">{translate("subcategory.helmetsHats")}</span
@@ -152,84 +187,84 @@
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Legs")}
+          onclick={selectSubLegs}
         >
           <span class="subcat-icon">👖</span>
           <span class="subcat-name">{translate("subcategory.legs")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Potions")}
+          onclick={selectSubPotions}
         >
           <span class="subcat-icon">🧪</span>
           <span class="subcat-name">{translate("subcategory.potions")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Rings")}
+          onclick={selectSubRings}
         >
           <span class="subcat-icon">💍</span>
           <span class="subcat-name">{translate("subcategory.rings")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Runes")}
+          onclick={selectSubRunes}
         >
           <span class="subcat-icon">🔮</span>
           <span class="subcat-name">{translate("subcategory.runes")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Shields")}
+          onclick={selectSubShields}
         >
           <span class="subcat-icon">🛡️</span>
           <span class="subcat-name">{translate("subcategory.shields")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Tools")}
+          onclick={selectSubTools}
         >
           <span class="subcat-icon">🔧</span>
           <span class="subcat-name">{translate("subcategory.tools")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Valuables")}
+          onclick={selectSubValuables}
         >
           <span class="subcat-icon">💎</span>
           <span class="subcat-name">{translate("subcategory.valuables")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Axes")}
+          onclick={selectSubAxes}
         >
           <span class="subcat-icon">🪓</span>
           <span class="subcat-name">{translate("subcategory.axes")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Clubs")}
+          onclick={selectSubClubs}
         >
           <span class="subcat-icon">🏏</span>
           <span class="subcat-name">{translate("subcategory.clubs")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "DistanceWeapons")}
+          onclick={selectSubDistance}
         >
           <span class="subcat-icon">🏹</span>
           <span class="subcat-name">{translate("subcategory.distance")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "Swords")}
+          onclick={selectSubSwords}
         >
           <span class="subcat-icon">⚔️</span>
           <span class="subcat-name">{translate("subcategory.swords")}</span>
         </button>
         <button
           class="subcategory-card"
-          onclick={() => selectCategory("Objects", "WandsRods")}
+          onclick={selectSubWands}
         >
           <span class="subcat-icon">🪄</span>
           <span class="subcat-name">{translate("subcategory.wandsRods")}</span>
@@ -249,7 +284,7 @@
             <button
               type="button"
               class="subcategory-card"
-              onclick={() => selectStaticDataMode("creatures")}
+              onclick={selectCreatures}
             >
               <span class="subcat-icon">🐉</span>
               <span class="subcat-name"
@@ -261,7 +296,7 @@
             <button
               type="button"
               class="subcategory-card"
-              onclick={() => selectStaticDataMode("bosses")}
+              onclick={selectBosses}
             >
               <span class="subcat-icon">👑</span>
               <span class="subcat-name"
@@ -273,7 +308,7 @@
             <button
               type="button"
               class="subcategory-card"
-              onclick={() => selectStaticDataMode("quests")}
+              onclick={selectQuests}
             >
               <span class="subcat-icon">📜</span>
               <span class="subcat-name"
@@ -285,7 +320,7 @@
             <button
               type="button"
               class="subcategory-card"
-              onclick={() => selectStaticDataMode("titles")}
+              onclick={selectTitles}
             >
               <span class="subcat-icon">🏅</span>
               <span class="subcat-name"
@@ -297,7 +332,7 @@
             <button
               type="button"
               class="subcategory-card"
-              onclick={() => selectStaticDataMode("houses")}
+              onclick={selectHouses}
             >
               <span class="subcat-icon">🏘️</span>
               <span class="subcat-name"
@@ -311,7 +346,7 @@
             <button
               type="button"
               class="subcategory-card"
-              onclick={() => selectStaticDataMode("map_houses")}
+              onclick={selectMapHouses}
             >
               <span class="subcat-icon">🗺️</span>
               <span class="subcat-name"
@@ -335,7 +370,7 @@
         <button
           type="button"
           class="subcategory-card"
-          onclick={() => selectRccMode()}
+          onclick={selectRccMode}
         >
           <span class="subcat-icon">🗂️</span>
           <span class="subcat-name">{translate("category.rccEditor")}</span>
@@ -343,7 +378,7 @@
         <button
           type="button"
           class="subcategory-card"
-          onclick={() => selectQmMode()}
+          onclick={selectQmMode}
         >
           <span class="subcat-icon">🌐</span>
           <span class="subcat-name">{translate("category.qmEditor")}</span>

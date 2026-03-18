@@ -3270,14 +3270,42 @@ function resolveTemplate(language: LanguageCode, key: TranslationKey): string {
   return languageTable[key] ?? translations[DEFAULT_LANGUAGE][key] ?? key;
 }
 
-export function translate(
-  key: TranslationKey,
-  replacements?: ReplacementValues,
-  language: LanguageCode = getActiveLanguage()
-): string {
-  const template = resolveTemplate(language, key);
-  return formatTemplate(template, replacements);
+/**
+ * Memoized translator factory using closures.
+ * Caches translations per language to avoid repeated lookups.
+ * The cache is automatically invalidated when the language changes.
+ */
+function createMemoizedTranslator() {
+  let cachedLanguage: LanguageCode | null = null;
+  const cache = new Map<string, string>();
+
+  return (
+    key: TranslationKey,
+    replacements?: ReplacementValues,
+    language: LanguageCode = getActiveLanguage()
+  ): string => {
+    // Invalidate cache when language changes
+    if (language !== cachedLanguage) {
+      cache.clear();
+      cachedLanguage = language;
+    }
+
+    // Only cache when there are no dynamic replacements
+    if (!replacements) {
+      const cached = cache.get(key);
+      if (cached !== undefined) return cached;
+
+      const result = formatTemplate(resolveTemplate(language, key));
+      cache.set(key, result);
+      return result;
+    }
+
+    // Dynamic replacements — always compute fresh
+    return formatTemplate(resolveTemplate(language, key), replacements);
+  };
 }
+
+export const translate = createMemoizedTranslator();
 
 export function setActiveLanguage(language: LanguageCode): void {
   settingsState.language = language;

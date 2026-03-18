@@ -107,3 +107,57 @@ export async function invokeWithLoading<T = unknown>(
     onLoadingChange?.(false);
   }
 }
+
+/**
+ * Closure-based invoke middleware factory.
+ *
+ * Creates a specialized invoke function with pre-configured retry and
+ * timeout behavior. The configuration is captured via closure, so each
+ * call site doesn't need to repeat these options.
+ *
+ * @example
+ *   const invokeReliable = createInvokeMiddleware({ maxRetries: 3, delayMs: 500, timeoutMs: 10000 });
+ *   const data = await invokeReliable<MyType>('my_command', { id: 1 });
+ */
+export function createInvokeMiddleware(options: {
+  maxRetries?: number;
+  delayMs?: number;
+  timeoutMs?: number;
+  onError?: (command: string, attempt: number, error: unknown) => void;
+}) {
+  const maxRetries = options.maxRetries ?? 1;
+  const delayMs = options.delayMs ?? 1000;
+  const timeoutMs = options.timeoutMs ?? 30000;
+  const onError = options.onError;
+
+  return async <T = unknown>(
+    command: CommandName | string,
+    args?: Record<string, unknown>
+  ): Promise<T> => {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const result = await Promise.race([
+          invoke<T>(command, args),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs)
+          ),
+        ]);
+        return result;
+      } catch (error) {
+        lastError = error;
+        onError?.(command, attempt + 1, error);
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, delayMs * (attempt + 1)));
+        }
+      }
+    }
+
+    throw new IPCError(
+      command,
+      lastError,
+      `Failed after ${maxRetries} attempts`
+    );
+  };
+}
