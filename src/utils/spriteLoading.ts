@@ -47,19 +47,29 @@ function enqueueAnimations(category: string, ids: number[]): void {
     processingAnimations = true;
 
     const process = (): void => {
+      // Pre-compute viewport state ONCE to avoid O(n log n) DOM queries inside sort
+      const viewportState = new Map<string, { exists: boolean; inViewport: boolean }>();
+      for (const item of animationQueue) {
+        const key = `sprite-${item.id}`;
+        if (!viewportState.has(key)) {
+          const el = document.getElementById(key);
+          viewportState.set(key, {
+            exists: !!el,
+            inViewport: el ? isElementIdInViewport(key, 0.05) : false,
+          });
+        }
+      }
+
       animationQueue.sort((a, b) => {
-        const aElement = document.getElementById(`sprite-${a.id}`);
-        const bElement = document.getElementById(`sprite-${b.id}`);
+        const aState = viewportState.get(`sprite-${a.id}`)!;
+        const bState = viewportState.get(`sprite-${b.id}`)!;
 
-        if (!aElement && !bElement) return 0;
-        if (!aElement) return 1;
-        if (!bElement) return -1;
+        if (!aState.exists && !bState.exists) return 0;
+        if (!aState.exists) return 1;
+        if (!bState.exists) return -1;
 
-        const aInViewport = isElementIdInViewport(`sprite-${a.id}`, 0.05);
-        const bInViewport = isElementIdInViewport(`sprite-${b.id}`, 0.05);
-
-        if (aInViewport && !bInViewport) return -1;
-        if (!aInViewport && bInViewport) return 1;
+        if (aState.inViewport && !bState.inViewport) return -1;
+        if (!aState.inViewport && bState.inViewport) return 1;
 
         return 0;
       });
@@ -72,8 +82,8 @@ function enqueueAnimations(category: string, ids: number[]): void {
         const item = animationQueue.shift();
         if (!item) break;
         enqueuedAnimations.delete(`${item.category}:${item.id}`);
-        const container = document.getElementById(`sprite-${item.id}`);
-        const forceStart = !!(container && isElementIdInViewport(`sprite-${item.id}`, 0.05));
+        const cachedState = viewportState.get(`sprite-${item.id}`);
+        const forceStart = !!(cachedState?.exists && cachedState.inViewport);
         initAssetCardAutoAnimation(item.category, item.id, autoAnimate, forceStart);
         processed++;
       }
@@ -286,7 +296,7 @@ export async function loadDetailSprites(
       grid.appendChild(fragment);
 
       if (details) {
-        initDetailSpriteCardAnimations(id, sprites, details);
+        initDetailSpriteCardAnimations(id, sprites, details, start, end);
       }
     };
 

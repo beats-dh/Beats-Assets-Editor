@@ -30,7 +30,7 @@
  */
 
 import type { CompleteAppearanceItem } from '../types';
-import { decodeSpriteOffThread } from './imageDecodeWorkerClient';
+import { decodeSpriteOffThread, decodeSpritesBatch } from './imageDecodeWorkerClient';
 import { perfConfig } from '../stores/performanceConfig.svelte';
 
 // ════════════════════════════════════════════════════════════════════
@@ -73,15 +73,28 @@ function touchAppearance(entry: AppearanceCacheEntry): void {
 
 function evictAppearanceLRU(): void {
   if (_appearanceMap.size < _appearanceMaxSize) return;
-  let oldestKey: string | null = null;
-  let oldestTime = Infinity;
+
+  // Batch evict 5% of entries to amortize O(n) scan cost
+  const evictCount = Math.max(1, Math.floor(_appearanceMaxSize * 0.05));
+  const candidates: { key: string; time: number }[] = [];
+
   for (const [key, entry] of _appearanceMap) {
-    if (entry._lastAccess < oldestTime) {
-      oldestTime = entry._lastAccess;
-      oldestKey = key;
+    if (candidates.length < evictCount) {
+      candidates.push({ key, time: entry._lastAccess });
+      if (candidates.length === evictCount) {
+        candidates.sort((a, b) => a.time - b.time);
+      }
+    } else if (entry._lastAccess < candidates[candidates.length - 1].time) {
+      candidates.pop();
+      // Binary insert
+      const pos = candidates.findIndex(c => c.time > entry._lastAccess);
+      candidates.splice(pos === -1 ? candidates.length : pos, 0, { key, time: entry._lastAccess });
     }
   }
-  if (oldestKey) _appearanceMap.delete(oldestKey);
+
+  for (const { key } of candidates) {
+    _appearanceMap.delete(key);
+  }
 }
 
 function getOrCreateAppearance(key: string): AppearanceCacheEntry {
@@ -146,7 +159,7 @@ export const appearanceCache = {
     getOrCreateAppearance(makeAppearanceKey(category, id)).decodedSprites = sprites;
   },
 
-  /** Decode raw sprites on-demand via Web Worker. Lock-free: retorna cached se já decoded. */
+  /** Decode raw sprites on-demand via Web Worker. Uses batch decode to reduce IPC overhead. */
   async getOrDecodeSprites(category: string, id: number): Promise<Uint8Array[] | undefined> {
     const key = makeAppearanceKey(category, id);
     const entry = _appearanceMap.get(key);
@@ -156,19 +169,20 @@ export const appearanceCache = {
     if (entry.decodedSprites) return entry.decodedSprites;
     if (!entry.sprites) return undefined;
 
-    const decoded = await Promise.all(
-      entry.sprites.map(async (sprite) => {
-        try {
-          const result = await decodeSpriteOffThread(sprite);
-          return result ? new Uint8Array(result) : sprite;
-        } catch {
-          return sprite;
-        }
-      })
-    );
-
-    entry.decodedSprites = decoded;
-    return decoded;
+    // OPTIMIZATION: Batch decode all sprites in a single Worker message
+    // instead of N individual messages (reduces postMessage overhead significantly)
+    try {
+      const results = await decodeSpritesBatch(entry.sprites);
+      const decoded = entry.sprites.map((sprite, i) => {
+        const result = results[i];
+        return result ? new Uint8Array(result) : sprite;
+      });
+      entry.decodedSprites = decoded;
+      return decoded;
+    } catch {
+      // Fallback: return raw sprites if batch decode fails
+      return entry.sprites;
+    }
   },
 
   // --- Details (CompleteAppearanceItem metadata) ---
@@ -292,8 +306,8 @@ export const spriteUrlStore = {
     const cached = _spriteUrlWeakMap.get(buffer);
     if (cached) return cached;
 
-    const arrayBuffer = buffer.slice().buffer;
-    const url = URL.createObjectURL(new Blob([arrayBuffer], { type: 'image/png' }));
+    // Use the buffer directly — no need to .slice() since Blob constructor copies
+    const url = URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
     _spriteUrlWeakMap.set(buffer, url);
     _urlRegistry.add(url);
     return url;
@@ -388,6 +402,15 @@ export function clearAllCaches(): void {
   spriteUrlStore.clear();
   animationStore.clearSequences();
   animationStore.stopAllPlayers();
+}
+
+/**
+ * Revoke stale Blob URLs while keeping caches intact.
+ * Call this on view/page navigation to prevent Blob URL accumulation.
+ * Cached sprites will lazily re-create Blob URLs on next access.
+ */
+export function revokeStaleUrls(): void {
+  spriteUrlStore.clear();
 }
 
 /** Get stats from all caches for debugging */

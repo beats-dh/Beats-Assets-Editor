@@ -14,6 +14,7 @@
     clearAssetsQueryCachesForSprites,
   } from "../../utils/spriteLoading";
   import { stopAllAnimationPlayers } from "../../animation";
+  import { revokeStaleUrls } from "../../utils/cacheRegistry";
   import { COMMANDS } from "../../commands";
   import { invoke } from "../../utils/invoke";
   import { translate } from "../../i18n";
@@ -33,6 +34,7 @@
   function goBack() {
     stopAllAnimationPlayers();
     clearAssetsQueryCachesForSprites();
+    revokeStaleUrls();
     assetsState.viewMode = "categories";
   }
 
@@ -190,6 +192,7 @@
     if (assetsState.currentPage > 0) {
       stopAllAnimationPlayers();
       clearAssetsQueryCachesForSprites();
+      revokeStaleUrls();
       assetsState.currentPage--;
       loadAssetsData();
     }
@@ -203,6 +206,7 @@
     if (assetsState.currentPage < maxPage - 1) {
       stopAllAnimationPlayers();
       clearAssetsQueryCachesForSprites();
+      revokeStaleUrls();
       assetsState.currentPage++;
       loadAssetsData();
     }
@@ -211,6 +215,7 @@
   function handlePageSizeChange(e: Event) {
     stopAllAnimationPlayers();
     clearAssetsQueryCachesForSprites();
+    revokeStaleUrls();
     assetsState.pageSize = parseInt((e.target as HTMLSelectElement).value);
     assetsState.currentPage = 0;
     loadAssetsData();
@@ -289,6 +294,7 @@
   function handleSubcategoryChange(e: Event) {
     stopAllAnimationPlayers();
     clearAssetsQueryCachesForSprites();
+    revokeStaleUrls();
     assetsState.currentSubcategory = (e.target as HTMLSelectElement).value;
     assetsState.currentPage = 0;
     loadAssetsData();

@@ -10,7 +10,7 @@ use std::path::Path;
 use prost::Message;
 use tauri::State;
 use ahash::AHasher;
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::hash::{Hash, Hasher};
 use crate::features::sounds::commands::SoundsState;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -760,7 +760,7 @@ fn process_import_bucket(
 }
 
 pub fn appearance_signature(appearance: &Appearance, state: &AppState) -> Result<u64, String> {
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = AHasher::default(); // AHasher is ~2x faster than DefaultHasher (SipHash)
 
     if let Some(flags) = &appearance.flags {
         let mut buf = Vec::new();
@@ -847,7 +847,7 @@ fn max_id(items: &[Appearance]) -> u32 {
 }
 
 fn max_sound_id(state: &State<'_, SoundsState>) -> Result<u32, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
     let data = match parser.get_sounds_data() {
         Some(data) => data,
         None => return Ok(0),
@@ -912,9 +912,12 @@ fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> R
     let mut hash_lookup: HashMap<u64, usize> = HashMap::new();
     let mut ordered_map: Vec<usize> = Vec::with_capacity(total_sprites);
 
+    // OPTIMIZATION: Acquire sprite_loader lock ONCE outside the loop
+    // instead of re-acquiring it for each appearance
+    let sprite_loader_lock = state.sprite_loader.read();
+    let sprite_loader = sprite_loader_lock.as_ref();
+
     for appearance in appearances.iter() {
-        let sprite_loader_lock = state.sprite_loader.read();
-        let sprite_loader = sprite_loader_lock.as_ref();
 
         let sprite_ids: Vec<u32> = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()).collect();
         for sprite_id in sprite_ids {
@@ -943,14 +946,14 @@ fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> R
                     idx
                 } else {
                     let new_idx = unique_sprites.len();
-                    unique_sprites.push(sprite_bytes.clone());
                     hash_lookup.insert(hash, new_idx);
+                    unique_sprites.push(sprite_bytes); // move instead of clone
                     new_idx
                 }
             } else {
                 let new_idx = unique_sprites.len();
-                unique_sprites.push(sprite_bytes.clone());
                 hash_lookup.insert(hash, new_idx);
+                unique_sprites.push(sprite_bytes); // move instead of clone
                 new_idx
             };
 

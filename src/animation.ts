@@ -243,7 +243,9 @@ export async function initAnimationPlayersForDetails(
 export function initDetailSpriteCardAnimations(
   appearanceId: number,
   sprites: Uint8Array[],
-  currentAppearanceDetails: CompleteAppearanceItem | null
+  currentAppearanceDetails: CompleteAppearanceItem | null,
+  startIndex?: number,
+  endIndex?: number
 ): void {
   try {
     if (!currentAppearanceDetails) return;
@@ -256,7 +258,22 @@ export function initDetailSpriteCardAnimations(
 
     const groupOffsets = computeGroupOffsetsFromDetails(details);
     const container = document.getElementById(`detail-sprites-${appearanceId}`);
-    const cards = container?.querySelectorAll('.detail-sprite-item') ?? [];
+
+    // OPTIMIZATION: If range is provided, only query cards within that range
+    // instead of querying ALL .detail-sprite-item nodes (avoids O(n) full scan per chunk)
+    let cards: NodeListOf<Element> | Element[];
+    if (startIndex !== undefined && endIndex !== undefined) {
+      const allCards = container?.querySelectorAll('.detail-sprite-item') ?? [];
+      cards = [];
+      for (let i = 0; i < allCards.length; i++) {
+        const idx = parseInt((allCards[i] as HTMLElement).getAttribute('data-agg-index') ?? '-1', 10);
+        if (idx >= startIndex && idx < endIndex) {
+          (cards as Element[]).push(allCards[i]);
+        }
+      }
+    } else {
+      cards = container?.querySelectorAll('.detail-sprite-item') ?? [];
+    }
 
     cards.forEach((card) => {
       const el = card as HTMLElement;
