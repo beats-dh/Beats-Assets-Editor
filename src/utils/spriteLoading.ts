@@ -1,7 +1,7 @@
 import { getAppearancePreviewSpritesBatch, createSpriteImage, createPlaceholderImage, getAppearanceSprites } from '../spriteCache';
 import { initAssetCardAutoAnimation, initDetailSpriteCardAnimations } from '../animation';
 import { decodeSpriteOffThread } from './imageDecodeWorkerClient';
-import { unifiedSpriteCache } from './unifiedSpriteCache';
+import { appearanceCache } from './cacheRegistry';
 import type { CompleteAppearanceItem } from '../types';
 import { isElementIdInViewport } from './viewportUtils';
 import { performanceMonitor } from './performanceMonitor';
@@ -22,8 +22,7 @@ const scheduleIdle = (cb: () => void): void => {
 const prefixLoadIds = new Map<string, number>();
 
 export function clearPreviewSpriteCaches(): void {
-  // Previews now live in unified cache — clear only the preview field
-  unifiedSpriteCache.clearAllPreviews();
+  appearanceCache.clearAllPreviews();
 }
 
 export function clearAssetsQueryCachesForSprites(): void {
@@ -33,8 +32,7 @@ export function clearAssetsQueryCachesForSprites(): void {
 }
 
 function invalidateAssetPreviewCache(category: string, id: number): void {
-  // Clear only the preview (keeps raw sprites/details for reuse)
-  unifiedSpriteCache.clearPreview(category, id);
+  appearanceCache.clearPreview(category, id);
 }
 
 function enqueueAnimations(category: string, ids: number[]): void {
@@ -60,7 +58,6 @@ function enqueueAnimations(category: string, ids: number[]): void {
         const aInViewport = isElementIdInViewport(`sprite-${a.id}`, 0.05);
         const bInViewport = isElementIdInViewport(`sprite-${b.id}`, 0.05);
 
-        // Prioritize items in viewport
         if (aInViewport && !bInViewport) return -1;
         if (!aInViewport && bInViewport) return 1;
 
@@ -95,7 +92,6 @@ export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], cat
 
   performanceMonitor.mark('loadSprites');
 
-  // Increment load ID per prefix to invalidate previous load operations
   const thisLoadId = (prefixLoadIds.get(prefix) || 0) + 1;
   prefixLoadIds.set(prefix, thisLoadId);
   const loadCategory = category;
@@ -107,7 +103,6 @@ export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], cat
     const container = document.getElementById(`${prefix}${asset.id}`);
     if (!container) continue;
 
-    // Skip if already rendered with the correct sprite (avoid flicker on re-trigger)
     if (container.querySelector('canvas') && container.dataset.spriteFor === String(asset.id)) {
       readyToAnimate.push(asset.id);
       continue;
@@ -116,8 +111,7 @@ export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], cat
     container.innerHTML = '';
     container.dataset.spriteFor = String(asset.id);
 
-    // Check unified cache for preview
-    const cachedPreview = unifiedSpriteCache.getPreview(loadCategory, asset.id);
+    const cachedPreview = appearanceCache.getPreview(loadCategory, asset.id);
     if (cachedPreview) {
       container.appendChild(createSpriteImage(cachedPreview));
       readyToAnimate.push(asset.id);
@@ -135,16 +129,13 @@ export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], cat
   const cacheHits = readyToAnimate.length;
   performanceMonitor.trackCacheHitRate(cacheHits, totalRequests);
 
-  if (missingIds.length === 0) {
-    return;
-  }
+  if (missingIds.length === 0) return;
 
   performanceMonitor.mark('batchLoad');
 
   const assetById = new Map<number, any>();
   assets.forEach(asset => assetById.set(asset.id, asset));
 
-  // Render loaded previews into their DOM containers
   const renderPreviews = async (previews: Map<number, Uint8Array>): Promise<void> => {
     if (thisLoadId !== prefixLoadIds.get(prefix)) return;
     const batchReady: number[] = [];
@@ -152,17 +143,15 @@ export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], cat
       const asset = assetById.get(assetId);
       if (!asset) continue;
       const container = document.getElementById(`${prefix}${asset.id}`);
-      if (!container || container.querySelector('canvas')) continue; // Already rendered
+      if (!container || container.querySelector('canvas')) continue;
 
-      // Decode via Worker direto (sem decodedSpriteCache intermediário)
       let decoded = previewSprite;
       try {
         const result = await decodeSpriteOffThread(previewSprite);
         if (result) decoded = new Uint8Array(result);
       } catch { /* fallback: use raw */ }
 
-      // Store in unified cache
-      unifiedSpriteCache.setPreview(loadCategory, asset.id, decoded);
+      appearanceCache.setPreview(loadCategory, asset.id, decoded);
 
       container.innerHTML = '';
       container.appendChild(createSpriteImage(decoded));
@@ -171,9 +160,8 @@ export async function loadSpritesForAssets(assets: CompleteAppearanceItem[], cat
     if (batchReady.length > 0 && !skipAnimations) enqueueAnimations(loadCategory, batchReady);
   };
 
-  // Chunking + progressive render handled inside getAppearancePreviewSpritesBatch
   const previews = await getAppearancePreviewSpritesBatch(loadCategory, missingIds, renderPreviews);
-  await renderPreviews(previews); // Final pass
+  await renderPreviews(previews);
 
   const batchDuration = performanceMonitor.measure('batchLoad');
   if (batchDuration !== null) performanceMonitor.trackBatchLoad(batchDuration);
@@ -191,18 +179,15 @@ export async function refreshAssetPreview(category: string, id: number): Promise
 
   const previews = await getAppearancePreviewSpritesBatch(category, [id]);
   const previewSprite = previews.get(id);
-  if (!previewSprite) {
-    return;
-  }
+  if (!previewSprite) return;
 
-  // Decode direto via Worker
   let decoded = previewSprite;
   try {
     const result = await decodeSpriteOffThread(previewSprite);
     if (result) decoded = new Uint8Array(result);
   } catch { /* fallback */ }
 
-  unifiedSpriteCache.setPreview(category, id, decoded);
+  appearanceCache.setPreview(category, id, decoded);
   spriteContainer.innerHTML = '';
   spriteContainer.appendChild(createSpriteImage(decoded));
   enqueueAnimations(category, [id]);
@@ -212,59 +197,41 @@ export async function refreshAssetPreview(category: string, id: number): Promise
 // Detail Sprites Loading Logic
 // ============================================================================
 
-/**
- * Get raw sprites for an appearance, with request deduplication.
- * Uses unified cache as single source of truth.
- */
 export function getDetailSprites(category: string, id: number): Promise<Uint8Array[]> {
-  // Check unified cache for raw sprites
-  const cached = unifiedSpriteCache.getRawSprites(category, id);
-  if (cached) {
-    return Promise.resolve(cached);
-  }
+  const cached = appearanceCache.getRawSprites(category, id);
+  if (cached) return Promise.resolve(cached);
 
-  // Check for in-flight request (dedup)
-  const inflight = unifiedSpriteCache.getInflightSprites(category, id);
-  if (inflight) {
-    return inflight;
-  }
+  const inflight = appearanceCache.getInflight(category, id);
+  if (inflight) return inflight;
 
-  // Fetch from backend via spriteCache.ts (which also stores in unified cache)
   const promise = getAppearanceSprites(category, id)
     .then((sprites) => {
-      unifiedSpriteCache.clearInflightSprites(category, id);
+      appearanceCache.clearInflight(category, id);
       return sprites;
     })
     .catch((error) => {
-      unifiedSpriteCache.clearInflightSprites(category, id);
+      appearanceCache.clearInflight(category, id);
       throw error;
     });
 
-  unifiedSpriteCache.setInflightSprites(category, id, promise);
+  appearanceCache.setInflight(category, id, promise);
   return promise;
 }
 
 export type SpriteLoader = () => Promise<Uint8Array[]>;
 
-/**
- * Creates a sprite loader that decodes all sprites via Web Worker.
- * Uses unified cache to avoid re-decoding.
- */
 export function createDetailSpriteLoader(category: string, id: number): SpriteLoader {
   const spritesPromise = getDetailSprites(category, id)
     .then(async () => {
-      // Use unified cache's decode-on-demand
-      const decoded = await unifiedSpriteCache.getOrDecodeSprites(category, id);
+      const decoded = await appearanceCache.getOrDecodeSprites(category, id);
       return decoded ?? [];
     });
   return () => spritesPromise;
 }
 
 export function invalidateDetailSpriteCache(category: string, id: number): void {
-  // Single invalidation point — clears everything for this appearance
-  unifiedSpriteCache.invalidate(category, id);
+  appearanceCache.invalidate(category, id);
 }
-
 
 export async function loadDetailSprites(
   category: string,
@@ -318,7 +285,6 @@ export async function loadDetailSprites(
       }
       grid.appendChild(fragment);
 
-      // Initialize animations if details provided
       if (details) {
         initDetailSpriteCardAnimations(id, sprites, details);
       }

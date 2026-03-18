@@ -9,20 +9,15 @@ import {
   resolveOutfitPreviewDirection,
   resolveOutfitPreviewInterval
 } from './outfit/outfitPreviewSettings';
-import { getSpriteUrl, clearSpriteUrlCache } from '../../utils/spriteUrlCache';
+import { spriteUrlStore, animationStore } from '../../utils/cacheRegistry';
+import type { PreviewAnimationSequence } from '../../utils/cacheRegistry';
 
-export interface PreviewAnimationSequence {
-  frames: string[];
-  interval: number;
-}
-
-const previewCache = new Map<string, PreviewAnimationSequence>();
 let composeWorker: Worker | null = null;
 let composeRequestId = 0;
 const workerPending = new Map<string, (value: string | null) => void>();
 
 function bufferToUrl(buffer: Uint8Array): string {
-  return getSpriteUrl(buffer);
+  return spriteUrlStore.get(buffer);
 }
 
 function initComposeWorker(): void {
@@ -36,7 +31,7 @@ function initComposeWorker(): void {
       const { id, buffer } = event.data;
       const resolver = workerPending.get(id);
       if (resolver) {
-        const dataUrl = buffer ? getSpriteUrl(new Uint8Array(buffer)) : null;
+        const dataUrl = buffer ? spriteUrlStore.get(new Uint8Array(buffer)) : null;
         resolver(dataUrl);
         workerPending.delete(id);
       }
@@ -76,17 +71,15 @@ export async function buildAssetPreviewAnimation(
   details: CompleteAppearanceItem,
   sprites: Uint8Array[]
 ): Promise<PreviewAnimationSequence | null> {
-  const cacheKey = `${category}:${appearanceId}`;
-  if (previewCache.has(cacheKey)) {
-    return previewCache.get(cacheKey)!;
-  }
+  const cached = animationStore.getSequence(category, appearanceId);
+  if (cached) return cached;
 
   const sequence = await buildSequence(category, details, sprites);
   if (!sequence) {
     return null;
   }
 
-  previewCache.set(cacheKey, sequence);
+  animationStore.setSequence(category, appearanceId, sequence);
   return sequence;
 }
 
@@ -95,8 +88,6 @@ function getFrameCount(spriteInfo: CompleteSpriteInfo | undefined): number {
   if (spriteInfo.animation && spriteInfo.animation.phases.length > 0) {
     return spriteInfo.animation.phases.length;
   }
-  // No animation phases found
-
   return 0;
 }
 
@@ -247,7 +238,7 @@ async function composeFrame(
 }
 
 export function clearPreviewAnimationCache(): void {
-  previewCache.clear();
-  clearSpriteUrlCache();
+  animationStore.clearSequences();
+  spriteUrlStore.clear();
   workerPending.clear();
 }

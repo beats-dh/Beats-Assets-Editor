@@ -1,37 +1,13 @@
 /**
- * Sprite URL Cache Unificado
- * 
- * Módulo centralizado para gerenciar URLs de sprites (Blob URLs)
- * Evita criar múltiplas URLs do mesmo buffer e centraliza limpeza
+ * Re-export from cacheRegistry for backwards compatibility.
+ * All cache state lives in cacheRegistry.ts — this is just an alias.
  */
+import { spriteUrlStore } from './cacheRegistry';
 
-const spriteUrlCache = new WeakMap<Uint8Array, string>();
-const urlRegistry = new Set<string>();
-
-/**
- * Obtém ou cria uma Blob URL para um buffer de sprite
- * @param buffer - Buffer do sprite Uint8Array
- * @returns Blob URL string
- */
 export function getSpriteUrl(buffer: Uint8Array): string {
-  const cached = spriteUrlCache.get(buffer);
-  if (cached) return cached;
-
-  // Usar slice() para garantir ArrayBuffer (evita SharedArrayBuffer)
-  const arrayBuffer = buffer.slice().buffer;
-  const url = URL.createObjectURL(new Blob([arrayBuffer], { type: 'image/png' }));
-
-  spriteUrlCache.set(buffer, url);
-  urlRegistry.add(url);
-  return url;
+  return spriteUrlStore.get(buffer);
 }
 
-/**
- * Limpa todas as Blob URLs criadas
- * Deve ser chamado quando os sprites não forem mais necessários
- */
 export function clearSpriteUrlCache(): void {
-  urlRegistry.forEach(url => URL.revokeObjectURL(url));
-  urlRegistry.clear();
+  spriteUrlStore.clear();
 }
-

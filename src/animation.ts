@@ -1,13 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { CompleteAppearanceItem, CompleteSpriteInfo, SpriteDecomposition, GroupMapping } from './types';
 import { getAppearanceSprites } from './spriteCache';
-import { getSpriteUrl } from './utils/spriteUrlCache';
 import { buildAssetPreviewAnimation } from './features/previewAnimation/assetPreviewAnimator';
 import { perfConfig } from './stores/performanceConfig.svelte';
-import { unifiedSpriteCache } from './utils/unifiedSpriteCache';
-
-// Active animation players storage
-const activeAnimationPlayers = new Map<string, number>();
+import { appearanceCache, spriteUrlStore, animationStore } from './utils/cacheRegistry';
 
 // Redraws a sprite URL onto an existing canvas (nearest-neighbor)
 function redrawCanvas(canvas: HTMLCanvasElement, url: string): void {
@@ -31,10 +27,7 @@ const runWhenIdle = (cb: () => void): void => {
 };
 
 export function stopAllAnimationPlayers(): void {
-  activeAnimationPlayers.forEach((timerId) => {
-    if (timerId) clearInterval(timerId);
-  });
-  activeAnimationPlayers.clear();
+  animationStore.stopAllPlayers();
 
   // Clear animating class from all potential containers
   document.querySelectorAll('.asset-image-container.animating').forEach(el => el.classList.remove('animating'));
@@ -44,10 +37,10 @@ export function stopAllAnimationPlayers(): void {
 export function stopDetailAnimationPlayers(): void {
   const detailsContent = document.querySelector('#details-content') as HTMLElement | null;
 
-  activeAnimationPlayers.forEach((timerId, key) => {
+  animationStore.forEachPlayer((timerId, key) => {
     if (key.startsWith('detail:') || key.startsWith('card:')) {
       if (timerId) clearInterval(timerId);
-      activeAnimationPlayers.delete(key);
+      animationStore.deletePlayer(key);
     }
   });
   // Remove visual animating state from detail items
@@ -78,7 +71,6 @@ export function computeSpriteIndex(
 export function computeGroupOffsetsFromDetails(details: CompleteAppearanceItem): number[] {
   const offsets: number[] = [];
   let offset = 0;
-  // Guard against missing frame_groups
   if (!details.frame_groups || !Array.isArray(details.frame_groups)) {
     return offsets;
   }
@@ -181,7 +173,7 @@ export async function initAnimationPlayersForDetails(
       const draw = () => {
         const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, 0, 0, 0, 0, phase);
         if (spriteIdx >= 0 && spriteIdx < sprites.length && animCanvas) {
-          redrawCanvas(animCanvas, getSpriteUrl(sprites[spriteIdx]));
+          redrawCanvas(animCanvas, spriteUrlStore.get(sprites[spriteIdx]));
           phaseLabel.textContent = `Fase ${phase + 1}`;
         }
       };
@@ -209,7 +201,7 @@ export async function initAnimationPlayersForDetails(
               completedLoops += 1;
               if (typeof maxLoops === 'number' && completedLoops >= maxLoops) {
                 clearInterval(timerId);
-                activeAnimationPlayers.delete(key);
+                animationStore.deletePlayer(key);
                 playBtn.disabled = false;
                 pauseBtn.disabled = true;
                 return;
@@ -220,15 +212,15 @@ export async function initAnimationPlayersForDetails(
           }
           draw();
         }, speed);
-        activeAnimationPlayers.set(key, timerId);
+        animationStore.setPlayer(key, timerId);
         playBtn.disabled = true;
         pauseBtn.disabled = false;
       };
       const stop = () => {
-        const timerId = activeAnimationPlayers.get(key);
+        const timerId = animationStore.getPlayer(key);
         if (timerId) {
           clearInterval(timerId);
-          activeAnimationPlayers.delete(key);
+          animationStore.deletePlayer(key);
         }
         playBtn.disabled = false;
         pauseBtn.disabled = true;
@@ -237,7 +229,7 @@ export async function initAnimationPlayersForDetails(
       playBtn.addEventListener('click', start);
       pauseBtn.addEventListener('click', stop);
       speedInput.addEventListener('change', () => {
-        if (activeAnimationPlayers.has(key)) {
+        if (animationStore.hasPlayer(key)) {
           stop();
           start();
         }
@@ -258,8 +250,6 @@ export function initDetailSpriteCardAnimations(
     const details = currentAppearanceDetails;
     if (details.id !== appearanceId) return;
 
-    // Check if details is fully populated with frame_groups
-    // Sometimes details might be a partial update or minimal structure
     if (!details.frame_groups || !Array.isArray(details.frame_groups)) {
       return;
     }
@@ -294,7 +284,7 @@ export function initDetailSpriteCardAnimations(
       const draw = () => {
         const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, dims.layerIndex, dims.x, dims.y, dims.z, phase);
         if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          redrawCanvas(canvasEl, getSpriteUrl(sprites[spriteIdx]));
+          redrawCanvas(canvasEl, spriteUrlStore.get(sprites[spriteIdx]));
         }
       };
 
@@ -320,11 +310,11 @@ export function initDetailSpriteCardAnimations(
               completedLoops += 1;
               if (typeof maxLoops === 'number' && completedLoops >= maxLoops) {
                 clearInterval(timerId);
-                activeAnimationPlayers.delete(key);
+                animationStore.deletePlayer(key);
                 el.classList.remove('animating');
                 const spriteIdx = aggIndex;
                 if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-                  redrawCanvas(canvasEl, getSpriteUrl(sprites[spriteIdx]));
+                  redrawCanvas(canvasEl, spriteUrlStore.get(sprites[spriteIdx]));
                 }
                 return;
               }
@@ -334,25 +324,25 @@ export function initDetailSpriteCardAnimations(
           }
           draw();
         }, speed);
-        activeAnimationPlayers.set(key, timerId);
+        animationStore.setPlayer(key, timerId);
         el.classList.add('animating');
       };
 
       const stop = () => {
-        const timerId = activeAnimationPlayers.get(key);
+        const timerId = animationStore.getPlayer(key);
         if (timerId) {
           clearInterval(timerId);
-          activeAnimationPlayers.delete(key);
+          animationStore.deletePlayer(key);
         }
         el.classList.remove('animating');
         const spriteIdx = aggIndex;
         if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          redrawCanvas(canvasEl, getSpriteUrl(sprites[spriteIdx]));
+          redrawCanvas(canvasEl, spriteUrlStore.get(sprites[spriteIdx]));
         }
       };
 
       el.addEventListener('click', () => {
-        if (activeAnimationPlayers.has(key)) {
+        if (animationStore.hasPlayer(key)) {
           stop();
         } else {
           start();
@@ -377,14 +367,14 @@ export function initAssetCardAutoAnimation(
   const startAnimation = async (): Promise<void> => {
     try {
       if (!autoAnimateGridEnabled) return;
-      if (activeAnimationPlayers.has(`asset:${category}:${appearanceId}`)) return;
-      if (activeAnimationPlayers.size >= perfConfig.maxAutoAnimations) return;
+      if (animationStore.hasPlayer(`asset:${category}:${appearanceId}`)) return;
+      if (animationStore.playerCount >= perfConfig.maxAutoAnimations) return;
 
-      // Use unified cache for appearance details (elimina detailCache separado)
-      let details = unifiedSpriteCache.getDetails(category, appearanceId);
+      // Use registry for appearance details
+      let details = appearanceCache.getDetails(category, appearanceId);
       if (!details) {
         details = await invoke('get_complete_appearance', { category, id: appearanceId }) as CompleteAppearanceItem;
-        unifiedSpriteCache.setDetails(category, appearanceId, details);
+        appearanceCache.setDetails(category, appearanceId, details);
       }
 
       const sprites = await getAppearanceSprites(category, appearanceId);
@@ -395,7 +385,7 @@ export function initAssetCardAutoAnimation(
       }
 
       const key = `asset:${category}:${appearanceId}`;
-      if (activeAnimationPlayers.has(key)) {
+      if (animationStore.hasPlayer(key)) {
         return;
       }
 
@@ -417,7 +407,7 @@ export function initAssetCardAutoAnimation(
         frameIndex = (frameIndex + 1) % sequence.frames.length;
         draw();
       }, sequence.interval);
-      activeAnimationPlayers.set(key, timerId);
+      animationStore.setPlayer(key, timerId);
       container.classList.add('animating');
     } catch (e) {
       console.warn('Failed to init auto animation for asset card:', e);

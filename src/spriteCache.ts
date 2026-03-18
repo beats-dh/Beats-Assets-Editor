@@ -1,13 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { clearPreviewAnimationCache } from './features/previewAnimation/assetPreviewAnimator';
-import { getSpriteUrl, clearSpriteUrlCache } from './utils/spriteUrlCache';
 import { decodeSpriteOffThread } from './utils/imageDecodeWorkerClient';
 import { perfConfig } from './stores/performanceConfig.svelte';
-import { createSimpleCache } from './utils/closureCache';
-import { unifiedSpriteCache } from './utils/unifiedSpriteCache';
-
-// Cache para sprites individuais por ID (key space diferente: sprite ID, não appearance ID)
-const singleSpriteCache = createSimpleCache<number, Uint8Array>();
+import { appearanceCache, spriteIdCache, spriteUrlStore, getCacheStats, clearAllCaches as clearRegistryCaches } from './utils/cacheRegistry';
 
 let spritesLoaded = false;
 let spritesLoadAttempted = false;
@@ -21,7 +16,6 @@ export function getSpritesCacheKey(category: string, appearanceId: number): stri
   return `${category}:${appearanceId}`;
 }
 
-
 function normalizeSpriteBuffer(buffer: unknown): Uint8Array | null {
   if (buffer instanceof Uint8Array) return buffer;
   if (Array.isArray(buffer)) return new Uint8Array(buffer);
@@ -30,22 +24,20 @@ function normalizeSpriteBuffer(buffer: unknown): Uint8Array | null {
   return null;
 }
 
-
 export function getCachedSpriteById(spriteId: number): Uint8Array | null {
-  return singleSpriteCache.get(spriteId) ?? null;
+  return spriteIdCache.get(spriteId) ?? null;
 }
 
 export async function getSpriteById(spriteId: number): Promise<Uint8Array | null> {
   if (!Number.isFinite(spriteId)) return null;
 
-  if (singleSpriteCache.has(spriteId)) {
-    return singleSpriteCache.get(spriteId) ?? null;
+  if (spriteIdCache.has(spriteId)) {
+    return spriteIdCache.get(spriteId) ?? null;
   }
 
   if (!spritesLoaded) {
     await loadSprites();
   }
-
   if (!spritesLoaded) {
     return null;
   }
@@ -54,13 +46,12 @@ export async function getSpriteById(spriteId: number): Promise<Uint8Array | null
     const sprite = await invoke('get_sprite_by_id', { spriteId }) as number[] | Uint8Array | null;
     const data = normalizeSpriteBuffer(sprite);
     if (data) {
-      // Decode direto via Worker (sem decodedSpriteCache intermediário)
       let decoded = data;
       try {
         const result = await decodeSpriteOffThread(data);
         if (result) decoded = new Uint8Array(result);
       } catch { /* fallback: use raw */ }
-      singleSpriteCache.set(spriteId, decoded);
+      spriteIdCache.set(spriteId, decoded);
       return decoded;
     }
     return null;
@@ -71,9 +62,7 @@ export async function getSpriteById(spriteId: number): Promise<Uint8Array | null
 }
 
 export function clearSpritesCache(): void {
-  singleSpriteCache.clear();
-  unifiedSpriteCache.clear();
-  clearSpriteUrlCache();
+  clearRegistryCaches();
   clearPreviewAnimationCache();
 }
 
@@ -87,18 +76,14 @@ export async function clearAllCaches(): Promise<void> {
 }
 
 export async function loadSprites(): Promise<void> {
-  if (spritesLoadAttempted) {
-    return;
-  }
+  if (spritesLoadAttempted) return;
   spritesLoadAttempted = true;
   if (spritesLoaded) return;
 
   try {
-    // Use the user-provided Tibia path instead of calling select_tibia_directory
     const tibiaPath = userTibiaPath || await invoke('select_tibia_directory') as string;
     if (!tibiaPath) return;
 
-    // Try to auto-load sprites from Tibia 12+ format
     try {
       const spriteCount = await invoke('auto_load_sprites', { tibiaPath }) as number;
       console.log(`Auto-loaded ${spriteCount} sprites from Tibia 12+ format`);
@@ -122,8 +107,7 @@ export async function getAppearanceSprites(category: string, appearanceId: numbe
     return [];
   }
 
-  // Check unified cache (single source of truth)
-  const cached = unifiedSpriteCache.getRawSprites(category, appearanceId);
+  const cached = appearanceCache.getRawSprites(category, appearanceId);
   if (cached) return cached;
 
   try {
@@ -136,9 +120,7 @@ export async function getAppearanceSprites(category: string, appearanceId: numbe
       .map(sprite => normalizeSpriteBuffer(sprite))
       .filter((sprite): sprite is Uint8Array => !!sprite);
 
-    // Store in unified cache (LRU eviction automática)
-    unifiedSpriteCache.setRawSprites(category, appearanceId, normalized);
-
+    appearanceCache.setRawSprites(category, appearanceId, normalized);
     return normalized;
   } catch (error) {
     console.error(`Error getting sprites for ${category} ${appearanceId}:`, error);
@@ -146,46 +128,33 @@ export async function getAppearanceSprites(category: string, appearanceId: numbe
   }
 }
 
-// --- Granular cache invalidation (delegates to unified cache) ---
+// --- Granular cache invalidation (delegates to registry) ---
 
-/** Update a single sprite at a specific index in the cached appearance */
 export function updateCachedAppearanceSprite(
   category: string, id: number, index: number, newBuffer: Uint8Array
 ): void {
-  unifiedSpriteCache.updateSprite(category, id, index, newBuffer);
+  appearanceCache.updateSprite(category, id, index, newBuffer);
 }
 
-/** Append sprite buffers to the cached appearance */
 export function appendCachedAppearanceSprites(
   category: string, id: number, buffers: Uint8Array[]
 ): void {
-  unifiedSpriteCache.appendSprites(category, id, buffers);
+  appearanceCache.appendSprites(category, id, buffers);
 }
 
-/** Remove sprites at specific indices from the cached appearance */
 export function removeCachedAppearanceSprites(
   category: string, id: number, indices: number[]
 ): void {
-  unifiedSpriteCache.removeSprites(category, id, indices);
+  appearanceCache.removeSprites(category, id, indices);
 }
 
-/** Full invalidation for structural changes (texture settings, frame groups) */
 export function invalidateAppearanceCache(category: string, id: number): void {
-  unifiedSpriteCache.invalidate(category, id);
+  appearanceCache.invalidate(category, id);
 }
 
 /**
- * BATCH SPRITE LOADING - ULTRA PERFORMANCE
- * Load preview sprites for MULTIPLE appearances in a SINGLE call
- *
- * This is 10x-100x faster than individual calls due to:
- * - Single IPC call instead of N calls
- * - Backend parallel processing across all cores
- * - Automatic backend caching
- *
- * @param category - Appearance category (Objects, Outfits, Effects, Missiles)
- * @param appearanceIds - Array of appearance IDs to load
- * @returns Map of appearance ID to first sprite Uint8Array
+ * BATCH SPRITE LOADING
+ * Single IPC call for multiple appearance previews.
  */
 export async function getAppearancePreviewSpritesBatch(
   category: string,
@@ -216,10 +185,8 @@ export async function getAppearancePreviewSpritesBatch(
         if (data) allResults.set(Number(id), data);
       }
 
-      // Progressive callback between chunks
       if (onProgress) await onProgress(allResults);
 
-      // Yield for browser paint
       if (i + CHUNK_SIZE < appearanceIds.length) {
         await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
       }
@@ -231,7 +198,6 @@ export async function getAppearancePreviewSpritesBatch(
   return allResults;
 }
 
-
 export function createSpriteImage(data: Uint8Array, className = 'sprite-image'): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.className = className;
@@ -239,8 +205,6 @@ export function createSpriteImage(data: Uint8Array, className = 'sprite-image'):
   const displaySize = 64;
   const dpr = window.devicePixelRatio || 1;
 
-  // Dimensionamento CSS externo deve reger o tamanho do canvas (e.g no .list-sprite-container)
-  // O Canvas continuará recebendo o tamanho de display em JS apensamento para resolução
   canvas.width = Math.round(displaySize * dpr);
   canvas.height = Math.round(displaySize * dpr);
 
@@ -249,7 +213,7 @@ export function createSpriteImage(data: Uint8Array, className = 'sprite-image'):
 
   ctx.imageSmoothingEnabled = false;
 
-  const url = getSpriteUrl(data);
+  const url = spriteUrlStore.get(data);
   const img = new Image();
   img.onload = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -275,7 +239,6 @@ export function createPlaceholderImage(): HTMLDivElement {
 
 /**
  * Svelte action for pixel-perfect sprite rendering on <canvas>.
- * Usage: <canvas use:pixelSprite={url} style="width:64px;height:64px" />
  */
 export function pixelSprite(canvas: HTMLCanvasElement, src: string | null) {
   const dpr = window.devicePixelRatio || 1;
@@ -303,13 +266,9 @@ export function pixelSprite(canvas: HTMLCanvasElement, src: string | null) {
   };
 }
 
-// Export debug functions for console access
+// Debug functions
 export const debugCache = {
-  getFrontendCacheStats: () => ({
-    singleSpriteCacheSize: singleSpriteCache.size,
-    unifiedCacheSize: unifiedSpriteCache.size,
-    unifiedCacheStats: unifiedSpriteCache.getStats(),
-  }),
+  getFrontendCacheStats: () => getCacheStats(),
   getBackendCacheStats: async () => {
     try {
       const [totalEntries, totalSprites] = await invoke('get_sprite_cache_stats') as [number, number];
