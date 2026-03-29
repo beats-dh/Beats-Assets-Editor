@@ -6,6 +6,7 @@
   import { invoke } from "../../utils/invoke";
   import { COMMANDS } from "../../commands";
   import { showStatus } from "../../utils";
+  import { translate } from "../../i18n";
   import { loadSpritesForAssets } from "../../utils/spriteLoading";
   import { loadAssetsData } from "../../services/assetService";
   import { areAppearancesLoaded } from "../../appearanceLoader";
@@ -142,6 +143,23 @@
   let selectedId = $state<number | null>(assetsState.proficiencySelectedId);
   let isDirty = $state(false);
   let searchTerm = $state("");
+
+  // Item link search state
+  let itemSearchQuery = $state("");
+  let itemSearchResults = $state<{ id: number; name: string }[]>([]);
+
+  // XML sync state
+  let xmlPath = $state("");
+  let xmlDiagnostics = $state<{
+    ok: { itemId: number; itemName: string; proficiencyId: number }[];
+    mismatch: { itemId: number; itemName: string; xmlProfId: number; datProfId: number }[];
+    missingInXml: { itemId: number; proficiencyId: number }[];
+    datWrong: { itemId: number; itemName: string; xmlProfId: number; datProfId: number | null }[];
+    missingInJson: { itemId: number; itemName: string; proficiencyId: number; source: string }[];
+  } | null>(null);
+  let showXmlPanel = $state(false);
+  let itemSearchTimeout: ReturnType<typeof setTimeout> | null = null;
+  let showItemDropdown = $state(false);
 
   // Edit popover states
   let selLvl = $state<number | null>(null);
@@ -347,7 +365,7 @@
       // Buscar assests individualmente pós-carregamento.
       await loadProficiencyAssets(loaded);
     } catch (e) {
-      showStatus("Erro ao carregar formato", "error");
+      showStatus(translate("proficiency.status.loadError"), "error");
     }
   }
 
@@ -368,9 +386,9 @@
     try {
       await invoke(COMMANDS.SAVE_PROFICIENCY_FILE, { filePath, data: entries });
       isDirty = false;
-      showStatus("Salvo com sucesso!", "success");
+      showStatus(translate("proficiency.status.saved"), "success");
     } catch (e) {
-      showStatus(`Erro: ${e}`, "error");
+      showStatus(translate("proficiency.status.saveError", { err: String(e) }), "error");
     }
   }
 
@@ -459,6 +477,289 @@
     markDirty();
   }
 
+  // ── XML Sync ──────────────────────────────────────────────────────────────
+  async function openXmlPicker() {
+    const sel = await open({
+      directory: false,
+      multiple: false,
+      filters: [{ name: "XML", extensions: ["xml"] }],
+    });
+    if (typeof sel === "string" && sel) {
+      xmlPath = sel;
+      await scanXml();
+    }
+  }
+
+  async function scanXml() {
+    if (!xmlPath) return;
+    try {
+      const xmlItems = await invoke<{ itemId: number; itemName: string; proficiencyId: number }[]>(
+        COMMANDS.SCAN_PROFICIENCY_ITEMS_XML,
+        { xmlPath },
+      );
+
+      // Build JSON lookup: set of valid proficiency IDs from loaded entries
+      const jsonProfIds = new Set(entries.map((e) => e.ProficiencyId));
+
+      // Build DAT lookup: itemId -> proficiencyId from proficiencyAssets
+      const datMap = new Map<number, number>();
+      for (const [profId, asset] of Object.entries(assetsState.proficiencyAssets)) {
+        if (asset?.id) datMap.set(asset.id, Number(profId));
+      }
+
+      const ok: { itemId: number; itemName: string; proficiencyId: number }[] = [];
+      const mismatch: { itemId: number; itemName: string; xmlProfId: number; datProfId: number }[] = [];
+      const missingInXml: { itemId: number; proficiencyId: number }[] = [];
+      const datWrong: { itemId: number; itemName: string; xmlProfId: number; datProfId: number | null }[] = [];
+      const missingInJson: { itemId: number; itemName: string; proficiencyId: number; source: string }[] = [];
+
+      // 3-way comparison for each XML item
+      for (const xi of xmlItems) {
+        const datProfId = datMap.get(xi.itemId) ?? null;
+        const xmlInJson = jsonProfIds.has(xi.proficiencyId);
+        const datInJson = datProfId != null && jsonProfIds.has(datProfId);
+
+        if (datProfId != null && datProfId === xi.proficiencyId) {
+          // All agree (or at least XML=DAT)
+          ok.push(xi);
+          if (!xmlInJson) {
+            missingInJson.push({ itemId: xi.itemId, itemName: xi.itemName, proficiencyId: xi.proficiencyId, source: "XML+DAT" });
+          }
+        } else if (datProfId != null && datProfId !== xi.proficiencyId) {
+          // XML and DAT disagree
+          if (xmlInJson && !datInJson) {
+            // JSON+XML agree, DAT is wrong
+            datWrong.push({ itemId: xi.itemId, itemName: xi.itemName, xmlProfId: xi.proficiencyId, datProfId });
+          } else if (!xmlInJson && datInJson) {
+            // JSON+DAT agree, XML is wrong
+            mismatch.push({ itemId: xi.itemId, itemName: xi.itemName, xmlProfId: xi.proficiencyId, datProfId });
+          } else {
+            // Both in JSON or neither — default to generic mismatch
+            mismatch.push({ itemId: xi.itemId, itemName: xi.itemName, xmlProfId: xi.proficiencyId, datProfId });
+          }
+        } else {
+          // datProfId is null — item in XML but not in DAT
+          if (xmlInJson) {
+            // JSON+XML agree, DAT is missing
+            datWrong.push({ itemId: xi.itemId, itemName: xi.itemName, xmlProfId: xi.proficiencyId, datProfId: null });
+          } else {
+            missingInJson.push({ itemId: xi.itemId, itemName: xi.itemName, proficiencyId: xi.proficiencyId, source: "XML" });
+          }
+        }
+        datMap.delete(xi.itemId);
+      }
+
+      // Items in DAT but not in XML
+      for (const [itemId, profId] of datMap) {
+        missingInXml.push({ itemId, proficiencyId: profId });
+      }
+
+      xmlDiagnostics = { ok, mismatch, missingInXml, datWrong, missingInJson };
+      showXmlPanel = true;
+    } catch (e) {
+      showStatus(translate("proficiency.status.xmlReadError", { err: String(e) }), "error");
+    }
+  }
+
+  async function fixAllXml() {
+    if (!xmlPath || !xmlDiagnostics) return;
+    const mappings: { itemId: number; proficiencyId: number }[] = [];
+
+    // Fix mismatch: use DAT value (JSON+DAT agree) to fix XML
+    for (const m of xmlDiagnostics.mismatch) {
+      mappings.push({ itemId: m.itemId, proficiencyId: m.datProfId });
+    }
+    // Add missing items to XML
+    for (const m of xmlDiagnostics.missingInXml) {
+      mappings.push({ itemId: m.itemId, proficiencyId: m.proficiencyId });
+    }
+
+    if (mappings.length === 0) {
+      showStatus(translate("proficiency.fix.xmlNothingToFix"), "success");
+      return;
+    }
+
+    try {
+      const result = await invoke<{ updated: number; added: number; notFound: number[] }>(
+        COMMANDS.SYNC_PROFICIENCY_ITEMS_XML,
+        { xmlPath, mappings },
+      );
+      if (result.notFound.length > 0) {
+        showStatus(`${translate("proficiency.fix.xmlResult", { updated: String(result.updated), added: String(result.added) })} | ${translate("proficiency.fix.xmlNotFound", { count: String(result.notFound.length), ids: result.notFound.join(", ") })}`, "error");
+      } else {
+        showStatus(translate("proficiency.fix.xmlResult", { updated: String(result.updated), added: String(result.added) }), "success");
+      }
+      await scanXml();
+    } catch (e) {
+      showStatus(translate("proficiency.fix.xmlSyncError", { err: String(e) }), "error");
+    }
+  }
+
+  async function fixAllDat() {
+    if (!xmlDiagnostics) return;
+    const toFix = xmlDiagnostics.datWrong;
+    if (toFix.length === 0) {
+      showStatus(translate("proficiency.fix.datNothingToFix"), "success");
+      return;
+    }
+
+    let fixed = 0;
+    const errors: string[] = [];
+    for (const item of toFix) {
+      try {
+        await invoke(COMMANDS.UPDATE_APPEARANCE_PROFICIENCY, {
+          category: "Objects",
+          id: item.itemId,
+          proficiencyId: item.xmlProfId,
+        });
+        // Update local cache
+        const updated = await invoke<CompleteAppearanceItem>(
+          COMMANDS.GET_COMPLETE_APPEARANCE,
+          { category: "Objects", id: item.itemId },
+        );
+        assetsState.proficiencyAssets = {
+          ...assetsState.proficiencyAssets,
+          [item.xmlProfId]: updated,
+        };
+        fixed++;
+      } catch (e) {
+        errors.push(`#${item.itemId}: ${e}`);
+      }
+    }
+
+    // Persist to .dat file
+    if (fixed > 0) {
+      try {
+        await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
+      } catch (e) {
+        showStatus(translate("proficiency.fix.datSaveError", { count: String(fixed), err: String(e) }), "error");
+        return;
+      }
+    }
+
+    if (errors.length > 0) {
+      showStatus(translate("proficiency.fix.datErrors", { ok: String(fixed), errors: String(errors.length) }), errors.length === toFix.length ? "error" : "success");
+      console.warn("Fix DAT errors:", errors);
+    } else {
+      showStatus(translate("proficiency.fix.datSaved", { count: String(fixed) }), "success");
+    }
+    await scanXml();
+  }
+
+  // ── New / Delete / Link ──────────────────────────────────────────────────
+  function addNewProficiency() {
+    const maxId = entries.reduce((max, e) => Math.max(max, e.ProficiencyId), 0);
+    const newId = maxId + 1;
+    const newEntry: ProficiencyEntry = {
+      Name: "New Proficiency",
+      ProficiencyId: newId,
+      Version: 1,
+      Levels: [{ Perks: [{ Type: 15, Value: 0.05 }] }],
+    };
+    entries = [...entries, newEntry];
+    selectedId = newId;
+    selLvl = null;
+    selRow = null;
+    markDirty();
+  }
+
+  function deleteSelectedProficiency() {
+    if (selectedIndex < 0) return;
+    if (!confirm(translate("proficiency.config.deleteConfirm", { name: selectedEntry?.Name ?? "", id: String(selectedEntry?.ProficiencyId ?? "") }))) return;
+    const profId = entries[selectedIndex].ProficiencyId;
+    entries = entries.filter((_, i) => i !== selectedIndex);
+    selectedId = entries[0]?.ProficiencyId ?? null;
+    selLvl = null;
+    selRow = null;
+    markDirty();
+    unlinkFromItem(profId);
+  }
+
+  function updateEntryField(field: "Name" | "Version", value: string | number) {
+    if (selectedIndex < 0) return;
+    entries = entries.map((e, i) =>
+      i === selectedIndex ? { ...e, [field]: value } : e,
+    );
+    markDirty();
+  }
+
+  async function linkToItem(itemId: number) {
+    if (!selectedEntry) return;
+    try {
+      await invoke(COMMANDS.UPDATE_APPEARANCE_PROFICIENCY, {
+        category: "Objects",
+        id: itemId,
+        proficiencyId: selectedEntry.ProficiencyId,
+      });
+      const item = await invoke<CompleteAppearanceItem>(
+        COMMANDS.GET_COMPLETE_APPEARANCE,
+        { category: "Objects", id: itemId },
+      );
+      assetsState.proficiencyAssets = {
+        ...assetsState.proficiencyAssets,
+        [selectedEntry.ProficiencyId]: item,
+      };
+      // Persist .dat to disk
+      await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
+      showStatus(translate("proficiency.status.linked"), "success");
+      // Auto-sync XML if path is set
+      if (xmlPath) {
+        await invoke(COMMANDS.UPDATE_ITEM_PROFICIENCY_XML, {
+          xmlPath,
+          itemId,
+          proficiencyId: selectedEntry.ProficiencyId,
+        }).catch((err: unknown) => console.error("XML auto-sync falhou:", err));
+      }
+    } catch (e) {
+      showStatus(translate("proficiency.status.linkError", { err: String(e) }), "error");
+    }
+    itemSearchQuery = "";
+    itemSearchResults = [];
+    showItemDropdown = false;
+  }
+
+  async function unlinkFromItem(profId: number) {
+    const linkedAsset = assetsState.proficiencyAssets[profId];
+    if (!linkedAsset) return;
+    try {
+      await invoke(COMMANDS.UPDATE_APPEARANCE_PROFICIENCY, {
+        category: "Objects",
+        id: linkedAsset.id,
+        proficiencyId: null,
+      });
+      const { [profId]: _, ...rest } = assetsState.proficiencyAssets;
+      assetsState.proficiencyAssets = rest;
+    } catch (e) {
+      console.error("Falha ao desvincular item:", e);
+    }
+  }
+
+  function onItemSearchInput(query: string) {
+    itemSearchQuery = query;
+    if (itemSearchTimeout) clearTimeout(itemSearchTimeout);
+    if (!query.trim()) {
+      itemSearchResults = [];
+      showItemDropdown = false;
+      return;
+    }
+    itemSearchTimeout = setTimeout(async () => {
+      try {
+        const resp = await invoke<{ items: { id: number; name?: string }[] }>(
+          COMMANDS.LIST_APPEARANCES_BY_CATEGORY,
+          { category: "Objects", page: 0, pageSize: 20, search: query, subcategory: null },
+        );
+        itemSearchResults = (resp.items || []).map((it) => ({
+          id: it.id,
+          name: it.name ?? `Object #${it.id}`,
+        }));
+        showItemDropdown = itemSearchResults.length > 0;
+      } catch {
+        itemSearchResults = [];
+        showItemDropdown = false;
+      }
+    }, 300);
+  }
+
   // Sync local state → global cache so re-mount is instant
   $effect(() => {
     assetsState.proficiencyEntries = entries;
@@ -476,7 +777,7 @@
 <div class="tibia-bg">
   <div class="pe-layout">
     <div class="pe-window window-tibia">
-      <div class="window-header">Weapon Proficiency</div>
+      <div class="window-header">{translate("proficiency.title")}</div>
       <div class="window-content">
         <!-- LEFT SIDEBAR -->
         <div class="sidebar">
@@ -493,7 +794,7 @@
                 ? (getAssetForProficiency(
                     selectedEntry.ProficiencyId,
                   )?.name?.toLowerCase() ?? selectedEntry.Name.toLowerCase())
-                : "Unknown Item"}
+                : translate("proficiency.unknownItem")}
             </div>
             <div
               class="weapon-icon-wrapper"
@@ -536,7 +837,7 @@
                 vocFilter = v === "" ? null : Number(v);
               }}
             >
-              <option value="">Voc.</option>
+              <option value="">{translate("proficiency.filter.vocation")}</option>
               {#each Object.entries(VOC_LABELS) as [id, label]}
                 <option value={id}>{label}</option>
               {/each}
@@ -568,7 +869,7 @@
               weaponTypeFilter = v === "" ? null : Number(v);
             }}
           >
-            <option value="">Weapons: All</option>
+            <option value="">{translate("proficiency.filter.weaponsAll")}</option>
             {#each Object.entries(WEAPON_TYPE_LABELS) as [id, label]}
               <option value={id}>{label}</option>
             {/each}
@@ -578,14 +879,14 @@
           <div class="search-box textedit-panel">
             <input
               type="text"
-              placeholder="Type to search"
+              placeholder={translate("proficiency.filter.search")}
               bind:value={searchTerm}
             />
             {#if searchTerm}
               <button
                 class="clear-search"
                 onclick={() => (searchTerm = "")}
-                title="Clear Search"
+                title={translate("proficiency.filter.clearSearch")}
               >
                 <svg width="10" height="10" viewBox="0 0 10 10">
                   <path
@@ -810,7 +1111,7 @@
             </div>
           {:else}
             <div class="no-selection panel-sunken">
-              <span class="no-sel-msg">Selecione uma arma à esquerda.</span>
+              <span class="no-sel-msg">{translate("proficiency.noSelection")}</span>
             </div>
           {/if}
         </div>
@@ -822,8 +1123,10 @@
       <!-- FOOTER BOTÕES -->
       <div class="window-footer">
         <div class="footer-left">
-          <button class="tibia-btn" onclick={openFilePicker}>Load Data</button>
-          <button class="tibia-btn" onclick={saveAs}>Save As</button>
+          <button class="tibia-btn" onclick={openFilePicker}>{translate("proficiency.btn.loadData")}</button>
+          <button class="tibia-btn" onclick={addNewProficiency}>{translate("proficiency.btn.new")}</button>
+          <button class="tibia-btn" onclick={openXmlPicker}>{translate("proficiency.btn.syncXml")}</button>
+          <button class="tibia-btn" onclick={saveAs}>{translate("proficiency.btn.saveAs")}</button>
         </div>
         <div class="footer-right">
           <button
@@ -831,24 +1134,110 @@
             onclick={() => {
               saveFile();
               assetsState.viewMode = "categories";
-            }}>Ok</button
+            }}>{translate("proficiency.btn.ok")}</button
           >
           <button class="tibia-btn" onclick={saveFile} disabled={!isDirty}
-            >Apply</button
+            >{translate("proficiency.btn.apply")}</button
           >
-          <button class="tibia-btn" onclick={() => loadFile()}>Reset</button>
+          <button class="tibia-btn" onclick={() => loadFile()}>{translate("proficiency.btn.reset")}</button>
           <button
             class="tibia-btn"
-            onclick={() => (assetsState.viewMode = "categories")}>Close</button
+            onclick={() => (assetsState.viewMode = "categories")}>{translate("proficiency.btn.close")}</button
           >
         </div>
       </div>
     </div>
 
+    <!-- Side Panel: Entry Config (when no perk selected) -->
+    {#if selectedEntry && (selLvl === null || selRow === null || !selectedPerk)}
+      <div class="side-panel window-tibia">
+        <div class="window-header">{translate("proficiency.config.title")}</div>
+        <div class="side-panel-content">
+          <div class="config-field">
+            <label for="entry-name">Name</label>
+            <input
+              id="entry-name"
+              type="text"
+              class="tibia-input"
+              value={selectedEntry.Name}
+              oninput={(e) => updateEntryField("Name", e.currentTarget.value)}
+            />
+          </div>
+          <div class="config-field">
+            <label for="entry-id">ID</label>
+            <input
+              id="entry-id"
+              type="number"
+              class="tibia-input"
+              value={selectedEntry.ProficiencyId}
+              disabled
+            />
+          </div>
+          <div class="config-field">
+            <label for="entry-version">Version</label>
+            <input
+              id="entry-version"
+              type="number"
+              class="tibia-input"
+              value={selectedEntry.Version ?? 1}
+              oninput={(e) => updateEntryField("Version", Number(e.currentTarget.value))}
+            />
+          </div>
+
+          <!-- Linked Item -->
+          <div class="config-section-label">{translate("proficiency.config.linkedItem")}</div>
+          {#if getAssetForProficiency(selectedEntry.ProficiencyId)}
+            {@const linkedAsset = getAssetForProficiency(selectedEntry.ProficiencyId)}
+            <div class="linked-item-row">
+              <div class="linked-item-info">
+                <span class="linked-item-name">{linkedAsset?.name ?? `#${linkedAsset?.id}`}</span>
+                <span class="linked-item-id">ID: {linkedAsset?.id}</span>
+              </div>
+              <button
+                class="tibia-btn tibia-btn-sm"
+                onclick={() => unlinkFromItem(selectedEntry.ProficiencyId)}
+              >{translate("proficiency.btn.unlink")}</button>
+            </div>
+          {:else}
+            <div class="item-search-wrapper">
+              <input
+                type="text"
+                class="tibia-input"
+                placeholder={translate("proficiency.config.searchItem")}
+                value={itemSearchQuery}
+                oninput={(e) => onItemSearchInput(e.currentTarget.value)}
+                onfocus={() => { if (itemSearchResults.length > 0) showItemDropdown = true; }}
+                onblur={() => setTimeout(() => (showItemDropdown = false), 200)}
+              />
+              {#if showItemDropdown}
+                <div class="item-search-dropdown">
+                  {#each itemSearchResults as result}
+                    <button
+                      class="item-search-result"
+                      onmousedown={() => linkToItem(result.id)}
+                    >
+                      <span class="result-name">{result.name}</span>
+                      <span class="result-id">#{result.id}</span>
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {/if}
+
+          <div class="side-panel-footer">
+            <button class="tibia-btn tibia-btn-danger" onclick={deleteSelectedProficiency}>
+              {translate("proficiency.btn.delete")}
+            </button>
+          </div>
+        </div>
+      </div>
+    {/if}
+
     <!-- Side Panel: Perk Config -->
     {#if selLvl !== null && selRow !== null && selectedPerk}
       <div class="side-panel window-tibia">
-        <div class="window-header">Perk Config</div>
+        <div class="window-header">{translate("proficiency.perk.title")}</div>
         <div class="side-panel-content">
           <div class="config-field">
             <label for="perk-type">Type</label>
@@ -966,7 +1355,7 @@
           </div>
           <div class="side-panel-footer">
             <button class="tibia-btn tibia-btn-danger" onclick={removeSelPerk}
-              >Remover</button
+              >{translate("proficiency.btn.remove")}</button
             >
           </div>
         </div>
@@ -974,4 +1363,104 @@
     {/if}
   </div>
   <!-- /pe-layout -->
+
+  <!-- XML Diagnostic Panel (overlay) -->
+  {#if showXmlPanel && xmlDiagnostics}
+    <div class="xml-overlay">
+      <div class="xml-panel window-tibia">
+        <div class="window-header">
+          {translate("proficiency.sync.title")} — {xmlPath.split(/[/\\]/).pop()}
+          <button class="xml-close-btn" onclick={() => (showXmlPanel = false)}>x</button>
+        </div>
+        <div class="xml-panel-content">
+          <div class="xml-summary">
+            <span class="xml-stat xml-ok">{xmlDiagnostics.ok.length} {translate("proficiency.sync.ok")}</span>
+            <span class="xml-stat xml-dat-wrong">{xmlDiagnostics.datWrong.length} {translate("proficiency.sync.datWrong")}</span>
+            <span class="xml-stat xml-warn">{xmlDiagnostics.mismatch.length} {translate("proficiency.sync.xmlWrong")}</span>
+            <span class="xml-stat xml-miss">{xmlDiagnostics.missingInXml.length} {translate("proficiency.sync.missingXml")}</span>
+            {#if xmlDiagnostics.missingInJson.length > 0}
+              <span class="xml-stat xml-json-miss">{xmlDiagnostics.missingInJson.length} {translate("proficiency.sync.missingJson")}</span>
+            {/if}
+          </div>
+
+          {#if xmlDiagnostics.datWrong.length > 0}
+            <div class="xml-section">
+              <div class="xml-section-title">{translate("proficiency.sync.datIncorrectTitle")}</div>
+              <div class="xml-warning">{translate("proficiency.sync.datWarning")}</div>
+              {#each xmlDiagnostics.datWrong as m}
+                <div class="xml-row xml-row-dat-wrong">
+                  <span class="xml-item-name" title="{m.itemName}">{m.itemName || `Item`} (#{m.itemId})</span>
+                  <span class="xml-item-detail">correto={m.xmlProfId} | DAT={m.datProfId ?? translate("proficiency.sync.absent")}</span>
+                </div>
+              {/each}
+            </div>
+          {/if}
+
+          {#if xmlDiagnostics.mismatch.length > 0}
+            <div class="xml-section">
+              <div class="xml-section-title">{translate("proficiency.sync.xmlIncorrectTitle")}</div>
+              {#each xmlDiagnostics.mismatch as m}
+                <div class="xml-row xml-row-warn">
+                  <span class="xml-item-name" title="{m.itemName}">{m.itemName || `Item`} (#{m.itemId})</span>
+                  <span class="xml-item-detail">correto={m.datProfId} | XML={m.xmlProfId}</span>
+                </div>
+              {/each}
+            </div>
+          {/if}
+
+          {#if xmlDiagnostics.missingInXml.length > 0}
+            <div class="xml-section">
+              <div class="xml-section-title">{translate("proficiency.sync.missingXmlTitle")}</div>
+              <div class="xml-warning">{translate("proficiency.sync.xmlWarning")}</div>
+              {#each xmlDiagnostics.missingInXml as m}
+                <div class="xml-row xml-row-miss">
+                  <span class="xml-item-name">Item #{m.itemId}</span>
+                  <span class="xml-item-detail">proficiency={m.proficiencyId}</span>
+                </div>
+              {/each}
+            </div>
+          {/if}
+
+          {#if xmlDiagnostics.missingInJson.length > 0}
+            <div class="xml-section">
+              <div class="xml-section-title">{translate("proficiency.sync.missingJsonTitle")}</div>
+              {#each xmlDiagnostics.missingInJson as m}
+                <div class="xml-row xml-row-json-miss">
+                  <span class="xml-item-name" title="{m.itemName}">{m.itemName || `Item`} (#{m.itemId})</span>
+                  <span class="xml-item-detail">prof={m.proficiencyId} ({m.source})</span>
+                </div>
+              {/each}
+            </div>
+          {/if}
+
+          {#if xmlDiagnostics.ok.length > 0}
+            <details class="xml-section">
+              <summary class="xml-section-title">{translate("proficiency.sync.itemsOk", { count: String(xmlDiagnostics.ok.length) })}</summary>
+              {#each xmlDiagnostics.ok as item}
+                <div class="xml-row xml-row-ok">
+                  <span class="xml-item-name" title="{item.itemName}">{item.itemName || `Item`} (#{item.itemId})</span>
+                  <span class="xml-item-detail">prof={item.proficiencyId}</span>
+                </div>
+              {/each}
+            </details>
+          {/if}
+
+          <div class="xml-panel-footer">
+            <button
+              class="tibia-btn"
+              onclick={fixAllDat}
+              disabled={xmlDiagnostics.datWrong.length === 0}
+            >{translate("proficiency.btn.fixDat")}</button>
+            <button
+              class="tibia-btn"
+              onclick={fixAllXml}
+              disabled={xmlDiagnostics.mismatch.length === 0 && xmlDiagnostics.missingInXml.length === 0}
+            >{translate("proficiency.btn.fixXml")}</button>
+            <button class="tibia-btn" onclick={scanXml}>{translate("proficiency.btn.refresh")}</button>
+            <button class="tibia-btn" onclick={() => (showXmlPanel = false)}>{translate("proficiency.btn.close")}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>

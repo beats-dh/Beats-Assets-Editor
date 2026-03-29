@@ -3236,7 +3236,79 @@ const translationEntries = {
   'settings.perf.defaultPageSize': { default: 'Default Page Size', 'pt-BR': 'Tamanho de Página Padrão', en: 'Default Page Size', es: 'Tamaño de página predeterminado', ru: 'Размер страницы по умолч.' },
   'settings.perf.searchDebounceMs': { default: 'Search Debounce (ms)', 'pt-BR': 'Debounce de Busca (ms)', en: 'Search Debounce (ms)', es: 'Debounce de búsqueda (ms)', ru: 'Задержка поиска (мс)' },
   'settings.perf.idleCallbackTimeout': { default: 'Idle Callback Timeout', 'pt-BR': 'Timeout de Idle Callback', en: 'Idle Callback Timeout', es: 'Timeout de idle callback', ru: 'Таймаут idle callback' },
-  'settings.perf.historyLimit': { default: 'History Limit', 'pt-BR': 'Limite do Histórico', en: 'History Limit', es: 'Límite de historial', ru: 'Лимит истории' }
+  'settings.perf.historyLimit': { default: 'History Limit', 'pt-BR': 'Limite do Histórico', en: 'History Limit', es: 'Límite de historial', ru: 'Лимит истории' },
+
+  // ==========================================
+  // Proficiency Editor
+  // ==========================================
+  'proficiency.title': { default: 'Weapon Proficiency', 'pt-BR': 'Proficiência de Arma', en: 'Weapon Proficiency', es: 'Competencia de Arma', ru: 'Мастерство оружия' },
+  'proficiency.noSelection': { default: 'Select a weapon on the left.', 'pt-BR': 'Selecione uma arma à esquerda.', en: 'Select a weapon on the left.', es: 'Selecciona un arma a la izquierda.', ru: 'Выберите оружие слева.' },
+  'proficiency.unknownItem': { default: 'Unknown Item', 'pt-BR': 'Item desconhecido', en: 'Unknown Item', es: 'Objeto desconocido', ru: 'Неизвестный предмет' },
+
+  // Proficiency - Buttons
+  'proficiency.btn.loadData': { default: 'Load Data', 'pt-BR': 'Carregar', en: 'Load Data', es: 'Cargar', ru: 'Загрузить' },
+  'proficiency.btn.new': { default: 'New', 'pt-BR': 'Novo', en: 'New', es: 'Nuevo', ru: 'Новый' },
+  'proficiency.btn.syncXml': { default: 'Sync XML', 'pt-BR': 'Sync XML', en: 'Sync XML', es: 'Sync XML', ru: 'Синхр. XML' },
+  'proficiency.btn.saveAs': { default: 'Save As', 'pt-BR': 'Salvar Como', en: 'Save As', es: 'Guardar Como', ru: 'Сохранить как' },
+  'proficiency.btn.ok': { default: 'Ok', 'pt-BR': 'Ok', en: 'Ok', es: 'Ok', ru: 'Ок' },
+  'proficiency.btn.apply': { default: 'Apply', 'pt-BR': 'Aplicar', en: 'Apply', es: 'Aplicar', ru: 'Применить' },
+  'proficiency.btn.reset': { default: 'Reset', 'pt-BR': 'Reset', en: 'Reset', es: 'Restablecer', ru: 'Сброс' },
+  'proficiency.btn.close': { default: 'Close', 'pt-BR': 'Fechar', en: 'Close', es: 'Cerrar', ru: 'Закрыть' },
+  'proficiency.btn.delete': { default: 'Delete', 'pt-BR': 'Deletar', en: 'Delete', es: 'Eliminar', ru: 'Удалить' },
+  'proficiency.btn.unlink': { default: 'Unlink', 'pt-BR': 'Desvincular', en: 'Unlink', es: 'Desvincular', ru: 'Отвязать' },
+  'proficiency.btn.remove': { default: 'Remove', 'pt-BR': 'Remover', en: 'Remove', es: 'Eliminar', ru: 'Удалить' },
+  'proficiency.btn.fixDat': { default: 'Fix DAT', 'pt-BR': 'Fix DAT', en: 'Fix DAT', es: 'Fix DAT', ru: 'Fix DAT' },
+  'proficiency.btn.fixXml': { default: 'Fix XML', 'pt-BR': 'Fix XML', en: 'Fix XML', es: 'Fix XML', ru: 'Fix XML' },
+  'proficiency.btn.refresh': { default: 'Refresh', 'pt-BR': 'Atualizar', en: 'Refresh', es: 'Actualizar', ru: 'Обновить' },
+
+  // Proficiency - Filters
+  'proficiency.filter.vocation': { default: 'Voc.', 'pt-BR': 'Voc.', en: 'Voc.', es: 'Voc.', ru: 'Класс' },
+  'proficiency.filter.weaponsAll': { default: 'Weapons: All', 'pt-BR': 'Armas: Todas', en: 'Weapons: All', es: 'Armas: Todas', ru: 'Оружие: Все' },
+  'proficiency.filter.search': { default: 'Type to search', 'pt-BR': 'Digite para buscar', en: 'Type to search', es: 'Escriba para buscar', ru: 'Введите для поиска' },
+  'proficiency.filter.clearSearch': { default: 'Clear Search', 'pt-BR': 'Limpar busca', en: 'Clear Search', es: 'Limpiar búsqueda', ru: 'Очистить поиск' },
+
+  // Proficiency - Config Panel
+  'proficiency.config.title': { default: 'Proficiency Config', 'pt-BR': 'Config. Proficiency', en: 'Proficiency Config', es: 'Config. Competencia', ru: 'Настройки мастерства' },
+  'proficiency.config.linkedItem': { default: 'Linked Item', 'pt-BR': 'Item Vinculado', en: 'Linked Item', es: 'Objeto Vinculado', ru: 'Привязанный предмет' },
+  'proficiency.config.searchItem': { default: 'Search item by name or ID...', 'pt-BR': 'Buscar item por nome ou ID...', en: 'Search item by name or ID...', es: 'Buscar objeto por nombre o ID...', ru: 'Поиск предмета по имени или ID...' },
+  'proficiency.config.deleteConfirm': { default: 'Delete "{{name}}" (ID {{id}})?', 'pt-BR': 'Deletar "{{name}}" (ID {{id}})?', en: 'Delete "{{name}}" (ID {{id}})?', es: '¿Eliminar "{{name}}" (ID {{id}})?', ru: 'Удалить "{{name}}" (ID {{id}})?' },
+
+  // Proficiency - Perk Config
+  'proficiency.perk.title': { default: 'Perk Config', 'pt-BR': 'Config. Perk', en: 'Perk Config', es: 'Config. Perk', ru: 'Настройки перка' },
+
+  // Proficiency - Status Messages
+  'proficiency.status.loadError': { default: 'Error loading format', 'pt-BR': 'Erro ao carregar formato', en: 'Error loading format', es: 'Error al cargar formato', ru: 'Ошибка загрузки формата' },
+  'proficiency.status.saved': { default: 'Saved successfully!', 'pt-BR': 'Salvo com sucesso!', en: 'Saved successfully!', es: '¡Guardado con éxito!', ru: 'Успешно сохранено!' },
+  'proficiency.status.saveError': { default: 'Error: {{err}}', 'pt-BR': 'Erro: {{err}}', en: 'Error: {{err}}', es: 'Error: {{err}}', ru: 'Ошибка: {{err}}' },
+  'proficiency.status.linked': { default: 'Item linked!', 'pt-BR': 'Item vinculado!', en: 'Item linked!', es: '¡Objeto vinculado!', ru: 'Предмет привязан!' },
+  'proficiency.status.linkError': { default: 'Error linking: {{err}}', 'pt-BR': 'Erro ao vincular: {{err}}', en: 'Error linking: {{err}}', es: 'Error al vincular: {{err}}', ru: 'Ошибка привязки: {{err}}' },
+  'proficiency.status.xmlReadError': { default: 'Error reading XML: {{err}}', 'pt-BR': 'Erro ao ler XML: {{err}}', en: 'Error reading XML: {{err}}', es: 'Error al leer XML: {{err}}', ru: 'Ошибка чтения XML: {{err}}' },
+
+  // Proficiency - XML Sync Panel
+  'proficiency.sync.title': { default: '3-Way Sync', 'pt-BR': '3-Way Sync', en: '3-Way Sync', es: '3-Way Sync', ru: '3-Way Sync' },
+  'proficiency.sync.ok': { default: 'OK', 'pt-BR': 'OK', en: 'OK', es: 'OK', ru: 'OK' },
+  'proficiency.sync.datWrong': { default: 'DAT wrong', 'pt-BR': 'DAT errado', en: 'DAT wrong', es: 'DAT incorrecto', ru: 'DAT неверно' },
+  'proficiency.sync.xmlWrong': { default: 'XML wrong', 'pt-BR': 'XML errado', en: 'XML wrong', es: 'XML incorrecto', ru: 'XML неверно' },
+  'proficiency.sync.missingXml': { default: 'missing XML', 'pt-BR': 'falta XML', en: 'missing XML', es: 'falta XML', ru: 'нет в XML' },
+  'proficiency.sync.missingJson': { default: 'missing JSON', 'pt-BR': 'falta JSON', en: 'missing JSON', es: 'falta JSON', ru: 'нет в JSON' },
+  'proficiency.sync.datIncorrectTitle': { default: 'DAT Incorrect (JSON+XML agree)', 'pt-BR': 'DAT Incorreto (JSON+XML concordam)', en: 'DAT Incorrect (JSON+XML agree)', es: 'DAT Incorrecto (JSON+XML coinciden)', ru: 'DAT неверно (JSON+XML совпадают)' },
+  'proficiency.sync.datWarning': { default: 'Fix DAT only works if the item exists in the loaded appearances.dat. Missing items need to be created first.', 'pt-BR': 'Fix DAT só funciona se o item existir no appearances.dat carregado. Items ausentes precisam ser criados primeiro.', en: 'Fix DAT only works if the item exists in the loaded appearances.dat. Missing items need to be created first.', es: 'Fix DAT solo funciona si el objeto existe en el appearances.dat cargado. Los objetos ausentes deben crearse primero.', ru: 'Fix DAT работает только если предмет есть в загруженном appearances.dat. Отсутствующие предметы нужно создать сначала.' },
+  'proficiency.sync.xmlIncorrectTitle': { default: 'XML Incorrect (JSON+DAT agree)', 'pt-BR': 'XML Incorreto (JSON+DAT concordam)', en: 'XML Incorrect (JSON+DAT agree)', es: 'XML Incorrecto (JSON+DAT coinciden)', ru: 'XML неверно (JSON+DAT совпадают)' },
+  'proficiency.sync.missingXmlTitle': { default: 'Missing in XML', 'pt-BR': 'Faltando no XML', en: 'Missing in XML', es: 'Falta en XML', ru: 'Отсутствует в XML' },
+  'proficiency.sync.xmlWarning': { default: 'Items that exist in DAT but have no proficiency in items.xml. Fix XML only works if the item exists in the XML.', 'pt-BR': 'Items que existem no DAT mas não tem proficiency no items.xml. Fix XML só funciona se o item existir no XML.', en: 'Items that exist in DAT but have no proficiency in items.xml. Fix XML only works if the item exists in the XML.', es: 'Objetos que existen en DAT pero no tienen competencia en items.xml. Fix XML solo funciona si el objeto existe en el XML.', ru: 'Предметы, которые есть в DAT, но не имеют proficiency в items.xml. Fix XML работает только если предмет есть в XML.' },
+  'proficiency.sync.missingJsonTitle': { default: 'ProficiencyId missing in JSON', 'pt-BR': 'ProficiencyId ausente no JSON', en: 'ProficiencyId missing in JSON', es: 'ProficiencyId ausente en JSON', ru: 'ProficiencyId отсутствует в JSON' },
+  'proficiency.sync.itemsOk': { default: '{{count}} items OK', 'pt-BR': '{{count}} items OK', en: '{{count}} items OK', es: '{{count}} items OK', ru: '{{count}} items OK' },
+  'proficiency.sync.absent': { default: 'absent', 'pt-BR': 'ausente', en: 'absent', es: 'ausente', ru: 'отсутствует' },
+
+  // Proficiency - Fix Results
+  'proficiency.fix.xmlNothingToFix': { default: 'XML: nothing to fix!', 'pt-BR': 'XML: nada para corrigir!', en: 'XML: nothing to fix!', es: 'XML: ¡nada que corregir!', ru: 'XML: нечего исправлять!' },
+  'proficiency.fix.xmlResult': { default: 'XML: {{updated}} updated, {{added}} added', 'pt-BR': 'XML: {{updated}} atualizados, {{added}} adicionados', en: 'XML: {{updated}} updated, {{added}} added', es: 'XML: {{updated}} actualizados, {{added}} añadidos', ru: 'XML: {{updated}} обновлено, {{added}} добавлено' },
+  'proficiency.fix.xmlNotFound': { default: '{{count}} items not found in XML (IDs: {{ids}})', 'pt-BR': '{{count}} items não existem no XML (IDs: {{ids}})', en: '{{count}} items not found in XML (IDs: {{ids}})', es: '{{count}} objetos no existen en XML (IDs: {{ids}})', ru: '{{count}} предметов не найдено в XML (IDs: {{ids}})' },
+  'proficiency.fix.datNothingToFix': { default: 'DAT: nothing to fix!', 'pt-BR': 'DAT: nada para corrigir!', en: 'DAT: nothing to fix!', es: 'DAT: ¡nada que corregir!', ru: 'DAT: нечего исправлять!' },
+  'proficiency.fix.datSaved': { default: 'DAT: {{count}} items fixed and saved', 'pt-BR': 'DAT: {{count}} items corrigidos e salvos', en: 'DAT: {{count}} items fixed and saved', es: 'DAT: {{count}} objetos corregidos y guardados', ru: 'DAT: {{count}} предметов исправлено и сохранено' },
+  'proficiency.fix.datSaveError': { default: 'DAT: {{count}} in memory, failed to save: {{err}}', 'pt-BR': 'DAT: {{count}} na memória, falha ao salvar: {{err}}', en: 'DAT: {{count}} in memory, failed to save: {{err}}', es: 'DAT: {{count}} en memoria, error al guardar: {{err}}', ru: 'DAT: {{count}} в памяти, ошибка сохранения: {{err}}' },
+  'proficiency.fix.datErrors': { default: 'DAT: {{ok}} OK, {{errors}} errors (items not found in .dat)', 'pt-BR': 'DAT: {{ok}} OK, {{errors}} erros (items não encontrados no .dat)', en: 'DAT: {{ok}} OK, {{errors}} errors (items not found in .dat)', es: 'DAT: {{ok}} OK, {{errors}} errores (objetos no encontrados en .dat)', ru: 'DAT: {{ok}} OK, {{errors}} ошибок (предметы не найдены в .dat)' },
+  'proficiency.fix.xmlSyncError': { default: 'Error syncing XML: {{err}}', 'pt-BR': 'Erro ao sync XML: {{err}}', en: 'Error syncing XML: {{err}}', es: 'Error al sincronizar XML: {{err}}', ru: 'Ошибка синхронизации XML: {{err}}' }
 } as const satisfies Record<string, Record<LanguageCode, string>>;
 
 export type TranslationKey = keyof typeof translationEntries;
