@@ -1,8 +1,7 @@
 import type { CompleteAppearanceItem, CompleteSpriteInfo } from '../../types';
 import {
   computeGroupOffsetsFromDetails,
-  computeSpriteIndex,
-  decomposeSpriteIndex
+  computeSpriteIndex
 } from '../../animation';
 import {
   resolveOutfitPreviewDirection,
@@ -109,39 +108,112 @@ async function buildSequence(
     return { frames, interval };
   }
 
-  const frames = buildGenericFrames(spriteInfo, baseOffset, sprites, frameCount);
+  const frames = await buildGenericFrames(spriteInfo, baseOffset, sprites, frameCount);
   if (frames.length === 0) {
     return null;
   }
   return {
     frames,
-    interval: 100
+    interval: Math.max(100, spriteInfo.animation?.phases?.[0]?.duration_min ?? 100)
   };
 }
 
-function buildGenericFrames(
+async function buildGenericFrames(
   spriteInfo: CompleteSpriteInfo,
   baseOffset: number,
   sprites: string[],
   frameCount: number
-): string[] {
+): Promise<string[]> {
   const frames: string[] = [];
-  const baseDimensions = decomposeSpriteIndex(spriteInfo, 0);
+  const width = Math.max(1, ensureNumber(spriteInfo.pattern_width, 1));
+  const height = Math.max(1, ensureNumber(spriteInfo.pattern_height, 1));
+  const layers = Math.max(1, ensureNumber(spriteInfo.layers, 1));
+  const patternZ = Math.max(1, ensureNumber(spriteInfo.pattern_depth, 1));
+  
+  const imageCache = new Map<number, Promise<HTMLImageElement>>();
+
   for (let phase = 0; phase < frameCount; phase++) {
-    const spriteIndex = baseOffset + computeSpriteIndex(
-      spriteInfo,
-      baseDimensions.layerIndex,
-      baseDimensions.x,
-      baseDimensions.y,
-      baseDimensions.z,
-      phase
-    );
-    const sprite = sprites[spriteIndex];
-    if (sprite) {
-      frames.push(sprite);
+    // If it's a simple 1x1x1 sprite, use fast path
+    if (width === 1 && height === 1 && layers === 1 && patternZ === 1) {
+      const spriteIndex = baseOffset + computeSpriteIndex(spriteInfo, 0, 0, 0, 0, phase);
+      const sprite = sprites[spriteIndex];
+      if (sprite) {
+        frames.push(sprite);
+      }
+      continue;
+    }
+
+    // Multitile composition
+    const parts: { index: number; x: number; y: number }[] = [];
+    
+    // Iterate dimensions exactly as OTClient does (ThingType::draw)
+    // Z -> Y -> X -> Layers
+    for (let z = 0; z < patternZ; z++) {
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          for (let l = 0; l < layers; l++) {
+            const spriteIndex = baseOffset + computeSpriteIndex(
+              spriteInfo,
+              l,
+              x,
+              y,
+              z,
+              phase
+            );
+
+            // Calculate position: Bottom-Right Start
+            // Invert X and Y for visual position
+            const posX = (width - 1 - x) * 32;
+            const posY = (height - 1 - y) * 32;
+
+            parts.push({ index: spriteIndex, x: posX, y: posY });
+          }
+        }
+      }
+    }
+
+    const composed = await composeMultitileFrame(parts, sprites, imageCache, width * 32, height * 32);
+    if (composed) {
+      frames.push(composed);
     }
   }
   return frames;
+}
+
+async function composeMultitileFrame(
+  parts: { index: number; x: number; y: number }[],
+  sprites: string[],
+  cache: Map<number, Promise<HTMLImageElement>>,
+  totalWidth: number,
+  totalHeight: number
+): Promise<string | null> {
+  const canvas = document.createElement('canvas');
+  canvas.width = totalWidth;
+  canvas.height = totalHeight;
+  const context = canvas.getContext('2d');
+  if (!context) return null;
+
+  let hasContent = false;
+
+  for (const part of parts) {
+    if (part.index < 0 || part.index >= sprites.length) continue;
+    const base64 = sprites[part.index];
+    if (!base64) continue;
+
+    try {
+      const image = await loadImage(part.index, base64, cache);
+      context.drawImage(image, part.x, part.y);
+      hasContent = true;
+    } catch (e) {
+      console.warn(`Failed to load sprite ${part.index} for composition`, e);
+    }
+  }
+
+  if (!hasContent) return null;
+
+  const dataUrl = canvas.toDataURL('image/png');
+  const [, base64] = dataUrl.split(',');
+  return base64 || null;
 }
 
 function ensureNumber(value: number | undefined, fallback: number): number {

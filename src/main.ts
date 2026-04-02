@@ -130,6 +130,17 @@ async function loadAppearances(): Promise<void> {
   }
 
   try {
+    // Check catalog-content.json for the correct appearances file
+    let catalogFile: string | null = null;
+    try {
+      catalogFile = await invoke<string | null>("get_catalog_appearances_file", { tibiaPath });
+      if (catalogFile) {
+        console.log("Found appearances in catalog:", catalogFile);
+      }
+    } catch (e) {
+      console.warn("Failed to check catalog:", e);
+    }
+
     // List available appearance files
     const files = await invoke<string[]>("list_appearance_files", { tibiaPath });
 
@@ -143,11 +154,14 @@ async function loadAppearances(): Promise<void> {
     // Build paths using Tauri's path.join for cross-platform compatibility
     const assetsDir = await join(tibiaPath, "assets");
 
-    // Try to load appearances_latest.dat first (our working copy)
+    // Default to appearances_latest.dat (our working copy)
     let appearancePath = await join(assetsDir, "appearances_latest.dat");
 
-    // If that doesn't exist, fall back to the first file
-    if (!files.includes("appearances_latest.dat")) {
+    // Priority: Catalog > appearances_latest.dat > First file
+    if (catalogFile && files.includes(catalogFile)) {
+      appearancePath = await join(assetsDir, catalogFile);
+      showStatus(translate('status.loadingCatalogFile', { file: catalogFile }), "success");
+    } else if (!files.includes("appearances_latest.dat")) {
       appearancePath = await join(assetsDir, files[0]);
     }
 

@@ -719,6 +719,13 @@ const translationEntries = {
     es: 'No se encontraron archivos de apariencias en el directorio de recursos',
     ru: 'В каталоге ресурсов не найдено файлов внешностей'
   },
+  'status.loadingCatalogFile': {
+    default: 'Loading appearances from catalog: {{file}}',
+    'pt-BR': 'Carregando aparências do catálogo: {{file}}',
+    en: 'Loading appearances from catalog: {{file}}',
+    es: 'Cargando apariencias del catálogo: {{file}}',
+    ru: 'Загрузка внешностей из каталога: {{file}}'
+  },
   'status.loadError': {
     default: 'Error: {{message}}',
     'pt-BR': 'Erro: {{message}}',
