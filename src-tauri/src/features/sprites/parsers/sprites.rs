@@ -47,6 +47,26 @@ impl TibiaSprite {
     }
 }
 
+/// Sprite with metadata for frontend rendering
+#[derive(Debug, Clone, Serialize)]
+pub struct SpriteWithMetadata {
+    pub base64: String,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl TibiaSprite {
+    /// Convert sprite to base64 PNG with metadata
+    pub fn to_base64_png_with_metadata(&self) -> Result<SpriteWithMetadata> {
+        let base64 = self.to_base64_png()?;
+        Ok(SpriteWithMetadata {
+            base64,
+            width: self.width,
+            height: self.height,
+        })
+    }
+}
+
 /// Sprite catalog entry from catalog-content.json
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SpriteCatalogEntry {
@@ -199,6 +219,39 @@ impl SpriteLoader {
                 0 => (32, 32),
                 1 => (32, 64),
                 2 => (64, 32),
+                3 => (64, 64),
+                4 => (32, 96),
+                5 => (32, 128),
+                6 => (32, 192),
+                7 => (32, 384),
+                8 => (64, 96),
+                9 => (64, 128),
+                10 => (64, 192),
+                11 => (64, 384),
+                12 => (96, 32),
+                13 => (96, 64),
+                14 => (96, 96),
+                15 => (96, 128),
+                16 => (96, 192),
+                17 => (96, 384),
+                18 => (128, 32),
+                19 => (128, 64),
+                20 => (128, 96),
+                21 => (128, 128),
+                22 => (128, 192),
+                23 => (128, 384),
+                24 => (192, 32),
+                25 => (192, 64),
+                26 => (192, 96),
+                27 => (192, 128),
+                28 => (192, 192),
+                29 => (192, 384),
+                30 => (384, 32),
+                31 => (384, 64),
+                32 => (384, 96),
+                33 => (384, 128),
+                34 => (384, 192),
+                35 => (384, 384),
                 _ => (64, 64),
             }
         } else {

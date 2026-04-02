@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { CompleteAppearanceItem, CompleteSpriteInfo, SpriteDecomposition, GroupMapping } from './types';
-import { getAppearanceSprites } from './spriteCache';
+import { getAppearanceSpritesWithMetadata, SpriteWithMetadata } from './spriteCache';
 import { buildAssetPreviewAnimation } from './features/previewAnimation/assetPreviewAnimator';
 
 // Active animation players storage
@@ -94,7 +94,7 @@ export async function initAnimationPlayersForDetails(details: CompleteAppearance
   const detailsContent = document.querySelector('#details-content') as HTMLElement | null;
 
   try {
-    const sprites = await getAppearanceSprites(category, details.id);
+    const sprites = await getAppearanceSpritesWithMetadata(category, details.id);
     const groupOffsets = computeGroupOffsetsFromDetails(details);
 
     details.frame_groups.forEach((fg, index) => {
@@ -138,7 +138,10 @@ export async function initAnimationPlayersForDetails(details: CompleteAppearance
       const draw = () => {
         const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, 0, 0, 0, 0, phase);
         if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+          const sprite = sprites[spriteIdx];
+          imgEl.src = `data:image/png;base64,${sprite.base64}`;
+          imgEl.style.setProperty('--sprite-width', `${sprite.width}px`);
+          imgEl.style.setProperty('--sprite-height', `${sprite.height}px`);
           phaseLabel.textContent = `Fase ${phase + 1}`;
         }
       };
@@ -207,9 +210,17 @@ export async function initAnimationPlayersForDetails(details: CompleteAppearance
 
 export function initDetailSpriteCardAnimations(
   appearanceId: number,
-  sprites: string[],
+  sprites: SpriteWithMetadata[] | string[],
   currentAppearanceDetails: CompleteAppearanceItem | null
 ): void {
+  // Convert string[] to SpriteWithMetadata[] if needed (backward compatibility)
+  const normalizedSprites: SpriteWithMetadata[] = sprites.map((s) => {
+    if (typeof s === 'string') {
+      // Legacy: just base64 string, assume 64x64
+      return { base64: s, width: 64, height: 64 };
+    }
+    return s;
+  });
   try {
     if (!currentAppearanceDetails) return;
     const details = currentAppearanceDetails;
@@ -242,8 +253,11 @@ export function initDetailSpriteCardAnimations(
 
       const draw = () => {
         const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, dims.layerIndex, dims.x, dims.y, dims.z, phase);
-        if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+        if (spriteIdx >= 0 && spriteIdx < normalizedSprites.length) {
+          const sprite = normalizedSprites[spriteIdx];
+          imgEl.src = `data:image/png;base64,${sprite.base64}`;
+          imgEl.style.setProperty('--sprite-width', `${sprite.width}px`);
+          imgEl.style.setProperty('--sprite-height', `${sprite.height}px`);
         }
       };
 
@@ -272,8 +286,11 @@ export function initDetailSpriteCardAnimations(
                 activeAnimationPlayers.delete(key);
                 el.classList.remove('animating');
                 const spriteIdx = aggIndex;
-                if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-                  imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+                if (spriteIdx >= 0 && spriteIdx < normalizedSprites.length) {
+                  const sprite = normalizedSprites[spriteIdx];
+                  imgEl.src = `data:image/png;base64,${sprite.base64}`;
+                  imgEl.style.setProperty('--sprite-width', `${sprite.width}px`);
+                  imgEl.style.setProperty('--sprite-height', `${sprite.height}px`);
                 }
                 return;
               }

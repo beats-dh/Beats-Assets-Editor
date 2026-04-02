@@ -92,7 +92,7 @@ pub async fn list_appearance_files(tibia_path: String) -> Result<Vec<String>, St
         if let Some(file_name) = path.file_name() {
             let file_name_str = file_name.to_string_lossy().to_string();
 
-            if (file_name_str.starts_with("appearances-") || file_name_str == "appearances_latest.dat") && file_name_str.ends_with(".dat") {
+            if (file_name_str.starts_with("appearances-") || file_name_str == "appearances_latest.dat" || file_name_str == "appearances.dat") && file_name_str.ends_with(".dat") {
                 let size = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
                 files_data.push((file_name_str, size));
             }
@@ -162,4 +162,29 @@ pub async fn save_appearances_file(state: tauri::State<'_, AppState>) -> Result<
     log::info!("Saved {} bytes to disk", size);
 
     Ok(size)
+}
+
+/// Try to find appearances file from catalog-content.json
+#[tauri::command]
+pub async fn get_catalog_appearances_file(tibia_path: String) -> Result<Option<String>, String> {
+    let tibia_path = std::path::PathBuf::from(tibia_path);
+
+    // Check root and assets dir
+    let paths_to_check = vec![tibia_path.join("catalog-content.json"), tibia_path.join("assets").join("catalog-content.json")];
+
+    for path in paths_to_check {
+        if path.exists() {
+            log::info!("Checking catalog at {:?}", path);
+            match crate::features::appearances::parsers::catalog::find_appearances_file_in_catalog(&path) {
+                Ok(Some(file)) => {
+                    log::info!("Found appearances file in catalog: {}", file);
+                    return Ok(Some(file));
+                }
+                Ok(None) => continue,
+                Err(e) => log::warn!("Failed to parse catalog at {:?}: {}", path, e),
+            }
+        }
+    }
+
+    Ok(None)
 }

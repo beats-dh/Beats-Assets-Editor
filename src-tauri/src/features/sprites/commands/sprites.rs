@@ -1,5 +1,5 @@
 use crate::features::appearances::AppearanceCategory;
-use crate::features::sprites::parsers::SpriteLoader;
+use crate::features::sprites::parsers::{SpriteLoader, SpriteWithMetadata};
 use crate::state::AppState;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -409,4 +409,72 @@ pub async fn get_appearance_preview_sprites_batch(category: AppearanceCategory, 
 
     log::info!("BATCH PREVIEW LOAD: Successfully loaded {} previews", result.len());
     Ok(result)
+}
+
+/// Get sprite by ID as base64 PNG with metadata (width, height)
+#[tauri::command]
+pub async fn get_sprite_by_id_with_metadata(sprite_id: u32, state: State<'_, AppState>) -> Result<SpriteWithMetadata, String> {
+    let sprite_loader_lock = state.sprite_loader.read();
+
+    match &*sprite_loader_lock {
+        Some(loader) => {
+            let sprite = loader.get_sprite(sprite_id).map_err(|e| format!("Failed to get sprite {}: {}", sprite_id, e))?;
+            sprite.to_base64_png_with_metadata().map_err(|e| format!("Failed to convert sprite: {}", e))
+        }
+        None => Err("No sprites loaded".to_string()),
+    }
+}
+
+/// Get sprites for an appearance with metadata (width, height for each sprite)
+#[tauri::command]
+pub async fn get_appearance_sprites_with_metadata(category: AppearanceCategory, appearance_id: u32, state: State<'_, AppState>) -> Result<Vec<SpriteWithMetadata>, String> {
+    let appearances_lock = state.appearances.read();
+    let sprite_loader_lock = state.sprite_loader.read();
+
+    let appearances = match &*appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let sprite_loader = match &*sprite_loader_lock {
+        Some(loader) => loader,
+        None => return Err("No sprites loaded".to_string()),
+    };
+
+    let items = match category {
+        AppearanceCategory::Objects => &appearances.object,
+        AppearanceCategory::Outfits => &appearances.outfit,
+        AppearanceCategory::Effects => &appearances.effect,
+        AppearanceCategory::Missiles => &appearances.missile,
+    };
+
+    let appearance = items.iter().find(|app| app.id.unwrap_or(0) == appearance_id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", appearance_id, category))?;
+
+    let all_sprite_ids: Vec<u32> = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()).collect();
+
+    let sprite_images: Vec<SpriteWithMetadata> = if all_sprite_ids.len() > 5 {
+        all_sprite_ids
+            .par_iter()
+            .filter_map(|&sprite_id| match sprite_loader.get_sprite(sprite_id) {
+                Ok(sprite) => sprite.to_base64_png_with_metadata().ok(),
+                Err(e) => {
+                    log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                    None
+                }
+            })
+            .collect()
+    } else {
+        all_sprite_ids
+            .iter()
+            .filter_map(|&sprite_id| match sprite_loader.get_sprite(sprite_id) {
+                Ok(sprite) => sprite.to_base64_png_with_metadata().ok(),
+                Err(e) => {
+                    log::warn!("Failed to get sprite {}: {}", sprite_id, e);
+                    None
+                }
+            })
+            .collect()
+    };
+
+    Ok(sprite_images)
 }

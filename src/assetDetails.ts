@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { openConfirmModal } from './confirmModal';
 import type { CompleteAppearanceItem, CompleteFlags } from './types';
 import { getVocationOptionsHTML, getFlagBool } from './utils';
-import { getAppearanceSprites } from './spriteCache';
+import { getAppearanceSpritesWithMetadata } from './spriteCache';
 import { stopDetailAnimationPlayers, initAnimationPlayersForDetails, initDetailSpriteCardAnimations } from './animation';
 import { renderTextureTab } from './textureTab';
 import { loadAssets, getCurrentPage, setCurrentPage, getCurrentPageSize, getTotalItemsCount, getCurrentCategory } from './assetUI';
@@ -439,7 +439,7 @@ async function showAppearanceDetails(category: string, id: number): Promise<void
 
 export async function loadDetailSprites(category: string, id: number): Promise<void> {
   try {
-    const sprites = await getAppearanceSprites(category, id);
+    const sprites = await getAppearanceSpritesWithMetadata(category, id);
     const container = document.getElementById(`detail-sprites-${id}`);
 
     if (container) {
@@ -448,14 +448,17 @@ export async function loadDetailSprites(category: string, id: number): Promise<v
           <div class="detail-sprites-grid">
             ${sprites.map((sprite, index) => `
               <div class="detail-sprite-item" data-agg-index="${index}">
-                <img src="data:image/png;base64,${sprite}" class="detail-sprite-image" alt="Sprite ${index + 1}">
+                <img src="data:image/png;base64,${sprite.base64}" 
+                     class="detail-sprite-image" 
+                     style="--sprite-width: ${sprite.width}px; --sprite-height: ${sprite.height}px;"
+                     alt="Sprite ${index + 1}">
                 <span class="sprite-index">#${index + 1}</span>
               </div>
             `).join('')}
           </div>
         `;
         // Initialize click-to-animate on sprite cards
-        initDetailSpriteCardAnimations(id, sprites, currentAppearanceDetails);
+        initDetailSpriteCardAnimations(id, sprites.map(s => s.base64), currentAppearanceDetails);
       } else {
         container.innerHTML = `
           <div class="no-sprites">

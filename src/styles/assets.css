@@ -262,8 +262,10 @@
 }
 
 .anim-sprite-image {
-  width: 64px;
-  height: 64px;
+  --sprite-width: 64px;
+  --sprite-height: 64px;
+  width: var(--sprite-width);
+  height: var(--sprite-height);
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
@@ -330,8 +332,10 @@
 }
 
 .detail-sprite-image {
-  width: 44px;
-  height: 44px;
+  --sprite-width: 64px;
+  --sprite-height: 64px;
+  width: var(--sprite-width);
+  height: var(--sprite-height);
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;

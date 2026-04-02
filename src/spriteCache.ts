@@ -4,6 +4,16 @@ import { clearPreviewAnimationCache } from './features/previewAnimation/assetPre
 // Sprite cache to avoid reloading the same sprites
 const spriteCache = new Map<string, string[]>();
 
+// Interface for sprite with metadata
+export interface SpriteWithMetadata {
+  base64: string;
+  width: number;
+  height: number;
+}
+
+// Cache for sprites with metadata
+const spriteMetadataCache = new Map<string, SpriteWithMetadata[]>();
+
 // Export for cache checking in other modules
 export function hasCachedSprites(category: string, appearanceId: number): boolean {
   const cacheKey = getSpritesCacheKey(category, appearanceId);
@@ -24,6 +34,7 @@ export function getSpritesCacheKey(category: string, appearanceId: number): stri
 
 export function clearSpritesCache(): void {
   spriteCache.clear();
+  spriteMetadataCache.clear();
   clearPreviewAnimationCache();
 }
 
@@ -120,6 +131,37 @@ export async function getAppearanceSprites(category: string, appearanceId: numbe
   }
 }
 
+export async function getAppearanceSpritesWithMetadata(category: string, appearanceId: number): Promise<SpriteWithMetadata[]> {
+  // Check cache first
+  const cacheKey = getSpritesCacheKey(category, appearanceId);
+  if (spriteMetadataCache.has(cacheKey)) {
+    return spriteMetadataCache.get(cacheKey)!;
+  }
+
+  if (!spritesLoaded) {
+    await loadSprites();
+  }
+
+  if (!spritesLoaded) {
+    return [];
+  }
+
+  try {
+    const sprites = await invoke('get_appearance_sprites_with_metadata', {
+      category: category,
+      appearanceId: appearanceId
+    }) as SpriteWithMetadata[];
+
+    // Store in cache
+    spriteMetadataCache.set(cacheKey, sprites);
+
+    return sprites;
+  } catch (error) {
+    console.error(`Error getting sprites with metadata for ${category} ${appearanceId}:`, error);
+    return [];
+  }
+}
+
 /**
  * BATCH SPRITE LOADING - ULTRA PERFORMANCE
  * Load preview sprites for MULTIPLE appearances in a SINGLE call
@@ -201,6 +243,16 @@ export function createSpriteImage(base64Data: string): HTMLImageElement {
   const img = document.createElement('img');
   img.src = `data:image/png;base64,${base64Data}`;
   img.className = 'sprite-image';
+  img.style.imageRendering = 'pixelated';
+  return img;
+}
+
+export function createSpriteImageWithMetadata(sprite: SpriteWithMetadata, className: string = 'sprite-image'): HTMLImageElement {
+  const img = document.createElement('img');
+  img.src = `data:image/png;base64,${sprite.base64}`;
+  img.className = className;
+  img.style.setProperty('--sprite-width', `${sprite.width}px`);
+  img.style.setProperty('--sprite-height', `${sprite.height}px`);
   img.style.imageRendering = 'pixelated';
   return img;
 }

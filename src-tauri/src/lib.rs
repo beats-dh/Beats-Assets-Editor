@@ -14,6 +14,70 @@ pub fn run() {
 
     log::info!("Starting Tibia Assets Editor - EXTREME PERFORMANCE MODE");
 
+    // CLI Argument Parsing for Headless Validation
+    let args: Vec<String> = std::env::args().collect();
+    if let Some(validate_idx) = args.iter().position(|arg| arg == "--validate") {
+        if let Some(path_str) = args.get(validate_idx + 1) {
+            let path = std::path::Path::new(path_str);
+
+            let mut appearances_path = None;
+            let mut catalog_path = None;
+
+            if let Ok(entries) = std::fs::read_dir(path) {
+                for entry in entries.flatten() {
+                    let file_name = entry.file_name().to_string_lossy().to_string();
+                    if (file_name.starts_with("appearances-") && file_name.ends_with(".dat")) || file_name == "appearances.dat" {
+                        appearances_path = Some(entry.path());
+                    } else if file_name == "catalog-content.json" {
+                        catalog_path = Some(entry.path());
+                    }
+                }
+            }
+
+            // Fallback: Check inside catalog-content.json if explicit file wasn't found
+            if appearances_path.is_none() {
+                if let Some(ref cat_path) = catalog_path {
+                    if let Ok(Some(file)) = features::appearances::parsers::catalog::find_appearances_file_in_catalog(cat_path) {
+                        let p = path.join(file);
+                        if p.exists() {
+                            appearances_path = Some(p);
+                        }
+                    }
+                }
+            }
+
+            if let (Some(app_path), Some(cat_path)) = (appearances_path, catalog_path) {
+                match features::appearances::parsers::load_appearances(&app_path) {
+                    Ok(appearances) => {
+                        let stats = features::appearances::parsers::get_statistics(&appearances);
+                        match features::sprites::parsers::SpriteLoader::new(cat_path.as_path(), path) {
+                            Ok(loader) => {
+                                let result = serde_json::json!({
+                                    "status": "success",
+                                    "appearances": stats,
+                                    "sprites": loader.sprite_count(),
+                                });
+                                println!("{}", serde_json::to_string_pretty(&result).unwrap());
+                                std::process::exit(0);
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to load sprites: {}", e);
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to load appearances: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                eprintln!("Could not find appearances-*.dat or catalog-content.json in {:?}", path);
+                std::process::exit(1);
+            }
+        }
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -42,6 +106,7 @@ pub fn run() {
             features::appearances::commands::get_appearance_stats,
             features::appearances::commands::select_tibia_directory,
             features::appearances::commands::list_appearance_files,
+            features::appearances::commands::get_catalog_appearances_file,
             features::appearances::commands::list_appearances_by_category,
             features::appearances::commands::find_appearance_position,
             features::appearances::commands::get_appearance_details,
@@ -92,6 +157,9 @@ pub fn run() {
             // Batch sprite loading - MASSIVE performance boost for preview grids
             features::sprites::commands::get_appearance_sprites_batch,
             features::sprites::commands::get_appearance_preview_sprites_batch,
+            // Sprites with metadata - For correct rendering of non-64x64 sprites
+            features::sprites::commands::get_sprite_by_id_with_metadata,
+            features::sprites::commands::get_appearance_sprites_with_metadata,
             // Sounds API
             features::sounds::commands::load_sounds_file,
             features::sounds::commands::get_sounds_stats,
