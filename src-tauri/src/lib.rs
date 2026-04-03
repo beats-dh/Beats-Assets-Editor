@@ -168,6 +168,9 @@ pub fn run() {
             features::proficiency::load_proficiency_file,
             features::proficiency::save_proficiency_file,
             features::proficiency::inspect_proficiency_file,
+            features::proficiency::scan_proficiency_items_xml,
+            features::proficiency::update_item_proficiency_xml,
+            features::proficiency::sync_proficiency_items_xml,
             // RCC Editor API
             features::rcc::commands::rcc_load,
             features::rcc::commands::rcc_get_resource,

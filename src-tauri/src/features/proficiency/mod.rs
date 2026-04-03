@@ -1,3 +1,4 @@
+use regex::Regex;
 use serde::{Deserialize, Serialize, Serializer};
 use std::fs;
 use tauri::command;
@@ -170,4 +171,282 @@ pub async fn save_proficiency_file(file_path: String, data: Vec<ProficiencyEntry
     let json = serde_json::to_string_pretty(&new_value).map_err(|e| format!("Falha ao formatar JSON: {}", e))?;
     fs::write(&file_path, json).map_err(|e| format!("Falha ao salvar arquivo: {}", e))?;
     Ok(())
+}
+
+// ── items.xml Proficiency Sync ──────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemProficiencyInfo {
+    pub item_id: u32,
+    pub item_name: String,
+    pub proficiency_id: u32,
+}
+
+/// Scan items.xml and return all items that have a proficiency attribute.
+#[command]
+pub async fn scan_proficiency_items_xml(xml_path: String) -> Result<Vec<ItemProficiencyInfo>, String> {
+    let content = fs::read_to_string(&xml_path)
+        .map_err(|e| format!("Falha ao ler items.xml: {}", e))?;
+
+    let item_re = Regex::new(r#"<item\s+(?:fromid|id)="(\d+)"(?:\s[^>]*?name="([^"]*)")?"#)
+        .map_err(|e| format!("Regex error: {}", e))?;
+    let prof_re = Regex::new(r#"<attribute\s+key="proficiency"\s+value="(\d+)""#)
+        .map_err(|e| format!("Regex error: {}", e))?;
+
+    let mut current_item_id: u32 = 0;
+    let mut current_item_name = String::new();
+    let mut results = Vec::new();
+
+    for line in content.lines() {
+        if let Some(caps) = item_re.captures(line) {
+            current_item_id = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+            current_item_name = caps.get(2).map_or(String::new(), |m| m.as_str().to_string());
+        }
+        if let Some(caps) = prof_re.captures(line) {
+            let prof_id: u32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+            results.push(ItemProficiencyInfo {
+                item_id: current_item_id,
+                item_name: current_item_name.clone(),
+                proficiency_id: prof_id,
+            });
+        }
+    }
+
+    Ok(results)
+}
+
+/// Update or add/remove proficiency attribute for a single item in items.xml.
+#[command]
+pub async fn update_item_proficiency_xml(xml_path: String, item_id: u32, proficiency_id: Option<u32>) -> Result<(), String> {
+    let content = fs::read_to_string(&xml_path)
+        .map_err(|e| format!("Falha ao ler items.xml: {}", e))?;
+
+    let item_re = Regex::new(r#"<item\s+(?:fromid|id)="(\d+)""#)
+        .map_err(|e| format!("Regex error: {}", e))?;
+    let prof_re = Regex::new(r#"<attribute\s+key="proficiency"\s+value="\d+""#)
+        .map_err(|e| format!("Regex error: {}", e))?;
+
+    let lines: Vec<&str> = content.lines().collect();
+    let mut result_lines: Vec<String> = Vec::with_capacity(lines.len() + 1);
+    let mut in_target_item = false;
+    let mut found_prof_line = false;
+    let mut item_indent = String::new();
+
+    for line in &lines {
+        // Detect item opening tags
+        if let Some(caps) = item_re.captures(line) {
+            let id: u32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+
+            // If we were in the target item and hit a new <item>, insert before leaving
+            if in_target_item && !found_prof_line {
+                if let Some(prof_id) = proficiency_id {
+                    result_lines.push(format!("{}\t<attribute key=\"proficiency\" value=\"{}\"/>", item_indent, prof_id));
+                }
+                in_target_item = false;
+            }
+
+            if id == item_id {
+                in_target_item = true;
+                found_prof_line = false;
+                item_indent = line.chars().take_while(|c| c.is_whitespace()).collect::<String>();
+
+                // Self-closing: <item id="X" ... />
+                if line.trim_end().ends_with("/>") {
+                    if let Some(prof_id) = proficiency_id {
+                        let trimmed = line.trim_end();
+                        let open_tag = trimmed.strip_suffix("/>").unwrap_or(trimmed).to_string() + ">";
+                        result_lines.push(open_tag);
+                        result_lines.push(format!("{}\t<attribute key=\"proficiency\" value=\"{}\"/>", item_indent, prof_id));
+                        result_lines.push(format!("{}</item>", item_indent));
+                    } else {
+                        result_lines.push(line.to_string());
+                    }
+                    in_target_item = false;
+                    found_prof_line = true;
+                    continue;
+                }
+            } else {
+                in_target_item = false;
+            }
+        }
+
+        if in_target_item {
+            // Closing </item>
+            if line.trim().starts_with("</item>") {
+                if !found_prof_line {
+                    if let Some(prof_id) = proficiency_id {
+                        result_lines.push(format!("{}\t<attribute key=\"proficiency\" value=\"{}\"/>", item_indent, prof_id));
+                    }
+                }
+                in_target_item = false;
+                result_lines.push(line.to_string());
+                continue;
+            }
+
+            // Existing proficiency line
+            if prof_re.is_match(line) {
+                found_prof_line = true;
+                match proficiency_id {
+                    Some(prof_id) => {
+                        let indent = line.chars().take_while(|c| c.is_whitespace()).collect::<String>();
+                        result_lines.push(format!("{}<attribute key=\"proficiency\" value=\"{}\"/>", indent, prof_id));
+                    }
+                    None => {
+                        // Remove the line (skip it)
+                    }
+                }
+                continue;
+            }
+        }
+
+        result_lines.push(line.to_string());
+    }
+
+    let has_trailing_newline = content.ends_with('\n');
+    let mut output = result_lines.join("\n");
+    if has_trailing_newline && !output.ends_with('\n') {
+        output.push('\n');
+    }
+
+    fs::write(&xml_path, output)
+        .map_err(|e| format!("Falha ao salvar items.xml: {}", e))?;
+
+    Ok(())
+}
+
+/// Batch sync: update multiple items at once.
+#[command]
+pub async fn sync_proficiency_items_xml(xml_path: String, mappings: Vec<ItemProficiencyMapping>) -> Result<SyncResult, String> {
+    let content = fs::read_to_string(&xml_path)
+        .map_err(|e| format!("Falha ao ler items.xml: {}", e))?;
+
+    let item_re = Regex::new(r#"<item\s+(?:fromid|id)="(\d+)""#)
+        .map_err(|e| format!("Regex error: {}", e))?;
+    let prof_re = Regex::new(r#"<attribute\s+key="proficiency"\s+value="(\d+)""#)
+        .map_err(|e| format!("Regex error: {}", e))?;
+
+    // Build lookup: item_id -> proficiency_id
+    let mut mapping_map = std::collections::HashMap::new();
+    for m in &mappings {
+        mapping_map.insert(m.item_id, m.proficiency_id);
+    }
+
+    let lines: Vec<&str> = content.lines().collect();
+    let mut result_lines: Vec<String> = Vec::with_capacity(lines.len() + mappings.len());
+    let mut current_item_id: u32 = 0;
+    let mut in_mapped_item = false;
+    let mut found_prof_line = false;
+    let mut item_indent = String::new();
+    let mut updated = 0u32;
+    let mut added = 0u32;
+    let mut processed_ids = std::collections::HashSet::new();
+
+    for line in &lines {
+        if let Some(caps) = item_re.captures(line) {
+            let id: u32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+
+            // Close previous mapped item if we didn't find a prof line
+            if in_mapped_item && !found_prof_line {
+                if let Some(&prof_id) = mapping_map.get(&current_item_id) {
+                    result_lines.push(format!("{}\t<attribute key=\"proficiency\" value=\"{}\"/>", item_indent, prof_id));
+                    added += 1;
+                    processed_ids.insert(current_item_id);
+                }
+            }
+
+            in_mapped_item = mapping_map.contains_key(&id);
+            current_item_id = id;
+            found_prof_line = false;
+            item_indent = line.chars().take_while(|c| c.is_whitespace()).collect::<String>();
+
+            // Handle self-closing items: <item id="X" ... />
+            if in_mapped_item && line.trim_end().ends_with("/>") {
+                let prof_id = mapping_map[&id];
+                let trimmed = line.trim_end();
+                let open_tag = trimmed.strip_suffix("/>").unwrap_or(trimmed).to_string() + ">";
+                result_lines.push(open_tag);
+                result_lines.push(format!("{}\t<attribute key=\"proficiency\" value=\"{}\"/>", item_indent, prof_id));
+                result_lines.push(format!("{}</item>", item_indent));
+                added += 1;
+                processed_ids.insert(id);
+                in_mapped_item = false;
+                found_prof_line = true;
+                continue;
+            }
+        }
+
+        if in_mapped_item {
+            if line.trim().starts_with("</item>") {
+                if !found_prof_line {
+                    if let Some(&prof_id) = mapping_map.get(&current_item_id) {
+                        result_lines.push(format!("{}\t<attribute key=\"proficiency\" value=\"{}\"/>", item_indent, prof_id));
+                        added += 1;
+                        processed_ids.insert(current_item_id);
+                    }
+                }
+                in_mapped_item = false;
+                result_lines.push(line.to_string());
+                continue;
+            }
+
+            if let Some(caps) = prof_re.captures(line) {
+                found_prof_line = true;
+                let indent = line.chars().take_while(|c| c.is_whitespace()).collect::<String>();
+                let existing_id: u32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+                if let Some(&prof_id) = mapping_map.get(&current_item_id) {
+                    if existing_id != prof_id {
+                        result_lines.push(format!("{}<attribute key=\"proficiency\" value=\"{}\"/>", indent, prof_id));
+                        updated += 1;
+                    } else {
+                        result_lines.push(line.to_string());
+                    }
+                    processed_ids.insert(current_item_id);
+                    continue;
+                }
+            }
+        }
+
+        result_lines.push(line.to_string());
+    }
+
+    // Handle last item if still pending
+    if in_mapped_item && !found_prof_line {
+        if let Some(&prof_id) = mapping_map.get(&current_item_id) {
+            result_lines.push(format!("{}\t<attribute key=\"proficiency\" value=\"{}\"/>", item_indent, prof_id));
+            added += 1;
+            processed_ids.insert(current_item_id);
+        }
+    }
+
+    let not_found: Vec<u32> = mappings.iter()
+        .filter(|m| !processed_ids.contains(&m.item_id))
+        .map(|m| m.item_id)
+        .collect();
+
+    let has_trailing_newline = content.ends_with('\n');
+    let mut output = result_lines.join("\n");
+    if has_trailing_newline && !output.ends_with('\n') {
+        output.push('\n');
+    }
+
+    fs::write(&xml_path, output)
+        .map_err(|e| format!("Falha ao salvar items.xml: {}", e))?;
+
+    Ok(SyncResult { updated, added, not_found })
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemProficiencyMapping {
+    pub item_id: u32,
+    pub proficiency_id: u32,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncResult {
+    pub updated: u32,
+    pub added: u32,
+    pub not_found: Vec<u32>,
 }

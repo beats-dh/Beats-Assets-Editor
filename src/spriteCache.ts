@@ -213,14 +213,22 @@ export function createSpriteImage(data: Uint8Array, className = 'sprite-image'):
 
   ctx.imageSmoothingEnabled = false;
 
-  const url = spriteUrlStore.get(data);
-  const img = new Image();
-  img.onload = () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  };
-  img.src = url;
+  function loadImage(c: CanvasRenderingContext2D, retriesLeft: number) {
+    const url = spriteUrlStore.get(data);
+    const img = new Image();
+    img.onload = () => {
+      c.clearRect(0, 0, canvas.width, canvas.height);
+      c.imageSmoothingEnabled = false;
+      c.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.onerror = () => {
+      // Blob URL was revoked mid-flight — get a fresh one and retry
+      if (retriesLeft > 0) loadImage(c, retriesLeft - 1);
+    };
+    img.src = url;
+  }
+
+  loadImage(ctx, 1);
 
   return canvas;
 }

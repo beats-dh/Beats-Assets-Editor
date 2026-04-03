@@ -883,6 +883,245 @@
     font-size: 11px;
 }
 
+.tibia-btn-sm {
+    height: 20px;
+    font-size: 10px;
+    padding: 0 6px;
+}
+
+/* ── Entry Config Panel ──────────────────────────────────────────── */
+
+.config-section-label {
+    color: #cca34d;
+    font-size: 11px;
+    font-weight: bold;
+    margin-top: 4px;
+    border-bottom: 1px solid #555;
+    padding-bottom: 2px;
+}
+
+.linked-item-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px;
+    background: #333;
+    border: 1px solid #555;
+}
+
+.linked-item-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.linked-item-name {
+    color: #fff;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.linked-item-id {
+    color: #888;
+    font-size: 10px;
+}
+
+/* ── Item Search Dropdown ────────────────────────────────────────── */
+
+.item-search-wrapper {
+    position: relative;
+}
+
+.item-search-wrapper .tibia-input {
+    width: 100%;
+}
+
+.item-search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 160px;
+    overflow-y: auto;
+    background: #1a1a1a;
+    border: 1px solid #555;
+    z-index: 100;
+}
+
+.item-search-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 4px 6px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid #333;
+    color: #c0c0c0;
+    font-size: 11px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.item-search-result:hover {
+    background: #3a3a3a;
+    color: #fff;
+}
+
+.result-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.result-id {
+    color: #888;
+    font-size: 10px;
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+
+/* ── XML Diagnostic Panel ────────────────────────────────────────── */
+
+.xml-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+}
+
+.xml-panel {
+    width: 620px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.xml-panel .window-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.xml-close-btn {
+    background: none;
+    border: none;
+    color: #c0c0c0;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.xml-close-btn:hover {
+    color: #fff;
+}
+
+.xml-panel-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    background: #404040;
+    margin: 4px;
+    border: 1px solid #1c1c1c;
+    overflow-y: auto;
+    max-height: 60vh;
+}
+
+.xml-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    padding: 6px 0;
+    border-bottom: 1px solid #555;
+}
+
+.xml-stat {
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.xml-ok { color: #6c6; }
+.xml-warn { color: #fc6; }
+.xml-miss { color: #f88; }
+.xml-dat-wrong { color: #f8a; }
+.xml-json-miss { color: #aaf; }
+
+.xml-section {
+    margin-top: 2px;
+}
+
+.xml-warning {
+    color: #b89050;
+    font-size: 10px;
+    padding: 3px 6px;
+    margin-bottom: 3px;
+    background: rgba(180, 140, 60, 0.1);
+    border-left: 2px solid #b89050;
+}
+
+.xml-section-title {
+    color: #cca34d;
+    font-size: 11px;
+    font-weight: bold;
+    margin-bottom: 3px;
+    cursor: default;
+}
+
+details.xml-section > summary {
+    cursor: pointer;
+}
+
+.xml-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 6px;
+    font-size: 11px;
+    border-bottom: 1px solid #333;
+    min-height: 20px;
+}
+
+.xml-row-warn { background: rgba(255, 200, 50, 0.08); }
+.xml-row-miss { background: rgba(255, 100, 100, 0.08); }
+.xml-row-ok { background: rgba(100, 200, 100, 0.05); }
+.xml-row-dat-wrong { background: rgba(255, 130, 170, 0.1); }
+.xml-row-json-miss { background: rgba(150, 150, 255, 0.08); }
+
+.xml-item-name {
+    color: #ddd;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 80px;
+    flex: 0 1 auto;
+}
+
+.xml-item-detail {
+    color: #aaa;
+    font-size: 10px;
+    flex-shrink: 0;
+    margin-left: 8px;
+    text-align: right;
+}
+
+.xml-panel-footer {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    padding-top: 6px;
+    border-top: 1px solid #555;
+}
+
 .no-selection {
     flex: 1;
     display: flex;

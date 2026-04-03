@@ -162,6 +162,9 @@ export const COMMANDS = {
   LOAD_PROFICIENCY_FILE: 'load_proficiency_file',
   SAVE_PROFICIENCY_FILE: 'save_proficiency_file',
   INSPECT_PROFICIENCY_FILE: 'inspect_proficiency_file',
+  SCAN_PROFICIENCY_ITEMS_XML: 'scan_proficiency_items_xml',
+  UPDATE_ITEM_PROFICIENCY_XML: 'update_item_proficiency_xml',
+  SYNC_PROFICIENCY_ITEMS_XML: 'sync_proficiency_items_xml',
 
   // QM Translation Editor Commands
   QM_FIND_FILES: 'qm_find_files',

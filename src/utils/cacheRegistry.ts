@@ -299,24 +299,35 @@ export const spriteIdCache = {
 
 const _spriteUrlWeakMap = new WeakMap<Uint8Array, string>();
 const _urlRegistry = new Set<string>();
+/** Set of URLs revoked by clear() — checked in get() to detect stale entries */
+const _revokedUrls = new Set<string>();
 
 export const spriteUrlStore = {
   /** Get or create Blob URL for a sprite buffer. Lock-free: WeakMap lookup + lazy create. */
   get(buffer: Uint8Array): string {
     const cached = _spriteUrlWeakMap.get(buffer);
-    if (cached) return cached;
+    // If cached URL was revoked by clear(), re-create it
+    if (cached && !_revokedUrls.has(cached)) return cached;
 
     // Use the buffer directly — no need to .slice() since Blob constructor copies
     const url = URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
     _spriteUrlWeakMap.set(buffer, url);
     _urlRegistry.add(url);
+    // Clean up old revoked entry if present
+    if (cached) _revokedUrls.delete(cached);
     return url;
   },
 
-  /** Revoke all Blob URLs created by this store */
+  /** Revoke all Blob URLs created by this store. WeakMap entries become stale
+   *  and will be lazily re-created on next get(). */
   clear(): void {
-    _urlRegistry.forEach(url => URL.revokeObjectURL(url));
+    _urlRegistry.forEach(url => {
+      URL.revokeObjectURL(url);
+      _revokedUrls.add(url);
+    });
     _urlRegistry.clear();
+    // Cap revoked set to prevent unbounded growth (old entries are harmless)
+    if (_revokedUrls.size > 5000) _revokedUrls.clear();
   },
 
   get urlCount(): number {
