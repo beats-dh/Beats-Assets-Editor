@@ -171,6 +171,18 @@ pub fn run() {
             features::proficiency::scan_proficiency_items_xml,
             features::proficiency::update_item_proficiency_xml,
             features::proficiency::sync_proficiency_items_xml,
+            // DAT Merge API
+            features::dat_merge::load_merge_folder,
+            features::dat_merge::load_merge_source,
+            features::dat_merge::get_merge_preview,
+            features::dat_merge::execute_dat_merge,
+            features::dat_merge::unload_merge_source,
+            features::dat_merge::save_merged_dat,
+            features::dat_merge::load_merge_source_assets,
+            features::dat_merge::get_sprite_merge_preview,
+            features::dat_merge::execute_sprite_merge,
+            features::dat_merge::staticdata_merge::get_staticdata_merge_preview,
+            features::dat_merge::staticdata_merge::execute_staticdata_merge,
             // RCC Editor API
             features::rcc::commands::rcc_load,
             features::rcc::commands::rcc_get_resource,

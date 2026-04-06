@@ -11,6 +11,7 @@
   import ImportStartIdModal from "../components/ImportStartIdModal.svelte";
   import SpriteLibraryDrawer from "../components/SpriteLibraryDrawer.svelte";
   import ProficiencyEditorPage from "./ProficiencyEditorPage.svelte";
+  import DatMergePage from "./DatMergePage.svelte";
 </script>
 
 {#if assetsState.viewMode === "categories"}
@@ -26,6 +27,8 @@
   <QmTranslationEditor />
 {:else if assetsState.viewMode === "proficiency"}
   <ProficiencyEditorPage />
+{:else if assetsState.viewMode === "dat-merge"}
+  <DatMergePage />
 {/if}
 
 <AssetDetailsModal />

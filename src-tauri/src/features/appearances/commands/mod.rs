@@ -3,7 +3,7 @@
 
 mod category_types;
 mod conversion;
-mod helpers;
+pub mod helpers;
 mod import_export;
 mod io;
 mod query;

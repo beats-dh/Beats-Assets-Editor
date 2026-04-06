@@ -47,6 +47,11 @@ pub struct AppState {
 
     pub flags_clipboard: Mutex<Option<CompleteFlags>>,
 
+    // DAT merge: secondary appearances loaded for merging
+    pub merge_source: RwLock<Option<Appearances>>,
+    // DAT merge: new official assets folder (for sprite merge)
+    pub merge_source_assets_dir: RwLock<Option<PathBuf>>,
+
     // Imported sprite overrides (e.g., from AEC files)
     pub imported_sprites: DashMap<u32, Vec<u8>, ahash::RandomState>,
     pub imported_sprite_hashes: DashMap<u64, u32, ahash::RandomState>,
@@ -78,6 +83,8 @@ impl AppState {
             search_cache: DashMap::with_hasher(ahash::RandomState::new()),
 
             flags_clipboard: Mutex::new(None),
+            merge_source: RwLock::new(None),
+            merge_source_assets_dir: RwLock::new(None),
 
             imported_sprites: DashMap::with_hasher(ahash::RandomState::new()),
             imported_sprite_hashes: DashMap::with_hasher(ahash::RandomState::new()),

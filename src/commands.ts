@@ -166,6 +166,19 @@ export const COMMANDS = {
   UPDATE_ITEM_PROFICIENCY_XML: 'update_item_proficiency_xml',
   SYNC_PROFICIENCY_ITEMS_XML: 'sync_proficiency_items_xml',
 
+  // DAT Merge Commands
+  LOAD_MERGE_FOLDER: 'load_merge_folder',
+  LOAD_MERGE_SOURCE: 'load_merge_source',
+  GET_MERGE_PREVIEW: 'get_merge_preview',
+  EXECUTE_DAT_MERGE: 'execute_dat_merge',
+  UNLOAD_MERGE_SOURCE: 'unload_merge_source',
+  SAVE_MERGED_DAT: 'save_merged_dat',
+  LOAD_MERGE_SOURCE_ASSETS: 'load_merge_source_assets',
+  GET_SPRITE_MERGE_PREVIEW: 'get_sprite_merge_preview',
+  EXECUTE_SPRITE_MERGE: 'execute_sprite_merge',
+  GET_STATICDATA_MERGE_PREVIEW: 'get_staticdata_merge_preview',
+  EXECUTE_STATICDATA_MERGE: 'execute_staticdata_merge',
+
   // QM Translation Editor Commands
   QM_FIND_FILES: 'qm_find_files',
   QM_LOAD: 'qm_load',

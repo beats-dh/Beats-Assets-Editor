@@ -27,7 +27,7 @@ function createAssetsState() {
         currentPage: 0,
         pageSize: 100,
         totalItems: 0,
-        viewMode: 'categories' as 'categories' | 'grid' | 'staticdata' | 'rcc' | 'qm' | 'proficiency',
+        viewMode: 'categories' as 'categories' | 'grid' | 'staticdata' | 'rcc' | 'qm' | 'proficiency' | 'dat-merge',
         currentStaticDataType: 'creatures' as 'creatures' | 'bosses' | 'quests' | 'titles' | 'houses' | 'map_houses',
         isLoading: false,
         loadingProgress: 0,
@@ -83,4 +83,8 @@ export function selectQmMode() {
 
 export function selectProficiencyMode() {
     assetsState.viewMode = 'proficiency';
+}
+
+export function selectDatMergeMode() {
+    assetsState.viewMode = 'dat-merge';
 }

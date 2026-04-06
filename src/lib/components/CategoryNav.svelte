@@ -6,6 +6,7 @@
     selectRccMode,
     selectQmMode,
     selectProficiencyMode,
+    selectDatMergeMode,
   } from "../../stores/assetsState.svelte";
   import { translate } from "../../i18n";
   import { bindHandler } from "../../utils/handlerFactories";
@@ -382,6 +383,14 @@
         >
           <span class="subcat-icon">🌐</span>
           <span class="subcat-name">{translate("category.qmEditor")}</span>
+        </button>
+        <button
+          type="button"
+          class="subcategory-card"
+          onclick={selectDatMergeMode}
+        >
+          <span class="subcat-icon">🔀</span>
+          <span class="subcat-name">DAT Merge</span>
         </button>
       </div>
     </div>

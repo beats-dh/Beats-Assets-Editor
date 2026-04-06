@@ -30,7 +30,7 @@
  */
 
 import type { CompleteAppearanceItem } from '../types';
-import { decodeSpriteOffThread, decodeSpritesBatch } from './imageDecodeWorkerClient';
+import { decodeSpritesBatch } from './imageDecodeWorkerClient';
 import { perfConfig } from '../stores/performanceConfig.svelte';
 
 // ════════════════════════════════════════════════════════════════════

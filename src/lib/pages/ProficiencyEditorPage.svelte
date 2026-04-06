@@ -20,10 +20,21 @@
   import "../../styles/proficiency.css";
 
   // ── Asset helpers ──────────────────────────────────────────────────────────
-  const ICON_BASE = "../../assets/proficiency/";
+  // Use import.meta.glob so Vite statically discovers and bundles all PNGs
+  const proficiencyAssets: Record<string, string> = import.meta.glob(
+    '../../assets/proficiency/*.png',
+    { eager: true, query: '?url', import: 'default' }
+  ) as any;
 
-  function asset(name: string) {
-    return new URL(`${ICON_BASE}${name}`, import.meta.url).href;
+  // Build a filename → resolved URL map for fast lookup
+  const assetUrlMap: Record<string, string> = {};
+  for (const [path, url] of Object.entries(proficiencyAssets)) {
+    const filename = path.split('/').pop()!;
+    assetUrlMap[filename] = url;
+  }
+
+  function asset(name: string): string {
+    return assetUrlMap[name] ?? '';
   }
 
   const PERK_TYPE_LABELS: Record<number, string> = {
@@ -501,10 +512,24 @@
       // Build JSON lookup: set of valid proficiency IDs from loaded entries
       const jsonProfIds = new Set(entries.map((e) => e.ProficiencyId));
 
-      // Build DAT lookup: itemId -> proficiencyId from proficiencyAssets
+      // Build DAT lookup: itemId -> proficiencyId.
+      // Query the backend directly with XML item IDs — bypasses the search cache
+      // so the result always reflects the current in-memory DAT state.
       const datMap = new Map<number, number>();
-      for (const [profId, asset] of Object.entries(assetsState.proficiencyAssets)) {
-        if (asset?.id) datMap.set(asset.id, Number(profId));
+      const xmlIds = xmlItems.map((xi) => xi.itemId);
+      if (xmlIds.length > 0) {
+        try {
+          const datItems = await invoke<CompleteAppearanceItem[]>(
+            COMMANDS.GET_COMPLETE_APPEARANCES_BATCH,
+            { category: "Objects", ids: xmlIds },
+          );
+          for (const item of datItems) {
+            const profId = item.flags?.proficiency?.proficiency_id;
+            if (profId != null) datMap.set(item.id, profId);
+          }
+        } catch {
+          // datMap stays empty; all XML items will show as DAT=absent
+        }
       }
 
       const ok: { itemId: number; itemName: string; proficiencyId: number }[] = [];
@@ -514,6 +539,7 @@
       const missingInJson: { itemId: number; itemName: string; proficiencyId: number; source: string }[] = [];
 
       // 3-way comparison for each XML item
+      const xmlIdSet = new Set(xmlIds);
       for (const xi of xmlItems) {
         const datProfId = datMap.get(xi.itemId) ?? null;
         const xmlInJson = jsonProfIds.has(xi.proficiencyId);
@@ -528,30 +554,41 @@
         } else if (datProfId != null && datProfId !== xi.proficiencyId) {
           // XML and DAT disagree
           if (xmlInJson && !datInJson) {
-            // JSON+XML agree, DAT is wrong
             datWrong.push({ itemId: xi.itemId, itemName: xi.itemName, xmlProfId: xi.proficiencyId, datProfId });
           } else if (!xmlInJson && datInJson) {
-            // JSON+DAT agree, XML is wrong
             mismatch.push({ itemId: xi.itemId, itemName: xi.itemName, xmlProfId: xi.proficiencyId, datProfId });
           } else {
-            // Both in JSON or neither — default to generic mismatch
             mismatch.push({ itemId: xi.itemId, itemName: xi.itemName, xmlProfId: xi.proficiencyId, datProfId });
           }
         } else {
           // datProfId is null — item in XML but not in DAT
           if (xmlInJson) {
-            // JSON+XML agree, DAT is missing
             datWrong.push({ itemId: xi.itemId, itemName: xi.itemName, xmlProfId: xi.proficiencyId, datProfId: null });
           } else {
             missingInJson.push({ itemId: xi.itemId, itemName: xi.itemName, proficiencyId: xi.proficiencyId, source: "XML" });
           }
         }
-        datMap.delete(xi.itemId);
       }
 
-      // Items in DAT but not in XML
-      for (const [itemId, profId] of datMap) {
-        missingInXml.push({ itemId, proficiencyId: profId });
+      // Items in DAT with proficiency but absent from XML — use search (best-effort)
+      try {
+        const searchResp = await invoke<{ total: number; items: { id: number }[] }>(
+          COMMANDS.LIST_APPEARANCES_BY_CATEGORY,
+          { category: "Objects", page: 0, pageSize: 10000, search: "proficiency-", subcategory: null },
+        );
+        const extraIds = searchResp.items.map((i) => i.id).filter((id) => !xmlIdSet.has(id));
+        if (extraIds.length > 0) {
+          const extraItems = await invoke<CompleteAppearanceItem[]>(
+            COMMANDS.GET_COMPLETE_APPEARANCES_BATCH,
+            { category: "Objects", ids: extraIds },
+          );
+          for (const item of extraItems) {
+            const profId = item.flags?.proficiency?.proficiency_id;
+            if (profId != null) missingInXml.push({ itemId: item.id, proficiencyId: profId });
+          }
+        }
+      } catch {
+        // missingInXml stays empty if search fails
       }
 
       xmlDiagnostics = { ok, mismatch, missingInXml, datWrong, missingInJson };
