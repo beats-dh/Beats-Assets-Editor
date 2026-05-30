@@ -127,14 +127,13 @@ pub fn parse_qm(data: &[u8]) -> Result<QmFile, String> {
         let offset = u32::from_be_bytes(hashes[base + 4..base + 8].try_into().map_err(|_| format!("Failed to read offset at entry {}", i))?) as usize;
 
         if offset >= messages.len() {
-            log::warn!("Hash entry {} has out-of-bounds offset {}", i, offset);
-            continue;
+            return Err(format!("Hash entry {} has out-of-bounds offset {} (messages len {})", i, offset, messages.len()));
         }
 
-        match parse_message(messages, offset, i, hash) {
-            Ok(entry) => entries.push(entry),
-            Err(e) => log::warn!("Failed to parse message at offset {}: {}", offset, e),
-        }
+        // Fail fast on corruption: a partial parse would silently drop
+        // translations and could overwrite the file with the truncated subset.
+        let entry = parse_message(messages, offset, i, hash).map_err(|e| format!("Failed to parse message at offset {} (entry {}): {}", offset, i, e))?;
+        entries.push(entry);
     }
 
     let has_source_text = entries.iter().any(|e| !e.source_text.is_empty());
@@ -200,14 +199,14 @@ fn parse_message(data: &[u8], start: usize, index: usize, hash: u32) -> Result<Q
                 // UTF-16BE string, 4-byte byte-length prefix (0xFFFFFFFF = null)
                 let len = match read_u32be(data, &mut pos) {
                     Some(l) => l,
-                    None => break,
+                    None => return Err(format!("Truncated QM message at index {} (offset {})", index, start)),
                 };
                 if len == 0xFFFF_FFFF {
                     translation = None;
                 } else {
                     let bytes = match read_bytes(data, &mut pos, len as usize) {
                         Some(b) => b,
-                        None => break,
+                        None => return Err(format!("Truncated QM message at index {} (offset {})", index, start)),
                     };
                     translation = Some(utf16be_to_string(bytes));
                 }
@@ -217,11 +216,11 @@ fn parse_message(data: &[u8], start: usize, index: usize, hash: u32) -> Result<Q
                 // UTF-8 source text (Qt 4+)
                 let len = match read_u32be(data, &mut pos) {
                     Some(l) => l as usize,
-                    None => break,
+                    None => return Err(format!("Truncated QM message at index {} (offset {})", index, start)),
                 };
                 let bytes = match read_bytes(data, &mut pos, len) {
                     Some(b) => b,
-                    None => break,
+                    None => return Err(format!("Truncated QM message at index {} (offset {})", index, start)),
                 };
                 source_text = bytes_to_string(bytes);
             }
@@ -230,11 +229,11 @@ fn parse_message(data: &[u8], start: usize, index: usize, hash: u32) -> Result<Q
                 // UTF-8 comment (Qt 4+)
                 let len = match read_u32be(data, &mut pos) {
                     Some(l) => l as usize,
-                    None => break,
+                    None => return Err(format!("Truncated QM message at index {} (offset {})", index, start)),
                 };
                 let bytes = match read_bytes(data, &mut pos, len) {
                     Some(b) => b,
-                    None => break,
+                    None => return Err(format!("Truncated QM message at index {} (offset {})", index, start)),
                 };
                 comment = bytes_to_string(bytes);
             }
@@ -243,11 +242,11 @@ fn parse_message(data: &[u8], start: usize, index: usize, hash: u32) -> Result<Q
                 // Qt ≤3 compat: UTF-16BE source text; use as fallback if no UTF-8 version
                 let len = match read_u32be(data, &mut pos) {
                     Some(l) => l as usize,
-                    None => break,
+                    None => return Err(format!("Truncated QM message at index {} (offset {})", index, start)),
                 };
                 let bytes = match read_bytes(data, &mut pos, len) {
                     Some(b) => b,
-                    None => break,
+                    None => return Err(format!("Truncated QM message at index {} (offset {})", index, start)),
                 };
                 if source_text.is_empty() {
                     source_text = utf16be_to_string(bytes);
@@ -258,11 +257,11 @@ fn parse_message(data: &[u8], start: usize, index: usize, hash: u32) -> Result<Q
                 // Qt ≤3 compat: UTF-16BE context; use as fallback
                 let len = match read_u32be(data, &mut pos) {
                     Some(l) => l as usize,
-                    None => break,
+                    None => return Err(format!("Truncated QM message at index {} (offset {})", index, start)),
                 };
                 let bytes = match read_bytes(data, &mut pos, len) {
                     Some(b) => b,
-                    None => break,
+                    None => return Err(format!("Truncated QM message at index {} (offset {})", index, start)),
                 };
                 if context.is_empty() {
                     context = utf16be_to_string(bytes);
@@ -276,10 +275,10 @@ fn parse_message(data: &[u8], start: usize, index: usize, hash: u32) -> Result<Q
                         if pos + len as usize <= data.len() {
                             pos += len as usize;
                         } else {
-                            break;
+                            return Err(format!("Truncated QM chunk at index {} (offset {})", index, start));
                         }
                     }
-                    None => break,
+                    None => return Err(format!("Truncated QM message at index {} (offset {})", index, start)),
                 }
             }
         }

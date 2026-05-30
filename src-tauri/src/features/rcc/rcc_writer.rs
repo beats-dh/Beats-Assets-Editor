@@ -54,6 +54,17 @@ pub fn write_rcc(entries: &[RccEntry]) -> Result<Vec<u8>, String> {
         tree_section.write_u32::<BigEndian>(name_offsets[i]).map_err(|e| e.to_string())?;
 
         if entry.is_directory {
+            // The format stores only child_count + first_child_index, so the
+            // reader assumes children occupy a contiguous, ascending index
+            // range. Validate that before writing, or the .rcc comes out corrupt.
+            if !entry.children.is_empty() {
+                let first = entry.children[0];
+                let contiguous = entry.children.iter().enumerate().all(|(k, &c)| c == first + k);
+                let in_bounds = entry.children.last().is_some_and(|&last| last < entries.len());
+                if !contiguous || !in_bounds {
+                    return Err(format!("RCC directory '{}' has non-contiguous or out-of-range children: {:?}", entry.name, entry.children));
+                }
+            }
             // Flags: directory
             tree_section.write_u16::<BigEndian>(0x02).map_err(|e| e.to_string())?;
             // Child count
