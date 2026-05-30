@@ -1,9 +1,0 @@
-{
-    "autoplayIndex": 0, 
-    "sessiondumps": [
-        {
-            "url": "qrc:/tutorial/tutorial-sessiondump.dmp",
-            "hints": "qrc:/tutorial/tutorial-sessiondump.hints"
-        }
-    ]
-}

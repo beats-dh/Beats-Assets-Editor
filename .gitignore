@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 /Assets-Editor-Antigo
+
+# RCC assets extraídos em runtime (saída da feature "extract all"; não versionar)
+src/assets/rcc_extracted/
