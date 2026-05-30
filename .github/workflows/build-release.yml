@@ -3,8 +3,9 @@ permissions:
   contents: read
 
 # Cancela uma release em andamento quando chega um push novo no mesmo ref.
+# (build-release só dispara em push para main, mas mantemos a chave consistente.)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}
   cancel-in-progress: true
 
 on:

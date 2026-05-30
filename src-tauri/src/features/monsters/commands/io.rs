@@ -100,7 +100,9 @@ pub async fn load_monster_file(file_path: String) -> Result<Monster, String> {
 pub async fn save_monster_file(file_path: String, monster: Monster) -> Result<(), String> {
     let lua_content = generate_lua_from_monster(&monster).map_err(|e| format!("Failed to generate Lua: {}", e))?;
 
-    fs::write(&file_path, lua_content).map_err(|e| format!("Failed to write monster file: {}", e))?;
+    // Atomic write (temp + rename) so a mid-write failure can't truncate the
+    // existing monster file.
+    crate::core::fs_util::write_atomic(Path::new(&file_path), lua_content.as_bytes()).map_err(|e| format!("Failed to write monster file: {}", e))?;
 
     Ok(())
 }

@@ -3,9 +3,11 @@ name: Rustfmt Auto
 permissions:
   contents: write
 
-# Cancela execuções antigas quando chega um commit novo no mesmo branch/PR.
+# Cancela execuções antigas quando chega um commit novo. Usa o número da PR
+# para eventos pull_request (evita que PRs distintas com o mesmo nome de branch
+# — ex.: forks — cancelem umas às outras) e o ref para push/dispatch.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}
   cancel-in-progress: true
 
 on:

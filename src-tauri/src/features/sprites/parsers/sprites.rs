@@ -232,7 +232,7 @@ impl CatalogBackend {
             }
         };
 
-        self.parse_sprite_sheet_from_rgba(&sheet_data, width, height, tile_width, tile_height)
+        self.parse_sprite_sheet_from_rgba(&sheet_data, width, height, tile_width, tile_height, first_id)
     }
 
     fn decompress_lzma(&self, data: &[u8]) -> Result<Vec<u8>> {
@@ -283,7 +283,7 @@ impl CatalogBackend {
     }
 
     #[inline]
-    fn parse_sprite_sheet_from_rgba(&self, sheet_data: &[u8], width: u32, height: u32, tile_width: u32, tile_height: u32) -> Result<Vec<TibiaSprite>> {
+    fn parse_sprite_sheet_from_rgba(&self, sheet_data: &[u8], width: u32, height: u32, tile_width: u32, tile_height: u32, first_id: u32) -> Result<Vec<TibiaSprite>> {
         let bytes_per_pixel = 4usize; // RGBA
         let stride = (width * 4) as usize;
 
@@ -298,7 +298,9 @@ impl CatalogBackend {
                 let row = sprite_index / sprites_per_row;
                 let col = sprite_index % sprites_per_row;
 
-                self.extract_sprite_from_sheet_rgba(sheet_data, col * tile_width, row * tile_height, tile_width, tile_height, sprite_index, bytes_per_pixel, stride)
+                // Store the global catalog id (first_id + offset), not the
+                // per-sheet index, so TibiaSprite.id is a stable identity.
+                self.extract_sprite_from_sheet_rgba(sheet_data, col * tile_width, row * tile_height, tile_width, tile_height, first_id + sprite_index, bytes_per_pixel, stride)
             })
             .collect::<Result<Vec<_>>>()?;
 

@@ -83,7 +83,9 @@ pub async fn load_npc_file(file_path: String) -> Result<Npc, String> {
 pub async fn save_npc_file(file_path: String, npc: Npc) -> Result<(), String> {
     let lua_content = generate_lua_from_npc(&npc).map_err(|e| format!("Failed to generate Lua: {}", e))?;
 
-    fs::write(&file_path, lua_content).map_err(|e| format!("Failed to write npc file: {}", e))?;
+    // Atomic write (temp + rename) so a mid-write failure can't truncate the
+    // existing NPC file.
+    crate::core::fs_util::write_atomic(Path::new(&file_path), lua_content.as_bytes()).map_err(|e| format!("Failed to write npc file: {}", e))?;
 
     Ok(())
 }

@@ -1,10 +1,10 @@
 name: Tauri Build Debug (Linux)
 
-# Cancela builds antigas quando chega um commit novo. A chave agrupa push e
-# pull_request do mesmo branch no mesmo grupo, então só a build do último
-# commit sobrevive (evita também o build duplicado push + PR).
+# Cancela builds antigas quando chega um commit novo. Usa o número da PR para
+# eventos pull_request (evita que PRs distintas com o mesmo nome de branch —
+# ex.: forks — cancelem umas às outras) e o ref para push/dispatch.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}
   cancel-in-progress: true
 
 on:
