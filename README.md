@@ -141,8 +141,8 @@ npm --version
 
 1. **Clone o repositório:**
    ```bash
-   git clone https://github.com/seu-usuario/tibia-assets-editor.git
-   cd tibia-assets-editor
+   git clone https://github.com/beats-dh/Beats-Assets-Editor.git
+   cd Beats-Assets-Editor
    ```
 
 2. **Instale dependências do frontend:**
@@ -221,7 +221,7 @@ npm run tauri build
 ## 🏗️ Estrutura de Arquivos e Diretórios
 
 ```
-tibia-assets-editor/
+Beats-Assets-Editor/
 ├── src/                          # Frontend (TypeScript/HTML/CSS)
 │   ├── main.ts                   # Ponto de entrada, inicialização
 │   ├── assetUI.ts                # Lógica da grade de assets (otimizado)
@@ -638,7 +638,7 @@ Este projeto está licenciado sob a **Creative Commons Attribution-NonCommercial
 
 Ao usar ou distribuir este software, você deve dar crédito apropriado:
 ```
-Based on Canary Studio Editor (https://github.com/seu-usuario/tibia-assets-editor)
+Based on Canary Studio Editor (https://github.com/beats-dh/Beats-Assets-Editor)
 by Canary Studio Editor Contributors, licensed under CC BY-NC-SA 4.0
 ```
 

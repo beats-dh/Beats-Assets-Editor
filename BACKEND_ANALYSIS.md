@@ -25,7 +25,7 @@ O backend Rust demonstra **excelente arquitetura** com foco em performance atrav
 
 ### Estrutura de Diretórios
 
-```
+```text
 src-tauri/src/
 ├── bin/                          # Executáveis CLI
 │   └── load_appearances_cli.rs   # Ferramenta de linha de comando
@@ -312,7 +312,7 @@ impl<K, V> LRUCache<K, V> {
 - ✅ Thread-safe
 - ✅ Statistics tracking
 
-**Status**: Implementado mas **não usado no AppState** ⚠️
+**Status**: Implementado e **integrado no AppState** ✅
 
 ---
 

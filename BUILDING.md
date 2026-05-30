@@ -2,7 +2,7 @@
 
 ## Debug (dev)
 
-Prereqs: Node.js 18+, Rust 1.90+, Tauri 2 prerequisites (MSVC build tools + WebView2 on Windows).
+Prereqs: Node.js 18+, Rust 1.77+, Tauri 2 prerequisites (MSVC build tools + WebView2 on Windows).
 
 ```bash
 npm install
