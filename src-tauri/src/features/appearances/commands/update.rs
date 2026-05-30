@@ -881,7 +881,14 @@ pub async fn update_appearance_proficiency(category: AppearanceCategory, id: u32
 }
 
 #[tauri::command]
-pub async fn update_appearance_transparency_level(category: AppearanceCategory, id: u32, _transparency_level: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+pub async fn update_appearance_transparency_level(category: AppearanceCategory, id: u32, transparency_level: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+    // The field was removed from the protobuf; persisting it is impossible.
+    // Fail loudly instead of returning Ok so the caller doesn't believe the
+    // value was saved (it would silently vanish on the next reload/export).
+    if transparency_level.is_some() {
+        return Err("transparency_level is no longer supported (removed from the appearance schema)".to_string());
+    }
+
     let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
@@ -1102,11 +1109,10 @@ fn set_bool_flag(flags: &mut crate::core::protobuf::AppearanceFlags, key: &str, 
         "dualwielding" => {
             flags.dual_wielding = Some(value);
         }
-        "hooksouth" => {
-            // Ignored, field removed from protobuf
-        }
-        "hookeast" => {
-            // Ignored, field removed from protobuf
+        "hooksouth" | "hookeast" => {
+            // These flags were removed from the protobuf; reject instead of
+            // silently dropping the edit so the caller isn't misled.
+            return Err(format!("Boolean flag '{}' is no longer supported (removed from the appearance schema)", key));
         }
         _ => return Err(format!("Unknown boolean flag '{}'", key)),
     }

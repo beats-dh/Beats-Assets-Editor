@@ -134,16 +134,24 @@ pub fn qm_update_translations(updates: Vec<(usize, Option<String>)>) -> Result<u
 /// Save the QM file to disk (original path or a new one)
 #[command]
 pub fn qm_save(output_path: Option<String>) -> Result<String, String> {
-    let state = QM_STATE.lock();
-    let file = state.file.as_ref().ok_or("No QM file loaded")?;
+    let mut state = QM_STATE.lock();
 
     let dest: PathBuf = match &output_path {
         Some(p) => PathBuf::from(p),
         None => state.source_path.clone().ok_or("No output path specified and no source path known")?,
     };
 
-    let bytes = qm_writer::write_qm(file);
+    let bytes = {
+        let file = state.file.as_ref().ok_or("No QM file loaded")?;
+        qm_writer::write_qm(file)
+    };
     std::fs::write(&dest, &bytes).map_err(|e| format!("Failed to write {}: {e}", dest.display()))?;
+
+    // "Save As": adopt the new path as the active source so a later
+    // qm_save(None) overwrites the new file instead of the original.
+    if output_path.is_some() {
+        state.source_path = Some(dest.clone());
+    }
 
     Ok(dest.to_string_lossy().to_string())
 }

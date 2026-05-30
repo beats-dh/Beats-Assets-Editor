@@ -281,7 +281,7 @@ pub async fn import_appearances_from_files(category: AppearanceCategory, paths: 
         }
     }
 
-    let existing_signatures = collect_existing_signatures(&category, &appearances.object, state.inner())?;
+    let existing_signatures = collect_existing_signatures(&category, get_items_by_category(appearances, &category), state.inner())?;
 
     let mut result = ImportBatchResult {
         imported: Vec::new(),
@@ -358,7 +358,7 @@ pub async fn import_appearances_from_files_all(paths: Vec<String>, start_ids: Op
         if items.is_empty() {
             continue;
         }
-        let existing_signatures = collect_existing_signatures(&category, &appearances.object, state.inner())?;
+        let existing_signatures = collect_existing_signatures(&category, get_items_by_category(appearances, &category), state.inner())?;
         let mut seen_signatures = existing_signatures;
         let to_import = process_import_bucket(&category, items, start_id_for_category(start_ids.as_ref(), &category), state.inner(), &mut seen_signatures, &mut result)?;
         if !to_import.is_empty() {
@@ -475,6 +475,11 @@ pub async fn create_empty_appearance(
     let items = get_items_by_category(appearances, &category);
 
     let candidate = new_id.unwrap_or_else(|| find_next_available_id(items));
+    // A caller-supplied id must not collide with an existing appearance, or the
+    // rebuilt index becomes non-deterministic for that id.
+    if items.iter().any(|app| app.id.unwrap_or(0) == candidate) {
+        return Err(format!("Appearance with ID {} already exists in {:?}", candidate, category));
+    }
     let mut appearance = Appearance::default();
     appearance.id = Some(candidate);
     let name = name.map(|s| s.into_bytes());
