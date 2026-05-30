@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 enum WieldInfo_t {
 	WIELDINFO_NONE = 0,
 	WIELDINFO_LEVEL = 1 << 0,

@@ -57,6 +57,8 @@ pub async fn load_sprites_catalog(catalog_path: String, assets_dir: String, stat
 
     // Store in state
     *state.sprite_loader.write() = Some(sprite_loader);
+    // New catalog may reuse sprite IDs, so drop caches keyed by the old ones.
+    state.clear_caches();
 
     Ok(sprite_count)
 }
@@ -98,6 +100,8 @@ pub async fn auto_load_sprites(tibia_path: String, state: State<'_, AppState>) -
 
     // Store in state
     *state.sprite_loader.write() = Some(sprite_loader);
+    // New catalog may reuse sprite IDs, so drop caches keyed by the old ones.
+    state.clear_caches();
 
     log::info!("Successfully loaded {} sprites", sprite_count);
     Ok(sprite_count)
@@ -159,15 +163,18 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
     // CRITICAL OPTIMIZATION: Process sprites in PARALLEL
     // Each sprite's decompression + PNG encoding runs on a separate thread
     // Significant speedup when appearance has many sprites (10+ sprites = 10x faster on 10+ cores)
+    // NOTE: use `map` (not `filter_map`) so a failed sprite keeps its slot as an
+    // empty Vec. Dropping failures would shift every later index and desync the
+    // returned bytes from `all_sprite_ids`/the appearance's frame slots.
     let sprite_images: Vec<Vec<u8>> = if all_sprite_ids.len() > 5 {
         // Use parallel processing for appearances with many sprites
         all_sprite_ids
             .par_iter()
-            .filter_map(|&sprite_id| match resolve_sprite_bytes(state.inner(), sprite_loader, sprite_id) {
-                Ok(bytes) => Some(bytes),
+            .map(|&sprite_id| match resolve_sprite_bytes(state.inner(), sprite_loader, sprite_id) {
+                Ok(bytes) => bytes,
                 Err(e) => {
                     log::warn!("{}", e);
-                    None
+                    Vec::new()
                 }
             })
             .collect()
@@ -175,11 +182,11 @@ pub async fn get_appearance_sprites(category: AppearanceCategory, appearance_id:
         // Sequential for small sprite counts (avoid parallelism overhead)
         all_sprite_ids
             .iter()
-            .filter_map(|&sprite_id| match resolve_sprite_bytes(state.inner(), sprite_loader, sprite_id) {
-                Ok(bytes) => Some(bytes),
+            .map(|&sprite_id| match resolve_sprite_bytes(state.inner(), sprite_loader, sprite_id) {
+                Ok(bytes) => bytes,
                 Err(e) => {
                     log::warn!("{}", e);
-                    None
+                    Vec::new()
                 }
             })
             .collect()
@@ -344,13 +351,15 @@ pub async fn get_appearance_sprites_batch(category: AppearanceCategory, appearan
 
             // NESTED PARALLELISM: Process this appearance's sprites in parallel
             // Always use parallel for batch loading (already in parallel context)
+            // `map` (not `filter_map`): keep a slot per sprite so failures don't
+            // shift later indices out of sync with the appearance's frame slots.
             let sprite_images: Vec<Vec<u8>> = all_sprite_ids
                 .par_iter()
-                .filter_map(|&sprite_id| match resolve_sprite_bytes(app_state, sprite_loader, sprite_id) {
-                    Ok(bytes) => Some(bytes),
+                .map(|&sprite_id| match resolve_sprite_bytes(app_state, sprite_loader, sprite_id) {
+                    Ok(bytes) => bytes,
                     Err(e) => {
                         log::warn!("{}", e);
-                        None
+                        Vec::new()
                     }
                 })
                 .collect();
