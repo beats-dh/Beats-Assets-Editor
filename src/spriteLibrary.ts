@@ -50,7 +50,7 @@ function parseSpriteIdInput(raw: string): number[] {
   raw.split(',').forEach((part) => {
     const token = part.trim();
     if (!token) return;
-    const rangeMatch = token.match(/^(\d+)-(\d+)$/);
+    const rangeMatch = /^(\d+)-(\d+)$/.exec(token);
     if (rangeMatch) {
       const start = Number(rangeMatch[1]);
       const end = Number(rangeMatch[2]);
@@ -378,7 +378,7 @@ function goToPrevPage(): void {
 function toggleDrawer(force?: boolean): void {
   const { drawer, panel, searchInput } = getElements();
   if (!drawer || !panel || !isEnabled) return;
-  const shouldOpen = force !== undefined ? force : !drawer.classList.contains('is-open');
+  const shouldOpen = force ?? !drawer.classList.contains('is-open');
   drawer.classList.toggle('is-open', shouldOpen);
   drawer.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
   if (shouldOpen) {

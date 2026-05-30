@@ -25,7 +25,7 @@ export class IPCError extends Error {
  * Type-safe invoke wrapper with error handling
  */
 export async function invoke<T = unknown>(
-  command: CommandName | string,
+  command: CommandName | (string & {}),
   args?: Record<string, unknown>
 ): Promise<T> {
   try {
@@ -40,7 +40,7 @@ export async function invoke<T = unknown>(
  * Invoke with timeout
  */
 export async function invokeWithTimeout<T = unknown>(
-  command: CommandName | string,
+  command: CommandName | (string & {}),
   args?: Record<string, unknown>,
   timeoutMs = 30000
 ): Promise<T> {
@@ -56,7 +56,7 @@ export async function invokeWithTimeout<T = unknown>(
  * Invoke with retry logic
  */
 export async function invokeWithRetry<T = unknown>(
-  command: CommandName | string,
+  command: CommandName | (string & {}),
   args?: Record<string, unknown>,
   maxRetries = 3,
   delayMs = 1000
@@ -96,7 +96,7 @@ export async function invokeBatch<T = unknown>(
  * Invoke with loading state callback
  */
 export async function invokeWithLoading<T = unknown>(
-  command: CommandName | string,
+  command: CommandName | (string & {}),
   args?: Record<string, unknown>,
   onLoadingChange?: (loading: boolean) => void
 ): Promise<T> {
@@ -131,7 +131,7 @@ export function createInvokeMiddleware(options: {
   const onError = options.onError;
 
   return async <T = unknown>(
-    command: CommandName | string,
+    command: CommandName | (string & {}),
     args?: Record<string, unknown>
   ): Promise<T> => {
     let lastError: unknown;

@@ -43,19 +43,19 @@ async function decodeSingle(sprite: ArrayBuffer): Promise<ArrayBuffer | null> {
   }
 }
 
-self.onmessage = async (event: MessageEvent<ImageRequestMessage | ImageBatchRequestMessage>) => {
+globalThis.onmessage = async (event: MessageEvent<ImageRequestMessage | ImageBatchRequestMessage>) => {
   const data = event.data;
 
   // Batch request: decode multiple sprites in one message
   if ('sprites' in data && Array.isArray(data.sprites)) {
     const { id, sprites } = data;
     const buffers = await Promise.all(sprites.map(decodeSingle));
-    (self as unknown as Worker).postMessage({ id, buffers } satisfies ImageBatchResponseMessage);
+    (globalThis as unknown as Worker).postMessage({ id, buffers } satisfies ImageBatchResponseMessage);
     return;
   }
 
   // Single request (backwards compatible)
   const { id, sprite } = data as ImageRequestMessage;
   const buffer = await decodeSingle(sprite);
-  (self as unknown as Worker).postMessage({ id, buffer } satisfies ImageResponseMessage);
+  (globalThis as unknown as Worker).postMessage({ id, buffer } satisfies ImageResponseMessage);
 };

@@ -12,8 +12,8 @@ const enqueuedAnimations = new Set<string>();
 let processingAnimations = false;
 
 const scheduleIdle = (cb: () => void): void => {
-  if ('requestIdleCallback' in window) {
-    (window as any).requestIdleCallback(cb, { timeout: perfConfig.idleCallbackTimeout });
+  if ('requestIdleCallback' in globalThis) {
+    (globalThis as any).requestIdleCallback(cb, { timeout: perfConfig.idleCallbackTimeout });
   } else {
     setTimeout(cb, 0);
   }

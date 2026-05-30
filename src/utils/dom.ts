@@ -147,7 +147,7 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
  */
 export function clearElement(element: Element): void {
   while (element.firstChild) {
-    element.removeChild(element.firstChild);
+    element.firstChild.remove();
   }
 }
 

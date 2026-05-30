@@ -19,8 +19,8 @@ function redrawCanvas(canvas: HTMLCanvasElement, url: string): void {
 }
 
 const runWhenIdle = (cb: () => void): void => {
-  if ('requestIdleCallback' in window) {
-    (window as any).requestIdleCallback(cb, { timeout: 500 });
+  if ('requestIdleCallback' in globalThis) {
+    (globalThis as any).requestIdleCallback(cb, { timeout: 500 });
   } else {
     setTimeout(cb, 0);
   }
@@ -432,7 +432,7 @@ export function initAssetCardAutoAnimation(
     }
   };
 
-  if ('IntersectionObserver' in window) {
+  if ('IntersectionObserver' in globalThis) {
     if (forceStart) {
       runWhenIdle(() => { void startAnimation(); });
     } else {

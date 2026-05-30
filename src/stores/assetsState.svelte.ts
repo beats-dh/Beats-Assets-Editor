@@ -19,8 +19,8 @@ function createAssetsState() {
         proficiencySelectedId: null as number | null,
 
         currentStats: null as AppearanceStats | null,
-        staticDataStats: null as any | null,
-        staticMapDataStats: null as any | null,
+        staticDataStats: null as any,
+        staticMapDataStats: null as any,
         currentCategory: 'Objects',
         currentSubcategory: 'All',
         searchQuery: '',

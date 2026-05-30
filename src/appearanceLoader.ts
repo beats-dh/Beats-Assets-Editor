@@ -8,8 +8,8 @@ let appearancesLoaded = false;
 let appearancesLoadPromise: Promise<void> | null = null;
 let lastTibiaPath: string | null = null;
 let cachedStats: AppearanceStats | null = null;
-let cachedStaticDataStats: any | null = null;
-let cachedStaticMapDataStats: any | null = null;
+let cachedStaticDataStats: any = null;
+let cachedStaticMapDataStats: any = null;
 
 async function requestTibiaPath(): Promise<string> {
   try {
@@ -106,9 +106,7 @@ export async function ensureAppearancesLoaded(requestedPath?: string): Promise<v
 
 export async function loadAppearancesForAssetsEditor(tibiaPath: string): Promise<AppearanceStats> {
   await ensureAppearancesLoaded(tibiaPath);
-  if (!cachedStats) {
-    cachedStats = await invoke<AppearanceStats>(COMMANDS.GET_APPEARANCE_STATS);
-  }
+  cachedStats ??= await invoke<AppearanceStats>(COMMANDS.GET_APPEARANCE_STATS);
   return cachedStats;
 }
 
@@ -120,10 +118,10 @@ export function getCachedAppearanceStats(): AppearanceStats | null {
   return cachedStats;
 }
 
-export function getCachedStaticDataStats(): any | null {
+export function getCachedStaticDataStats(): any {
   return cachedStaticDataStats;
 }
 
-export function getCachedStaticMapDataStats(): any | null {
+export function getCachedStaticMapDataStats(): any {
   return cachedStaticMapDataStats;
 }

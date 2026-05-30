@@ -37,6 +37,7 @@ function initComposeWorker(): void {
       }
     };
   } catch (error) {
+    console.warn('assetPreviewAnimator: failed to initialize compose worker', error);
     composeWorker = null;
     workerPending.clear();
   }

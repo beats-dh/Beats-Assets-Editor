@@ -24,7 +24,7 @@ export function debounce<T extends (...args: any[]) => any>(
       clearTimeout(timeoutId);
     }
 
-    timeoutId = window.setTimeout(() => {
+    timeoutId = globalThis.setTimeout(() => {
       func(...args);
       timeoutId = undefined;
     }, wait);

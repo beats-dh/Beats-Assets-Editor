@@ -23,7 +23,7 @@ class PerformanceMonitor {
   private enabled = true;
 
   constructor() {
-    if (typeof window !== 'undefined' && 'PerformanceObserver' in window) {
+    if (typeof globalThis.window !== 'undefined' && 'PerformanceObserver' in globalThis) {
       this.observeWebVitals();
     }
   }
@@ -183,6 +183,6 @@ class PerformanceMonitor {
 export const performanceMonitor = new PerformanceMonitor();
 
 // Expose globally for debugging
-if (typeof window !== 'undefined') {
-  (window as any).__performanceMonitor = performanceMonitor;
+if (typeof globalThis.window !== 'undefined') {
+  (globalThis as any).__performanceMonitor = performanceMonitor;
 }

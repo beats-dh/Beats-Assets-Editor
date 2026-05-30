@@ -91,7 +91,7 @@ async function composeOutfit(request: OutfitComposeRequestMessage): Promise<Arra
 /** Timeout for outfit compose operations (ms) */
 const COMPOSE_TIMEOUT_MS = 15_000;
 
-self.onmessage = async (event: MessageEvent<OutfitComposeRequestMessage>) => {
+globalThis.onmessage = async (event: MessageEvent<OutfitComposeRequestMessage>) => {
   const { id } = event.data;
   try {
     // Wrap compose in a timeout to prevent hung workers
@@ -100,9 +100,10 @@ self.onmessage = async (event: MessageEvent<OutfitComposeRequestMessage>) => {
       new Promise<null>((resolve) => setTimeout(() => resolve(null), COMPOSE_TIMEOUT_MS)),
     ]);
     const response: OutfitComposeResponseMessage = { id, buffer };
-    (self as unknown as Worker).postMessage(response);
-  } catch (_error) {
+    (globalThis as unknown as Worker).postMessage(response);
+  } catch (error) {
+    console.error('outfitComposeWorker: failed to compose outfit', error);
     const response: OutfitComposeResponseMessage = { id, buffer: null };
-    (self as unknown as Worker).postMessage(response);
+    (globalThis as unknown as Worker).postMessage(response);
   }
 };

@@ -31,14 +31,15 @@ async function composeSprites(spriteBuffers: ArrayBuffer[]): Promise<ArrayBuffer
   return await blob.arrayBuffer();
 }
 
-self.onmessage = async (event: MessageEvent<ComposeRequestMessage>) => {
+globalThis.onmessage = async (event: MessageEvent<ComposeRequestMessage>) => {
   const { id, spriteBuffers } = event.data;
   try {
     const buffer = await composeSprites(spriteBuffers);
     const message: ComposeResponseMessage = { id, buffer };
-    (self as unknown as Worker).postMessage(message);
-  } catch (_err) {
+    (globalThis as unknown as Worker).postMessage(message);
+  } catch (err) {
+    console.error('animationWorker: failed to compose sprites', err);
     const message: ComposeResponseMessage = { id, buffer: null };
-    (self as unknown as Worker).postMessage(message);
+    (globalThis as unknown as Worker).postMessage(message);
   }
 };
