@@ -101,7 +101,7 @@ impl RccFile {
         // Build full paths and collect file list
         let mut files = Vec::new();
         let mut path_map: HashMap<usize, String> = HashMap::new();
-        Self::build_paths(&entries, 0, "", &mut path_map);
+        Self::build_paths(&entries, 0, "", &mut path_map, 0);
 
         // Update entry paths and collect files
         let mut updated_entries = entries;
@@ -133,6 +133,9 @@ impl RccFile {
     /// Parse tree section, recursively building entries
     fn parse_tree(data: &[u8], header: &RccHeader, entries: &mut Vec<RccEntry>) -> Result<(), String> {
         let tree_start = header.tree_offset as usize;
+        if tree_start > data.len() {
+            return Err(format!("Tree offset {} exceeds file size {}", tree_start, data.len()));
+        }
         let tree_data = &data[tree_start..];
         let mut cursor = Cursor::new(tree_data);
 
@@ -284,7 +287,13 @@ impl RccFile {
             let mut sz_cursor = Cursor::new(&remaining[0..4]);
             let _uncompressed_size = sz_cursor.read_u32::<BigEndian>().map_err(|e| e.to_string())?;
 
-            let compressed_data = &remaining[4..size];
+            // Clamp to the buffer: `size` is attacker-controlled and slicing
+            // `remaining[4..size]` would panic if it overruns.
+            let end = std::cmp::min(size, remaining.len());
+            if end <= 4 {
+                return Err("Compressed data section too short".into());
+            }
+            let compressed_data = &remaining[4..end];
             Self::decompress_zlib(compressed_data).map(|d| (d, true)).map_err(|e| format!("Zlib decompress failed: {}", e))
         } else {
             let end = std::cmp::min(size, remaining.len());
@@ -301,9 +310,17 @@ impl RccFile {
         Ok(decompressed)
     }
 
+    /// Maximum directory nesting depth when building paths, to guard against
+    /// stack overflow from malformed/cyclic RCC trees.
+    const MAX_TREE_DEPTH: usize = 256;
+
     /// Recursively build full paths for all entries
-    fn build_paths(entries: &[RccEntry], index: usize, prefix: &str, path_map: &mut HashMap<usize, String>) {
-        if index >= entries.len() {
+    fn build_paths(entries: &[RccEntry], index: usize, prefix: &str, path_map: &mut HashMap<usize, String>, depth: usize) {
+        if index >= entries.len() || depth >= Self::MAX_TREE_DEPTH {
+            return;
+        }
+        // A node already visited (cycle) would otherwise recurse forever.
+        if path_map.contains_key(&index) {
             return;
         }
 
@@ -320,7 +337,7 @@ impl RccFile {
 
         if entry.is_directory {
             for &child_idx in &entry.children {
-                Self::build_paths(entries, child_idx, &full_path, path_map);
+                Self::build_paths(entries, child_idx, &full_path, path_map, depth + 1);
             }
         }
     }

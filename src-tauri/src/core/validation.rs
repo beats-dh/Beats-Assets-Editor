@@ -17,7 +17,14 @@ pub fn validate_sprite_ids(sprite_ids: &[u32], sprite_loader: &SpriteLoader) -> 
 
 /// Validate frame group dimensions match sprite count
 pub fn validate_frame_group_dimensions(pattern_width: u32, pattern_height: u32, pattern_depth: u32, layers: u32, sprite_count: usize) -> AppResult<()> {
-    let expected = (pattern_width * pattern_height * pattern_depth * layers) as usize;
+    // Use checked multiplication so absurd dimensions become a domain error
+    // instead of overflowing (panic in debug, wraparound in release).
+    let expected = pattern_width
+        .checked_mul(pattern_height)
+        .and_then(|v| v.checked_mul(pattern_depth))
+        .and_then(|v| v.checked_mul(layers))
+        .map(|v| v as usize)
+        .ok_or_else(|| AppError::frame_group_validation(format!("Frame group dimensions overflow: {}x{}x{}x{}", pattern_width, pattern_height, pattern_depth, layers)))?;
 
     if sprite_count != expected {
         return Err(AppError::SpriteCountMismatch {
@@ -81,7 +88,9 @@ pub fn validate_color(color: u32) -> AppResult<()> {
 
 /// Validate string length
 pub fn validate_string_length(s: &str, max_length: usize, field_name: &str) -> AppResult<()> {
-    if s.len() > max_length {
+    // Count Unicode scalar values, not bytes, so the limit matches the
+    // "characters" wording (e.g. "á" is one character, two bytes).
+    if s.chars().count() > max_length {
         return Err(AppError::Validation(format!("{} exceeds maximum length of {} characters", field_name, max_length)));
     }
     Ok(())

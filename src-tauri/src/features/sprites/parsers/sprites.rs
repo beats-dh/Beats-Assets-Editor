@@ -174,15 +174,16 @@ impl CatalogBackend {
     }
 
     fn load_sprite_sheet_for_entry(&self, entry: &SpriteCatalogEntry) -> Result<Vec<TibiaSprite>> {
-        // Try preloaded RAM data first, fall back to disk I/O
-        let compressed_data: Vec<u8> = if let Some(preloaded) = self.preloaded_files.get(&entry.file) {
-            (**preloaded).clone()
+        // Try preloaded RAM data first, fall back to disk I/O. Decompress
+        // straight from the preloaded buffer (borrowed) instead of cloning the
+        // whole compressed file, which defeated the point of preloading.
+        let bitmap_data = if let Some(preloaded) = self.preloaded_files.get(&entry.file) {
+            self.decompress_lzma(&preloaded[..])?
         } else {
             let file_path = self.assets_dir.join(&entry.file);
-            fs::read(&file_path).context(format!("Failed to read sprite file: {:?}", file_path))?
+            let compressed_data = fs::read(&file_path).context(format!("Failed to read sprite file: {:?}", file_path))?;
+            self.decompress_lzma(&compressed_data)?
         };
-
-        let bitmap_data = self.decompress_lzma(&compressed_data)?;
 
         let dyn_img = image::load_from_memory_with_format(&bitmap_data, image::ImageFormat::Bmp).context("Falha ao decodificar BMP da folha de sprites")?;
         let rgba_img = dyn_img.to_rgba8();

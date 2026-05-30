@@ -10,13 +10,13 @@ use base64::{engine::general_purpose, Engine as _};
 use super::helpers::paginate;
 use crate::features::sounds::parsers::{AmbienceObjectStreamInfo, AmbienceStreamInfo, MusicTemplateInfo, NumericSoundEffectInfo, SoundInfo, SoundStats, SoundsParser};
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct PagedResponse<T> {
     pub total: usize,
     pub items: Vec<T>,
 }
 
-fn page_vec<T: Clone>(items: &mut Vec<T>, page: Option<usize>, page_size: Option<usize>) -> PagedResponse<T> {
+fn page_vec<T: Clone>(items: &[T], page: Option<usize>, page_size: Option<usize>) -> PagedResponse<T> {
     let total = items.len();
     let sliced = paginate(items, page, page_size);
     PagedResponse {
@@ -137,7 +137,7 @@ pub async fn list_numeric_sound_effects(
     // Sort by ID for consistent pagination
     effects.sort_by_key(|e| e.id);
 
-    Ok(page_vec(&mut effects, page, page_size))
+    Ok(page_vec(&effects, page, page_size))
 }
 
 #[tauri::command]
@@ -156,7 +156,7 @@ pub async fn list_ambience_streams(page: Option<usize>, page_size: Option<usize>
     };
     items.sort_by_key(|e| e.id);
 
-    Ok(page_vec(&mut items, page, page_size))
+    Ok(page_vec(&items, page, page_size))
 }
 
 #[tauri::command]
@@ -181,7 +181,7 @@ pub async fn list_ambience_object_streams(page: Option<usize>, page_size: Option
     };
     items.sort_by_key(|e| e.id);
 
-    Ok(page_vec(&mut items, page, page_size))
+    Ok(page_vec(&items, page, page_size))
 }
 
 #[tauri::command]
@@ -206,7 +206,7 @@ pub async fn list_music_templates(page: Option<usize>, page_size: Option<usize>,
     };
     items.sort_by_key(|e| e.id);
 
-    Ok(page_vec(&mut items, page, page_size))
+    Ok(page_vec(&items, page, page_size))
 }
 
 #[tauri::command]

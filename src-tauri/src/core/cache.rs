@@ -36,11 +36,14 @@ impl<K, V> LRUCache<K, V>
 where
     K: Eq + std::hash::Hash + Clone + Send + Sync + 'static,
 {
-    /// Create a new LRU cache with the specified maximum size
+    /// Create a new LRU cache with the specified maximum size.
+    /// A `max_size` of 0 is meaningless (the cache would still hold one entry
+    /// and report invalid utilization), so it is clamped up to 1.
     pub fn new(max_size: usize) -> Self {
+        debug_assert!(max_size > 0, "LRUCache max_size must be > 0");
         Self {
             cache: DashMap::new(),
-            max_size,
+            max_size: max_size.max(1),
         }
     }
 

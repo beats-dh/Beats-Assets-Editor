@@ -201,7 +201,8 @@ impl LegacySpriteLoader {
 
 fn extract_numeric_suffix(path: &Path) -> Option<u32> {
     let stem = path.file_stem()?.to_string_lossy();
-    let digits: String = stem.chars().filter(|c| c.is_ascii_digit()).collect();
+    // Only the trailing run of digits, so "Sprite2Test456" -> 456 (not "2456").
+    let digits: String = stem.chars().rev().take_while(|c| c.is_ascii_digit()).collect::<Vec<_>>().into_iter().rev().collect();
     if digits.is_empty() {
         None
     } else {
