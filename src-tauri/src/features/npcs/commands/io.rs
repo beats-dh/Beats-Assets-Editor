@@ -302,7 +302,12 @@ pub(crate) fn generate_lua_from_npc(npc: &Npc) -> Result<String> {
             lua.push_str(&format!("keywordHandler:{}({{ {} }}, {{ npcHandler = npcHandler, text = \"{}\" }})\n", handler_type, words_joined, escape_lua_string(&keyword.response)));
         } else {
             // Standard StdModule.say response
-            lua.push_str(&format!("keywordHandler:{}({{ {} }}, StdModule.say, {{ npcHandler = npcHandler, onlyUnfocus = true, text = \"{}\" }})\n", handler_type, words_joined, escape_lua_string(&keyword.response)));
+            lua.push_str(&format!(
+                "keywordHandler:{}({{ {} }}, StdModule.say, {{ npcHandler = npcHandler, onlyUnfocus = true, text = \"{}\" }})\n",
+                handler_type,
+                words_joined,
+                escape_lua_string(&keyword.response)
+            ));
         }
     }
 

@@ -1078,12 +1078,7 @@ fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState, spri
         for fg in appearance.frame_group.iter_mut() {
             if let Some(info) = fg.sprite_info.as_mut() {
                 for sprite_id in info.sprite_id.iter_mut() {
-                    *sprite_id = ordered_map
-                        .get(remap_index)
-                        .copied()
-                        .flatten()
-                        .and_then(|unique_index| unique_ids.get(unique_index).copied())
-                        .unwrap_or(0);
+                    *sprite_id = ordered_map.get(remap_index).copied().flatten().and_then(|unique_index| unique_ids.get(unique_index).copied()).unwrap_or(0);
                     remap_index += 1;
                 }
             }
