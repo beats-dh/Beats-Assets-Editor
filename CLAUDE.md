@@ -8,8 +8,11 @@ Backend: **Rust + Tauri 2**. Frontend: **Svelte 5 + TypeScript + Vite 6**.
 ## Mandatory Rules
 
 - Always respond in **PT-BR**, regardless of the language of the question.
-- Always use the **`anthropic-skills:rust-tauri-svelte`** skill when working with
-  Rust (backend), Tauri (bridge) or Svelte (frontend) code in this repo.
+- Always use the project **`rust-tauri-svelte`** skill
+  ([`.claude/skills/rust-tauri-svelte/`](.claude/skills/rust-tauri-svelte/SKILL.md))
+  when working with Rust/Tauri/Svelte code. It targets **Tauri 2 + Svelte 5 +
+  TS** (this repo's stack). Prefer it over the bundled
+  `anthropic-skills:rust-tauri-svelte`, which is Tauri 1 / Svelte 4 and outdated.
 - **Validate your changes, but don't launch the app or heavy builds unprompted.**
   Use `cargo check`, `cargo test --lib` and `npx tsc --noEmit` to verify edits.
   Don't run `npm run tauri dev`/`build` (full app / release bundle) without an
