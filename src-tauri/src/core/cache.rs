@@ -56,18 +56,24 @@ where
     /// Insert a value into the cache
     /// Evicts least recently used items if size limit is reached
     pub fn insert(&self, key: K, value: V) {
-        // If cache is over capacity, evict a batch to amortize cost
+        let entry = CacheEntry {
+            value: Arc::new(value),
+            timestamp: next_timestamp(),
+        };
+
+        // Overwriting an existing key doesn't grow the cache, so skip eviction —
+        // evicting here would needlessly drop a different (valid) entry.
+        if let Some(mut existing) = self.cache.get_mut(&key) {
+            *existing = entry;
+            return;
+        }
+
+        // New key: only evict when actually at/over capacity.
         if self.cache.len() >= self.max_size {
             self.evict_batch();
         }
 
-        self.cache.insert(
-            key,
-            CacheEntry {
-                value: Arc::new(value),
-                timestamp: next_timestamp(),
-            },
-        );
+        self.cache.insert(key, entry);
     }
 
     /// Check if a key exists in the cache

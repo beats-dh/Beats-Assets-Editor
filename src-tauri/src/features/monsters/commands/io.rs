@@ -1,3 +1,4 @@
+use crate::core::lua::escape_lua_string;
 use crate::features::monsters::parsers::lua_parser::LuaMonsterParser;
 use crate::features::monsters::types::{Monster, MonsterListEntry};
 use anyhow::{Context, Result};
@@ -283,12 +284,12 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
     let should_emit = |field: &str| !missing_fields.contains(field) || touched_fields.contains(field);
 
     // Header
-    lua.push_str(&format!("local mType = Game.createMonsterType(\"{}\")\n", monster.name));
+    lua.push_str(&format!("local mType = Game.createMonsterType(\"{}\")\n", escape_lua_string(&monster.name)));
     lua.push_str("local monster = {}\n\n");
 
     // Basic info
     if should_emit("description") {
-        lua.push_str(&format!("monster.description = \"{}\"\n", monster.description));
+        lua.push_str(&format!("monster.description = \"{}\"\n", escape_lua_string(&monster.description)));
     }
     if should_emit("experience") {
         lua.push_str(&format!("monster.experience = {}\n", monster.experience));
@@ -312,7 +313,7 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
     // Bestiary
     if let Some(ref bestiary) = monster.bestiary {
         lua.push_str("monster.Bestiary = {\n");
-        lua.push_str(&format!("\tclass = \"{}\",\n", bestiary.class));
+        lua.push_str(&format!("\tclass = \"{}\",\n", escape_lua_string(&bestiary.class)));
         lua.push_str(&format!("\trace = {},\n", bestiary.race));
         lua.push_str(&format!("\ttoKill = {},\n", bestiary.to_kill));
         lua.push_str(&format!("\tFirstUnlock = {},\n", bestiary.first_unlock));
@@ -320,7 +321,7 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
         lua.push_str(&format!("\tCharmsPoints = {},\n", bestiary.charms_points));
         lua.push_str(&format!("\tStars = {},\n", bestiary.stars));
         lua.push_str(&format!("\tOccurrence = {},\n", bestiary.occurrence));
-        lua.push_str(&format!("\tLocations = \"{}\",\n", bestiary.locations));
+        lua.push_str(&format!("\tLocations = \"{}\",\n", escape_lua_string(&bestiary.locations)));
         lua.push_str("}\n\n");
     }
 
@@ -336,7 +337,7 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
     if !monster.events.is_empty() {
         lua.push_str("monster.events = {\n");
         for event_name in &monster.events {
-            lua.push_str(&format!("\t\"{}\",\n", event_name));
+            lua.push_str(&format!("\t\"{}\",\n", escape_lua_string(event_name)));
         }
         lua.push_str("}\n\n");
     }
@@ -349,7 +350,7 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
         lua.push_str(&format!("monster.maxHealth = {}\n", monster.max_health));
     }
     if should_emit("race") {
-        lua.push_str(&format!("monster.race = \"{}\"\n", monster.race));
+        lua.push_str(&format!("monster.race = \"{}\"\n", escape_lua_string(&monster.race)));
     }
     if should_emit("corpse") {
         lua.push_str(&format!("monster.corpse = {}\n", monster.corpse));
@@ -409,7 +410,7 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
         lua.push_str(&format!("\tmaxSummons = {},\n", summon.max_summons));
         lua.push_str("\tsummons = {\n");
         for s in &summon.summons {
-            lua.push_str(&format!("\t\t{{ name = \"{}\", chance = {}, interval = {}, count = {} }},\n", s.name, s.chance, s.interval, s.count));
+            lua.push_str(&format!("\t\t{{ name = \"{}\", chance = {}, interval = {}, count = {} }},\n", escape_lua_string(&s.name), s.chance, s.interval, s.count));
         }
         lua.push_str("\t},\n");
         lua.push_str("}\n\n");
@@ -421,7 +422,7 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
         lua.push_str(&format!("\tinterval = {},\n", voices.interval));
         lua.push_str(&format!("\tchance = {},\n", voices.chance));
         for v in &voices.entries {
-            lua.push_str(&format!("\t{{ text = \"{}\", yell = {} }},\n", v.text, v.yell));
+            lua.push_str(&format!("\t{{ text = \"{}\", yell = {} }},\n", escape_lua_string(&v.text), v.yell));
         }
         lua.push_str("}\n\n");
     }
@@ -434,7 +435,7 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
             lua.push_str(&format!("id = {}, ", id));
         }
         if let Some(ref name) = l.name {
-            lua.push_str(&format!("name = \"{}\", ", name));
+            lua.push_str(&format!("name = \"{}\", ", escape_lua_string(name)));
         }
         lua.push_str(&format!("chance = {}", l.chance));
         if let Some(min) = l.min_count {
@@ -450,7 +451,7 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
     // Attacks
     lua.push_str("monster.attacks = {\n");
     for a in &monster.attacks {
-        lua.push_str(&format!("\t{{ name = \"{}\", interval = {}, chance = {}", a.name, a.interval, a.chance));
+        lua.push_str(&format!("\t{{ name = \"{}\", interval = {}, chance = {}", escape_lua_string(&a.name), a.interval, a.chance));
         if let Some(combat_type) = &a.combat_type {
             lua.push_str(&format!(", type = {}", combat_type));
         }
@@ -510,7 +511,7 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
     lua.push_str(&format!("\tarmor = {},\n", monster.defenses.armor));
     lua.push_str(&format!("\tmitigation = {},\n", monster.defenses.mitigation));
     for d in &monster.defenses.entries {
-        lua.push_str(&format!("\t{{ name = \"{}\", interval = {}, chance = {}", d.name, d.interval, d.chance));
+        lua.push_str(&format!("\t{{ name = \"{}\", interval = {}, chance = {}", escape_lua_string(&d.name), d.interval, d.chance));
         if let Some(combat_type) = &d.combat_type {
             lua.push_str(&format!(", type = {}", combat_type));
         }
@@ -559,7 +560,7 @@ fn generate_lua_from_monster(monster: &Monster) -> Result<String> {
     // Immunities
     lua.push_str("monster.immunities = {\n");
     for i in &monster.immunities {
-        lua.push_str(&format!("\t{{ type = \"{}\", condition = {} }},\n", i.immunity_type, i.condition));
+        lua.push_str(&format!("\t{{ type = \"{}\", condition = {} }},\n", escape_lua_string(&i.immunity_type), i.condition));
     }
     lua.push_str("}\n\n");
 

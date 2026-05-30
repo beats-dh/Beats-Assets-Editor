@@ -1,10 +1,15 @@
 use crate::core::protobuf::{Appearance, AppearanceFlags, FrameGroup, SpriteInfo};
+use super::commands::AppearanceCategory;
 use serde::{Deserialize, Serialize};
 
 /// Complete appearance data with ALL information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompleteAppearanceItem {
     pub id: u32,
+    /// Category this appearance belongs to. Optional for backwards
+    /// compatibility with JSON exported before this field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<AppearanceCategory>,
     pub name: Option<String>,
     pub description: Option<String>,
     pub frame_groups: Vec<CompleteFrameGroup>,
@@ -268,8 +273,13 @@ impl SpecialMeaningAppearanceIds {
 
 impl CompleteAppearanceItem {
     pub fn from_protobuf(appearance: &Appearance) -> Self {
+        Self::from_protobuf_with_category(appearance, None)
+    }
+
+    pub fn from_protobuf_with_category(appearance: &Appearance, category: Option<AppearanceCategory>) -> Self {
         Self {
             id: appearance.id.unwrap_or(0),
+            category,
             name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
             description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
             frame_groups: appearance.frame_group.iter().map(CompleteFrameGroup::from_protobuf).collect(),

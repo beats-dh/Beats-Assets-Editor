@@ -1,3 +1,4 @@
+use crate::core::lua::escape_lua_string;
 use crate::features::npcs::parsers::lua_parser::LuaNpcParser;
 use crate::features::npcs::types::{Npc, NpcListEntry};
 use anyhow::{Context, Result};
@@ -150,14 +151,14 @@ pub(crate) fn generate_lua_from_npc(npc: &Npc) -> Result<String> {
     let mut lua = String::new();
 
     // Header
-    lua.push_str(&format!("local internalNpcName = \"{}\"\n", npc.name));
+    lua.push_str(&format!("local internalNpcName = \"{}\"\n", escape_lua_string(&npc.name)));
     lua.push_str("local npcType = Game.createNpcType(internalNpcName)\n");
     lua.push_str("local npcConfig = {}\n\n");
 
     // Basic info
     lua.push_str("npcConfig.name = internalNpcName\n");
     if !npc.description.is_empty() {
-        lua.push_str(&format!("npcConfig.description = \"{}\"\n", npc.description));
+        lua.push_str(&format!("npcConfig.description = \"{}\"\n", escape_lua_string(&npc.description)));
     } else {
         lua.push_str("npcConfig.description = internalNpcName\n");
     }
@@ -185,7 +186,7 @@ pub(crate) fn generate_lua_from_npc(npc: &Npc) -> Result<String> {
         lua.push_str(&format!("npcConfig.moneyToNeedDonation = {}\n", mtd));
     }
     if let Some(ref r_type) = npc.respawn_type {
-        lua.push_str(&format!("npcConfig.respawnType = \"{}\"\n", r_type));
+        lua.push_str(&format!("npcConfig.respawnType = \"{}\"\n", escape_lua_string(r_type)));
     }
 
     lua.push('\n');
@@ -213,7 +214,7 @@ pub(crate) fn generate_lua_from_npc(npc: &Npc) -> Result<String> {
             lua.push_str(&format!("\tinterval = {},\n", voices.interval));
             lua.push_str(&format!("\tchance = {},\n", voices.chance));
             for voice in &voices.lines {
-                lua.push_str(&format!("\t{{ text = \"{}\"", voice.text));
+                lua.push_str(&format!("\t{{ text = \"{}\"", escape_lua_string(&voice.text)));
                 if voice.yell {
                     lua.push_str(", yell = true");
                 } else {
@@ -233,7 +234,7 @@ pub(crate) fn generate_lua_from_npc(npc: &Npc) -> Result<String> {
                 lua.push_str("\t{");
                 let mut props = Vec::new();
                 if let Some(ref name) = item.item_name {
-                    props.push(format!(" itemName = \"{}\"", name));
+                    props.push(format!(" itemName = \"{}\"", escape_lua_string(name)));
                 }
                 if let Some(cid) = item.client_id {
                     props.push(format!(" clientId = {}", cid));
@@ -270,7 +271,7 @@ pub(crate) fn generate_lua_from_npc(npc: &Npc) -> Result<String> {
 
     // Output Messages
     for (msg_type, text) in &npc.interactions.messages {
-        lua.push_str(&format!("npcHandler:setMessage({}, \"{}\")\n", msg_type, text));
+        lua.push_str(&format!("npcHandler:setMessage({}, \"{}\")\n", msg_type, escape_lua_string(text)));
     }
 
     if !npc.interactions.messages.is_empty() {
@@ -284,9 +285,9 @@ pub(crate) fn generate_lua_from_npc(npc: &Npc) -> Result<String> {
         for w in &keyword.words {
             if w.starts_with("__greet:") {
                 is_greet = true;
-                clean_words.push(format!("\"{}\"", w.trim_start_matches("__greet:")));
+                clean_words.push(format!("\"{}\"", escape_lua_string(w.trim_start_matches("__greet:"))));
             } else {
-                clean_words.push(format!("\"{}\"", w));
+                clean_words.push(format!("\"{}\"", escape_lua_string(w)));
             }
         }
 
@@ -298,10 +299,10 @@ pub(crate) fn generate_lua_from_npc(npc: &Npc) -> Result<String> {
         let words_joined = clean_words.join(", ");
 
         if is_greet {
-            lua.push_str(&format!("keywordHandler:{}({{ {} }}, {{ npcHandler = npcHandler, text = \"{}\" }})\n", handler_type, words_joined, keyword.response));
+            lua.push_str(&format!("keywordHandler:{}({{ {} }}, {{ npcHandler = npcHandler, text = \"{}\" }})\n", handler_type, words_joined, escape_lua_string(&keyword.response)));
         } else {
             // Standard StdModule.say response
-            lua.push_str(&format!("keywordHandler:{}({{ {} }}, StdModule.say, {{ npcHandler = npcHandler, onlyUnfocus = true, text = \"{}\" }})\n", handler_type, words_joined, keyword.response));
+            lua.push_str(&format!("keywordHandler:{}({{ {} }}, StdModule.say, {{ npcHandler = npcHandler, onlyUnfocus = true, text = \"{}\" }})\n", handler_type, words_joined, escape_lua_string(&keyword.response)));
         }
     }
 

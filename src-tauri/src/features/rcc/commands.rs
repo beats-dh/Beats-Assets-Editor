@@ -2,7 +2,7 @@
 
 use parking_lot::Mutex;
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use std::sync::LazyLock;
 use tauri::command;
 
@@ -154,6 +154,22 @@ pub fn rcc_save(output_path: Option<String>) -> Result<String, String> {
     Ok(save_path.to_string_lossy().to_string())
 }
 
+/// Join an untrusted RCC entry path onto `base`, rejecting any component that
+/// could escape the output directory (absolute paths, `..`, drive prefixes).
+fn safe_output_path(base: &Path, entry_path: &str) -> Result<PathBuf, String> {
+    let mut out = base.to_path_buf();
+
+    for component in Path::new(entry_path).components() {
+        match component {
+            Component::Normal(part) => out.push(part),
+            Component::CurDir => {}
+            _ => return Err(format!("Unsafe RCC entry path: {}", entry_path)),
+        }
+    }
+
+    Ok(out)
+}
+
 /// Extract all resources to a directory
 #[command]
 pub fn rcc_extract_all(output_dir: String) -> Result<usize, String> {
@@ -168,7 +184,7 @@ pub fn rcc_extract_all(output_dir: String) -> Result<usize, String> {
             continue;
         }
 
-        let file_path = base.join(&entry.path);
+        let file_path = safe_output_path(&base, &entry.path)?;
 
         // Create parent directories
         if let Some(parent) = file_path.parent() {

@@ -6,7 +6,7 @@ use crate::state::AppState;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use prost::Message;
 use tauri::State;
 use ahash::AHasher;
@@ -81,7 +81,7 @@ pub async fn export_appearance_to_json(category: AppearanceCategory, id: u32, pa
         items.iter().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found", id))?
     };
 
-    let complete = CompleteAppearanceItem::from_protobuf(appearance);
+    let complete = CompleteAppearanceItem::from_protobuf_with_category(appearance, Some(category.clone()));
     let json = serde_json::to_string_pretty(&complete).map_err(|e| format!("Failed to serialize appearance: {}", e))?;
 
     if let Some(parent) = Path::new(&path).parent() {
@@ -162,6 +162,12 @@ pub async fn export_appearance_to_aec(category: AppearanceCategory, id: u32, pat
     let mut buf = Vec::new();
     container.encode(&mut buf).map_err(|e| format!("Failed to encode AEC: {}", e))?;
     fs::write(&path, buf).map_err(|e| format!("Failed to write file {}: {}", path, e))?;
+
+    // Persist the actual sprite bytes alongside the AEC so the appearance can be
+    // reconstructed when imported in another environment. The IDs in the AEC were
+    // renumbered to 0..n in the same iteration order as `sprite_data`, so the
+    // companion stores the bytes in that exact sequential order.
+    write_aec_sprite_companion(&path, &sprite_data)?;
 
     Ok(path)
 }
@@ -265,7 +271,8 @@ pub async fn import_appearances_from_files(category: AppearanceCategory, paths: 
 
         if extension == "aec" {
             let mut aec_items = parse_aec_items(path, &category)?;
-            remap_imported_sprites(&mut aec_items, state.inner())?;
+            let sprite_overrides = read_aec_sprite_companion(path)?;
+            remap_imported_sprites(&mut aec_items, state.inner(), &sprite_overrides)?;
             parsed_items.extend(aec_items.into_iter().map(|appearance| ImportedAppearance::Proto(appearance)));
         } else {
             let content = read_text_file(path)?;
@@ -312,28 +319,30 @@ pub async fn import_appearances_from_files_all(paths: Vec<String>, start_ids: Op
 
         if extension == "aec" {
             let mut aec = parse_aec_container(path)?;
+            let sprite_overrides = read_aec_sprite_companion(path)?;
 
             if !aec.outfit.is_empty() {
-                remap_imported_sprites(&mut aec.outfit, state.inner())?;
+                remap_imported_sprites(&mut aec.outfit, state.inner(), &sprite_overrides)?;
                 buckets.outfits.extend(aec.outfit.into_iter().map(ImportedAppearance::Proto));
             }
             if !aec.object.is_empty() {
-                remap_imported_sprites(&mut aec.object, state.inner())?;
+                remap_imported_sprites(&mut aec.object, state.inner(), &sprite_overrides)?;
                 buckets.objects.extend(aec.object.into_iter().map(ImportedAppearance::Proto));
             }
             if !aec.effect.is_empty() {
-                remap_imported_sprites(&mut aec.effect, state.inner())?;
+                remap_imported_sprites(&mut aec.effect, state.inner(), &sprite_overrides)?;
                 buckets.effects.extend(aec.effect.into_iter().map(ImportedAppearance::Proto));
             }
             if !aec.missile.is_empty() {
-                remap_imported_sprites(&mut aec.missile, state.inner())?;
+                remap_imported_sprites(&mut aec.missile, state.inner(), &sprite_overrides)?;
                 buckets.missiles.extend(aec.missile.into_iter().map(ImportedAppearance::Proto));
             }
         } else {
             let content = read_text_file(path)?;
             let imported: CompleteAppearanceItem = serde_json::from_str(&content).map_err(|e| format!("Failed to parse appearance JSON: {}", e))?;
-            // Infer category from ID if it's not set (e.g. from older editors or incomplete data)
-            let category = AppearanceCategory::Objects;
+            // Use the category stored in the JSON; fall back to Objects only for
+            // older exports that predate the category field.
+            let category = imported.category.clone().unwrap_or(AppearanceCategory::Objects);
             buckets.push(category, ImportedAppearance::Complete(imported));
         }
     }
@@ -842,6 +851,75 @@ fn parse_aec_container(path: &str) -> Result<Appearances, String> {
     Appearances::decode(bytes.as_slice()).map_err(|e| format!("Failed to decode AEC: {}", e))
 }
 
+/// Path of the sprite companion file that travels next to an `.aec`.
+fn aec_sprite_companion_path(aec_path: &str) -> PathBuf {
+    let mut os = std::ffi::OsString::from(aec_path);
+    os.push(".sprites");
+    PathBuf::from(os)
+}
+
+/// Companion binary layout: magic `AECS` | version `u8` | count `u32` LE |
+/// repeated [ len `u32` LE | PNG bytes ]. Sprites are stored in sequential
+/// order matching the AEC's renumbered IDs (0..n).
+const AEC_SPRITE_MAGIC: &[u8; 4] = b"AECS";
+const AEC_SPRITE_VERSION: u8 = 1;
+
+fn write_aec_sprite_companion(aec_path: &str, sprites: &[Vec<u8>]) -> Result<(), String> {
+    let companion = aec_sprite_companion_path(aec_path);
+
+    // Nothing to persist (e.g. appearance had no sprites): make sure no stale
+    // companion from a previous export lingers and lies about the contents.
+    if sprites.is_empty() {
+        if companion.exists() {
+            let _ = fs::remove_file(&companion);
+        }
+        return Ok(());
+    }
+
+    let mut buf = Vec::with_capacity(9 + sprites.iter().map(|s| s.len() + 4).sum::<usize>());
+    buf.extend_from_slice(AEC_SPRITE_MAGIC);
+    buf.push(AEC_SPRITE_VERSION);
+    buf.extend_from_slice(&(sprites.len() as u32).to_le_bytes());
+    for sprite in sprites {
+        buf.extend_from_slice(&(sprite.len() as u32).to_le_bytes());
+        buf.extend_from_slice(sprite);
+    }
+
+    fs::write(&companion, buf).map_err(|e| format!("Failed to write sprite companion {:?}: {}", companion, e))
+}
+
+fn read_aec_sprite_companion(aec_path: &str) -> Result<HashMap<u32, Vec<u8>>, String> {
+    let companion = aec_sprite_companion_path(aec_path);
+    if !companion.exists() {
+        return Ok(HashMap::new());
+    }
+
+    let bytes = fs::read(&companion).map_err(|e| format!("Failed to read sprite companion {:?}: {}", companion, e))?;
+    if bytes.len() < 9 || &bytes[0..4] != AEC_SPRITE_MAGIC {
+        return Err(format!("Invalid AEC sprite companion header: {:?}", companion));
+    }
+
+    let mut map = HashMap::new();
+    let mut cursor = 5usize; // skip magic (4) + version (1)
+    let count = u32::from_le_bytes(bytes[cursor..cursor + 4].try_into().unwrap());
+    cursor += 4;
+
+    for id in 0..count {
+        if cursor + 4 > bytes.len() {
+            return Err(format!("Truncated AEC sprite companion: {:?}", companion));
+        }
+        let len = u32::from_le_bytes(bytes[cursor..cursor + 4].try_into().unwrap()) as usize;
+        cursor += 4;
+        if cursor + len > bytes.len() {
+            return Err(format!("Truncated AEC sprite companion: {:?}", companion));
+        }
+        map.insert(id, bytes[cursor..cursor + len].to_vec());
+        cursor += len;
+    }
+
+    Ok(map)
+}
+
 fn max_id(items: &[Appearance]) -> u32 {
     items.iter().map(|appearance| appearance.id.unwrap_or(0)).max().unwrap_or(0)
 }
@@ -893,16 +971,22 @@ fn detect_import_presence(paths: &[String]) -> Result<ImportPresence, String> {
             }
         } else {
             let content = read_text_file(path)?;
-            let _imported: CompleteAppearanceItem = serde_json::from_str(&content).map_err(|e| format!("Failed to parse appearance JSON: {}", e))?;
-            // JSON imports default to Objects category
-            presence.objects = true;
+            let imported: CompleteAppearanceItem = serde_json::from_str(&content).map_err(|e| format!("Failed to parse appearance JSON: {}", e))?;
+            // Honor the category stored in the JSON; older exports without it
+            // fall back to Objects.
+            match imported.category.unwrap_or(AppearanceCategory::Objects) {
+                AppearanceCategory::Objects => presence.objects = true,
+                AppearanceCategory::Outfits => presence.outfits = true,
+                AppearanceCategory::Effects => presence.effects = true,
+                AppearanceCategory::Missiles => presence.missiles = true,
+            }
         }
     }
 
     Ok(presence)
 }
 
-fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> Result<(), String> {
+fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState, sprite_overrides: &HashMap<u32, Vec<u8>>) -> Result<(), String> {
     let total_sprites: usize = appearances.iter().map(|appearance| appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).map(|info| info.sprite_id.len()).sum::<usize>()).sum();
     if total_sprites == 0 {
         return Ok(());
@@ -910,7 +994,11 @@ fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> R
 
     let mut unique_sprites: Vec<Vec<u8>> = Vec::new();
     let mut hash_lookup: HashMap<u64, usize> = HashMap::new();
-    let mut ordered_map: Vec<usize> = Vec::with_capacity(total_sprites);
+    // One entry per sprite position (in iteration order). `None` is a placeholder
+    // for sprites that failed to load, so the indices stay aligned with the
+    // second remap pass below — otherwise a single failure shifts every
+    // subsequent sprite and trailing ones get zeroed out.
+    let mut ordered_map: Vec<Option<usize>> = Vec::with_capacity(total_sprites);
 
     // OPTIMIZATION: Acquire sprite_loader lock ONCE outside the loop
     // instead of re-acquiring it for each appearance
@@ -920,7 +1008,9 @@ fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> R
     for appearance in appearances.iter() {
         let sprite_ids: Vec<u32> = appearance.frame_group.iter().filter_map(|fg| fg.sprite_info.as_ref()).flat_map(|info| info.sprite_id.iter().copied()).collect();
         for sprite_id in sprite_ids {
-            let sprite_bytes = if let Some(mem_bytes) = state.imported_sprites.get(&sprite_id) {
+            let sprite_bytes = if let Some(override_bytes) = sprite_overrides.get(&sprite_id) {
+                override_bytes.clone()
+            } else if let Some(mem_bytes) = state.imported_sprites.get(&sprite_id) {
                 mem_bytes.clone()
             } else if let Some(loader) = sprite_loader {
                 if let Ok(sprite) = loader.get_sprite(sprite_id) {
@@ -933,6 +1023,8 @@ fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> R
             };
 
             if sprite_bytes.is_empty() {
+                // Reserve the slot so later positions stay aligned; remaps to 0.
+                ordered_map.push(None);
                 continue;
             }
 
@@ -956,7 +1048,7 @@ fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> R
                 new_idx
             };
 
-            ordered_map.push(unique_index);
+            ordered_map.push(Some(unique_index));
         }
     }
 
@@ -986,12 +1078,12 @@ fn remap_imported_sprites(appearances: &mut [Appearance], state: &AppState) -> R
         for fg in appearance.frame_group.iter_mut() {
             if let Some(info) = fg.sprite_info.as_mut() {
                 for sprite_id in info.sprite_id.iter_mut() {
-                    if remap_index < ordered_map.len() {
-                        let unique_index = ordered_map[remap_index];
-                        *sprite_id = unique_ids.get(unique_index).copied().unwrap_or(0);
-                    } else {
-                        *sprite_id = 0;
-                    }
+                    *sprite_id = ordered_map
+                        .get(remap_index)
+                        .copied()
+                        .flatten()
+                        .and_then(|unique_index| unique_ids.get(unique_index).copied())
+                        .unwrap_or(0);
                     remap_index += 1;
                 }
             }

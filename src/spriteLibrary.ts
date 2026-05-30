@@ -105,7 +105,12 @@ function renderVirtualList(): void {
   if (!list) return;
 
   if (visibleRange.length === 0) {
-    list.innerHTML = `<div class="sprite-library-empty" data-i18n="texture.library.empty">${translate('texture.library.empty')}</div>`;
+    list.replaceChildren();
+    const empty = document.createElement('div');
+    empty.className = 'sprite-library-empty';
+    empty.dataset.i18n = 'texture.library.empty';
+    empty.textContent = translate('texture.library.empty');
+    list.appendChild(empty);
     return;
   }
 
@@ -178,10 +183,13 @@ function createSpriteButton(id: number, cachedUrl: string | null): HTMLButtonEle
 
   const meta = document.createElement('div');
   meta.className = 'texture-sprite-meta';
-  meta.innerHTML = `
-    <span class="texture-sprite-id">#${id}</span>
-    <span class="texture-sprite-slot">${translate('texture.spriteList.slotLabel', { value: id })}</span>
-  `;
+  const idSpan = document.createElement('span');
+  idSpan.className = 'texture-sprite-id';
+  idSpan.textContent = `#${id}`;
+  const slotSpan = document.createElement('span');
+  slotSpan.className = 'texture-sprite-slot';
+  slotSpan.textContent = translate('texture.spriteList.slotLabel', { value: id });
+  meta.append(idSpan, slotSpan);
   button.appendChild(meta);
 
   button.addEventListener('click', (event) => {
