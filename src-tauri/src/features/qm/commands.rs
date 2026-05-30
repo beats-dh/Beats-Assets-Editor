@@ -195,7 +195,14 @@ pub fn qm_import_csv(file_path: String) -> Result<usize, String> {
         if let (Some(idx_str), Some(trans)) = (record.get(index_col), record.get(trans_col)) {
             if let Ok(idx) = idx_str.trim().parse::<usize>() {
                 let t = trans.trim().to_string();
-                updates.push((idx, if t.is_empty() { None } else { Some(t) }));
+                updates.push((
+                    idx,
+                    if t.is_empty() {
+                        None
+                    } else {
+                        Some(t)
+                    },
+                ));
             }
         }
     }
@@ -345,4 +352,3 @@ pub fn qm_debug_raw() -> Result<String, String> {
 
     Ok(out)
 }
-
