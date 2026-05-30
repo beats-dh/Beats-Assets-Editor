@@ -164,8 +164,8 @@ export async function handleDuplicate(category: string, id: number, newId?: numb
       if (idInput === null) return null;
 
       if (idInput.trim()) {
-        targetId = parseInt(idInput, 10);
-        if (isNaN(targetId)) {
+        targetId = Number.parseInt(idInput, 10);
+        if (Number.isNaN(targetId)) {
           alert(translate('status.invalidId') || 'Invalid ID');
           return null;
         }
@@ -199,8 +199,8 @@ export async function handleCreateNew(category: string, desiredId?: number): Pro
       if (idInput === null) return null;
 
       if (idInput.trim()) {
-        newId = parseInt(idInput, 10);
-        if (isNaN(newId)) {
+        newId = Number.parseInt(idInput, 10);
+        if (Number.isNaN(newId)) {
           alert(translate('status.invalidId') || 'Invalid ID');
           return null;
         }

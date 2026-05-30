@@ -11,8 +11,8 @@ interface CacheEntry<T> {
 }
 
 export class LRUCache<K, V> {
-  private cache: Map<K, CacheEntry<V>>;
-  private maxSize: number;
+  private readonly cache: Map<K, CacheEntry<V>>;
+  private readonly maxSize: number;
 
   constructor(maxSize: number) {
     this.cache = new Map();

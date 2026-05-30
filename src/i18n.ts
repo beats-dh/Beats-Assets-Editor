@@ -3427,11 +3427,11 @@ export function applyDocumentTranslations(language: LanguageCode): void {
 }
 
 export function getLanguageOptionLabel(language: LanguageCode, displayLanguage: LanguageCode = getActiveLanguage()): string {
-  return translate(`language.option.${language === 'pt-BR' ? 'pt' : language}` as TranslationKey, undefined, displayLanguage);
+  return translate(`language.option.${language === 'pt-BR' ? 'pt' : language}`, undefined, displayLanguage);
 }
 
 export function getThemeLabel(themeKey: 'default' | 'ocean' | 'aurora' | 'ember' | 'forest' | 'dusk', language: LanguageCode = getActiveLanguage()): string {
-  return translate(`theme.${themeKey}` as TranslationKey, undefined, language);
+  return translate(`theme.${themeKey}`, undefined, language);
 }
 
 

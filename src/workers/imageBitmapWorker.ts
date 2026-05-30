@@ -48,7 +48,7 @@ self.onmessage = async (event: MessageEvent<ImageRequestMessage | ImageBatchRequ
 
   // Batch request: decode multiple sprites in one message
   if ('sprites' in data && Array.isArray(data.sprites)) {
-    const { id, sprites } = data as ImageBatchRequestMessage;
+    const { id, sprites } = data;
     const buffers = await Promise.all(sprites.map(decodeSingle));
     (self as unknown as Worker).postMessage({ id, buffers } satisfies ImageBatchResponseMessage);
     return;

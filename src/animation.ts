@@ -264,13 +264,14 @@ export function initDetailSpriteCardAnimations(
     let cards: NodeListOf<Element> | Element[];
     if (startIndex !== undefined && endIndex !== undefined) {
       const allCards = container?.querySelectorAll('.detail-sprite-item') ?? [];
-      cards = [];
-      for (let i = 0; i < allCards.length; i++) {
-        const idx = parseInt((allCards[i] as HTMLElement).getAttribute('data-agg-index') ?? '-1', 10);
+      const filtered: Element[] = [];
+      for (const card of allCards) {
+        const idx = Number.parseInt((card as HTMLElement).dataset.aggIndex ?? '-1', 10);
         if (idx >= startIndex && idx < endIndex) {
-          (cards as Element[]).push(allCards[i]);
+          filtered.push(card);
         }
       }
+      cards = filtered;
     } else {
       cards = container?.querySelectorAll('.detail-sprite-item') ?? [];
     }

@@ -83,7 +83,7 @@ function getElements() {
     orderBtn: document.getElementById(orderButtonId),
     prevBtn: document.getElementById(prevButtonId),
     nextBtn: document.getElementById(nextButtonId),
-    list: document.getElementById(listId) as HTMLElement | null,
+    list: document.getElementById(listId),
   };
 }
 

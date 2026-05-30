@@ -36,7 +36,7 @@ export function getDistanceFromViewportCenter(element: HTMLElement): number {
   const dx = elementCenterX - centerX;
   const dy = elementCenterY - centerY;
 
-  return Math.sqrt(dx * dx + dy * dy);
+  return Math.hypot(dx, dy);
 }
 
 /**

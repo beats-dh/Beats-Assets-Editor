@@ -5,8 +5,8 @@
  */
 
 export class ElementCache<K> {
-  private cache = new Map<K, HTMLElement>();
-  private maxSize: number;
+  private readonly cache = new Map<K, HTMLElement>();
+  private readonly maxSize: number;
 
   constructor(maxSize: number = 1000) {
     this.maxSize = maxSize;

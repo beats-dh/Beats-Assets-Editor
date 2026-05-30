@@ -19,7 +19,7 @@ export interface PerformanceMetrics {
 
 class PerformanceMonitor {
   private metrics: PerformanceMetrics = {};
-  private marks = new Map<string, number>();
+  private readonly marks = new Map<string, number>();
   private enabled = true;
 
   constructor() {

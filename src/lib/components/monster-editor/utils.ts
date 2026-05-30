@@ -131,7 +131,7 @@ export function outfitColorIdToRgb(colorId: number): { r: number; g: number; b: 
     switch (Math.floor(color / HSI_H_STEPS)) {
       case 0:
         loc2 = 0.25;
-        loc3 = 1.0;
+        loc3 = 1;
         break;
       case 1:
         loc2 = 0.25;
@@ -146,23 +146,22 @@ export function outfitColorIdToRgb(colorId: number): { r: number; g: number; b: 
         loc3 = 0.75;
         break;
       case 4:
-        loc2 = 1.0;
-        loc3 = 1.0;
+        loc2 = 1;
+        loc3 = 1;
         break;
       case 5:
-        loc2 = 1.0;
+        loc2 = 1;
         loc3 = 0.75;
         break;
       case 6:
-        loc2 = 1.0;
+        loc2 = 1;
         loc3 = 0.5;
         break;
       default:
         break;
     }
   } else {
-    loc1 = 0;
-    loc2 = 0;
+    // loc1/loc2 already initialized to 0 above.
     loc3 = 1 - color / HSI_H_STEPS / HSI_SI_VALUES;
   }
 
@@ -239,9 +238,9 @@ export function normalizeHex(hex: string): string {
 
 export function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const normalized = normalizeHex(hex).slice(1);
-  const r = parseInt(normalized.slice(0, 2), 16);
-  const g = parseInt(normalized.slice(2, 4), 16);
-  const b = parseInt(normalized.slice(4, 6), 16);
+  const r = Number.parseInt(normalized.slice(0, 2), 16);
+  const g = Number.parseInt(normalized.slice(2, 4), 16);
+  const b = Number.parseInt(normalized.slice(4, 6), 16);
   return { r, g, b };
 }
 

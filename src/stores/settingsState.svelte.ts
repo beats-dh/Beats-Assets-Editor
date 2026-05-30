@@ -14,7 +14,7 @@ function createSettingsState() {
             localStorage.setItem(THEME_STORAGE_KEY, state.theme);
             document.body.className = '';
             document.body.classList.add(`theme-${state.theme}`);
-            document.body.setAttribute('data-theme', state.theme);
+            document.body.dataset.theme = state.theme;
         });
         $effect(() => {
             localStorage.setItem(LANGUAGE_STORAGE_KEY, state.language);

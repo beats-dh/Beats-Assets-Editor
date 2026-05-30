@@ -19,13 +19,13 @@ export interface VirtualScrollState {
 }
 
 export class VirtualScroll<T> {
-  private config: VirtualScrollConfig;
+  private readonly config: VirtualScrollConfig;
   private items: T[] = [];
-  private state: VirtualScrollState;
-  private container: HTMLElement;
-  private viewport: HTMLElement;
-  private onRenderItem: (item: T, index: number) => HTMLElement;
-  private renderedElements = new Map<number, HTMLElement>();
+  private readonly state: VirtualScrollState;
+  private readonly container: HTMLElement;
+  private readonly viewport: HTMLElement;
+  private readonly onRenderItem: (item: T, index: number) => HTMLElement;
+  private readonly renderedElements = new Map<number, HTMLElement>();
   private scrollHandler: (() => void) | null = null;
 
   constructor(
