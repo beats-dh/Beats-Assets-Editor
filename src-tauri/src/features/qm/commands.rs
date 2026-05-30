@@ -162,21 +162,15 @@ pub fn qm_export_csv(output_path: String) -> Result<usize, String> {
     let state = QM_STATE.lock();
     let file = state.file.as_ref().ok_or("No QM file loaded")?;
 
-    let mut csv = String::from("index,hash,context,source_text,comment,translation\n");
+    let mut wtr = csv::Writer::from_path(&output_path).map_err(|e| format!("Failed to open CSV for writing: {e}"))?;
+    wtr.write_record(["index", "hash", "context", "source_text", "comment", "translation"]).map_err(|e| format!("Failed to write CSV header: {e}"))?;
     for entry in &file.entries {
-        let escape = |s: &str| format!("\"{}\"", s.replace('"', "\"\""));
-        csv.push_str(&format!(
-            "{},{},{},{},{},{}\n",
-            entry.index,
-            entry.hash,
-            escape(&entry.context),
-            escape(&entry.source_text),
-            escape(&entry.comment),
-            escape(entry.translation.as_deref().unwrap_or(""))
-        ));
+        // csv::Writer quotes/escapes fields (including embedded newlines) so the
+        // file round-trips through qm_import_csv without column drift.
+        wtr.write_record([entry.index.to_string(), entry.hash.to_string(), entry.context.clone(), entry.source_text.clone(), entry.comment.clone(), entry.translation.clone().unwrap_or_default()])
+            .map_err(|e| format!("Failed to write CSV row: {e}"))?;
     }
-
-    std::fs::write(&output_path, csv.as_bytes()).map_err(|e| format!("Failed to write CSV: {e}"))?;
+    wtr.flush().map_err(|e| format!("Failed to flush CSV: {e}"))?;
 
     Ok(file.entries.len())
 }
@@ -185,31 +179,23 @@ pub fn qm_export_csv(output_path: String) -> Result<usize, String> {
 /// Only the `index` and `translation` columns are used; others are ignored.
 #[command]
 pub fn qm_import_csv(file_path: String) -> Result<usize, String> {
-    let data = std::fs::read_to_string(&file_path).map_err(|e| format!("Failed to read CSV: {e}"))?;
+    let mut rdr = csv::ReaderBuilder::new().has_headers(true).flexible(true).from_path(&file_path).map_err(|e| format!("Failed to read CSV: {e}"))?;
+
+    // Resolve the index/translation columns from the header (defaults match the
+    // export order) so reordered columns still map correctly.
+    let headers = rdr.headers().map_err(|e| format!("Failed to read CSV header: {e}"))?.clone();
+    let index_col = headers.iter().position(|c| c.trim() == "index").unwrap_or(0);
+    let trans_col = headers.iter().position(|c| c.trim() == "translation").unwrap_or(5);
 
     let mut updates: Vec<(usize, Option<String>)> = Vec::new();
-    let mut lines = data.lines();
-
-    // Skip header row
-    if let Some(header) = lines.next() {
-        let cols: Vec<&str> = header.split(',').collect();
-        let index_col = cols.iter().position(|&c| c.trim() == "index").unwrap_or(0);
-        let trans_col = cols.iter().position(|&c| c.trim() == "translation").unwrap_or(5);
-
-        for line in lines {
-            let fields = parse_csv_line(line);
-            if let (Some(idx_str), Some(trans)) = (fields.get(index_col), fields.get(trans_col)) {
-                if let Ok(idx) = idx_str.trim().parse::<usize>() {
-                    let t = trans.trim().to_string();
-                    updates.push((
-                        idx,
-                        if t.is_empty() {
-                            None
-                        } else {
-                            Some(t)
-                        },
-                    ));
-                }
+    for record in rdr.records() {
+        // A proper CSV reader keeps quoted multiline fields in one record, so
+        // columns no longer drift on translations/comments containing newlines.
+        let record = record.map_err(|e| format!("Failed to parse CSV row: {e}"))?;
+        if let (Some(idx_str), Some(trans)) = (record.get(index_col), record.get(trans_col)) {
+            if let Ok(idx) = idx_str.trim().parse::<usize>() {
+                let t = trans.trim().to_string();
+                updates.push((idx, if t.is_empty() { None } else { Some(t) }));
             }
         }
     }
@@ -360,31 +346,3 @@ pub fn qm_debug_raw() -> Result<String, String> {
     Ok(out)
 }
 
-/// Minimal CSV line parser (handles quoted fields with escaped quotes)
-fn parse_csv_line(line: &str) -> Vec<String> {
-    let mut fields = Vec::new();
-    let mut current = String::new();
-    let mut in_quotes = false;
-    let mut chars = line.chars().peekable();
-
-    while let Some(c) = chars.next() {
-        match c {
-            '"' if !in_quotes => in_quotes = true,
-            '"' if in_quotes => {
-                if chars.peek() == Some(&'"') {
-                    chars.next();
-                    current.push('"');
-                } else {
-                    in_quotes = false;
-                }
-            }
-            ',' if !in_quotes => {
-                fields.push(current.clone());
-                current.clear();
-            }
-            _ => current.push(c),
-        }
-    }
-    fields.push(current);
-    fields
-}

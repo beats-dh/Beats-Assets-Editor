@@ -54,6 +54,29 @@ pub fn get_statistics(staticdata: &StaticData) -> StaticDataStats {
     }
 }
 
+/// On-disk encoding of a staticdata file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum StaticDataFormat {
+    Raw,
+    Xz,
+    Lzma,
+}
+
+/// Detect the on-disk format of an existing staticdata file so a save can
+/// reproduce it instead of silently rewriting a compressed `.dat` as raw
+/// protobuf (which the original consumer may no longer read).
+fn detect_format(bytes: &[u8]) -> StaticDataFormat {
+    if crate::core::lzma::is_xz(bytes) {
+        StaticDataFormat::Xz
+    } else if StaticData::decode(bytes).is_ok() {
+        StaticDataFormat::Raw
+    } else {
+        // Not raw protobuf and not XZ: the loader treats this as the custom
+        // (Tibia) LZMA format.
+        StaticDataFormat::Lzma
+    }
+}
+
 pub fn save_staticdata<P: AsRef<Path>>(path: P, staticdata: &StaticData) -> Result<()> {
     let path = path.as_ref();
     log::info!("Saving staticdata file to: {:?}", path);
@@ -61,8 +84,18 @@ pub fn save_staticdata<P: AsRef<Path>>(path: P, staticdata: &StaticData) -> Resu
     let mut buf = Vec::new();
     staticdata.encode(&mut buf).context("Failed to encode StaticData to protobuf buffer")?;
 
-    fs::write(path, buf).context(format!("Failed to write staticdata file: {:?}", path))?;
+    // Preserve the existing file's encoding when overwriting, so a file that was
+    // loaded compressed is written back compressed. A new path defaults to raw.
+    let format = fs::read(path).ok().map(|existing| detect_format(&existing)).unwrap_or(StaticDataFormat::Raw);
 
-    log::info!("StaticData successfully saved. Size: {} bytes", staticdata.encoded_len());
+    let out = match format {
+        StaticDataFormat::Raw => buf,
+        StaticDataFormat::Xz => crate::core::lzma::compress_xz(&buf).context("Failed to XZ-compress staticdata")?,
+        StaticDataFormat::Lzma => crate::core::lzma::compress(&buf).context("Failed to LZMA-compress staticdata")?,
+    };
+
+    fs::write(path, &out).context(format!("Failed to write staticdata file: {:?}", path))?;
+
+    log::info!("StaticData successfully saved ({:?}). Protobuf size: {} bytes, on-disk: {} bytes", format, staticdata.encoded_len(), out.len());
     Ok(())
 }

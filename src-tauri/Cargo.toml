@@ -36,6 +36,9 @@ tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 
+# CSV import/export (handles quoted multiline fields correctly)
+csv = "1"
+
 # Protobuf parsing
 prost = "0.14"
 prost-types = "0.14"
