@@ -2,25 +2,45 @@ import { invoke } from '@tauri-apps/api/core';
 import type { CompleteAppearanceItem, CompleteSpriteInfo, SpriteDecomposition, GroupMapping } from './types';
 import { getAppearanceSprites } from './spriteCache';
 import { buildAssetPreviewAnimation } from './features/previewAnimation/assetPreviewAnimator';
+import { perfConfig } from './stores/performanceConfig.svelte';
+import { appearanceCache, spriteUrlStore, animationStore } from './utils/cacheRegistry';
 
-// Active animation players storage
-const activeAnimationPlayers = new Map<string, number>();
+// Redraws a sprite URL onto an existing canvas (nearest-neighbor)
+function redrawCanvas(canvas: HTMLCanvasElement, url: string): void {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const img = new Image();
+  img.onload = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  };
+  img.src = url;
+}
+
+const runWhenIdle = (cb: () => void): void => {
+  if ('requestIdleCallback' in globalThis) {
+    (globalThis as any).requestIdleCallback(cb, { timeout: 500 });
+  } else {
+    setTimeout(cb, 0);
+  }
+};
 
 export function stopAllAnimationPlayers(): void {
-  activeAnimationPlayers.forEach((timerId) => {
-    if (timerId) clearInterval(timerId);
-  });
-  activeAnimationPlayers.clear();
+  animationStore.stopAllPlayers();
+
+  // Clear animating class from all potential containers
+  document.querySelectorAll('.asset-image-container.animating').forEach(el => el.classList.remove('animating'));
 }
 
 // Stop only detail/modal animations, keep grid auto animations running
 export function stopDetailAnimationPlayers(): void {
   const detailsContent = document.querySelector('#details-content') as HTMLElement | null;
 
-  activeAnimationPlayers.forEach((timerId, key) => {
+  animationStore.forEachPlayer((timerId, key) => {
     if (key.startsWith('detail:') || key.startsWith('card:')) {
       if (timerId) clearInterval(timerId);
-      activeAnimationPlayers.delete(key);
+      animationStore.deletePlayer(key);
     }
   });
   // Remove visual animating state from detail items
@@ -35,11 +55,11 @@ export function computeSpriteIndex(
   z: number,
   phaseIndex: number
 ): number {
-  const layers = (spriteInfo.layers ?? spriteInfo.pattern_layers ?? 1);
+  const layers = (spriteInfo.layers ?? 1);
   const pw = (spriteInfo.pattern_width ?? 1);
   const ph = (spriteInfo.pattern_height ?? 1);
   const pd = (spriteInfo.pattern_depth ?? 1);
-  const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_frames ?? 1);
+  const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (1);
   let idx = phaseIndex % frames;
   idx = idx * pd + (z || 0);
   idx = idx * ph + (y || 0);
@@ -51,6 +71,9 @@ export function computeSpriteIndex(
 export function computeGroupOffsetsFromDetails(details: CompleteAppearanceItem): number[] {
   const offsets: number[] = [];
   let offset = 0;
+  if (!details.frame_groups || !Array.isArray(details.frame_groups)) {
+    return offsets;
+  }
   for (const fg of details.frame_groups) {
     const count = fg.sprite_info?.sprite_ids.length ?? 0;
     offsets.push(offset);
@@ -76,11 +99,11 @@ export function getGroupIndexForAggregatedSprite(
 }
 
 export function decomposeSpriteIndex(spriteInfo: CompleteSpriteInfo, localIndex: number): SpriteDecomposition {
-  const layers = (spriteInfo.layers ?? spriteInfo.pattern_layers ?? 1);
+  const layers = (spriteInfo.layers ?? 1);
   const pw = (spriteInfo.pattern_width ?? 1);
   const ph = (spriteInfo.pattern_height ?? 1);
   const pd = (spriteInfo.pattern_depth ?? 1);
-  const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_frames ?? 1);
+  const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (1);
   let u = Math.floor(localIndex);
   const layerIndex = u % layers; u = Math.floor(u / layers);
   const x = u % pw; u = Math.floor(u / pw);
@@ -90,17 +113,23 @@ export function decomposeSpriteIndex(spriteInfo: CompleteSpriteInfo, localIndex:
   return { layerIndex, x, y, z, phaseIndex };
 }
 
-export async function initAnimationPlayersForDetails(details: CompleteAppearanceItem, category: string): Promise<void> {
+type SpriteLoader = () => Promise<Uint8Array[]>;
+
+export async function initAnimationPlayersForDetails(
+  details: CompleteAppearanceItem,
+  category: string,
+  spriteLoader?: SpriteLoader
+): Promise<void> {
   const detailsContent = document.querySelector('#details-content') as HTMLElement | null;
 
   try {
-    const sprites = await getAppearanceSprites(category, details.id);
+    const sprites = spriteLoader ? await spriteLoader() : await getAppearanceSprites(category, details.id);
     const groupOffsets = computeGroupOffsetsFromDetails(details);
 
     details.frame_groups.forEach((fg, index) => {
       const spriteInfo = fg.sprite_info;
       if (!spriteInfo) return;
-      const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_frames ?? 1);
+      const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (1);
       if (frames <= 1) return;
 
       const containerSelector = `.frame-group-detail`;
@@ -113,7 +142,7 @@ export async function initAnimationPlayersForDetails(details: CompleteAppearance
       player.className = 'animation-player';
       player.innerHTML = `
         <div class="anim-canvas">
-          <img class="anim-sprite-image" alt="Animation">
+          <canvas class="anim-sprite-image" style="width:64px;height:64px;"></canvas>
           <span class="anim-phase-label">Fase 1</span>
         </div>
         <div class="anim-controls">
@@ -126,7 +155,13 @@ export async function initAnimationPlayersForDetails(details: CompleteAppearance
       `;
       groupEl.appendChild(player);
 
-      const imgEl = player.querySelector('img') as HTMLImageElement;
+      // Setup canvas DPR
+      const animCanvas = player.querySelector('canvas.anim-sprite-image') as HTMLCanvasElement;
+      if (animCanvas) {
+        const dpr = window.devicePixelRatio || 1;
+        animCanvas.width = Math.round(64 * dpr);
+        animCanvas.height = Math.round(64 * dpr);
+      }
       const phaseLabel = player.querySelector('.anim-phase-label') as HTMLElement;
       const playBtn = player.querySelector('button[data-action="play"]') as HTMLButtonElement;
       const pauseBtn = player.querySelector('button[data-action="pause"]') as HTMLButtonElement;
@@ -137,8 +172,8 @@ export async function initAnimationPlayersForDetails(details: CompleteAppearance
       const baseOffset = groupOffsets[index];
       const draw = () => {
         const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, 0, 0, 0, 0, phase);
-        if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+        if (spriteIdx >= 0 && spriteIdx < sprites.length && animCanvas) {
+          redrawCanvas(animCanvas, spriteUrlStore.get(sprites[spriteIdx]));
           phaseLabel.textContent = `Fase ${phase + 1}`;
         }
       };
@@ -166,7 +201,7 @@ export async function initAnimationPlayersForDetails(details: CompleteAppearance
               completedLoops += 1;
               if (typeof maxLoops === 'number' && completedLoops >= maxLoops) {
                 clearInterval(timerId);
-                activeAnimationPlayers.delete(key);
+                animationStore.deletePlayer(key);
                 playBtn.disabled = false;
                 pauseBtn.disabled = true;
                 return;
@@ -177,15 +212,15 @@ export async function initAnimationPlayersForDetails(details: CompleteAppearance
           }
           draw();
         }, speed);
-        activeAnimationPlayers.set(key, timerId);
+        animationStore.setPlayer(key, timerId);
         playBtn.disabled = true;
         pauseBtn.disabled = false;
       };
       const stop = () => {
-        const timerId = activeAnimationPlayers.get(key);
+        const timerId = animationStore.getPlayer(key);
         if (timerId) {
           clearInterval(timerId);
-          activeAnimationPlayers.delete(key);
+          animationStore.deletePlayer(key);
         }
         playBtn.disabled = false;
         pauseBtn.disabled = true;
@@ -194,7 +229,7 @@ export async function initAnimationPlayersForDetails(details: CompleteAppearance
       playBtn.addEventListener('click', start);
       pauseBtn.addEventListener('click', stop);
       speedInput.addEventListener('change', () => {
-        if (activeAnimationPlayers.has(key)) {
+        if (animationStore.hasPlayer(key)) {
           stop();
           start();
         }
@@ -207,17 +242,39 @@ export async function initAnimationPlayersForDetails(details: CompleteAppearance
 
 export function initDetailSpriteCardAnimations(
   appearanceId: number,
-  sprites: string[],
-  currentAppearanceDetails: CompleteAppearanceItem | null
+  sprites: Uint8Array[],
+  currentAppearanceDetails: CompleteAppearanceItem | null,
+  startIndex?: number,
+  endIndex?: number
 ): void {
   try {
     if (!currentAppearanceDetails) return;
     const details = currentAppearanceDetails;
     if (details.id !== appearanceId) return;
 
+    if (!details.frame_groups || !Array.isArray(details.frame_groups)) {
+      return;
+    }
+
     const groupOffsets = computeGroupOffsetsFromDetails(details);
     const container = document.getElementById(`detail-sprites-${appearanceId}`);
-    const cards = container?.querySelectorAll('.detail-sprite-item') ?? [];
+
+    // OPTIMIZATION: If range is provided, only query cards within that range
+    // instead of querying ALL .detail-sprite-item nodes (avoids O(n) full scan per chunk)
+    let cards: NodeListOf<Element> | Element[];
+    if (startIndex !== undefined && endIndex !== undefined) {
+      const allCards = container?.querySelectorAll('.detail-sprite-item') ?? [];
+      const filtered: Element[] = [];
+      for (const card of allCards) {
+        const idx = Number.parseInt((card as HTMLElement).dataset.aggIndex ?? '-1', 10);
+        if (idx >= startIndex && idx < endIndex) {
+          filtered.push(card);
+        }
+      }
+      cards = filtered;
+    } else {
+      cards = container?.querySelectorAll('.detail-sprite-item') ?? [];
+    }
 
     cards.forEach((card) => {
       const el = card as HTMLElement;
@@ -229,11 +286,13 @@ export function initDetailSpriteCardAnimations(
       const { groupIndex, localIndex } = mapping;
       const spriteInfo = details.frame_groups[groupIndex]?.sprite_info;
       if (!spriteInfo) return;
-      const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (spriteInfo.pattern_frames ?? 1);
+      const frames = spriteInfo.animation ? spriteInfo.animation.phases.length : (1);
       if (frames <= 1) return;
+      if (el.dataset.animReady === 'true') return;
+      el.dataset.animReady = 'true';
 
-      const imgEl = el.querySelector('img.detail-sprite-image') as HTMLImageElement | null;
-      if (!imgEl) return;
+      const canvasEl = el.querySelector('canvas.detail-sprite-image') as HTMLCanvasElement | null;
+      if (!canvasEl) return;
 
       const baseOffset = groupOffsets[groupIndex];
       const dims = decomposeSpriteIndex(spriteInfo, localIndex);
@@ -243,7 +302,7 @@ export function initDetailSpriteCardAnimations(
       const draw = () => {
         const spriteIdx = baseOffset + computeSpriteIndex(spriteInfo, dims.layerIndex, dims.x, dims.y, dims.z, phase);
         if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+          redrawCanvas(canvasEl, spriteUrlStore.get(sprites[spriteIdx]));
         }
       };
 
@@ -269,11 +328,11 @@ export function initDetailSpriteCardAnimations(
               completedLoops += 1;
               if (typeof maxLoops === 'number' && completedLoops >= maxLoops) {
                 clearInterval(timerId);
-                activeAnimationPlayers.delete(key);
+                animationStore.deletePlayer(key);
                 el.classList.remove('animating');
                 const spriteIdx = aggIndex;
                 if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-                  imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+                  redrawCanvas(canvasEl, spriteUrlStore.get(sprites[spriteIdx]));
                 }
                 return;
               }
@@ -283,25 +342,25 @@ export function initDetailSpriteCardAnimations(
           }
           draw();
         }, speed);
-        activeAnimationPlayers.set(key, timerId);
+        animationStore.setPlayer(key, timerId);
         el.classList.add('animating');
       };
 
       const stop = () => {
-        const timerId = activeAnimationPlayers.get(key);
+        const timerId = animationStore.getPlayer(key);
         if (timerId) {
           clearInterval(timerId);
-          activeAnimationPlayers.delete(key);
+          animationStore.deletePlayer(key);
         }
         el.classList.remove('animating');
         const spriteIdx = aggIndex;
         if (spriteIdx >= 0 && spriteIdx < sprites.length) {
-          imgEl.src = `data:image/png;base64,${sprites[spriteIdx]}`;
+          redrawCanvas(canvasEl, spriteUrlStore.get(sprites[spriteIdx]));
         }
       };
 
       el.addEventListener('click', () => {
-        if (activeAnimationPlayers.has(key)) {
+        if (animationStore.hasPlayer(key)) {
           stop();
         } else {
           start();
@@ -316,17 +375,27 @@ export function initDetailSpriteCardAnimations(
 export function initAssetCardAutoAnimation(
   category: string,
   appearanceId: number,
-  sprites: string[],
-  autoAnimateGridEnabled: boolean
+  autoAnimateGridEnabled: boolean,
+  forceStart = false
 ): void {
-  (async () => {
-    try {
-      const container = document.getElementById(`sprite-${appearanceId}`) as HTMLElement | null;
-      const imgEl = container?.querySelector('img') as HTMLImageElement | null;
-      if (!container || !imgEl) return;
+  const container = document.getElementById(`sprite-${appearanceId}`) as HTMLElement | null;
+  const canvasEl = container?.querySelector('canvas') as HTMLCanvasElement | null;
+  if (!container || !canvasEl) return;
 
-      const details = await invoke('get_complete_appearance', { category, id: appearanceId }) as CompleteAppearanceItem;
+  const startAnimation = async (): Promise<void> => {
+    try {
       if (!autoAnimateGridEnabled) return;
+      if (animationStore.hasPlayer(`asset:${category}:${appearanceId}`)) return;
+      if (animationStore.playerCount >= perfConfig.maxAutoAnimations) return;
+
+      // Use registry for appearance details
+      let details = appearanceCache.getDetails(category, appearanceId);
+      if (!details) {
+        details = await invoke('get_complete_appearance', { category, id: appearanceId }) as CompleteAppearanceItem;
+        appearanceCache.setDetails(category, appearanceId, details);
+      }
+
+      const sprites = await getAppearanceSprites(category, appearanceId);
 
       const sequence = await buildAssetPreviewAnimation(category, appearanceId, details, sprites);
       if (!sequence || sequence.frames.length === 0) {
@@ -334,10 +403,8 @@ export function initAssetCardAutoAnimation(
       }
 
       const key = `asset:${category}:${appearanceId}`;
-
-      // CRITICAL: Check if animation already exists to prevent duplicate timers
-      if (activeAnimationPlayers.has(key)) {
-        return; // Already animating, don't create duplicate timer
+      if (animationStore.hasPlayer(key)) {
+        return;
       }
 
       let frameIndex = 0;
@@ -345,7 +412,7 @@ export function initAssetCardAutoAnimation(
       const draw = () => {
         const frame = sequence.frames[frameIndex];
         if (frame) {
-          imgEl.src = `data:image/png;base64,${frame}`;
+          redrawCanvas(canvasEl, frame);
         }
       };
       draw();
@@ -354,18 +421,30 @@ export function initAssetCardAutoAnimation(
         return;
       }
 
-      const start = () => {
-        const timerId = window.setInterval(() => {
-          frameIndex = (frameIndex + 1) % sequence.frames.length;
-          draw();
-        }, sequence.interval);
-        activeAnimationPlayers.set(key, timerId);
-        container.classList.add('animating');
-      };
-
-      start();
+      const timerId = window.setInterval(() => {
+        frameIndex = (frameIndex + 1) % sequence.frames.length;
+        draw();
+      }, sequence.interval);
+      animationStore.setPlayer(key, timerId);
+      container.classList.add('animating');
     } catch (e) {
       console.warn('Failed to init auto animation for asset card:', e);
     }
-  })();
+  };
+
+  if ('IntersectionObserver' in globalThis) {
+    if (forceStart) {
+      runWhenIdle(() => { void startAnimation(); });
+    } else {
+      const observer = new IntersectionObserver((entries) => {
+        if (entries.some(entry => entry.isIntersecting)) {
+          observer.disconnect();
+          runWhenIdle(() => { void startAnimation(); });
+        }
+      }, { threshold: 0.25 });
+      observer.observe(container);
+    }
+  } else {
+    runWhenIdle(() => { void startAnimation(); });
+  }
 }

@@ -1,4 +1,4 @@
-# Tibia Assets Editor - CSS Architecture
+# Canary Studio Editor - CSS Architecture
 
 Este diretório contém todos os estilos da aplicação organizados de forma modular.
 

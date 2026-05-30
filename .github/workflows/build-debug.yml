@@ -1,17 +1,16 @@
 name: Tauri Build Debug (Linux)
 
+# Cancela builds antigas quando chega um commit novo. Usa o número da PR para
+# eventos pull_request (evita que PRs distintas com o mesmo nome de branch —
+# ex.: forks — cancelem umas às outras) e o ref para workflow_dispatch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}
+  cancel-in-progress: true
+
 on:
-  push:
-    branches-ignore:
-      - main
-    paths:
-      - "src/**"
-      - "src-tauri/**"
-      - "package.json"
-      - "package-lock.json"
-      - "vite.config.*"
-      - "src-tauri/Cargo.toml"
-      - "src-tauri/Cargo.lock"
+  # Build on PRs only (covers same-repo and fork PRs) plus manual dispatch.
+  # Dropping the push trigger avoids the duplicate push+pull_request build that
+  # ran on every commit to a branch with an open PR.
   pull_request:
     paths:
       - "src/**"
@@ -47,37 +46,33 @@ jobs:
         run: npm ci
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: stable
 
-      - name: Install Linux system deps for Tauri bundler (GTK/WebKit, both 4.1/4.0)
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            pkg-config \
-            patchelf
-          if apt-cache show libwebkit2gtk-4.1-dev >/dev/null 2>&1; then
-            sudo apt-get install -y libwebkit2gtk-4.1-dev
-          elif apt-cache show libwebkit2gtk-4.0-dev >/dev/null 2>&1; then
-            sudo apt-get install -y libwebkit2gtk-4.0-dev
-          else
-            echo "Nenhuma variante libwebkit2gtk (-4.1-dev ou -4.0-dev) encontrada no runner." >&2
-            exit 1
-          fi
+      # ubuntu-latest is 24.04, which ships libwebkit2gtk-4.1-dev. Caching the
+      # .deb downloads + install avoids ~40-60s of apt work on every run.
+      - name: Install Linux system deps for Tauri (cached)
+        uses: awalsh128/cache-apt-pkgs-action@acb598e5ddbc6f68a970c5da0688d2f3a9f04d05 # v1.6.0
+        with:
+          packages: libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf pkg-config
+          version: 1.0
 
       - name: Cache cargo/target
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           workspaces: src-tauri
+          # Keep the dependency cache even when the build fails, so a retry
+          # (or the next push) doesn't recompile everything from scratch.
+          cache-on-failure: true
 
+      # PRs only need to verify it compiles, so skip the (slow) bundling step.
+      # Manual dispatch still produces the full bundle for download.
       - name: Build Tauri (debug)
-        run: npm run tauri build -- --debug
+        run: npm run tauri build -- --debug ${{ github.event_name == 'pull_request' && '--no-bundle' || '' }}
 
       - name: Upload debug bundle
+        if: ${{ github.event_name != 'pull_request' }}
         uses: actions/upload-artifact@v4
         with:
           name: tauri-debug-bundle-linux

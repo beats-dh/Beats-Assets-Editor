@@ -1,10 +1,39 @@
 use super::category_types::{AppearanceCategory, AppearanceDetails, AppearanceFlagsInfo, AppearanceItem, FrameGroupInfo, ItemSubcategory};
-use super::helpers::{get_items_by_category, get_index_for_category};
+use super::helpers::{create_appearance_item_response, get_items_by_category, get_index_for_category};
 use crate::features::appearances::CompleteAppearanceItem;
 use crate::state::AppState;
 use tauri::State;
+use serde::Serialize;
 use std::sync::Arc;
+use std::hash::{Hash, Hasher};
 use rayon::prelude::*;
+
+/// Build a cache key using hashing instead of format!() to avoid string allocation in hot paths.
+/// Uses ahash for faster hashing (already a project dependency).
+#[inline]
+fn build_cache_key(category: &AppearanceCategory, search: &str, subcategory: &ItemSubcategory) -> String {
+    let mut hasher = ahash::AHasher::default();
+    std::mem::discriminant(category).hash(&mut hasher);
+    search.hash(&mut hasher);
+    std::mem::discriminant(subcategory).hash(&mut hasher);
+    // Use a compact numeric key instead of debug-formatted string
+    format!("{:x}", hasher.finish())
+}
+
+/// Build a cache key for position lookups (no search term).
+#[inline]
+fn build_position_cache_key(category: &AppearanceCategory, subcategory: &ItemSubcategory) -> String {
+    let mut hasher = ahash::AHasher::default();
+    std::mem::discriminant(category).hash(&mut hasher);
+    std::mem::discriminant(subcategory).hash(&mut hasher);
+    format!("p:{:x}", hasher.finish())
+}
+
+#[derive(Serialize)]
+pub struct AppearancePage {
+    pub total: usize,
+    pub items: Vec<AppearanceItem>,
+}
 
 /// HEAVILY OPTIMIZED list_appearances_by_category:
 /// - Search result caching (memoize expensive filter operations)
@@ -19,12 +48,15 @@ pub async fn list_appearances_by_category(
     search: Option<String>,
     subcategory: Option<ItemSubcategory>,
     state: State<'_, AppState>,
-) -> Result<Vec<AppearanceItem>, String> {
-    // Build cache key for this exact query
-    let cache_key = format!("{:?}:{}:{:?}", category, search.as_deref().unwrap_or(""), subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
+) -> Result<AppearancePage, String> {
+    // Build cache key using hash (avoids format!() string allocation in hot path)
+    let cache_key = build_cache_key(&category, search.as_deref().unwrap_or(""), subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
 
     // Check cache first (lock-free DashMap)
     if let Some(cached_ids) = state.search_cache.get(&cache_key) {
+        // Clone Arc to drop DashMap guard ASAP (reduz contenção)
+        let cached_ids = cached_ids.clone();
+
         // Cache hit! Just fetch the page of items
         let appearances_lock = state.appearances.read();
         let appearances = match &*appearances_lock {
@@ -33,31 +65,36 @@ pub async fn list_appearances_by_category(
         };
 
         let items = get_items_by_category(appearances, &category);
-        let start = page * page_size;
-        let end = std::cmp::min(start + page_size, cached_ids.len());
+        let index_map = get_index_for_category(&state, &category);
 
-        if start >= cached_ids.len() {
-            return Ok(vec![]);
+        let start = page * page_size;
+        let ids_slice = cached_ids.as_ref();
+        let end = std::cmp::min(start + page_size, ids_slice.len());
+
+        if start >= ids_slice.len() {
+            return Ok(AppearancePage {
+                total: ids_slice.len(),
+                items: vec![],
+            });
         }
 
-        let result: Vec<AppearanceItem> = cached_ids[start..end]
-            .iter()
-            .filter_map(|&id| {
-                items.iter().find(|app| app.id.unwrap_or(0) == id).map(|appearance| {
-                    let sprite_count = appearance.frame_group.iter().map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32)).sum();
+        let page_len = end - start;
+        let mut result: Vec<AppearanceItem> = Vec::with_capacity(page_len);
+        for &id in &ids_slice[start..end] {
+            let appearance = if let Some(idx) = index_map.get(&id) {
+                items.get(*idx)
+            } else {
+                items.iter().find(|app| app.id.unwrap_or(0) == id)
+            };
+            if let Some(app) = appearance {
+                result.push(create_appearance_item_response(id, app));
+            }
+        }
 
-                    AppearanceItem {
-                        id,
-                        name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-                        description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-                        has_flags: appearance.flags.is_some(),
-                        sprite_count,
-                    }
-                })
-            })
-            .collect();
-
-        return Ok(result);
+        return Ok(AppearancePage {
+            total: ids_slice.len(),
+            items: result,
+        });
     }
 
     // Cache miss - do full filter and cache result
@@ -68,6 +105,7 @@ pub async fn list_appearances_by_category(
     };
 
     let items = get_items_by_category(appearances, &category);
+    let index_map = get_index_for_category(&state, &category);
 
     // OPTIMIZATION: Pre-lowercase search term once (not per item!)
     let search_lower = search.as_ref().map(|s| s.to_lowercase());
@@ -84,12 +122,15 @@ pub async fn list_appearances_by_category(
 
                 // Apply search filter if provided
                 if let Some(ref search_term_lower) = search_lower {
-                    let name = appearance.name.as_ref().map(|b| String::from_utf8_lossy(b));
-                    let description = appearance.description.as_ref().map(|b| String::from_utf8_lossy(b));
-
-                    let matches = name.as_ref().map_or(false, |n| n.to_lowercase().contains(search_term_lower))
-                        || description.as_ref().map_or(false, |d| d.to_lowercase().contains(search_term_lower))
-                        || id.to_string().contains(search_term_lower);
+                    let matches = appearance.name.as_ref().map_or(false, |n| String::from_utf8_lossy(n).to_lowercase().contains(search_term_lower))
+                        || appearance.description.as_ref().map_or(false, |d| String::from_utf8_lossy(d).to_lowercase().contains(search_term_lower))
+                        || id.to_string().contains(search_term_lower)
+                        || appearance
+                            .flags
+                            .as_ref()
+                            .and_then(|f| f.proficiency.as_ref())
+                            .and_then(|p| p.proficiency_id)
+                            .map_or(false, |id| search_term_lower.starts_with("proficiency-") && format!("proficiency-{}", id).contains(search_term_lower));
 
                     if !matches {
                         return None;
@@ -124,12 +165,15 @@ pub async fn list_appearances_by_category(
                 // Apply search filter if provided
                 if let Some(ref search_term_lower) = search_lower {
                     // OPTIMIZATION: Convert to string only if we need to search
-                    let name = appearance.name.as_ref().map(|b| String::from_utf8_lossy(b));
-                    let description = appearance.description.as_ref().map(|b| String::from_utf8_lossy(b));
-
-                    let matches = name.as_ref().map_or(false, |n| n.to_lowercase().contains(search_term_lower))
-                        || description.as_ref().map_or(false, |d| d.to_lowercase().contains(search_term_lower))
-                        || id.to_string().contains(search_term_lower);
+                    let matches = appearance.name.as_ref().map_or(false, |n| String::from_utf8_lossy(n).to_lowercase().contains(search_term_lower))
+                        || appearance.description.as_ref().map_or(false, |d| String::from_utf8_lossy(d).to_lowercase().contains(search_term_lower))
+                        || id.to_string().contains(search_term_lower)
+                        || appearance
+                            .flags
+                            .as_ref()
+                            .and_then(|f| f.proficiency.as_ref())
+                            .and_then(|p| p.proficiency_id)
+                            .map_or(false, |id| search_term_lower.starts_with("proficiency-") && format!("proficiency-{}", id).contains(search_term_lower));
 
                     if !matches {
                         return None;
@@ -163,35 +207,40 @@ pub async fn list_appearances_by_category(
         filtered_ids.sort_unstable();
     }
 
+    let filtered_ids = Arc::new(filtered_ids);
+    let total = filtered_ids.len();
     // Cache the filtered IDs for future queries (Arc for zero-copy sharing)
-    state.search_cache.insert(cache_key, Arc::new(filtered_ids.clone()));
+    state.search_cache.insert(cache_key, filtered_ids.clone());
 
     // Build response for this page
     let start = page * page_size;
-    let end = std::cmp::min(start + page_size, filtered_ids.len());
+    let end = std::cmp::min(start + page_size, total);
 
-    if start >= filtered_ids.len() {
-        return Ok(vec![]);
+    if start >= total {
+        return Ok(AppearancePage {
+            total,
+            items: vec![],
+        });
     }
 
-    let result: Vec<AppearanceItem> = filtered_ids[start..end]
-        .iter()
-        .filter_map(|&id| {
-            items.iter().find(|app| app.id.unwrap_or(0) == id).map(|appearance| {
-                let sprite_count = appearance.frame_group.iter().map(|fg| fg.sprite_info.as_ref().map_or(0, |si| si.sprite_id.len() as u32)).sum();
+    let ids_slice = filtered_ids.as_ref();
+    let page_len = end - start;
+    let mut result: Vec<AppearanceItem> = Vec::with_capacity(page_len);
+    for &id in &ids_slice[start..end] {
+        let appearance = if let Some(idx) = index_map.get(&id) {
+            items.get(*idx)
+        } else {
+            items.iter().find(|app| app.id.unwrap_or(0) == id)
+        };
+        if let Some(app) = appearance {
+            result.push(create_appearance_item_response(id, app));
+        }
+    }
 
-                AppearanceItem {
-                    id,
-                    name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-                    description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-                    has_flags: appearance.flags.is_some(),
-                    sprite_count,
-                }
-            })
-        })
-        .collect();
-
-    Ok(result)
+    Ok(AppearancePage {
+        total,
+        items: result,
+    })
 }
 
 /// HEAVILY OPTIMIZED find_appearance_position:
@@ -200,8 +249,8 @@ pub async fn list_appearances_by_category(
 /// - parking_lot RwLock (3x faster)
 #[tauri::command]
 pub async fn find_appearance_position(category: AppearanceCategory, id: u32, subcategory: Option<ItemSubcategory>, state: State<'_, AppState>) -> Result<Option<usize>, String> {
-    // Build cache key (same as list_appearances_by_category)
-    let cache_key = format!("{:?}::{:?}", category, subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
+    // Build cache key using hash (same strategy as list_appearances_by_category)
+    let cache_key = build_position_cache_key(&category, subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
 
     // Check cache first
     if let Some(cached_ids) = state.search_cache.get(&cache_key) {
@@ -306,7 +355,6 @@ pub async fn get_appearance_details(category: AppearanceCategory, id: u32, state
         id: appearance.id.unwrap_or(0),
         name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
         description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-        appearance_type: appearance.appearance_type,
         category,
         frame_groups,
         flags: flags_info,
@@ -318,8 +366,8 @@ pub async fn get_appearance_details(category: AppearanceCategory, id: u32, state
 /// - parking_lot RwLock (3x faster)
 #[tauri::command]
 pub async fn get_appearance_count(category: AppearanceCategory, search: Option<String>, subcategory: Option<ItemSubcategory>, state: State<'_, AppState>) -> Result<usize, String> {
-    // Build cache key
-    let cache_key = format!("{:?}:{}:{:?}", category, search.as_deref().unwrap_or(""), subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
+    // Build cache key using hash
+    let cache_key = build_cache_key(&category, search.as_deref().unwrap_or(""), subcategory.as_ref().unwrap_or(&ItemSubcategory::All));
 
     // Check cache first
     if let Some(cached_ids) = state.search_cache.get(&cache_key) {
@@ -340,15 +388,18 @@ pub async fn get_appearance_count(category: AppearanceCategory, search: Option<S
         .iter()
         .filter(|appearance| {
             let id = appearance.id.unwrap_or(0);
-            let name = appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string());
-            let description = appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string());
 
-            // Apply search filter if provided
             if let Some(ref search_term) = search {
                 let search_lower = search_term.to_lowercase();
-                let matches = name.as_ref().map_or(false, |n| n.to_lowercase().contains(&search_lower))
-                    || description.as_ref().map_or(false, |d| d.to_lowercase().contains(&search_lower))
-                    || id.to_string().contains(&search_lower);
+                let matches = appearance.name.as_ref().map_or(false, |n| String::from_utf8_lossy(n).to_lowercase().contains(&search_lower))
+                    || appearance.description.as_ref().map_or(false, |d| String::from_utf8_lossy(d).to_lowercase().contains(&search_lower))
+                    || id.to_string().contains(&search_lower)
+                    || appearance
+                        .flags
+                        .as_ref()
+                        .and_then(|f| f.proficiency.as_ref())
+                        .and_then(|p| p.proficiency_id)
+                        .map_or(false, |id| search_lower.starts_with("proficiency-") && format!("proficiency-{}", id).contains(&search_lower));
 
                 if !matches {
                     return false;
@@ -409,6 +460,7 @@ pub async fn get_item_subcategories() -> Result<Vec<(String, String)>, String> {
         (format!("{:?}", ItemSubcategory::CreatureProducts), ItemSubcategory::CreatureProducts.display_name().to_string()),
         (format!("{:?}", ItemSubcategory::Quiver), ItemSubcategory::Quiver.display_name().to_string()),
         (format!("{:?}", ItemSubcategory::Soulcores), ItemSubcategory::Soulcores.display_name().to_string()),
+        (format!("{:?}", ItemSubcategory::FistWeapons), ItemSubcategory::FistWeapons.display_name().to_string()),
     ];
 
     Ok(subcategories)
@@ -439,6 +491,35 @@ pub async fn get_complete_appearance(category: AppearanceCategory, id: u32, stat
     };
 
     Ok(CompleteAppearanceItem::from_protobuf(appearance))
+}
+
+/// Batch version of get_complete_appearance - returns multiple items in one IPC call.
+/// Each ID is O(1) lookup via index map.
+#[tauri::command]
+pub async fn get_complete_appearances_batch(category: AppearanceCategory, ids: Vec<u32>, state: State<'_, AppState>) -> Result<Vec<CompleteAppearanceItem>, String> {
+    let appearances_lock = state.appearances.read();
+
+    let appearances = match &*appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category(appearances, &category);
+    let index_map = get_index_for_category(&state, &category);
+
+    let mut results = Vec::with_capacity(ids.len());
+    for id in ids {
+        let appearance = if let Some(idx_ref) = index_map.get(&id) {
+            items.get(*idx_ref)
+        } else {
+            items.iter().find(|app| app.id.unwrap_or(0) == id)
+        };
+        if let Some(app) = appearance {
+            results.push(CompleteAppearanceItem::from_protobuf(app));
+        }
+    }
+
+    Ok(results)
 }
 
 /// Get special meaning appearance IDs (coins, chests, etc.)

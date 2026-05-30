@@ -1,4 +1,4 @@
-/* Buttons */
+﻿/* Buttons */
 .btn-primary,
 .btn-secondary {
   padding: var(--space-sm) var(--space-lg);
@@ -181,3 +181,4 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+

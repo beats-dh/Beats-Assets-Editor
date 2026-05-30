@@ -1,13 +1,29 @@
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 use tauri::State;
+use serde::Serialize;
 
 // Add base64 engine for proper encoding to string
 use base64::{engine::general_purpose, Engine as _};
 
 use super::helpers::paginate;
 use crate::features::sounds::parsers::{AmbienceObjectStreamInfo, AmbienceStreamInfo, MusicTemplateInfo, NumericSoundEffectInfo, SoundInfo, SoundStats, SoundsParser};
+
+#[derive(Serialize, Debug)]
+pub struct PagedResponse<T> {
+    pub total: usize,
+    pub items: Vec<T>,
+}
+
+fn page_vec<T: Clone>(items: &[T], page: Option<usize>, page_size: Option<usize>) -> PagedResponse<T> {
+    let total = items.len();
+    let sliced = paginate(items, page, page_size);
+    PagedResponse {
+        total,
+        items: sliced,
+    }
+}
 
 pub struct SoundsState {
     pub parser: Mutex<SoundsParser>,
@@ -26,7 +42,7 @@ pub async fn load_sounds_file(sounds_dir: String, state: State<'_, SoundsState>)
     let dir_path = PathBuf::from(&sounds_dir);
     log::info!("Loading sounds from directory: {:?}", dir_path);
 
-    let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let mut parser = state.parser.lock();
     let stats = parser.load_from_directory(&dir_path).map_err(|e| format!("Failed to load sounds: {}", e))?;
 
     log::info!(
@@ -43,7 +59,7 @@ pub async fn load_sounds_file(sounds_dir: String, state: State<'_, SoundsState>)
 
 #[tauri::command]
 pub async fn get_sounds_stats(state: State<'_, SoundsState>) -> Result<SoundStats, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
     let data = parser.get_sounds_data().ok_or("No sounds loaded".to_string())?;
     let stats = SoundStats {
         total_sounds: data.sounds.len(),
@@ -65,20 +81,20 @@ pub async fn get_sounds_stats(state: State<'_, SoundsState>) -> Result<SoundStat
 
 #[tauri::command]
 pub async fn list_sound_types(state: State<'_, SoundsState>) -> Result<Vec<String>, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
     Ok(parser.list_sound_types())
 }
 
 #[tauri::command]
 pub async fn get_sound_by_id(sound_id: u32, state: State<'_, SoundsState>) -> Result<SoundInfo, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
 
     parser.get_sound_by_id(sound_id).cloned().ok_or(format!("Sound with ID {} not found", sound_id))
 }
 
 #[tauri::command]
 pub async fn get_sounds_by_type(sound_type: String, state: State<'_, SoundsState>) -> Result<Vec<NumericSoundEffectInfo>, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
 
     let sounds = parser.get_sounds_by_type(&sound_type).into_iter().cloned().collect();
 
@@ -88,116 +104,127 @@ pub async fn get_sounds_by_type(sound_type: String, state: State<'_, SoundsState
 // NEW: Fetch a single numeric sound effect by its ID
 #[tauri::command]
 pub async fn get_numeric_sound_effect_by_id(id: u32, state: State<'_, SoundsState>) -> Result<NumericSoundEffectInfo, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
     parser.get_numeric_sound_effect_by_id(id).cloned().ok_or(format!("Numeric sound effect with ID {} not found", id))
 }
 
 #[tauri::command]
 pub async fn list_all_sounds(state: State<'_, SoundsState>) -> Result<Vec<SoundInfo>, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
-    let data = parser.get_sounds_data().ok_or("No sounds loaded".to_string())?;
-    Ok(data.sounds.clone())
+    let sounds = {
+        let parser = state.parser.lock();
+        let data = parser.get_sounds_data().ok_or("No sounds loaded".to_string())?;
+        data.sounds.clone()
+    }; // Lock released before serialization
+    Ok(sounds)
 }
 
 #[tauri::command]
-pub async fn list_numeric_sound_effects(page: Option<usize>, page_size: Option<usize>, sound_type: Option<String>, state: State<'_, SoundsState>) -> Result<Vec<NumericSoundEffectInfo>, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
-
-    let mut effects: Vec<NumericSoundEffectInfo> = if let Some(st) = sound_type {
-        parser.get_sounds_by_type(&st).into_iter().cloned().collect()
-    } else {
-        parser.get_sounds_data().ok_or("No sounds loaded".to_string())?.numeric_sound_effects.clone()
-    };
+pub async fn list_numeric_sound_effects(
+    page: Option<usize>,
+    page_size: Option<usize>,
+    sound_type: Option<String>,
+    state: State<'_, SoundsState>,
+) -> Result<PagedResponse<NumericSoundEffectInfo>, String> {
+    let mut effects: Vec<NumericSoundEffectInfo> = {
+        let parser = state.parser.lock();
+        if let Some(st) = sound_type {
+            parser.get_sounds_by_type(&st).into_iter().cloned().collect()
+        } else {
+            parser.get_sounds_data().ok_or("No sounds loaded".to_string())?.numeric_sound_effects.clone()
+        }
+    }; // Lock released before sort+pagination
 
     // Sort by ID for consistent pagination
     effects.sort_by_key(|e| e.id);
 
-    // Pagination
-    Ok(paginate(&effects, page, page_size))
+    Ok(page_vec(&effects, page, page_size))
 }
 
 #[tauri::command]
 pub async fn get_sound_effect_count(state: State<'_, SoundsState>) -> Result<usize, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
     let data = parser.get_sounds_data().ok_or("No sounds loaded".to_string())?;
     Ok(data.numeric_sound_effects.len())
 }
 
 // Ambience Streams
 #[tauri::command]
-pub async fn list_ambience_streams(page: Option<usize>, page_size: Option<usize>, state: State<'_, SoundsState>) -> Result<Vec<AmbienceStreamInfo>, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
-    let mut items = parser.get_sounds_data().ok_or("No sounds loaded".to_string())?.ambience_streams.clone();
+pub async fn list_ambience_streams(page: Option<usize>, page_size: Option<usize>, state: State<'_, SoundsState>) -> Result<PagedResponse<AmbienceStreamInfo>, String> {
+    let mut items = {
+        let parser = state.parser.lock();
+        parser.get_sounds_data().ok_or("No sounds loaded".to_string())?.ambience_streams.clone()
+    };
     items.sort_by_key(|e| e.id);
 
-    // Pagination
-    Ok(paginate(&items, page, page_size))
+    Ok(page_vec(&items, page, page_size))
 }
 
 #[tauri::command]
 pub async fn get_ambience_stream_by_id(id: u32, state: State<'_, SoundsState>) -> Result<AmbienceStreamInfo, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
     parser.get_sounds_data().ok_or("No sounds loaded".to_string())?.ambience_streams.iter().find(|e| e.id == id).cloned().ok_or(format!("Ambience stream with ID {} not found", id))
 }
 
 #[tauri::command]
 pub async fn get_ambience_stream_count(state: State<'_, SoundsState>) -> Result<usize, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
     let data = parser.get_sounds_data().ok_or("No sounds loaded".to_string())?;
     Ok(data.ambience_streams.len())
 }
 
 // Ambience Object Streams
 #[tauri::command]
-pub async fn list_ambience_object_streams(page: Option<usize>, page_size: Option<usize>, state: State<'_, SoundsState>) -> Result<Vec<AmbienceObjectStreamInfo>, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
-    let mut items = parser.get_sounds_data().ok_or("No sounds loaded".to_string())?.ambience_object_streams.clone();
+pub async fn list_ambience_object_streams(page: Option<usize>, page_size: Option<usize>, state: State<'_, SoundsState>) -> Result<PagedResponse<AmbienceObjectStreamInfo>, String> {
+    let mut items = {
+        let parser = state.parser.lock();
+        parser.get_sounds_data().ok_or("No sounds loaded".to_string())?.ambience_object_streams.clone()
+    };
     items.sort_by_key(|e| e.id);
 
-    // Pagination
-    Ok(paginate(&items, page, page_size))
+    Ok(page_vec(&items, page, page_size))
 }
 
 #[tauri::command]
 pub async fn get_ambience_object_stream_by_id(id: u32, state: State<'_, SoundsState>) -> Result<AmbienceObjectStreamInfo, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
     parser.get_sounds_data().ok_or("No sounds loaded".to_string())?.ambience_object_streams.iter().find(|e| e.id == id).cloned().ok_or(format!("Ambience object stream with ID {} not found", id))
 }
 
 #[tauri::command]
 pub async fn get_ambience_object_stream_count(state: State<'_, SoundsState>) -> Result<usize, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
     let data = parser.get_sounds_data().ok_or("No sounds loaded".to_string())?;
     Ok(data.ambience_object_streams.len())
 }
 
 // Music Templates
 #[tauri::command]
-pub async fn list_music_templates(page: Option<usize>, page_size: Option<usize>, state: State<'_, SoundsState>) -> Result<Vec<MusicTemplateInfo>, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
-    let mut items = parser.get_sounds_data().ok_or("No sounds loaded".to_string())?.music_templates.clone();
+pub async fn list_music_templates(page: Option<usize>, page_size: Option<usize>, state: State<'_, SoundsState>) -> Result<PagedResponse<MusicTemplateInfo>, String> {
+    let mut items = {
+        let parser = state.parser.lock();
+        parser.get_sounds_data().ok_or("No sounds loaded".to_string())?.music_templates.clone()
+    };
     items.sort_by_key(|e| e.id);
 
-    // Pagination
-    Ok(paginate(&items, page, page_size))
+    Ok(page_vec(&items, page, page_size))
 }
 
 #[tauri::command]
 pub async fn get_music_template_by_id(id: u32, state: State<'_, SoundsState>) -> Result<MusicTemplateInfo, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
     parser.get_sounds_data().ok_or("No sounds loaded".to_string())?.music_templates.iter().find(|e| e.id == id).cloned().ok_or(format!("Music template with ID {} not found", id))
 }
 
 #[tauri::command]
 pub async fn get_music_template_count(state: State<'_, SoundsState>) -> Result<usize, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
     let data = parser.get_sounds_data().ok_or("No sounds loaded".to_string())?;
     Ok(data.music_templates.len())
 }
 
 #[tauri::command]
 pub async fn get_sound_audio_data(sound_id: u32, state: State<'_, SoundsState>) -> Result<String, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
     let bytes = parser.read_sound_file(sound_id).map_err(|e| format!("Failed to read audio: {}", e))?;
     // Return base64 string compatible with <audio> src
     Ok(general_purpose::STANDARD.encode(bytes))
@@ -205,7 +232,7 @@ pub async fn get_sound_audio_data(sound_id: u32, state: State<'_, SoundsState>) 
 
 #[tauri::command]
 pub async fn get_sound_file_path(sound_id: u32, state: State<'_, SoundsState>) -> Result<String, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
     let path = parser.get_sound_file_path(sound_id).ok_or(format!("Sound with ID {} not found", sound_id))?;
     Ok(path.to_string_lossy().to_string())
 }
@@ -213,37 +240,37 @@ pub async fn get_sound_file_path(sound_id: u32, state: State<'_, SoundsState>) -
 // NEW: Update commands for sound editing
 #[tauri::command]
 pub async fn update_sound_info(info: SoundInfo, state: State<'_, SoundsState>) -> Result<(), String> {
-    let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let mut parser = state.parser.lock();
     parser.update_sound_info(info).map_err(|e| format!("Failed to update sound info: {}", e))
 }
 
 #[tauri::command]
 pub async fn update_numeric_sound_effect(info: NumericSoundEffectInfo, state: State<'_, SoundsState>) -> Result<(), String> {
-    let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let mut parser = state.parser.lock();
     parser.update_numeric_sound_effect(info).map_err(|e| format!("Failed to update numeric sound effect: {}", e))
 }
 
 #[tauri::command]
 pub async fn update_ambience_stream(info: AmbienceStreamInfo, state: State<'_, SoundsState>) -> Result<(), String> {
-    let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let mut parser = state.parser.lock();
     parser.update_ambience_stream(info).map_err(|e| format!("Failed to update ambience stream: {}", e))
 }
 
 #[tauri::command]
 pub async fn update_ambience_object_stream(info: AmbienceObjectStreamInfo, state: State<'_, SoundsState>) -> Result<(), String> {
-    let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let mut parser = state.parser.lock();
     parser.update_ambience_object_stream(info).map_err(|e| format!("Failed to update ambience object stream: {}", e))
 }
 
 #[tauri::command]
 pub async fn update_music_template(info: MusicTemplateInfo, state: State<'_, SoundsState>) -> Result<(), String> {
-    let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let mut parser = state.parser.lock();
     parser.update_music_template(info).map_err(|e| format!("Failed to update music template: {}", e))
 }
 
 #[tauri::command]
 pub async fn save_sounds_file(state: State<'_, SoundsState>) -> Result<String, String> {
-    let parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let parser = state.parser.lock();
     let path = parser.save_to_directory().map_err(|e| format!("Failed to save sounds file: {}", e))?;
     Ok(path.to_string_lossy().to_string())
 }
@@ -251,25 +278,25 @@ pub async fn save_sounds_file(state: State<'_, SoundsState>) -> Result<String, S
 // Creation & deletion commands
 #[tauri::command]
 pub async fn add_sound(info: SoundInfo, state: State<'_, SoundsState>) -> Result<u32, String> {
-    let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let mut parser = state.parser.lock();
     parser.add_sound(info).map_err(|e| format!("Failed to add sound: {}", e))
 }
 
 #[tauri::command]
 pub async fn delete_sound(sound_id: u32, state: State<'_, SoundsState>) -> Result<(), String> {
-    let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let mut parser = state.parser.lock();
     parser.delete_sound(sound_id).map_err(|e| format!("Failed to delete sound: {}", e))
 }
 
 #[tauri::command]
 pub async fn add_numeric_sound_effect(info: NumericSoundEffectInfo, state: State<'_, SoundsState>) -> Result<u32, String> {
-    let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let mut parser = state.parser.lock();
     parser.add_numeric_sound_effect(info).map_err(|e| format!("Failed to add numeric sound effect: {}", e))
 }
 
 #[tauri::command]
 pub async fn delete_numeric_sound_effect(id: u32, state: State<'_, SoundsState>) -> Result<(), String> {
-    let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+    let mut parser = state.parser.lock();
     parser.delete_numeric_sound_effect(id).map_err(|e| format!("Failed to delete numeric sound effect: {}", e))
 }
 
@@ -280,7 +307,7 @@ pub async fn import_and_add_sound(source_path: String, dest_filename: Option<Str
 
     // Lock parser only to obtain sounds_dir, then drop before any await
     let sounds_dir = {
-        let parser = state.parser.lock().map_err(|e| e.to_string())?;
+        let parser = state.parser.lock();
         parser.get_sounds_dir().ok_or_else(|| "No sounds loaded".to_string())?
     };
 
@@ -331,7 +358,7 @@ pub async fn import_and_add_sound(source_path: String, dest_filename: Option<Str
 
     // Re-lock parser after conversion/copy is done
     {
-        let mut parser = state.parser.lock().map_err(|e| e.to_string())?;
+        let mut parser = state.parser.lock();
         let assigned_id = parser.add_sound(info.clone()).map_err(|e| format!("Failed to add sound: {}", e))?;
         info.id = assigned_id;
 

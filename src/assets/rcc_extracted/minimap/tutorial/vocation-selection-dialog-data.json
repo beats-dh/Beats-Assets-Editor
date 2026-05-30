@@ -1,0 +1,24 @@
+{
+  "vocationData": {
+      "Knight": {
+        "exampleSpells": ["Fierce Berserk", "Front Sweep"],
+        "exampleGear": [34155, 3344, 39157, 3419, 28715, 44621]
+      },
+      "Sorcerer": {
+        "exampleSpells": ["Great Fire Wave", "Great Energy Beam"],
+        "exampleGear": [3071, 39162, 20089, 31582, 8039, 3155]
+      },
+      "Druid": {
+        "exampleSpells": ["Terra Wave", "Ice Burst"], 
+        "exampleGear": [8084, 36674, 39154, 36671, 31578, 3165]
+      },
+      "Paladin": {
+        "exampleSpells": ["Divine Missile", "Divine Grenade"],
+        "exampleGear": [47371, 8023, 36666, 39149, 32628, 35901]
+      },
+      "Monk": {
+        "exampleSpells": ["Flurry of Blows", "Focus Serenity"],
+        "exampleGear": [50161, 50170, 50239, 50274, 50260, 50184]
+      }
+  }
+}

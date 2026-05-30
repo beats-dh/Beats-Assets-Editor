@@ -1,6 +1,6 @@
 use super::category_types::{AppearanceCategory, AppearanceItem};
 use super::helpers::{create_appearance_item_response, ensure_flags, get_items_by_category_mut, get_index_for_category, invalidate_search_cache};
-use crate::core::protobuf::{Box as ProtoBoundingBox, SpriteAnimation as ProtoSpriteAnimation, SpriteInfo as ProtoSpriteInfo, SpritePhase as ProtoSpritePhase};
+use crate::core::protobuf::{Box as ProtoBoundingBox, SpriteInfo as ProtoSpriteInfo, SpritePhase as ProtoSpritePhase};
 use crate::state::AppState;
 use serde::Deserialize;
 
@@ -12,6 +12,125 @@ pub struct BoundingBoxInput {
     pub height: Option<u32>,
 }
 
+/// Remove sprite slots by index from a frame group
+#[tauri::command]
+pub async fn remove_appearance_sprites(category: AppearanceCategory, id: u32, update: SpriteRemovalUpdate, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+    if update.indices.is_empty() {
+        return Err("No sprite indices provided for removal".to_string());
+    }
+
+    let mut appearances_lock = state.appearances.write();
+
+    let appearances = match &mut *appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category_mut(appearances, &category);
+
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds for category {:?}", idx, category))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?
+    };
+
+    if update.frame_group_index >= appearance.frame_group.len() {
+        return Err(format!("Frame group {} not found for appearance {}", update.frame_group_index, id));
+    }
+
+    let frame_group = appearance.frame_group.get_mut(update.frame_group_index).expect("validated above");
+
+    if frame_group.sprite_info.is_none() {
+        return Err("Sprite info not available for this frame group".to_string());
+    }
+
+    let sprite_info = frame_group.sprite_info.as_mut().expect("sprite info ensured above");
+    if sprite_info.sprite_id.is_empty() {
+        return Err("No sprite slots available to remove".to_string());
+    }
+
+    let mut indices = update.indices.clone();
+    indices.sort_unstable();
+    indices.dedup();
+
+    let total_slots = sprite_info.sprite_id.len();
+    for idx in &indices {
+        if *idx >= total_slots {
+            return Err(format!("Sprite index {} out of bounds. Frame group has {} slots.", idx, total_slots));
+        }
+    }
+
+    for idx in indices.iter().rev() {
+        sprite_info.sprite_id.remove(*idx);
+    }
+
+    let cache_key = format!("{:?}:{}", category, id);
+    state.sprite_cache.remove(&cache_key);
+    state.preview_cache.remove(&cache_key);
+    invalidate_search_cache(&state);
+
+    Ok(create_appearance_item_response(id, appearance))
+}
+
+/// Append new sprite IDs to the end of the sprite slots for a frame group
+/// - Validates frame group bounds
+/// - Automatically extends sprite slots
+#[tauri::command]
+pub async fn append_appearance_sprites(category: AppearanceCategory, id: u32, update: SpriteAppendUpdate, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+    if update.sprite_ids.is_empty() {
+        return Err("No sprite IDs provided for append".to_string());
+    }
+
+    let mut appearances_lock = state.appearances.write();
+
+    let appearances = match &mut *appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category_mut(appearances, &category);
+
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds for category {:?}", idx, category))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?
+    };
+
+    if update.frame_group_index >= appearance.frame_group.len() {
+        return Err(format!("Frame group {} not found for appearance {}", update.frame_group_index, id));
+    }
+
+    let frame_group = appearance.frame_group.get_mut(update.frame_group_index).expect("validated above");
+
+    if frame_group.sprite_info.is_none() {
+        frame_group.sprite_info = Some(ProtoSpriteInfo::default());
+    }
+
+    // Validate sprite IDs exist in sprite loader (if available)
+    if let Some(sprite_loader) = state.sprite_loader.read().as_ref() {
+        for &sprite_id in &update.sprite_ids {
+            if sprite_loader.get_sprite(sprite_id).is_err() {
+                log::warn!("Sprite ID {} not found in sprite loader, but allowing append", sprite_id);
+                // We log a warning but don't fail - sprite might be added later
+            }
+        }
+    }
+
+    let sprite_info = frame_group.sprite_info.as_mut().expect("sprite info ensured above");
+    sprite_info.sprite_id.extend(update.sprite_ids.iter().copied());
+
+    let cache_key = format!("{:?}:{}", category, id);
+    state.sprite_cache.remove(&cache_key);
+    state.preview_cache.remove(&cache_key);
+    invalidate_search_cache(&state);
+
+    Ok(create_appearance_item_response(id, appearance))
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct SpritePhaseInput {
     pub duration_min: Option<u32>,
@@ -20,12 +139,9 @@ pub struct SpritePhaseInput {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SpriteAnimationInput {
-    pub default_start_phase: Option<u32>,
     pub synchronized: Option<bool>,
-    pub random_start_phase: Option<bool>,
     pub loop_type: Option<i32>,
     pub loop_count: Option<u32>,
-    pub animation_mode: Option<i32>,
     pub phases: Vec<SpritePhaseInput>,
 }
 
@@ -36,17 +152,34 @@ pub struct TextureSettingsUpdate {
     pub pattern_height: Option<Option<u32>>,
     pub pattern_depth: Option<Option<u32>>,
     pub layers: Option<Option<u32>>,
-    pub pattern_size: Option<Option<u32>>,
-    pub pattern_layers: Option<Option<u32>>,
-    pub pattern_x: Option<Option<u32>>,
-    pub pattern_y: Option<Option<u32>>,
-    pub pattern_z: Option<Option<u32>>,
-    pub pattern_frames: Option<Option<u32>>,
     pub bounding_square: Option<Option<u32>>,
     pub is_opaque: Option<Option<bool>>,
-    pub is_animation: Option<Option<bool>>,
     pub bounding_boxes: Option<Vec<BoundingBoxInput>>,
     pub animation: Option<Option<SpriteAnimationInput>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SpriteSlotUpdate {
+    pub index: usize,
+    pub sprite_id: u32,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SpriteReplacementUpdate {
+    pub frame_group_index: usize,
+    pub updates: Vec<SpriteSlotUpdate>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SpriteAppendUpdate {
+    pub frame_group_index: usize,
+    pub sprite_ids: Vec<u32>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SpriteRemovalUpdate {
+    pub frame_group_index: usize,
+    pub indices: Vec<usize>,
 }
 
 /// HEAVILY OPTIMIZED update_appearance_texture_settings:
@@ -98,32 +231,12 @@ pub async fn update_appearance_texture_settings(category: AppearanceCategory, id
     if let Some(value) = update.layers {
         sprite_info.layers = value;
     }
-    if let Some(value) = update.pattern_size {
-        sprite_info.pattern_size = value;
-    }
-    if let Some(value) = update.pattern_layers {
-        sprite_info.pattern_layers = value;
-    }
-    if let Some(value) = update.pattern_x {
-        sprite_info.pattern_x = value;
-    }
-    if let Some(value) = update.pattern_y {
-        sprite_info.pattern_y = value;
-    }
-    if let Some(value) = update.pattern_z {
-        sprite_info.pattern_z = value;
-    }
-    if let Some(value) = update.pattern_frames {
-        sprite_info.pattern_frames = value;
-    }
+
     if let Some(value) = update.bounding_square {
         sprite_info.bounding_square = value;
     }
     if let Some(value) = update.is_opaque {
         sprite_info.is_opaque = value;
-    }
-    if let Some(value) = update.is_animation {
-        sprite_info.is_animation = value;
     }
 
     if let Some(boxes) = update.bounding_boxes {
@@ -141,13 +254,10 @@ pub async fn update_appearance_texture_settings(category: AppearanceCategory, id
     if let Some(animation_opt) = update.animation {
         match animation_opt {
             Some(anim) => {
-                let mut proto_anim = ProtoSpriteAnimation::default();
-                proto_anim.default_start_phase = anim.default_start_phase;
+                let mut proto_anim = crate::core::protobuf::SpriteAnimation::default();
                 proto_anim.synchronized = anim.synchronized;
-                proto_anim.random_start_phase = anim.random_start_phase;
-                proto_anim.loop_type = anim.loop_type;
                 proto_anim.loop_count = anim.loop_count;
-                proto_anim.animation_mode = anim.animation_mode;
+                proto_anim.loop_type = anim.loop_type;
                 proto_anim.sprite_phase.clear();
                 for phase in anim.phases {
                     proto_anim.sprite_phase.push(ProtoSpritePhase {
@@ -163,10 +273,82 @@ pub async fn update_appearance_texture_settings(category: AppearanceCategory, id
         }
     }
 
-    // CRITICAL: Invalidate search cache (data changed)
+    // CRITICAL: Invalidate caches (data changed)
     invalidate_search_cache(&state);
+    let cache_key = format!("{:?}:{}", category, id);
+    state.sprite_cache.remove(&cache_key);
+    state.preview_cache.remove(&cache_key);
 
-    // Invalidate cache (data changed)
+    Ok(create_appearance_item_response(id, appearance))
+}
+
+/// Replace one or more sprite IDs inside a specific frame group
+/// - Validates bounds
+/// - Invalidates caches so previews are refreshed
+#[tauri::command]
+pub async fn replace_appearance_sprites(category: AppearanceCategory, id: u32, update: SpriteReplacementUpdate, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+    let mut appearances_lock = state.appearances.write();
+
+    let appearances = match &mut *appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category_mut(appearances, &category);
+
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds for category {:?}", idx, category))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?
+    };
+
+    if update.frame_group_index >= appearance.frame_group.len() {
+        return Err(format!("Frame group {} not found for appearance {}", update.frame_group_index, id));
+    }
+
+    let frame_group = appearance.frame_group.get_mut(update.frame_group_index).expect("validated above");
+
+    if frame_group.sprite_info.is_none() {
+        return Err("Sprite info not available for this frame group".to_string());
+    }
+
+    let sprite_info = frame_group.sprite_info.as_mut().expect("checked above");
+
+    if sprite_info.sprite_id.is_empty() {
+        return Err("No sprite slots available to replace".to_string());
+    }
+
+    if update.updates.is_empty() {
+        return Err("No sprite replacements provided".to_string());
+    }
+
+    let total_slots = sprite_info.sprite_id.len();
+    for upd in &update.updates {
+        if upd.index >= total_slots {
+            return Err(format!("Sprite index {} out of bounds. Frame group has {} slots.", upd.index, total_slots));
+        }
+    }
+
+    // Validate sprite IDs exist in sprite loader (if available)
+    if let Some(sprite_loader) = state.sprite_loader.read().as_ref() {
+        for upd in &update.updates {
+            if sprite_loader.get_sprite(upd.sprite_id).is_err() {
+                log::warn!("Sprite ID {} not found in sprite loader, but allowing update", upd.sprite_id);
+                // We log a warning but don't fail - sprite might be added later
+            }
+        }
+    }
+
+    for upd in update.updates {
+        sprite_info.sprite_id[upd.index] = upd.sprite_id;
+    }
+
+    // Invalidate caches so previews and sprite lists are recalculated
+    let cache_key = format!("{:?}:{}", category, id);
+    state.sprite_cache.remove(&cache_key);
+    state.preview_cache.remove(&cache_key);
     invalidate_search_cache(&state);
 
     Ok(create_appearance_item_response(id, appearance))
@@ -199,13 +381,10 @@ pub async fn update_appearance_name(category: AppearanceCategory, id: u32, new_n
     appearance.name = if new_name.trim().is_empty() {
         None
     } else {
-        Some(new_name.trim().as_bytes().to_vec())
+        Some(new_name.into_bytes())
     };
 
     // Invalidate cache (name changed - affects search!)
-    invalidate_search_cache(&state);
-
-    // Invalidate cache (data changed)
     invalidate_search_cache(&state);
 
     Ok(create_appearance_item_response(id, appearance))
@@ -402,10 +581,6 @@ pub async fn update_appearance_market(
     category_value: Option<i32>,
     trade_as_object_id: Option<u32>,
     show_as_object_id: Option<u32>,
-    restrict_to_vocation: Vec<i32>,
-    minimum_level: Option<u32>,
-    name: Option<String>,
-    vocation: Option<i32>,
     state: tauri::State<'_, AppState>,
 ) -> Result<AppearanceItem, String> {
     let mut appearances_lock = state.appearances.write();
@@ -428,24 +603,13 @@ pub async fn update_appearance_market(
 
     let flags = ensure_flags(appearance);
 
-    let market = if category_value.is_none()
-        && trade_as_object_id.is_none()
-        && show_as_object_id.is_none()
-        && restrict_to_vocation.is_empty()
-        && minimum_level.is_none()
-        && name.is_none()
-        && vocation.is_none()
-    {
+    let market = if category_value.is_none() && trade_as_object_id.is_none() && show_as_object_id.is_none() {
         None
     } else {
         Some(crate::core::protobuf::AppearanceFlagMarket {
             category: category_value,
             trade_as_object_id,
             show_as_object_id,
-            restrict_to_vocation,
-            minimum_level,
-            name: name.map(|s| s.into_bytes()),
-            vocation,
         })
     };
 
@@ -718,6 +882,13 @@ pub async fn update_appearance_proficiency(category: AppearanceCategory, id: u32
 
 #[tauri::command]
 pub async fn update_appearance_transparency_level(category: AppearanceCategory, id: u32, transparency_level: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+    // The field was removed from the protobuf; persisting it is impossible.
+    // Fail loudly instead of returning Ok so the caller doesn't believe the
+    // value was saved (it would silently vanish on the next reload/export).
+    if transparency_level.is_some() {
+        return Err("transparency_level is no longer supported (removed from the appearance schema)".to_string());
+    }
+
     let mut appearances_lock = state.appearances.write();
 
     let appearances = match &mut *appearances_lock {
@@ -736,15 +907,9 @@ pub async fn update_appearance_transparency_level(category: AppearanceCategory, 
         items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
     };
 
-    let flags = ensure_flags(appearance);
-
-    if transparency_level.is_none() {
-        flags.transparencylevel = None;
-    } else {
-        flags.transparencylevel = Some(crate::core::protobuf::AppearanceFlagTransparencyLevel {
-            level: transparency_level,
-        });
-    }
+    // Intentionally blank as transparencylevel has been removed from protobuf
+    // This allows the frontend signature to stay the same until we clean it up
+    // but the backend won't save this field anymore.
 
     // Invalidate cache (data changed)
     invalidate_search_cache(&state);
@@ -806,7 +971,7 @@ pub async fn update_appearance_description(category: AppearanceCategory, id: u32
     appearance.description = if new_description.trim().is_empty() {
         None
     } else {
-        Some(new_description.trim().as_bytes().to_vec())
+        Some(new_description.into_bytes())
     };
 
     // Invalidate cache (data changed)
@@ -816,7 +981,7 @@ pub async fn update_appearance_description(category: AppearanceCategory, id: u32
 }
 
 fn set_bool_flag(flags: &mut crate::core::protobuf::AppearanceFlags, key: &str, value: bool) -> Result<(), String> {
-    let k = key.to_lowercase().replace('_', "").replace(' ', "");
+    let k = key.to_lowercase().replace(['_', ' '], "");
     match k.as_str() {
         "clip" => {
             flags.clip = Some(value);
@@ -944,11 +1109,10 @@ fn set_bool_flag(flags: &mut crate::core::protobuf::AppearanceFlags, key: &str, 
         "dualwielding" => {
             flags.dual_wielding = Some(value);
         }
-        "hooksouth" => {
-            flags.hook_south = Some(value);
-        }
-        "hookeast" => {
-            flags.hook_east = Some(value);
+        "hooksouth" | "hookeast" => {
+            // These flags were removed from the protobuf; reject instead of
+            // silently dropping the edit so the caller isn't misled.
+            return Err(format!("Boolean flag '{}' is no longer supported (removed from the appearance schema)", key));
         }
         _ => return Err(format!("Unknown boolean flag '{}'", key)),
     }
@@ -1164,5 +1328,104 @@ pub async fn update_appearance_write_once(category: AppearanceCategory, id: u32,
     // Invalidate cache (data changed)
     invalidate_search_cache(&state);
 
+    Ok(create_appearance_item_response(id, appearance))
+}
+
+#[tauri::command]
+pub async fn update_appearance_minimum_level(category: AppearanceCategory, id: u32, minimum_level: Option<u32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+    let mut appearances_lock = state.appearances.write();
+
+    let appearances = match &mut *appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category_mut(appearances, &category);
+
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
+
+    let flags = ensure_flags(appearance);
+    flags.minimum_level = minimum_level;
+
+    invalidate_search_cache(&state);
+    Ok(create_appearance_item_response(id, appearance))
+}
+
+#[tauri::command]
+pub async fn update_appearance_restrict_to_vocation(category: AppearanceCategory, id: u32, vocations: Vec<i32>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+    let mut appearances_lock = state.appearances.write();
+
+    let appearances = match &mut *appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category_mut(appearances, &category);
+
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
+
+    let flags = ensure_flags(appearance);
+    flags.restrict_to_vocation = vocations;
+
+    invalidate_search_cache(&state);
+    Ok(create_appearance_item_response(id, appearance))
+}
+
+#[derive(serde::Deserialize)]
+pub struct NpcSaleDataInput {
+    pub name: Option<String>,
+    pub location: Option<String>,
+    pub sale_price: Option<u32>,
+    pub buy_price: Option<u32>,
+    pub currency_object_type_id: Option<u32>,
+    pub currency_quest_flag_display_name: Option<String>,
+}
+
+#[tauri::command]
+pub async fn update_appearance_npc_sale_data(category: AppearanceCategory, id: u32, npc_sale_data: Vec<NpcSaleDataInput>, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+    let mut appearances_lock = state.appearances.write();
+
+    let appearances = match &mut *appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category_mut(appearances, &category);
+
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get_mut(idx).ok_or_else(|| format!("Index {} out of bounds", idx))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance {} not found", id))?
+    };
+
+    let flags = ensure_flags(appearance);
+
+    flags.npcsaledata.clear();
+    for data in npc_sale_data {
+        flags.npcsaledata.push(crate::core::protobuf::AppearanceFlagNpc {
+            name: data.name,
+            location: data.location,
+            sale_price: data.sale_price,
+            buy_price: data.buy_price,
+            currency_object_type_id: data.currency_object_type_id,
+            currency_quest_flag_display_name: data.currency_quest_flag_display_name,
+        });
+    }
+
+    invalidate_search_cache(&state);
     Ok(create_appearance_item_response(id, appearance))
 }

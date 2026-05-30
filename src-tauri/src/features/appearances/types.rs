@@ -1,17 +1,17 @@
 use crate::core::protobuf::{Appearance, AppearanceFlags, FrameGroup, SpriteInfo};
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use super::commands::AppearanceCategory;
 use serde::{Deserialize, Serialize};
 
 /// Complete appearance data with ALL information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompleteAppearanceItem {
     pub id: u32,
+    /// Category this appearance belongs to. Optional for backwards
+    /// compatibility with JSON exported before this field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<AppearanceCategory>,
     pub name: Option<String>,
     pub description: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub appearance_type: Option<i32>,
-    #[serde(default)]
-    pub sprite_data: Vec<String>,
     pub frame_groups: Vec<CompleteFrameGroup>,
     pub flags: Option<CompleteFlags>,
 }
@@ -29,28 +29,18 @@ pub struct CompleteSpriteInfo {
     pub pattern_height: Option<u32>,
     pub pattern_depth: Option<u32>,
     pub layers: Option<u32>,
-    pub pattern_size: Option<u32>,
-    pub pattern_layers: Option<u32>,
-    pub pattern_x: Option<u32>,
-    pub pattern_y: Option<u32>,
-    pub pattern_z: Option<u32>,
-    pub pattern_frames: Option<u32>,
     pub sprite_ids: Vec<u32>,
     pub bounding_square: Option<u32>,
     pub animation: Option<SpriteAnimation>,
-    pub is_animation: Option<bool>,
     pub is_opaque: Option<bool>,
     pub bounding_boxes: Vec<BoundingBox>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpriteAnimation {
-    pub default_start_phase: Option<u32>,
     pub synchronized: Option<bool>,
-    pub random_start_phase: Option<bool>,
     pub loop_type: Option<i32>,
     pub loop_count: Option<u32>,
-    pub animation_mode: Option<i32>,
     pub phases: Vec<SpritePhase>,
 }
 
@@ -138,9 +128,6 @@ pub struct CompleteFlags {
     pub restrict_to_vocation: Vec<i32>,
     pub minimum_level: Option<u32>,
     pub weapon_type: Option<i32>,
-    pub hook_south: Option<bool>,
-    pub hook_east: Option<bool>,
-    pub transparency_level: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -205,10 +192,6 @@ pub struct FlagMarket {
     pub category: Option<i32>,
     pub trade_as_object_id: Option<u32>,
     pub show_as_object_id: Option<u32>,
-    pub restrict_to_vocation: Vec<i32>,
-    pub minimum_level: Option<u32>,
-    pub name: Option<String>,
-    pub vocation: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -288,19 +271,17 @@ impl SpecialMeaningAppearanceIds {
     }
 }
 
-// Conversion functions
 impl CompleteAppearanceItem {
     pub fn from_protobuf(appearance: &Appearance) -> Self {
-        // Convert optional bytes to Strings lossily to avoid UTF-8 errors
-        let name = appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string());
-        let description = appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string());
+        Self::from_protobuf_with_category(appearance, None)
+    }
 
+    pub fn from_protobuf_with_category(appearance: &Appearance, category: Option<AppearanceCategory>) -> Self {
         Self {
             id: appearance.id.unwrap_or(0),
-            name,
-            description,
-            appearance_type: appearance.appearance_type,
-            sprite_data: appearance.sprite_data.iter().map(|bytes| STANDARD.encode(bytes)).collect(),
+            category,
+            name: appearance.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+            description: appearance.description.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
             frame_groups: appearance.frame_group.iter().map(CompleteFrameGroup::from_protobuf).collect(),
             flags: appearance.flags.as_ref().map(CompleteFlags::from_protobuf),
         }
@@ -324,21 +305,12 @@ impl CompleteSpriteInfo {
             pattern_height: si.pattern_height,
             pattern_depth: si.pattern_depth,
             layers: si.layers,
-            pattern_size: si.pattern_size,
-            pattern_layers: si.pattern_layers,
-            pattern_x: si.pattern_x,
-            pattern_y: si.pattern_y,
-            pattern_z: si.pattern_z,
-            pattern_frames: si.pattern_frames,
             sprite_ids: si.sprite_id.clone(),
             bounding_square: si.bounding_square,
             animation: si.animation.as_ref().map(|a| SpriteAnimation {
-                default_start_phase: a.default_start_phase,
                 synchronized: a.synchronized,
-                random_start_phase: a.random_start_phase,
                 loop_type: a.loop_type,
                 loop_count: a.loop_count,
-                animation_mode: a.animation_mode.map(|mode| mode as i32),
                 phases: a
                     .sprite_phase
                     .iter()
@@ -348,7 +320,6 @@ impl CompleteSpriteInfo {
                     })
                     .collect(),
             }),
-            is_animation: si.is_animation,
             is_opaque: si.is_opaque,
             bounding_boxes: si
                 .bounding_box_per_direction
@@ -451,21 +422,17 @@ impl CompleteFlags {
                 category: m.category,
                 trade_as_object_id: m.trade_as_object_id,
                 show_as_object_id: m.show_as_object_id,
-                restrict_to_vocation: m.restrict_to_vocation.clone(),
-                minimum_level: m.minimum_level,
-                name: m.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-                vocation: m.vocation,
             }),
             npc_sale_data: flags
                 .npcsaledata
                 .iter()
                 .map(|npc| FlagNPC {
-                    name: npc.name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-                    location: npc.location.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+                    name: npc.name.clone(),
+                    location: npc.location.clone(),
                     sale_price: npc.sale_price,
                     buy_price: npc.buy_price,
                     currency_object_type_id: npc.currency_object_type_id,
-                    currency_quest_flag_display_name: npc.currency_quest_flag_display_name.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
+                    currency_quest_flag_display_name: npc.currency_quest_flag_display_name.clone(),
                 })
                 .collect(),
             changed_to_expire: flags.changedtoexpire.as_ref().map(|c| FlagChangedToExpire {
@@ -490,9 +457,6 @@ impl CompleteFlags {
             restrict_to_vocation: flags.restrict_to_vocation.clone(),
             minimum_level: flags.minimum_level,
             weapon_type: flags.weapon_type,
-            hook_south: flags.hook_south,
-            hook_east: flags.hook_east,
-            transparency_level: flags.transparencylevel.as_ref().and_then(|t| t.level),
         }
     }
 }

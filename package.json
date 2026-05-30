@@ -1,5 +1,5 @@
 {
-  "name": "tibia-assets-editor",
+  "name": "Canary Studio",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -10,12 +10,18 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "@tauri-apps/plugin-opener": "^2",
+    "svelte": "^5.48.2",
+    "svelte-dnd-action": "^0.9.69",
+    "svelte-preprocess": "^6.0.3"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.9.2",
+    "@tauri-apps/cli": "^2.9.4",
+    "playwright": "^1.56.1",
+    "tslib": "^2.8.1",
     "typescript": "~5.6.2",
     "vite": "^6.0.3"
   }

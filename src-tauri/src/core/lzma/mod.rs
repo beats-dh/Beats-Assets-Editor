@@ -1,6 +1,16 @@
 use anyhow::{Context, Result};
-use std::io::{self, BufRead, BufReader, Cursor, Read};
+use std::io::{self, BufRead, BufReader, Cursor, Read, Write};
 use xz2::read::XzDecoder;
+use xz2::write::XzEncoder;
+
+/// Magic bytes that identify an XZ container.
+pub const XZ_MAGIC: [u8; 6] = [0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00];
+
+/// Returns true if `data` is an XZ stream.
+#[inline]
+pub fn is_xz(data: &[u8]) -> bool {
+    data.starts_with(&XZ_MAGIC)
+}
 
 /// Lazily patches Tibia's incorrect LZMA header without cloning the payload.
 struct HeaderPatcher<'a> {
@@ -95,6 +105,13 @@ pub fn compress(data: &[u8]) -> Result<Vec<u8>> {
     Ok(compressed)
 }
 
+/// Compress data to a standard XZ container.
+pub fn compress_xz(data: &[u8]) -> Result<Vec<u8>> {
+    let mut encoder = XzEncoder::new(Vec::new(), 6);
+    encoder.write_all(data).context("Failed to feed data to XZ encoder")?;
+    encoder.finish().context("Failed to finalize XZ stream")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -105,6 +122,15 @@ mod tests {
         let compressed = compress(original).unwrap();
         let decompressed = decompress(&compressed).unwrap();
 
+        assert_eq!(original.to_vec(), decompressed);
+    }
+
+    #[test]
+    fn test_compress_xz_roundtrip() {
+        let original = b"Canary staticdata round-trip payload \x00\x01\x02";
+        let compressed = compress_xz(original).unwrap();
+        assert!(is_xz(&compressed), "compress_xz must produce an XZ container");
+        let decompressed = decompress(&compressed).unwrap();
         assert_eq!(original.to_vec(), decompressed);
     }
 }

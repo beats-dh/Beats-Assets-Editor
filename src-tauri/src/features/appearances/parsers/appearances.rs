@@ -26,7 +26,7 @@ pub fn load_appearances<P: AsRef<Path>>(path: P) -> Result<Appearances> {
         }
     }
 
-    // Fallback: attempt to decompress (Tibia assets often use custom LZMA/XZ wrapping)
+    // Fallback: attempt to decompress (Canary Studio often use custom LZMA/XZ wrapping)
     let decompressed = crate::core::lzma::decompress(&data).context("Failed to decompress appearances data (LZMA/XZ)")?;
 
     // Try decoding again from decompressed bytes

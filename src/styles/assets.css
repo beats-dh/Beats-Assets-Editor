@@ -157,7 +157,7 @@
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.6);
 }
 
-.asset-select-checkbox:checked + .asset-select-indicator {
+.asset-select-checkbox:checked+.asset-select-indicator {
   border-color: var(--primary-accent);
   background: rgba(79, 70, 229, 0.75);
   box-shadow:
@@ -217,10 +217,8 @@
 }
 
 .sprite-image {
-  width: 68px;
-  height: 68px;
-  /* max-width: 200%;
-  max-height: 200%; */
+  width: 64px;
+  height: 64px;
   object-fit: contain;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
@@ -330,8 +328,8 @@
 }
 
 .detail-sprite-image {
-  width: 44px;
-  height: 44px;
+  width: 64px;
+  height: 64px;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
@@ -363,8 +361,8 @@
 }
 
 .sprite-placeholder {
-  width: 68px;
-  height: 68px;
+  width: 64px;
+  height: 64px;
   background: linear-gradient(135deg, rgba(100, 116, 139, 0.1) 0%, rgba(100, 116, 139, 0.05) 100%);
   border: 2px dashed rgba(100, 116, 139, 0.3);
   border-radius: 8px;

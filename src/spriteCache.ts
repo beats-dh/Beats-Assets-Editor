@@ -1,14 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { clearPreviewAnimationCache } from './features/previewAnimation/assetPreviewAnimator';
-
-// Sprite cache to avoid reloading the same sprites
-const spriteCache = new Map<string, string[]>();
-
-// Export for cache checking in other modules
-export function hasCachedSprites(category: string, appearanceId: number): boolean {
-  const cacheKey = getSpritesCacheKey(category, appearanceId);
-  return spriteCache.has(cacheKey);
-}
+import { decodeSpriteOffThread } from './utils/imageDecodeWorkerClient';
+import { perfConfig } from './stores/performanceConfig.svelte';
+import { appearanceCache, spriteIdCache, spriteUrlStore, getCacheStats, clearAllCaches as clearRegistryCaches } from './utils/cacheRegistry';
 
 let spritesLoaded = false;
 let spritesLoadAttempted = false;
@@ -22,58 +16,74 @@ export function getSpritesCacheKey(category: string, appearanceId: number): stri
   return `${category}:${appearanceId}`;
 }
 
+function normalizeSpriteBuffer(buffer: unknown): Uint8Array | null {
+  if (buffer instanceof Uint8Array) return buffer;
+  if (Array.isArray(buffer)) return new Uint8Array(buffer);
+  if (buffer instanceof ArrayBuffer) return new Uint8Array(buffer);
+  if (ArrayBuffer.isView(buffer)) return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  return null;
+}
+
+export function getCachedSpriteById(spriteId: number): Uint8Array | null {
+  return spriteIdCache.get(spriteId) ?? null;
+}
+
+export async function getSpriteById(spriteId: number): Promise<Uint8Array | null> {
+  if (!Number.isFinite(spriteId)) return null;
+
+  if (spriteIdCache.has(spriteId)) {
+    return spriteIdCache.get(spriteId) ?? null;
+  }
+
+  if (!spritesLoaded) {
+    await loadSprites();
+  }
+  if (!spritesLoaded) {
+    return null;
+  }
+
+  try {
+    const sprite = await invoke('get_sprite_by_id', { spriteId }) as number[] | Uint8Array | null;
+    const data = normalizeSpriteBuffer(sprite);
+    if (data) {
+      let decoded = data;
+      try {
+        const result = await decodeSpriteOffThread(data);
+        if (result) decoded = new Uint8Array(result);
+      } catch { /* fallback: use raw */ }
+      spriteIdCache.set(spriteId, decoded);
+      return decoded;
+    }
+    return null;
+  } catch (error) {
+    console.error(`Failed to load sprite ${spriteId}:`, error);
+    return null;
+  }
+}
+
 export function clearSpritesCache(): void {
-  spriteCache.clear();
+  clearRegistryCaches();
   clearPreviewAnimationCache();
 }
 
-export function getSpriteCacheStats(): { totalEntries: number; totalSprites: number } {
-  const totalEntries = spriteCache.size;
-  let totalSprites = 0;
-  for (const sprites of spriteCache.values()) {
-    totalSprites += sprites.length;
-  }
-  return { totalEntries, totalSprites };
-}
-
-export async function clearBackendSpriteCache(): Promise<number> {
+export async function clearAllCaches(): Promise<void> {
+  clearSpritesCache();
   try {
-    const clearedEntries = await invoke('clear_sprite_cache') as number;
-    return clearedEntries;
+    await invoke('clear_sprite_cache');
   } catch (error) {
     console.error('Error clearing backend sprite cache:', error);
-    return 0;
   }
-}
-
-export async function getBackendSpriteCacheStats(): Promise<{ totalEntries: number; totalSprites: number }> {
-  try {
-    const [totalEntries, totalSprites] = await invoke('get_sprite_cache_stats') as [number, number];
-    return { totalEntries, totalSprites };
-  } catch (error) {
-    console.error('Error getting backend sprite cache stats:', error);
-    return { totalEntries: 0, totalSprites: 0 };
-  }
-}
-
-export async function clearAllCaches(): Promise<void> {
-  clearSpritesCache(); // Frontend cache
-  await clearBackendSpriteCache(); // Backend cache
 }
 
 export async function loadSprites(): Promise<void> {
-  if (spritesLoadAttempted) {
-    return;
-  }
+  if (spritesLoadAttempted) return;
   spritesLoadAttempted = true;
   if (spritesLoaded) return;
 
   try {
-    // Use the user-provided Tibia path instead of calling select_tibia_directory
     const tibiaPath = userTibiaPath || await invoke('select_tibia_directory') as string;
     if (!tibiaPath) return;
 
-    // Try to auto-load sprites from Tibia 12+ format
     try {
       const spriteCount = await invoke('auto_load_sprites', { tibiaPath }) as number;
       console.log(`Auto-loaded ${spriteCount} sprites from Tibia 12+ format`);
@@ -89,120 +99,138 @@ export async function loadSprites(): Promise<void> {
   }
 }
 
-export async function getAppearanceSprites(category: string, appearanceId: number): Promise<string[]> {
-  // Check cache first
-  const cacheKey = getSpritesCacheKey(category, appearanceId);
-  if (spriteCache.has(cacheKey)) {
-    return spriteCache.get(cacheKey)!;
-  }
-
+export async function getAppearanceSprites(category: string, appearanceId: number): Promise<Uint8Array[]> {
   if (!spritesLoaded) {
     await loadSprites();
   }
-
   if (!spritesLoaded) {
     return [];
   }
 
+  const cached = appearanceCache.getRawSprites(category, appearanceId);
+  if (cached) return cached;
+
   try {
-    const sprites = await invoke('get_appearance_sprites', {
-      category: category,
-      appearanceId: appearanceId
-    }) as string[];
+    const sprites = await invoke<unknown[][]>('get_appearance_sprites', {
+      category,
+      appearanceId,
+    });
 
-    // Store in cache
-    spriteCache.set(cacheKey, sprites);
+    const normalized = sprites
+      .map(sprite => normalizeSpriteBuffer(sprite))
+      .filter((sprite): sprite is Uint8Array => !!sprite);
 
-    return sprites;
+    appearanceCache.setRawSprites(category, appearanceId, normalized);
+    return normalized;
   } catch (error) {
     console.error(`Error getting sprites for ${category} ${appearanceId}:`, error);
     return [];
   }
 }
 
-/**
- * BATCH SPRITE LOADING - ULTRA PERFORMANCE
- * Load preview sprites for MULTIPLE appearances in a SINGLE call
- *
- * This is 10x-100x faster than individual calls due to:
- * - Single IPC call instead of N calls
- * - Backend parallel processing across all cores
- * - Automatic backend caching
- *
- * @param category - Appearance category (Objects, Outfits, Effects, Missiles)
- * @param appearanceIds - Array of appearance IDs to load
- * @returns Map of appearance ID to first sprite base64 string
- */
-export async function getAppearancePreviewSpritesBatch(category: string, appearanceIds: number[]): Promise<Map<number, string>> {
-  if (!spritesLoaded) {
-    await loadSprites();
-  }
+// --- Granular cache invalidation (delegates to registry) ---
 
-  if (!spritesLoaded || appearanceIds.length === 0) {
-    return new Map();
-  }
+export function updateCachedAppearanceSprite(
+  category: string, id: number, index: number, newBuffer: Uint8Array
+): void {
+  appearanceCache.updateSprite(category, id, index, newBuffer);
+}
 
-  try {
-    // Call backend batch API - single IPC call for all previews!
-    const result = await invoke('get_appearance_preview_sprites_batch', {
-      category: category,
-      appearanceIds: appearanceIds
-    }) as Record<number, string>;
+export function appendCachedAppearanceSprites(
+  category: string, id: number, buffers: Uint8Array[]
+): void {
+  appearanceCache.appendSprites(category, id, buffers);
+}
 
-    // Convert to Map for easier access
-    return new Map(Object.entries(result).map(([id, sprite]) => [Number(id), sprite]));
-  } catch (error) {
-    console.error(`Error getting batch preview sprites for ${category}:`, error);
-    return new Map();
-  }
+export function removeCachedAppearanceSprites(
+  category: string, id: number, indices: number[]
+): void {
+  appearanceCache.removeSprites(category, id, indices);
+}
+
+export function invalidateAppearanceCache(category: string, id: number): void {
+  appearanceCache.invalidate(category, id);
 }
 
 /**
- * BATCH FULL SPRITE LOADING
- * Load ALL sprites for MULTIPLE appearances in a SINGLE call
- *
- * Use this for preloading full sprites in background.
- *
- * @param category - Appearance category
- * @param appearanceIds - Array of appearance IDs to load
- * @returns Map of appearance ID to array of sprite base64 strings
+ * BATCH SPRITE LOADING
+ * Single IPC call for multiple appearance previews.
  */
-export async function getAppearanceSpritesBatch(category: string, appearanceIds: number[]): Promise<Map<number, string[]>> {
+export async function getAppearancePreviewSpritesBatch(
+  category: string,
+  appearanceIds: number[],
+  onProgress?: (partial: Map<number, Uint8Array>) => void | Promise<void>
+): Promise<Map<number, Uint8Array>> {
   if (!spritesLoaded) {
     await loadSprites();
   }
-
   if (!spritesLoaded || appearanceIds.length === 0) {
     return new Map();
   }
 
-  try {
-    // Call backend batch API
-    const result = await invoke('get_appearance_sprites_batch', {
-      category: category,
-      appearanceIds: appearanceIds
-    }) as Record<number, string[]>;
+  const CHUNK_SIZE = perfConfig.chunkSize;
+  const allResults = new Map<number, Uint8Array>();
 
-    // Store all in frontend cache
-    for (const [id, sprites] of Object.entries(result)) {
-      const cacheKey = getSpritesCacheKey(category, Number(id));
-      spriteCache.set(cacheKey, sprites);
+  for (let i = 0; i < appearanceIds.length; i += CHUNK_SIZE) {
+    const chunk = appearanceIds.slice(i, i + CHUNK_SIZE);
+
+    try {
+      const result = await invoke('get_appearance_preview_sprites_batch', {
+        category,
+        appearanceIds: chunk,
+      }) as Record<number, Uint8Array | number[]>;
+
+      for (const [id, sprite] of Object.entries(result)) {
+        const data = normalizeSpriteBuffer(sprite);
+        if (data) allResults.set(Number(id), data);
+      }
+
+      if (onProgress) await onProgress(allResults);
+
+      if (i + CHUNK_SIZE < appearanceIds.length) {
+        await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+      }
+    } catch (error) {
+      console.error(`Error getting batch preview chunk for ${category}:`, error);
     }
-
-    // Convert to Map
-    return new Map(Object.entries(result).map(([id, sprites]) => [Number(id), sprites]));
-  } catch (error) {
-    console.error(`Error getting batch sprites for ${category}:`, error);
-    return new Map();
   }
+
+  return allResults;
 }
 
-export function createSpriteImage(base64Data: string): HTMLImageElement {
-  const img = document.createElement('img');
-  img.src = `data:image/png;base64,${base64Data}`;
-  img.className = 'sprite-image';
-  img.style.imageRendering = 'pixelated';
-  return img;
+export function createSpriteImage(data: Uint8Array, className = 'sprite-image'): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.className = className;
+
+  const displaySize = 64;
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width = Math.round(displaySize * dpr);
+  canvas.height = Math.round(displaySize * dpr);
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+
+  ctx.imageSmoothingEnabled = false;
+
+  function loadImage(c: CanvasRenderingContext2D, retriesLeft: number) {
+    const url = spriteUrlStore.get(data);
+    const img = new Image();
+    img.onload = () => {
+      c.clearRect(0, 0, canvas.width, canvas.height);
+      c.imageSmoothingEnabled = false;
+      c.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.onerror = () => {
+      // Blob URL was revoked mid-flight — get a fresh one and retry
+      if (retriesLeft > 0) loadImage(c, retriesLeft - 1);
+    };
+    img.src = url;
+  }
+
+  loadImage(ctx, 1);
+
+  return canvas;
 }
 
 export function createPlaceholderImage(): HTMLDivElement {
@@ -217,37 +245,55 @@ export function createPlaceholderImage(): HTMLDivElement {
   return placeholder;
 }
 
-// Export debug functions for console access
+/**
+ * Svelte action for pixel-perfect sprite rendering on <canvas>.
+ */
+export function pixelSprite(canvas: HTMLCanvasElement, src: string | null) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth || 64;
+  const h = canvas.clientHeight || 64;
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+
+  function draw(url: string | null) {
+    const ctx = canvas.getContext('2d');
+    if (!ctx || !url) return;
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = url;
+  }
+  draw(src);
+
+  return {
+    update(newSrc: string | null) { draw(newSrc); },
+    destroy() { }
+  };
+}
+
+// Debug functions
 export const debugCache = {
-  getFrontendCacheStats: () => getSpriteCacheStats(),
-  getBackendCacheStats: async () => await getBackendSpriteCacheStats(),
-  clearFrontendCache: () => {
-    clearSpritesCache();
-    return 'Frontend cache cleared';
-  },
-  clearBackendCache: async () => {
-    const count = await clearBackendSpriteCache();
-    return `Backend cache cleared (${count} entries)`;
+  getFrontendCacheStats: () => getCacheStats(),
+  getBackendCacheStats: async () => {
+    try {
+      const [totalEntries, totalSprites] = await invoke('get_sprite_cache_stats') as [number, number];
+      return { totalEntries, totalSprites };
+    } catch { return { totalEntries: 0, totalSprites: 0 }; }
   },
   clearAllCaches: async () => {
     await clearAllCaches();
     return 'All caches cleared';
   },
   testCache: async (category: string, id: number) => {
-    console.log(`Testing cache for ${category} ID ${id}`);
-
     console.time('First call (cache miss)');
     const sprites1 = await getAppearanceSprites(category, id);
     console.timeEnd('First call (cache miss)');
-
     console.time('Second call (cache hit)');
     const sprites2 = await getAppearanceSprites(category, id);
     console.timeEnd('Second call (cache hit)');
-
-    console.log('First call sprites:', sprites1.length);
-    console.log('Second call sprites:', sprites2.length);
-    console.log('Cache stats:', getSpriteCacheStats());
-
-    return { sprites1, sprites2 };
+    return { first: sprites1.length, second: sprites2.length };
   }
 };

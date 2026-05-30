@@ -24,13 +24,13 @@
   height: 100%;
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(8px);
-  cursor: pointer;
+  cursor: default;
 }
 
 .modal-content {
   position: relative;
-  background: linear-gradient(135deg, #1a1d29 0%, #0f1117 100%);
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: var(--primary-bg);
+  border: 1px solid var(--border-soft);
   border-radius: 16px;
   max-width: 900px;
   max-height: 90vh;
@@ -45,11 +45,11 @@
 
 .modal-header {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  border-bottom: 1px solid var(--border-soft-20);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+  background: var(--primary-bg);
 }
 
 .modal-tabs {
@@ -138,10 +138,7 @@
 .modal-header h3 {
   font-size: 1.5rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -198,6 +195,10 @@
   background: rgba(139, 92, 246, 0.7);
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 /* Seções e ações dentro de modais de edição (inclui Adicionar Som) */
 .edit-section {
   display: flex;
@@ -206,11 +207,11 @@
   margin-bottom: 0;
 }
 
-.edit-section > p {
+.edit-section>p {
   display: none;
 }
 
-.edit-section > h3 {
+.edit-section>h3 {
   margin: 0;
   margin-bottom: var(--space-sm);
   color: var(--text-primary);
@@ -243,6 +244,45 @@
   border-top: none;
 }
 
+.import-start-id-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.import-start-id-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 140px 160px;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.import-start-id-row.header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.import-start-id-row.disabled {
+  opacity: 0.6;
+}
+
+.import-start-id-latest {
+  font-family: 'Courier New', monospace;
+  color: var(--text-primary);
+}
+
+.import-start-id-input {
+  width: 100%;
+}
+
+.import-start-id-placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* Modal de Adicionar Som - ajustes específicos */
 #add-sound-content {
   display: flex;
@@ -250,7 +290,7 @@
   gap: var(--space-md);
 }
 
-#add-sound-content > p {
+#add-sound-content>p {
   display: none;
 }
 

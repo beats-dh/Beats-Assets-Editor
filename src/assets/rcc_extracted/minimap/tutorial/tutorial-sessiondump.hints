@@ -1,0 +1,440 @@
+{
+  "actions": {
+    "0": [
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "TutorialStart"
+      },
+      {
+        "type": "SKIP_TO",
+        "skiptotimestamp": 0
+      }
+    ],
+    "750": [
+      {
+        "type": "SWITCH_CHANNEL",
+        "channelid": 131070
+      },
+      {
+        "conditiondata": {
+          "coordinate": {
+            "stackposition": 1,
+            "x": 32518,
+            "y": 32510,
+            "z": 6
+          },
+          "usetypeid": 2480,
+          "texthint": {
+            "text": "tutorial_open_chest_hint",
+            "textanchor": "topCenter",
+            "border": false
+          }
+        },
+        "conditiontype": "OPEN_IN_NEW_WINDOW",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "OpenChest"
+      },
+      {
+        "type": "CLEAR_OLDEST_MESSAGE"
+      }
+    ],
+    "2049": [
+      {
+        "conditiondata": {
+          "amount": 1,
+          "destination": {
+            "x": 65535,
+            "y": 6,
+            "z": 0
+          },
+          "objecttypeid": 3267,
+          "source": {
+            "x": 65535,
+            "y": 64,
+            "z": 1
+          },
+          "destinationtexthint": {
+            "text": "tutorial_take_weapon_hint",
+            "textanchor": "topCenter"
+          }
+        },
+        "conditiontype": "MOVE",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "TakeWeapon"
+      }
+    ],
+    "2399": [
+      {
+        "conditiondata": {
+          "coordinate": {
+            "x": 65535,
+            "y": 3,
+            "z": 0
+          },
+          "usetypeid": 2854,
+          "texthint": {
+            "text": "tutorial_open_container_hint",
+            "textanchor": "topRight"
+          }
+        },
+        "conditiontype": "OPEN_IN_NEW_WINDOW",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "OpenContainer"
+      }
+    ],
+    "2699": [
+      {
+        "conditiondata": {
+          "amount": 1,
+          "destination": {
+            "x": 65535,
+            "y": 65,
+            "z": 255
+          },
+          "objecttypeid": 7876,
+          "source": {
+            "x": 65535,
+            "y": 64,
+            "z": 0
+          },
+          "texthint": {
+            "text": "tutorial_take_potion_hint",
+            "textanchor": "topCenter"
+          }
+        },
+        "conditiontype": "MOVE",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "TakePotion"
+      }
+    ],
+    "3099": [
+      {
+        "conditiondata": {
+          "coordinate": {
+            "x": 32523,
+            "y": 32507,
+            "z": 6
+          },
+          "texthint": {
+            "text": "tutorial_click_to_walk_hint",
+            "textanchor": "bottomCenter",
+            "border": false
+          }
+        },
+        "conditiontype": "AUTOWALK",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "ClickToWalk"
+      },
+      {
+        "type": "CLEAR_OLDEST_MESSAGE"
+      }
+    ],
+    "5599": [
+      {
+        "conditiondata": {
+          "creatureid": 1073769963,
+          "texthint": {
+            "text": "tutorial_attack_monster_hint",
+            "textanchor": "bottomCenter",
+            "border": false
+          },
+          "destinationtexthint": {
+            "text": "tutorial_attack_monster_battlelist_hint",
+            "textanchor": "bottomCenter",
+            "border": true
+          }
+        },
+        "conditiontype": "ATTACK",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "AttackMonster"
+      },
+      {
+        "type": "CLEAR_OLDEST_MESSAGE"
+      }
+    ],
+    "10649": [
+      {
+        "conditiondata": {
+          "actionbarid": 1,
+          "actionbuttonid": 3,
+          "texthint": {
+            "text": "tutorial_cast_spell_hint",
+            "textanchor": "topLeft"
+          }
+        },
+        "conditiontype": "ACTION_BUTTON_TRIGGERED",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "CastSpell"
+      }
+    ],
+    "15699": [
+      {
+        "conditiondata": {
+          "actionbarid": 1,
+          "actionbuttonid": 1,
+          "texthint": {
+            "text": "tutorial_use_potion_hint",
+            "textanchor": "topLeft"
+          }
+        },
+        "conditiontype": "ACTION_BUTTON_TRIGGERED",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "UsePotion"
+      }
+    ],
+    "20699": [
+      {
+        "conditiondata": {
+          "coordinate": {
+            "stackposition": 3,
+            "x": 32520,
+            "y": 32508,
+            "z": 7
+          },
+          "usetypeid": 6002,
+          "texthint": {
+            "text": "tutorial_open_corpse_hint",
+            "textanchor": "topCenter",
+            "border": false
+          }
+        },
+        "conditiontype": "OPEN_IN_NEW_WINDOW",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "OpenCorpse"
+      }
+    ],
+    "21000": [
+      {
+        "conditiondata": {
+          "amount": 1,
+          "destination": {
+            "x": 65535,
+            "y": 65,
+            "z": 1
+          },
+          "objecttypeid": 51895,
+          "source": {
+            "x": 65535,
+            "y": 64,
+            "z": 0
+          },
+          "texthint": {
+            "text": "tutorial_take_loot_hint",
+            "textanchor": "bottomCenter"
+          }
+        },
+        "conditiontype": "MOVE",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "TakeLoot"
+      }
+    ],
+    "21149": [
+      {
+        "conditiondata": {
+          "coordinate": {
+            "x": 32521,
+            "y": 32512,
+            "z": 7
+          },
+          "texthint": {
+            "text": "tutorial_leave_house_hint",
+            "textanchor": "bottomCenter",
+            "border": false
+          }
+        },
+        "conditiontype": "AUTOWALK",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "LeaveHouse"
+      }
+    ],
+    "22449": [
+      {
+        "conditiondata": {
+          "creatureid": 1073742646,
+          "texthint": {
+            "text": "tutorial_greet_npc_hint",
+            "textanchor": "bottomCenter",
+            "border": false
+          },
+          "destinationtexthint": {
+            "text": "tutorial_greet_npc_battlelist_hint",
+            "textanchor": "bottomCenter",
+            "border": true
+          }
+        },
+        "conditiontype": "GREET",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "GreetNPC"
+      }
+    ],
+    "23549": [
+      {
+        "conditiondata": {
+          "text": "yes",
+          "texthint": {
+            "text": "tutorial_talk_with_keyword_hint",
+            "textanchor": "bottomLeft"
+          }
+        },
+        "conditiontype": "TALK",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "TalkWithKeyword"
+      }
+    ],
+    "24649": [
+      {
+        "conditiondata": {
+          "text": "farewell",
+          "texthint": {
+            "text": "tutorial_talk_with_keyword_hint",
+            "textanchor": "bottomLeft"
+          }
+        },
+        "conditiontype": "TALK",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "TalkWithKeyword2"
+      }
+    ],
+    "24699": [
+      {
+        "conditiondata": {
+          "coordinate": {
+            "x": 32527,
+            "y": 32509,
+            "z": 7
+          },
+          "texthint": {
+            "text": "tutorial_go_to_hole_hint",
+            "textanchor": "bottomCenter",
+            "border": false
+          }
+        },
+        "conditiontype": "AUTOWALK",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "GoToHole"
+      }
+    ],
+    "29199": [
+      {
+        "conditiondata": {
+          "coordinate": {
+            "stackposition": 10,
+            "x": 65535,
+            "y": 10,
+            "z": 0
+          },
+          "usetypeid": 2920,
+          "texthint": {
+            "text": "tutorial_use_torch_hint",
+            "textanchor": "topRight"
+          }
+        },
+        "conditiontype": "USE",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "UseTorch"
+      }
+    ],
+    "29699": [
+      {
+        "conditiondata": {
+          "coordinate": {
+            "x": 65535,
+            "y": 65,
+            "z": 0
+          },
+          "multiusetarget": {
+            "stackposition": 0,
+            "x": 32533,
+            "y": 32499,
+            "z": 8
+          },
+          "objecttypeid": 3003,
+          "targettypeid": 52547,
+          "texthint": {
+            "text": "tutorial_use_with_hint",
+            "textanchor": "leftBottom"
+          }
+        },
+        "conditiontype": "USE_WITH",
+        "type": "CONDITION"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "UseRopespot"
+      },
+      {
+        "type": "TUTORIAL_PROGRESS",
+        "tutorialprogress": "TutorialEnd"
+      }
+    ]
+
+  },
+  "outfit": {
+    "female": {
+      "addons": 0,
+      "detail": 115,
+      "head": 115,
+      "id": 137,
+      "legs": 39,
+      "torso": 113
+    },
+    "male": {
+      "addons": 0,
+      "detail": 115,
+      "head": 115,
+      "id": 129,
+      "legs": 39,
+      "torso": 113
+    }
+  },
+  "sessiondump": "tutorial-sessiondump.dmp",
+  "sessiondump-duration": 56860
+}

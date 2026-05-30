@@ -105,12 +105,13 @@
   display: none;
   flex-direction: column;
   gap: var(--space-md);
-  background: var(--control-bg);
+  background: var(--surface-bg, #0f172a);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
   padding: var(--space-md);
   z-index: 100;
+  backdrop-filter: blur(24px) saturate(1.2);
 }
 
 .settings-menu.show {
@@ -203,7 +204,7 @@
 
 /* Modern Header Styles */
 .modern-header {
-  background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+  background: var(--gradient-surface);
   border-bottom: 1px solid var(--border-soft-20);
   padding: var(--space-sm) var(--space-md);
   display: flex;
@@ -279,6 +280,9 @@
   transition: background var(--transition-fast, 0.2s) ease, color var(--transition-fast, 0.2s) ease, border-color var(--transition-fast, 0.2s) ease, box-shadow var(--transition-fast, 0.2s) ease;
   white-space: nowrap;
   backdrop-filter: blur(12px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .appearance-action-button:hover:not(:disabled) {
@@ -295,6 +299,20 @@
   border-color: rgba(148, 163, 184, 0.2);
   color: rgba(148, 163, 184, 0.65);
   box-shadow: none;
+}
+
+/* Active state for action buttons */
+.appearance-action-button.active {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #ffffff;
+  box-shadow: inset 0 0 8px rgba(59, 130, 246, 0.2);
+}
+
+.appearance-action-button .btn-icon {
+  margin-right: 6px;
+  font-size: 1.1em;
+  vertical-align: middle;
 }
 
 .appearance-action-button.destructive {
@@ -327,19 +345,16 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: white;
+  background: var(--surface-bg);
+  border: 1px solid var(--border-soft);
+  color: var(--text-primary);
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 0.9rem;
   font-weight: 600;
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.3),
-    0 2px 4px -1px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.2);
   position: relative;
   overflow: hidden;
 }
@@ -351,17 +366,15 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
   transition: left 0.5s ease;
 }
 
 .modern-back-btn:hover {
-  background: linear-gradient(135deg, #5b52f0 0%, #8b5cf6 100%);
+  background: var(--elevated-bg);
+  border-color: var(--border-hover);
   transform: translateY(-2px);
-  box-shadow:
-    0 8px 15px -3px rgba(0, 0, 0, 0.4),
-    0 4px 6px -2px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 6px -2px rgba(0, 0, 0, 0.3);
 }
 
 .modern-back-btn:hover::before {
@@ -568,4 +581,72 @@
     0 0 0 3px rgba(79, 70, 229, 0.3),
     0 4px 8px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* Toggle Switch (Legacy, kept just in case) */
+.toggle-switch {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  background: var(--control-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.toggle-switch:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-bg);
+}
+
+.toggle-switch.active {
+  background: var(--primary-accent);
+  border-color: var(--primary-accent);
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+}
+
+.toggle-switch.active .toggle-knob {
+  transform: translateX(20px);
+}
+
+.toggle-icon {
+  position: absolute;
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--text-secondary);
+  z-index: 1;
+  transition: opacity 0.3s ease;
+  user-select: none;
+}
+
+/* Icon positioning */
+.toggle-switch .toggle-icon {
+  right: 8px;
+  /* Show icon on right when inactive (knob on left) */
+  opacity: 1;
+}
+
+.toggle-switch.active .toggle-icon {
+  left: 8px;
+  /* Show icon on left when active (knob on right) */
+  color: rgba(255, 255, 255, 0.9);
+  right: auto;
 }
