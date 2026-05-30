@@ -52,6 +52,12 @@ pub struct AppState {
     // DAT merge: new official assets folder (for sprite merge)
     pub merge_source_assets_dir: RwLock<Option<PathBuf>>,
 
+    // Staged merge operations (written to disk only on save_all_merge)
+    pub staged_sprite_files: RwLock<Vec<(PathBuf, PathBuf)>>,       // (src, dst) LZMA copies
+    pub staged_catalog: RwLock<Option<(PathBuf, Vec<serde_json::Value>)>>, // (path, full catalog JSON)
+    pub staged_staticdata: RwLock<Option<(PathBuf, StaticData)>>,   // (path, merged data)
+    pub staged_staticmapdata: RwLock<Option<(PathBuf, Vec<u8>)>>,   // (path, encoded protobuf)
+
     // Imported sprite overrides (e.g., from AEC files)
     pub imported_sprites: DashMap<u32, Vec<u8>, ahash::RandomState>,
     pub imported_sprite_hashes: DashMap<u64, u32, ahash::RandomState>,
@@ -85,6 +91,10 @@ impl AppState {
             flags_clipboard: Mutex::new(None),
             merge_source: RwLock::new(None),
             merge_source_assets_dir: RwLock::new(None),
+            staged_sprite_files: RwLock::new(Vec::new()),
+            staged_catalog: RwLock::new(None),
+            staged_staticdata: RwLock::new(None),
+            staged_staticmapdata: RwLock::new(None),
 
             imported_sprites: DashMap::with_hasher(ahash::RandomState::new()),
             imported_sprite_hashes: DashMap::with_hasher(ahash::RandomState::new()),

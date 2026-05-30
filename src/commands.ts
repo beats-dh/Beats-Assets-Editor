@@ -178,6 +178,7 @@ export const COMMANDS = {
   EXECUTE_SPRITE_MERGE: 'execute_sprite_merge',
   GET_STATICDATA_MERGE_PREVIEW: 'get_staticdata_merge_preview',
   EXECUTE_STATICDATA_MERGE: 'execute_staticdata_merge',
+  SAVE_ALL_MERGE: 'save_all_merge',
 
   // QM Translation Editor Commands
   QM_FIND_FILES: 'qm_find_files',

@@ -183,6 +183,7 @@ pub fn run() {
             features::dat_merge::execute_sprite_merge,
             features::dat_merge::staticdata_merge::get_staticdata_merge_preview,
             features::dat_merge::staticdata_merge::execute_staticdata_merge,
+            features::dat_merge::save_all_merge,
             // RCC Editor API
             features::rcc::commands::rcc_load,
             features::rcc::commands::rcc_get_resource,

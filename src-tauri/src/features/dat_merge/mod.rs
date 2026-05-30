@@ -457,6 +457,8 @@ pub async fn execute_sprite_merge(
     let mut new_first_overall = u32::MAX;
     let mut new_last_overall = 0u32;
 
+    let mut staged_files: Vec<(PathBuf, PathBuf)> = Vec::new();
+
     for entry in &custom_entries {
         let src = old_assets_dir.join(&entry.file);
         let dst = new_assets_dir.join(&entry.file);
@@ -491,8 +493,8 @@ pub async fn execute_sprite_merge(
             entry.clone()
         };
 
-        std::fs::copy(&src, &dst)
-            .map_err(|e| format!("Failed to copy {}: {}", entry.file, e))?;
+        // Stage file copy instead of writing to disk
+        staged_files.push((src, dst));
         files_copied += 1;
 
         new_catalog.push(
@@ -502,11 +504,9 @@ pub async fn execute_sprite_merge(
         catalog_entries_added += 1;
     }
 
-    // Save updated catalog-content.json
-    let catalog_json = serde_json::to_string_pretty(&new_catalog)
-        .map_err(|e| format!("Serialize catalog error: {}", e))?;
-    std::fs::write(&new_catalog_path, catalog_json)
-        .map_err(|e| format!("Write catalog error: {}", e))?;
+    // Stage catalog and file copies in memory instead of writing to disk
+    *state.staged_sprite_files.write() = staged_files;
+    *state.staged_catalog.write() = Some((new_catalog_path, new_catalog));
 
     let sprites_remapped = old_to_new.len();
 
@@ -529,6 +529,105 @@ pub async fn execute_sprite_merge(
         sprites_remapped,
         new_first_sprite_id: if sprites_remapped > 0 { new_first_overall } else { 0 },
         new_last_sprite_id: if sprites_remapped > 0 { new_last_overall } else { 0 },
+    })
+}
+
+// ── Save All ─────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveAllMergeResult {
+    pub dat_saved: bool,
+    pub dat_bytes: usize,
+    pub sprite_files_copied: usize,
+    pub catalog_saved: bool,
+    pub staticdata_saved: bool,
+    pub staticmapdata_saved: bool,
+}
+
+/// Write all staged merge results to disk atomically.
+/// This is the only command that writes files — all execute_* commands only stage in memory.
+#[tauri::command]
+pub async fn save_all_merge(
+    dat_path: String,
+    state: State<'_, AppState>,
+) -> Result<SaveAllMergeResult, String> {
+    use crate::features::staticdata::parsers::save_staticdata;
+    use prost::Message;
+
+    // 1. Save appearances .dat
+    let dat_bytes = {
+        let lock = state.appearances.read();
+        let appearances = lock.as_ref().ok_or("No appearances loaded")?;
+        let mut buf = Vec::new();
+        appearances.encode(&mut buf).map_err(|e| format!("Encode .dat error: {}", e))?;
+        std::fs::write(&dat_path, &buf).map_err(|e| format!("Write .dat error: {}", e))?;
+        buf.len()
+    };
+
+    // 2. Copy staged LZMA sprite files
+    let sprite_files_copied = {
+        let files = state.staged_sprite_files.read();
+        let mut copied = 0usize;
+        for (src, dst) in files.iter() {
+            std::fs::copy(src, dst)
+                .map_err(|e| format!("Copy sprite file error: {}", e))?;
+            copied += 1;
+        }
+        copied
+    };
+
+    // 3. Save staged catalog
+    let catalog_saved = {
+        let lock = state.staged_catalog.read();
+        if let Some((path, catalog)) = lock.as_ref() {
+            let json = serde_json::to_string_pretty(catalog)
+                .map_err(|e| format!("Serialize catalog error: {}", e))?;
+            std::fs::write(path, json)
+                .map_err(|e| format!("Write catalog error: {}", e))?;
+            true
+        } else {
+            false
+        }
+    };
+
+    // 4. Save staged staticdata
+    let staticdata_saved = {
+        let lock = state.staged_staticdata.read();
+        if let Some((path, data)) = lock.as_ref() {
+            save_staticdata(path, data)
+                .map_err(|e| format!("Write staticdata error: {}", e))?;
+            true
+        } else {
+            false
+        }
+    };
+
+    // 5. Save staged staticmapdata
+    let staticmapdata_saved = {
+        let lock = state.staged_staticmapdata.read();
+        if let Some((path, buf)) = lock.as_ref() {
+            std::fs::write(path, buf)
+                .map_err(|e| format!("Write staticmapdata error: {}", e))?;
+            true
+        } else {
+            false
+        }
+    };
+
+    // Clear all staged data
+    state.staged_sprite_files.write().clear();
+    *state.staged_catalog.write() = None;
+    *state.staged_staticdata.write() = None;
+    *state.staged_staticmapdata.write() = None;
+
+    Ok(SaveAllMergeResult {
+        dat_saved: true,
+        dat_bytes,
+        sprite_files_copied,
+        catalog_saved,
+        staticdata_saved,
+        staticmapdata_saved,
     })
 }
 

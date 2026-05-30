@@ -1,4 +1,4 @@
-use crate::features::staticdata::{parsers::{load_staticdata, save_staticdata}, StaticData};
+use crate::features::staticdata::{parsers::load_staticdata, StaticData};
 use crate::features::staticmapdata::{parsers::load_staticmapdata, StaticMapData};
 use crate::state::AppState;
 use prost::Message;
@@ -137,8 +137,8 @@ pub async fn execute_staticdata_merge(
         bosses: new_bosses,
         quests: new_quests,
     };
-    save_staticdata(&sd_path, &merged_sd)
-        .map_err(|e| format!("Failed to save merged staticdata: {}", e))?;
+    // Stage in memory instead of writing to disk
+    *state.staged_staticdata.write() = Some((sd_path.clone(), merged_sd));
 
     let map_houses_added = match (official_smd, &current_smd, &smd_path) {
         (Some(official), Some(current), Some(path)) => {
@@ -148,8 +148,8 @@ pub async fn execute_staticdata_merge(
             let mut buf = Vec::new();
             merged_smd.encode(&mut buf)
                 .map_err(|e| format!("Encode staticmapdata error: {}", e))?;
-            std::fs::write(path, buf)
-                .map_err(|e| format!("Write staticmapdata error: {}", e))?;
+            // Stage in memory instead of writing to disk
+            *state.staged_staticmapdata.write() = Some((path.clone(), buf));
             n
         }
         _ => 0,
