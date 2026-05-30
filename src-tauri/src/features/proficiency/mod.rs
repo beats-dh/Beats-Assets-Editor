@@ -186,13 +186,10 @@ pub struct ItemProficiencyInfo {
 /// Scan items.xml and return all items that have a proficiency attribute.
 #[command]
 pub async fn scan_proficiency_items_xml(xml_path: String) -> Result<Vec<ItemProficiencyInfo>, String> {
-    let content = fs::read_to_string(&xml_path)
-        .map_err(|e| format!("Falha ao ler items.xml: {}", e))?;
+    let content = fs::read_to_string(&xml_path).map_err(|e| format!("Falha ao ler items.xml: {}", e))?;
 
-    let item_re = Regex::new(r#"<item\s+(?:fromid|id)="(\d+)"(?:\s[^>]*?name="([^"]*)")?"#)
-        .map_err(|e| format!("Regex error: {}", e))?;
-    let prof_re = Regex::new(r#"<attribute\s+key="proficiency"\s+value="(\d+)""#)
-        .map_err(|e| format!("Regex error: {}", e))?;
+    let item_re = Regex::new(r#"<item\s+(?:fromid|id)="(\d+)"(?:\s[^>]*?name="([^"]*)")?"#).map_err(|e| format!("Regex error: {}", e))?;
+    let prof_re = Regex::new(r#"<attribute\s+key="proficiency"\s+value="(\d+)""#).map_err(|e| format!("Regex error: {}", e))?;
 
     let mut current_item_id: u32 = 0;
     let mut current_item_name = String::new();
@@ -219,13 +216,10 @@ pub async fn scan_proficiency_items_xml(xml_path: String) -> Result<Vec<ItemProf
 /// Update or add/remove proficiency attribute for a single item in items.xml.
 #[command]
 pub async fn update_item_proficiency_xml(xml_path: String, item_id: u32, proficiency_id: Option<u32>) -> Result<(), String> {
-    let content = fs::read_to_string(&xml_path)
-        .map_err(|e| format!("Falha ao ler items.xml: {}", e))?;
+    let content = fs::read_to_string(&xml_path).map_err(|e| format!("Falha ao ler items.xml: {}", e))?;
 
-    let item_re = Regex::new(r#"<item\s+(?:fromid|id)="(\d+)""#)
-        .map_err(|e| format!("Regex error: {}", e))?;
-    let prof_re = Regex::new(r#"<attribute\s+key="proficiency"\s+value="\d+""#)
-        .map_err(|e| format!("Regex error: {}", e))?;
+    let item_re = Regex::new(r#"<item\s+(?:fromid|id)="(\d+)""#).map_err(|e| format!("Regex error: {}", e))?;
+    let prof_re = Regex::new(r#"<attribute\s+key="proficiency"\s+value="\d+""#).map_err(|e| format!("Regex error: {}", e))?;
 
     let lines: Vec<&str> = content.lines().collect();
     let mut result_lines: Vec<String> = Vec::with_capacity(lines.len() + 1);
@@ -309,8 +303,7 @@ pub async fn update_item_proficiency_xml(xml_path: String, item_id: u32, profici
         output.push('\n');
     }
 
-    fs::write(&xml_path, output)
-        .map_err(|e| format!("Falha ao salvar items.xml: {}", e))?;
+    fs::write(&xml_path, output).map_err(|e| format!("Falha ao salvar items.xml: {}", e))?;
 
     Ok(())
 }
@@ -318,13 +311,10 @@ pub async fn update_item_proficiency_xml(xml_path: String, item_id: u32, profici
 /// Batch sync: update multiple items at once.
 #[command]
 pub async fn sync_proficiency_items_xml(xml_path: String, mappings: Vec<ItemProficiencyMapping>) -> Result<SyncResult, String> {
-    let content = fs::read_to_string(&xml_path)
-        .map_err(|e| format!("Falha ao ler items.xml: {}", e))?;
+    let content = fs::read_to_string(&xml_path).map_err(|e| format!("Falha ao ler items.xml: {}", e))?;
 
-    let item_re = Regex::new(r#"<item\s+(?:fromid|id)="(\d+)""#)
-        .map_err(|e| format!("Regex error: {}", e))?;
-    let prof_re = Regex::new(r#"<attribute\s+key="proficiency"\s+value="(\d+)""#)
-        .map_err(|e| format!("Regex error: {}", e))?;
+    let item_re = Regex::new(r#"<item\s+(?:fromid|id)="(\d+)""#).map_err(|e| format!("Regex error: {}", e))?;
+    let prof_re = Regex::new(r#"<attribute\s+key="proficiency"\s+value="(\d+)""#).map_err(|e| format!("Regex error: {}", e))?;
 
     // Build lookup: item_id -> proficiency_id
     let mut mapping_map = std::collections::HashMap::new();
@@ -419,10 +409,7 @@ pub async fn sync_proficiency_items_xml(xml_path: String, mappings: Vec<ItemProf
         }
     }
 
-    let not_found: Vec<u32> = mappings.iter()
-        .filter(|m| !processed_ids.contains(&m.item_id))
-        .map(|m| m.item_id)
-        .collect();
+    let not_found: Vec<u32> = mappings.iter().filter(|m| !processed_ids.contains(&m.item_id)).map(|m| m.item_id).collect();
 
     let has_trailing_newline = content.ends_with('\n');
     let mut output = result_lines.join("\n");
@@ -430,10 +417,13 @@ pub async fn sync_proficiency_items_xml(xml_path: String, mappings: Vec<ItemProf
         output.push('\n');
     }
 
-    fs::write(&xml_path, output)
-        .map_err(|e| format!("Falha ao salvar items.xml: {}", e))?;
+    fs::write(&xml_path, output).map_err(|e| format!("Falha ao salvar items.xml: {}", e))?;
 
-    Ok(SyncResult { updated, added, not_found })
+    Ok(SyncResult {
+        updated,
+        added,
+        not_found,
+    })
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
