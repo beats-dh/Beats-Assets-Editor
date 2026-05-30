@@ -36,8 +36,8 @@ impl LuaNpcParser {
         npc.max_health = to_u32("maxHealth", self.extract_number_field_with_default("maxHealth", 100, &mut missing_fields)?)?;
         npc.walk_interval = to_u32("walkInterval", self.extract_number_field_with_default("walkInterval", 2000, &mut missing_fields)?)?;
         npc.walk_radius = to_u8("walkRadius", self.extract_number_field_with_default("walkRadius", 2, &mut missing_fields)?)?;
-        npc.outfit = self.parse_outfit().unwrap_or_default();
-        npc.flags = self.parse_flags().unwrap_or_default();
+        npc.outfit = self.parse_outfit()?.unwrap_or_default();
+        npc.flags = self.parse_flags()?.unwrap_or_default();
 
         npc.amount_level = self.extract_number_field_optional("amountLevel")?.map(|v| to_u32("amountLevel", v)).transpose()?;
         npc.amount_money = self.extract_number_field_optional("amountMoney")?.map(|v| to_u32("amountMoney", v)).transpose()?;
@@ -46,8 +46,8 @@ impl LuaNpcParser {
         npc.money_to_need_donation = self.extract_number_field_optional("moneyToNeedDonation")?.map(|v| to_u32("moneyToNeedDonation", v)).transpose()?;
         npc.respawn_type = self.extract_string_field_optional("respawnType")?;
 
-        npc.shop = self.parse_shop(&mut missing_fields).unwrap_or(None);
-        npc.voices = self.parse_voices(&mut missing_fields).unwrap_or(None);
+        npc.shop = self.parse_shop(&mut missing_fields)?;
+        npc.voices = self.parse_voices(&mut missing_fields)?;
 
         npc.interactions = self.parse_interactions()?;
 
@@ -115,9 +115,11 @@ impl LuaNpcParser {
         }
     }
 
-    fn parse_outfit(&self) -> Result<NpcOutfit> {
-        let section = self.extract_table("outfit")?;
-        Ok(NpcOutfit {
+    fn parse_outfit(&self) -> Result<Option<NpcOutfit>> {
+        let Some(section) = self.extract_table_optional("outfit")? else {
+            return Ok(None);
+        };
+        Ok(Some(NpcOutfit {
             look_type: self.extract_from_section(&section, "lookType")? as u32,
             look_head: self.extract_from_section(&section, "lookHead")? as u8,
             look_body: self.extract_from_section(&section, "lookBody")? as u8,
@@ -125,14 +127,16 @@ impl LuaNpcParser {
             look_feet: self.extract_from_section(&section, "lookFeet")? as u8,
             look_addons: self.extract_from_section(&section, "lookAddons")? as u8,
             look_mount: self.extract_from_section(&section, "lookMount")? as u16,
-        })
+        }))
     }
 
-    fn parse_flags(&self) -> Result<NpcFlags> {
-        let section = self.extract_table("flags").unwrap_or_default();
-        Ok(NpcFlags {
+    fn parse_flags(&self) -> Result<Option<NpcFlags>> {
+        let Some(section) = self.extract_table_optional("flags")? else {
+            return Ok(None);
+        };
+        Ok(Some(NpcFlags {
             floorchange: self.extract_bool_from_section(&section, "floorchange")?,
-        })
+        }))
     }
 
     fn extract_table(&self, table_name: &str) -> Result<String> {
@@ -195,6 +199,15 @@ impl LuaNpcParser {
         Err(anyhow!("Failed to find closing brace for table"))
     }
 
+    /// Absent section -> `Ok(None)`; present-but-structurally-broken -> `Err`.
+    /// Lets callers default a missing section without masking real corruption.
+    fn extract_table_optional(&self, table_name: &str) -> Result<Option<String>> {
+        if !self.content.contains(&format!("npcConfig.{}", table_name)) {
+            return Ok(None);
+        }
+        self.extract_table(table_name).map(Some)
+    }
+
     fn extract_from_section(&self, section: &str, key: &str) -> Result<i64> {
         let pattern = format!(r"{}\s*=\s*(-?\d+)", key);
         let re = Regex::new(&pattern)?;
@@ -225,10 +238,9 @@ impl LuaNpcParser {
             return Ok(None);
         }
 
-        let section = match self.extract_table("shop") {
-            Ok(s) => s,
-            Err(_) => return Ok(None),
-        };
+        // Present (marker matched above) but unparseable -> surface the error
+        // instead of silently dropping the shop.
+        let section = self.extract_table("shop")?;
 
         let mut items = Vec::new();
         let item_re = Regex::new(r#"(?s)\{\s*(.*?)\s*\}"#)?;
@@ -277,10 +289,8 @@ impl LuaNpcParser {
             return Ok(None);
         }
 
-        let section = match self.extract_table("voices") {
-            Ok(s) => s,
-            Err(_) => return Ok(None),
-        };
+        // Present (marker matched above) but unparseable -> surface the error.
+        let section = self.extract_table("voices")?;
 
         let mut voices = NpcVoices::default();
         if let Some(c) = Regex::new(r"interval\s*=\s*(\d+)")?.captures(&section) {
