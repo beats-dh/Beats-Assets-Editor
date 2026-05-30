@@ -114,28 +114,7 @@ __performanceMonitor.getMetrics();
 
 ---
 
-### 5. Lazy Loading (`lazyLoad.ts`)
-
-Utilities para code splitting e lazy loading de features pesadas.
-
-**Uso**:
-```typescript
-import { lazyLoadModule, shouldLazyLoad } from './utils/lazyLoad';
-
-if (shouldLazyLoad('monsters')) {
-  const module = await lazyLoadModule('monsters');
-  // Use module
-}
-```
-
-**Benefícios**:
-- Reduz initial bundle
-- Lazy load de features pesadas
-- Preload support
-
----
-
-### 6. LRU Cache (`lruCache.ts`)
+### 5. LRU Cache (`lruCache.ts`)
 
 Cache com eviction automática baseado em LRU (Least Recently Used).
 
@@ -160,7 +139,7 @@ console.log(`Cache utilization: ${stats.utilization}%`);
 
 ---
 
-### 7. Debounce/Throttle (`debounce.ts`)
+### 6. Debounce/Throttle (`debounce.ts`)
 
 Funções para debouncing e throttling de eventos.
 

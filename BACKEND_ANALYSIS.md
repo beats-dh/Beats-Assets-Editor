@@ -1,5 +1,11 @@
 # 🦀 Backend Rust - Análise Crítica de Performance e Arquitetura
 
+> ⚠️ **Snapshot histórico (2024-11-21).** As métricas, contagens de
+> arquivos/linhas e a lista de features abaixo refletem o backend naquela data;
+> desde então o projeto cresceu (monsters, npcs, qm, rcc, staticdata,
+> staticmapdata, dat_merge, proficiency). Para o escopo atual veja o
+> [README](README.md). Mantido como referência de decisões de arquitetura/perf.
+
 > **Análise completa do backend Rust do Canary Studio Editor**  
 > **Data**: 2024-11-21  
 > **Linhas de código**: ~8,274 linhas em 41 arquivos  

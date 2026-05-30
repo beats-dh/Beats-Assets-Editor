@@ -233,98 +233,75 @@ npm run tauri build
 ```
 Beats-Assets-Editor/
 ├── src/                          # Frontend (TypeScript/HTML/CSS)
-│   ├── main.ts                   # Ponto de entrada, inicialização
-│   ├── assetUI.ts                # Lógica da grade de assets (otimizado)
-│   ├── assetDetails.ts           # Modal de detalhes de assets
-│   ├── assetSave.ts              # Lógica de salvamento
-│   ├── assetSelection.ts         # Sistema de seleção múltipla
-│   ├── animation.ts              # Sistema de animação
+│   ├── App.svelte                # Componente raiz (roteia entre páginas)
+│   ├── main.ts                   # Ponto de entrada (monta o app Svelte)
+│   ├── i18n.ts                   # Internacionalização (PT-BR/EN/ES/RU)
+│   ├── commands.ts               # Nomes dos comandos Tauri (CommandName)
+│   ├── animation.ts              # Sistema de animação (canvas)
+│   ├── appearanceLoader.ts       # Carregamento de appearances
 │   ├── spriteCache.ts            # Cache de sprites no frontend
-│   ├── i18n.ts                   # Sistema de internacionalização
-│   ├── navigation.ts             # Navegação entre telas
-│   ├── sounds.ts                 # Interface de sons
-│   ├── soundTypes.ts             # Tipos de sons
-│   ├── textureTab.ts             # Aba de texturas
-│   ├── importExport.ts           # Importação/exportação JSON
-│   ├── utils/                    # Utilitários otimizados
-│   │   ├── debounce.ts           # Debounce/throttle
-│   │   ├── dom.ts                # DOM utilities
-│   │   ├── invoke.ts             # Tauri invoke wrapper
-│   │   ├── lruCache.ts           # LRU Cache implementation
-│   │   ├── virtualScroll.ts     # Virtual scrolling (NEW)
-│   │   ├── elementCache.ts      # Element memoization (NEW)
-│   │   ├── viewportUtils.ts     # Viewport detection (NEW)
-│   │   ├── performanceMonitor.ts # Performance tracking (NEW)
-│   │   ├── lazyLoad.ts          # Code splitting utilities (NEW)
-│   │   ├── spriteUrlCache.ts    # Blob URL cache
-│   │   ├── decodedSpriteCache.ts # Decoded sprite cache
-│   │   └── imageDecodeWorkerClient.ts # Worker client
-│   ├── workers/                  # Web Workers
-│   │   ├── animationWorker.ts   # Composição de frames
-│   │   ├── imageBitmapWorker.ts # Decode off-thread
-│   │   └── outfitComposeWorker.ts # Composição de outfits
-│   ├── types.ts                  # TypeScript types
-│   ├── specialMeaning.ts         # IDs especiais do Tibia
-│   ├── confirmModal.ts           # Modal de confirmação
-│   ├── addSoundModal.ts          # Modal de adição de sons
-│   ├── eventListeners.ts         # Event listeners globais
-│   ├── features/
-│   │   ├── assetGrid/            # Layout da grade de assets
-│   │   ├── infiniteScroll/       # Scroll infinito
-│   │   ├── layout/               # Layout components
-│   │   └── previewAnimation/     # Sistema de preview de animações
-│   └── styles/                   # CSS modular
-│       ├── main.css              # CSS principal (imports)
-│       ├── variables.css         # Variáveis CSS
-│       ├── theme.css             # Sistema de temas
-│       ├── base.css              # Estilos base
-│       ├── animations.css        # Animações
-│       ├── buttons.css           # Botões
-│       ├── forms.css             # Formulários
-│       ├── header.css            # Header
-│       ├── categories.css        # Categorias
-│       ├── assets.css            # Grade de assets
-│       ├── modals.css            # Modals
-│       ├── search.css            # Busca
-│       ├── loading.css           # Loading screen
-│       ├── audio.css             # Player de áudio
-│       ├── texture.css           # Aba de texturas
-│       ├── responsive.css        # Media queries
-│       └── utilities.css         # Utilitários
+│   ├── spriteLibrary.ts          # Biblioteca/drawer de sprites
+│   ├── types.ts / monsterTypes.ts / npcTypes.ts / soundTypes.ts  # Tipos TS
+│   ├── specialMeaning.ts / validation.ts / history.ts / utils.ts
+│   ├── lib/
+│   │   ├── pages/                # Páginas (telas) Svelte
+│   │   │   ├── Launcher.svelte           # Seleção de editor
+│   │   │   ├── AssetEditorLayout.svelte  # Editor de appearances/sprites/sons
+│   │   │   ├── MonsterEditorPage.svelte  # Editor de monstros
+│   │   │   ├── NpcEditorPage.svelte      # Editor de NPCs
+│   │   │   ├── ProficiencyEditorPage.svelte
+│   │   │   └── DatMergePage.svelte       # Ferramenta de merge de .dat
+│   │   └── components/           # Componentes Svelte
+│   │       ├── Header / CategoryNav / CategoryView / SettingsMenu
+│   │       ├── AssetDetailsModal / SpriteLibraryDrawer / ImportStartIdModal
+│   │       ├── QmTranslationEditor        # Editor de traduções .qm
+│   │       ├── RccBrowser                 # Browser de recursos .rcc
+│   │       ├── StaticDataBrowser/Modal/FormModal
+│   │       ├── AddSoundModal / ConfirmModal
+│   │       └── asset-details/ , monster-editor/ , npc-editor/
+│   ├── stores/                   # Estado reativo (Svelte 5 runes, *.svelte.ts)
+│   │   ├── appState / assetsState / selectionState / settingsState
+│   │   ├── monsterState / npcState / importExportState / confirmState
+│   │   └── spriteLibraryState / performanceConfig
+│   ├── services/                 # Camada de serviço (chama o backend)
+│   │   └── assetService.ts / importExportService.ts / soundService.ts
+│   ├── utils/                    # Utilitários
+│   │   ├── invoke.ts             # Wrapper type-safe do Tauri invoke
+│   │   ├── lruCache.ts / elementCache.ts / cacheRegistry.ts
+│   │   ├── virtualScroll.ts / viewportUtils.ts / performanceMonitor.ts
+│   │   ├── debounce.ts / dom.ts / assetHelpers.ts / handlerFactories.ts
+│   │   └── spriteLoading.ts / spriteUrlCache.ts / imageDecodeWorkerClient.ts
+│   ├── workers/                  # Web Workers (off-thread)
+│   │   └── animationWorker.ts / imageBitmapWorker.ts / outfitComposeWorker.ts
+│   ├── features/                 # CSS/lógica de layout (assetGrid, layout, previewAnimation)
+│   └── styles/                   # CSS modular (main.css + variables, theme, modals, texture, proficiency, ...)
 ├── index.html                    # HTML base da aplicação
 ├── src-tauri/                    # Backend (Rust/Tauri)
 │   ├── src/
 │   │   ├── main.rs               # Entry point
 │   │   ├── lib.rs                # Builder Tauri, registro de comandos
-│   │   ├── state.rs              # Estado global (otimizado com LRU caches)
+│   │   ├── state.rs              # Estado global (LRU caches)
 │   │   ├── core/                 # Módulos core
-│   │   │   ├── cache.rs          # LRU Cache implementation (NEW)
-│   │   │   ├── errors.rs         # Structured errors (NEW)
-│   │   │   ├── lzma/             # Decompressão LZMA/XZ (paralela)
-│   │   │   └── protobuf/         # Definições protobuf geradas
+│   │   │   ├── cache.rs          # LRU Cache (DashMap)
+│   │   │   ├── errors.rs         # Erros estruturados
+│   │   │   ├── validation.rs     # Validações
+│   │   │   ├── lua.rs            # Escape de strings Lua
+│   │   │   ├── fs_util.rs        # Escrita atômica (temp + rename)
+│   │   │   ├── lzma/             # Compressão/descompressão LZMA/XZ
+│   │   │   └── protobuf/         # Bindings protobuf gerados (build.rs)
 │   │   └── features/             # Features organizadas por domínio
-│   │       ├── cache/            # Cache management commands (NEW)
-│   │       ├── appearances/      # Feature de appearances
-│   │       │   ├── mod.rs
-│   │       │   ├── types.rs      # Tipos e estruturas
-│   │       │   ├── parsers/      # Parsers de appearances
-│   │       │   └── commands/     # Comandos Tauri
-│   │       │       ├── io.rs     # Load/save/list files
-│   │       │       ├── query.rs  # Consultas e filtros
-│   │       │       ├── update.rs # Atualizações de properties
-│   │       │       ├── import_export.rs # JSON import/export
-│   │       │       ├── conversion.rs    # Conversões de tipos
-│   │       │       ├── helpers.rs       # Funções auxiliares
-│   │       │       └── category_types.rs # Tipos de categorias
-│   │       ├── sprites/          # Feature de sprites
-│   │       │   ├── mod.rs
-│   │       │   ├── parsers/      # SpriteLoader
-│   │       │   └── commands/     # Comandos de sprites
-│   │       ├── sounds/           # Feature de sons
-│   │       │   ├── mod.rs
-│   │       │   ├── parsers/      # Parser de sounds.dat
-│   │       │   └── commands/     # Comandos de sons
-│   │       └── settings/         # Configurações persistentes
+│   │       ├── appearances/      # io, query, update, import_export, conversion, helpers
+│   │       ├── sprites/          # SpriteLoader (catálogo + legacy .spr) + comandos
+│   │       ├── sounds/           # parser de sounds + comandos
+│   │       ├── monsters/         # parser/gerador .lua + comandos
+│   │       ├── npcs/             # parser/gerador .lua + sync de shop
+│   │       ├── qm/               # parser/writer .qm + comandos (CSV)
+│   │       ├── rcc/              # parser/writer .rcc + comandos
+│   │       ├── staticdata/       # leitura/escrita (preserva compressão)
+│   │       ├── staticmapdata/    # leitura/escrita
+│   │       ├── dat_merge/        # merge de appearances/sprites/staticdata
+│   │       ├── proficiency/      # inspeção/edição de proficiências
+│   │       └── settings/         # configurações persistentes
 │   ├── protobuf/                 # Arquivos .proto
 │   │   ├── appearances.proto     # Schema de appearances
 │   │   ├── shared.proto          # Tipos compartilhados
@@ -574,6 +551,67 @@ Cada feature contém:
 
 - `set_tibia_base_path(tibia_path: string) -> void`: Persiste caminho em `settings.json`
 - `get_tibia_base_path() -> string | null`: Obtém caminho persistido
+- `set_monster_base_path` / `get_monster_base_path`: Caminho da pasta de monstros
+- `set_npc_base_path` / `get_npc_base_path`: Caminho da pasta de NPCs
+
+### Sprites (em lote / edição)
+
+- `get_appearance_sprites_batch` / `get_appearance_preview_sprites_batch`: Carrega sprites/previews de vários appearances em paralelo
+- `get_complete_appearances_batch`: Estruturas completas em lote
+- `append_appearance_sprites` / `replace_appearance_sprites` / `remove_appearance_sprites`: Edição dos sprites de um appearance
+- `get_cache_memory_stats`: Estatísticas de memória dos caches
+
+### Import/Export (lote e AEC)
+
+- `import_appearances_from_files(category, paths, start_id?)`: Importa appearances de arquivos (JSON/AEC) para uma categoria
+- `import_appearances_from_files_all(paths, start_ids?)`: Importa para todas as categorias (usa a `category` gravada no JSON)
+- `export_appearance_to_aec(category, id, path)`: Exporta para container AEC (+ `.aec.sprites` companion)
+- `get_import_context(paths)`: Detecta presença por categoria antes de importar
+
+### Monstros
+
+- `list_monster_files(path)` / `load_monster_file(path)` / `save_monster_file(path, monster)`
+- `rename_monster_file(old_path, new_name)`
+- `list_bestiary_classes()`: Classes de bestiary conhecidas
+
+### NPCs
+
+- `list_npc_files(path)` / `load_npc_file(path)` / `save_npc_file(path, npc)`
+- `rename_npc_file(old_path, new_name)`
+- `sync_npc_shops_from_proto(...)`: Sincroniza itens da loja a partir do protobuf
+
+### QM (traduções Qt)
+
+- `qm_find_files(base)` / `qm_load(path)` / `qm_get_entries()` / `qm_save(output_path?)`
+- `qm_update_translation` / `qm_update_translations`: Atualiza traduções
+- `qm_export_csv(path)` / `qm_import_csv(path)`: Round-trip CSV (campos multilinha)
+- `qm_debug_raw()`: Dump hex para diagnóstico
+
+### RCC (recursos)
+
+- `rcc_find_files(base)` / `rcc_load(path)` / `rcc_save(output_path?)`
+- `rcc_get_files()` / `rcc_get_resource(index)`
+- `rcc_extract_all(output_dir)` / `rcc_extract_single(index, output_path)` (paths sanitizados contra zip-slip)
+- `rcc_add_resource` / `rcc_replace_resource` / `rcc_replace_from_file` / `rcc_delete_resource`
+
+### Static Data / Static Map Data
+
+- `list_staticdata_files` / `load_staticdata_file` / `save_staticdata_file` (preserva compressão XZ/LZMA)
+- `get_staticdata_creatures|bosses|titles|houses|quests`
+- `update_staticdata_creature|boss|title|quest` / `remove_staticdata_item`
+- `list_staticmapdata_files` / `load_staticmapdata_file` / `save_staticmapdata_file` / `get_staticmapdata_houses`
+
+### DAT Merge
+
+- `load_merge_source` / `load_merge_source_assets` / `load_merge_folder` / `unload_merge_source`
+- `get_merge_preview` / `get_sprite_merge_preview` / `get_staticdata_merge_preview`
+- `execute_dat_merge` / `execute_sprite_merge` / `execute_staticdata_merge`
+- `save_merged_dat` / `save_all_merge`
+
+### Proficiências
+
+- `load_proficiency_file` / `save_proficiency_file` / `inspect_proficiency_file`
+- `scan_proficiency_items_xml` / `sync_proficiency_items_xml` / `update_item_proficiency_xml`
 
 ## 🧱 Tipos e Categorias
 

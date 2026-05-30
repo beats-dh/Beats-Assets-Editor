@@ -1,10 +1,17 @@
-# 🎨 Frontend TypeScript - Análise Crítica de Performance e Arquitetura
+# 🎨 Frontend - Análise Crítica de Performance e Arquitetura
 
-> **Análise completa do frontend TypeScript do Canary Studio Editor**  
+> ⚠️ **Snapshot histórico (2024-11-21).** Este documento analisa o frontend
+> quando ainda era **Vanilla TypeScript**; desde então a UI foi migrada para
+> **Svelte 5** (`App.svelte`, `lib/pages`, `lib/components`, stores `*.svelte.ts`).
+> As métricas e a estrutura abaixo estão desatualizadas — veja o
+> [README](README.md) para o estado atual. Mantido como referência de
+> otimizações de performance.
+
+> **Análise completa do frontend do Canary Studio Editor**  
 > **Data**: 2024-11-21  
 > **Linhas de código**: ~19,279 linhas TypeScript + ~6,185 linhas CSS  
 > **Arquivos**: 43 arquivos TypeScript, 22 arquivos CSS  
-> **Framework**: Vanilla TypeScript + Vite
+> **Framework (na época)**: Vanilla TypeScript + Vite → hoje: Svelte 5 + TypeScript + Vite
 
 ---
 
