@@ -3,6 +3,11 @@ name: Rustfmt Auto
 permissions:
   contents: write
 
+# Cancela execuções antigas quando chega um commit novo no mesmo branch/PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     paths:

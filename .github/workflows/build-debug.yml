@@ -1,5 +1,12 @@
 name: Tauri Build Debug (Linux)
 
+# Cancela builds antigas quando chega um commit novo. A chave agrupa push e
+# pull_request do mesmo branch no mesmo grupo, então só a build do último
+# commit sobrevive (evita também o build duplicado push + PR).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 on:
   push:
     branches-ignore:

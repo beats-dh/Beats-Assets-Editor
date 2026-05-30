@@ -2,6 +2,11 @@ name: Tauri Build Release (Linux)
 permissions:
   contents: read
 
+# Cancela uma release em andamento quando chega um push novo no mesmo ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
