@@ -1,10 +1,11 @@
 # 🎮 Canary Studio Editor
 
-Um editor moderno e profissional de assets do Tibia 15.x construído com **Rust + Tauri 2** no backend e **TypeScript + Vite 6** no frontend. Permite explorar, editar e gerenciar completamente os assets do Tibia, incluindo appearances (Objects, Outfits, Effects, Missiles), sprites e sons.
+Um editor moderno e profissional de assets do Tibia 15.x construído com **Rust + Tauri 2** no backend e **Svelte 5 + TypeScript + Vite 6** no frontend. Permite explorar, editar e gerenciar completamente os assets e dados do servidor/cliente, incluindo appearances (Objects, Outfits, Effects, Missiles), sprites, sons, **monstros e NPCs (.lua)**, **traduções (.qm)**, **recursos compilados (.rcc)**, **static data / static map data** e **merge de arquivos .dat**.
 
 ![Status](https://img.shields.io/badge/status-beta-green)
-![Rust](https://img.shields.io/badge/rust-1.90+-orange)
+![Rust](https://img.shields.io/badge/rust-1.77+-orange)
 ![Tauri](https://img.shields.io/badge/tauri-2.9+-blue)
+![Svelte](https://img.shields.io/badge/svelte-5-ff3e00)
 ![Vite](https://img.shields.io/badge/vite-6.0+-purple)
 ![TypeScript](https://img.shields.io/badge/typescript-5.6-blue)
 ![Performance](https://img.shields.io/badge/performance-9.5%2F10-brightgreen)
@@ -22,7 +23,14 @@ Um editor moderno e profissional de assets do Tibia 15.x construído com **Rust 
 - **Editor Avançado de Propriedades**: Edição completa de flags, atributos e configurações de appearances.
 - **Gerenciamento de Sprites**: Visualização, cache otimizado e preview de sprites com suporte a animações.
 - **Sistema de Sons**: Carregamento e gerenciamento de efeitos sonoros, ambient streams, object streams e music templates.
-- **Importação/Exportação**: Suporte para exportar e importar appearances em formato JSON.
+- **Editor de Monstros**: Parse e geração de scripts `.lua` de monstros (Canary), com bestiary, bosstiary, loot, ataques, defesas, elementos e imunidades.
+- **Editor de NPCs**: Parse/geração de `.lua` de NPCs, incluindo loja (shop) e sincronização de itens.
+- **Editor de Traduções (QM)**: Leitura/escrita de arquivos `.qm` (Qt), com import/export CSV.
+- **Browser de RCC**: Inspeção e extração de recursos de arquivos `.rcc` (Qt Resource Collection).
+- **Static Data / Static Map Data**: Edição de `staticdata`/`staticmapdata` preservando o formato comprimido (XZ/LZMA) no salvamento.
+- **Editor de Proficiências**: Inspeção e edição de proficiências (items.xml).
+- **DAT Merge**: Ferramenta para mesclar appearances/sprites/static data entre arquivos `.dat`, com remapeamento determinístico de IDs.
+- **Importação/Exportação**: Appearances em JSON e em container **AEC** (com bytes de sprites em arquivo companion para reconstrução cross-environment).
 - **Interface Moderna**: UI responsiva e intuitiva com suporte a múltiplos temas e idiomas (Português, English, Español, Русский).
 - **Sistema de Seleção Múltipla**: Seleção e manipulação de múltiplos assets simultaneamente.
 - **Infinite Scroll**: Navegação otimizada com scroll infinito para grandes conjuntos de dados.
@@ -55,7 +63,7 @@ Um editor moderno e profissional de assets do Tibia 15.x construído com **Rust 
 
 - **Windows 10/11** (suporte primário; Linux/macOS em desenvolvimento).
 - **Node.js 18+** e **npm**.
-- **Rust 1.90+** com toolchain MSVC.
+- **Rust 1.77+** com toolchain MSVC.
 - **Pré-requisitos Tauri no Windows**:
   - **Microsoft Visual C++ Build Tools** (Desktop development with C++).
   - **Microsoft Edge WebView2 Runtime** instalado.
@@ -63,6 +71,7 @@ Um editor moderno e profissional de assets do Tibia 15.x construído com **Rust 
 ### Dependências Principais
 
 **Frontend:**
+- `svelte`: ^5.48 (+ `@sveltejs/vite-plugin-svelte`)
 - `@tauri-apps/api`: ^2
 - `@tauri-apps/plugin-dialog`: ^2
 - `@tauri-apps/plugin-opener`: ^2
@@ -77,6 +86,7 @@ Um editor moderno e profissional de assets do Tibia 15.x construído com **Rust 
 - `xz2`: 0.1 (decompressão XZ)
 - `image`: 0.25 (manipulação de imagens - PNG, JPEG, BMP)
 - `serde` + `serde_json`: 1 (serialização)
+- `csv`: 1 (import/export CSV de traduções QM)
 - `anyhow`: 1.0 + `thiserror`: 2.0 (error handling)
 - `log`: 0.4 + `env_logger`: 0.11
 - `base64`: 0.22
@@ -90,7 +100,7 @@ Um editor moderno e profissional de assets do Tibia 15.x construído com **Rust 
 ### Pré-requisitos
 
 #### 1. Instale o Rust
-O projeto requer Rust 1.90 ou superior com toolchain MSVC.
+O projeto requer Rust 1.77 ou superior com toolchain MSVC.
 
 **Windows:**
 1. Baixe e instale o **rustup** em [https://rustup.rs/](https://rustup.rs/)
@@ -317,6 +327,11 @@ Beats-Assets-Editor/
 │   │       └── settings/         # Configurações persistentes
 │   ├── protobuf/                 # Arquivos .proto
 │   │   ├── appearances.proto     # Schema de appearances
+│   │   ├── shared.proto          # Tipos compartilhados
+│   │   ├── map.proto             # Schema de mapa
+│   │   ├── staticdata.proto      # Schema de static data
+│   │   ├── staticmapdata.proto   # Schema de static map data
+│   │   ├── sounds-common.proto   # Tipos comuns de sons
 │   │   └── sounds.proto          # Schema de sounds
 │   ├── build.rs                  # Build script (compila protobuf)
 │   ├── tauri.conf.json           # Configuração Tauri
@@ -419,6 +434,13 @@ O backend segue uma arquitetura modular baseada em features:
 - **appearances**: Gerenciamento de appearances (Objects, Outfits, Effects, Missiles)
 - **sprites**: Carregamento e cache de sprites
 - **sounds**: Gerenciamento de sons e efeitos sonoros
+- **monsters**: Parser/gerador de monstros `.lua`
+- **npcs**: Parser/gerador de NPCs `.lua` + sync de shop
+- **qm**: Parser/writer de traduções Qt `.qm` (+ CSV)
+- **rcc**: Parser/writer de recursos `.rcc`
+- **staticdata** / **staticmapdata**: Leitura/escrita preservando compressão
+- **dat_merge**: Merge de appearances/sprites/static data
+- **proficiency**: Inspeção/edição de proficiências
 - **settings**: Configurações persistentes da aplicação
 
 Cada feature contém:
@@ -747,6 +769,7 @@ Feito com ❤️ usando **Rust + Tauri** e **TypeScript + Vite**.
 **Tecnologias principais:**
 - [Tauri](https://tauri.app/) - Framework desktop
 - [Rust](https://www.rust-lang.org/) - Backend performático
+- [Svelte](https://svelte.dev/) - Framework de UI reativo
 - [TypeScript](https://www.typescriptlang.org/) - Frontend type-safe
 - [Vite](https://vitejs.dev/) - Build tool moderno
 - [Protocol Buffers](https://protobuf.dev/) - Serialização eficiente
