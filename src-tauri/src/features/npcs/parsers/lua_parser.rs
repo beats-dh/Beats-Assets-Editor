@@ -3,6 +3,15 @@ use anyhow::{anyhow, Context, Result};
 use regex::Regex;
 use std::collections::HashSet;
 
+// Checked conversions from the parsed i64 to unsigned widths, so a negative or
+// oversized value fails instead of silently wrapping (e.g. -1 -> 4294967295).
+fn to_u32(field: &str, v: i64) -> Result<u32> {
+    u32::try_from(v).map_err(|_| anyhow!("Field '{}' out of range for u32: {}", field, v))
+}
+fn to_u8(field: &str, v: i64) -> Result<u8> {
+    u8::try_from(v).map_err(|_| anyhow!("Field '{}' out of range for u8: {}", field, v))
+}
+
 pub struct LuaNpcParser {
     content: String,
 }
@@ -23,18 +32,18 @@ impl LuaNpcParser {
 
         npc.name = internal_name;
         npc.description = internal_desc;
-        npc.health = self.extract_number_field_with_default("health", 100, &mut missing_fields)? as u32;
-        npc.max_health = self.extract_number_field_with_default("maxHealth", 100, &mut missing_fields)? as u32;
-        npc.walk_interval = self.extract_number_field_with_default("walkInterval", 2000, &mut missing_fields)? as u32;
-        npc.walk_radius = self.extract_number_field_with_default("walkRadius", 2, &mut missing_fields)? as u8;
+        npc.health = to_u32("health", self.extract_number_field_with_default("health", 100, &mut missing_fields)?)?;
+        npc.max_health = to_u32("maxHealth", self.extract_number_field_with_default("maxHealth", 100, &mut missing_fields)?)?;
+        npc.walk_interval = to_u32("walkInterval", self.extract_number_field_with_default("walkInterval", 2000, &mut missing_fields)?)?;
+        npc.walk_radius = to_u8("walkRadius", self.extract_number_field_with_default("walkRadius", 2, &mut missing_fields)?)?;
         npc.outfit = self.parse_outfit().unwrap_or_default();
         npc.flags = self.parse_flags().unwrap_or_default();
 
-        npc.amount_level = self.extract_number_field_optional("amountLevel")?.map(|v| v as u32);
-        npc.amount_money = self.extract_number_field_optional("amountMoney")?.map(|v| v as u32);
-        npc.currency = self.extract_number_field_optional("currency")?.map(|v| v as u32);
-        npc.max_level = self.extract_number_field_optional("maxLevel")?.map(|v| v as u32);
-        npc.money_to_need_donation = self.extract_number_field_optional("moneyToNeedDonation")?.map(|v| v as u32);
+        npc.amount_level = self.extract_number_field_optional("amountLevel")?.map(|v| to_u32("amountLevel", v)).transpose()?;
+        npc.amount_money = self.extract_number_field_optional("amountMoney")?.map(|v| to_u32("amountMoney", v)).transpose()?;
+        npc.currency = self.extract_number_field_optional("currency")?.map(|v| to_u32("currency", v)).transpose()?;
+        npc.max_level = self.extract_number_field_optional("maxLevel")?.map(|v| to_u32("maxLevel", v)).transpose()?;
+        npc.money_to_need_donation = self.extract_number_field_optional("moneyToNeedDonation")?.map(|v| to_u32("moneyToNeedDonation", v)).transpose()?;
         npc.respawn_type = self.extract_string_field_optional("respawnType")?;
 
         npc.shop = self.parse_shop(&mut missing_fields).unwrap_or(None);

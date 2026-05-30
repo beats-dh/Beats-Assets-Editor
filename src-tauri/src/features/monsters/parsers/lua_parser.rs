@@ -4,6 +4,16 @@ use regex::Regex;
 use std::collections::HashSet;
 use std::fmt;
 
+// Checked conversions from the parsed i64 to unsigned widths. A plain `as`
+// cast would wrap negatives/overflow silently (e.g. -1 -> 4294967295),
+// corrupting the monster instead of surfacing the bad input.
+fn to_u32(field: &str, v: i64) -> Result<u32> {
+    u32::try_from(v).map_err(|_| anyhow!("Field '{}' out of range for u32: {}", field, v))
+}
+fn to_u16(field: &str, v: i64) -> Result<u16> {
+    u16::try_from(v).map_err(|_| anyhow!("Field '{}' out of range for u16: {}", field, v))
+}
+
 pub struct LuaMonsterParser {
     content: String,
 }
@@ -22,17 +32,17 @@ impl LuaMonsterParser {
 
         monster.name = self.extract_monster_name()?;
         monster.description = self.extract_string_field_with_default("description", "", &mut missing_fields)?;
-        monster.experience = self.extract_number_field_with_default("experience", 0, &mut missing_fields)? as u32;
+        monster.experience = to_u32("experience", self.extract_number_field_with_default("experience", 0, &mut missing_fields)?)?;
         monster.outfit = self.parse_outfit().unwrap_or_default();
-        monster.race_id = self.extract_number_field_with_default("raceId", 0, &mut missing_fields)? as u32;
+        monster.race_id = to_u32("raceId", self.extract_number_field_with_default("raceId", 0, &mut missing_fields)?)?;
         monster.bestiary = self.parse_bestiary().ok();
         monster.bosstiary = self.parse_bosstiary().ok();
-        monster.health = self.extract_number_field_with_default("health", 0, &mut missing_fields)? as u32;
-        monster.max_health = self.extract_number_field_with_default("maxHealth", 0, &mut missing_fields)? as u32;
+        monster.health = to_u32("health", self.extract_number_field_with_default("health", 0, &mut missing_fields)?)?;
+        monster.max_health = to_u32("maxHealth", self.extract_number_field_with_default("maxHealth", 0, &mut missing_fields)?)?;
         monster.race = self.extract_string_field_with_default("race", "", &mut missing_fields)?;
-        monster.corpse = self.extract_number_field_with_default("corpse", 0, &mut missing_fields)? as u32;
-        monster.speed = self.extract_number_field_with_default("speed", 0, &mut missing_fields)? as u16;
-        monster.mana_cost = self.extract_number_field_with_default("manaCost", 0, &mut missing_fields)? as u16;
+        monster.corpse = to_u32("corpse", self.extract_number_field_with_default("corpse", 0, &mut missing_fields)?)?;
+        monster.speed = to_u16("speed", self.extract_number_field_with_default("speed", 0, &mut missing_fields)?)?;
+        monster.mana_cost = to_u16("manaCost", self.extract_number_field_with_default("manaCost", 0, &mut missing_fields)?)?;
         monster.change_target = self.parse_change_target().unwrap_or_default();
         monster.strategies_target = self.parse_strategies_target().unwrap_or_default();
         monster.flags = self.parse_flags().unwrap_or_default();
