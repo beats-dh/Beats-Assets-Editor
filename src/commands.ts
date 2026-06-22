@@ -13,11 +13,13 @@ export const COMMANDS = {
   LIST_APPEARANCE_FILES: 'list_appearance_files',
   LIST_APPEARANCES_BY_CATEGORY: 'list_appearances_by_category',
   FIND_APPEARANCE_POSITION: 'find_appearance_position',
+  SEARCH_APPEARANCES_BY_FLAGS: 'search_appearances_by_flags',
   GET_APPEARANCE_DETAILS: 'get_appearance_details',
   GET_APPEARANCE_COUNT: 'get_appearance_count',
   GET_ITEM_SUBCATEGORIES: 'get_item_subcategories',
   GET_COMPLETE_APPEARANCE: 'get_complete_appearance',
   GET_COMPLETE_APPEARANCES_BATCH: 'get_complete_appearances_batch',
+  GET_APPEARANCE_RAW_DUMP: 'get_appearance_raw_dump',
   GET_SPECIAL_MEANING_IDS: 'get_special_meaning_ids',
 
   // Appearance Updates
@@ -64,6 +66,7 @@ export const COMMANDS = {
 
   // Appearance Management
   DUPLICATE_APPEARANCE: 'duplicate_appearance',
+  DUPLICATE_APPEARANCES_BATCH: 'duplicate_appearances_batch',
   CREATE_EMPTY_APPEARANCE: 'create_empty_appearance',
   COPY_APPEARANCE_FLAGS: 'copy_appearance_flags',
   PASTE_APPEARANCE_FLAGS: 'paste_appearance_flags',
@@ -79,6 +82,10 @@ export const COMMANDS = {
   GET_SPRITE_CACHE_STATS: 'get_sprite_cache_stats',
   GET_APPEARANCE_SPRITES_BATCH: 'get_appearance_sprites_batch',
   GET_APPEARANCE_PREVIEW_SPRITES_BATCH: 'get_appearance_preview_sprites_batch',
+  EXPORT_SPRITES_TO_PNG: 'export_sprites_to_png',
+  SAVE_IMAGE_BYTES: 'save_image_bytes',
+  IMPORT_IMAGE_AS_TILES: 'import_image_as_tiles',
+  COMPILE_IMPORTED_SPRITES: 'compile_imported_sprites',
 
   // Sounds Commands
   LOAD_SOUNDS_FILE: 'load_sounds_file',
@@ -134,6 +141,10 @@ export const COMMANDS = {
   GET_MONSTER_BASE_PATH: 'get_monster_base_path',
   SET_NPC_BASE_PATH: 'set_npc_base_path',
   GET_NPC_BASE_PATH: 'get_npc_base_path',
+  GET_PRESETS: 'get_presets',
+  SAVE_PRESET: 'save_preset',
+  DELETE_PRESET: 'delete_preset',
+  APPLY_PRESET: 'apply_preset',
 
   // Cache Management Commands
   GET_CACHE_STATISTICS: 'get_cache_statistics',

@@ -10,10 +10,17 @@
     CompleteSpriteInfo,
   } from "../../../../types";
   import { translate } from "../../../../i18n";
+  import {
+    exportCanvasAsPng,
+    saveBytesToFile,
+  } from "../../../../services/imageExportService";
+  import { showStatus } from "../../../../utils";
+  import { GIFEncoder, quantize, applyPalette } from "gifenc";
   interface Props {
     details: CompleteAppearanceItem;
     sprites: Uint8Array[];
     previewState: any;
+    previewZoom?: number;
     spriteInfo: CompleteSpriteInfo | undefined;
     isOutfit: boolean;
     onDropSprites?: (detail: { spriteIds: number[] }) => void;
@@ -23,6 +30,7 @@
     details,
     sprites,
     previewState: ps,
+    previewZoom = 1,
     spriteInfo,
     isOutfit,
     onDropSprites,
@@ -118,7 +126,10 @@
   function computePreviewScale(width: number, height: number): number {
     const maxDim = Math.max(width, height);
     if (maxDim === 0) return 1;
-    return Math.max(1, Math.floor(MIN_PREVIEW_DIM / maxDim));
+    const baseScale = Math.max(1, Math.floor(MIN_PREVIEW_DIM / maxDim));
+    const zoom =
+      typeof previewZoom === "number" && previewZoom > 0 ? previewZoom : 1;
+    return Math.max(1, Math.round(baseScale * zoom));
   }
 
   function drawBoundingSquareOverlay(
@@ -468,6 +479,7 @@
   $effect(() => {
     if (ps) {
       spriteInfo;
+      previewZoom;
       draw();
     }
   });
@@ -484,6 +496,59 @@
   function handleDragLeave() {
     dropZone?.classList.remove("is-drag-over");
   }
+  function exportPng() {
+    if (!canvas) return;
+    const kind = isOutfit ? "outfit" : "object";
+    void exportCanvasAsPng(canvas, `${kind}-${details?.id ?? 0}.png`);
+  }
+
+  let isExportingGif = $state(false);
+  let canExportGif = $derived(getFrameCount(spriteInfo) > 1);
+
+  async function exportGif() {
+    if (!canvas || !ctx || isExportingGif) return;
+    const frameCount = getFrameCount(spriteInfo);
+    if (frameCount <= 1) {
+      exportPng();
+      return;
+    }
+    isExportingGif = true;
+    stopAnimation();
+    const phases = spriteInfo?.animation?.phases ?? [];
+    const originalFrame = ps.frame;
+    try {
+      const enc = GIFEncoder();
+      for (let i = 0; i < frameCount; i++) {
+        // Mutating ps.frame doesn't change the prop reference, so the reactive
+        // redraw effect won't fire — we drive each frame's render manually.
+        ps.frame = i;
+        await draw();
+        const w = canvas.width;
+        const h = canvas.height;
+        const data = ctx.getImageData(0, 0, w, h).data;
+        const palette = quantize(data, 256);
+        const index = applyPalette(data, palette);
+        const delay = Math.max(20, Number(phases[i]?.duration_min ?? 100));
+        enc.writeFrame(index, w, h, { palette, delay });
+      }
+      enc.finish();
+      const kind = isOutfit ? "outfit" : "object";
+      await saveBytesToFile(
+        enc.bytes(),
+        `${kind}-${details?.id ?? 0}.gif`,
+        "GIF",
+        "gif",
+      );
+    } catch (err) {
+      console.error("Failed to export GIF", err);
+      showStatus(translate("status.imageExportFailed"), "error");
+    } finally {
+      ps.frame = originalFrame;
+      void draw();
+      isExportingGif = false;
+    }
+  }
+
   function handleDrop(e: DragEvent) {
     e.preventDefault();
     dropZone?.classList.remove("is-drag-over");
@@ -528,4 +593,24 @@
     width="96"
     height="96"
   ></canvas>
+  <div class="texture-export-row">
+    <button
+      type="button"
+      class="texture-export-png"
+      title={translate("texture.preview.exportPng")}
+      onclick={exportPng}>⬇ PNG</button
+    >
+    {#if canExportGif}
+      <button
+        type="button"
+        class="texture-export-png"
+        title={translate("texture.preview.exportGif")}
+        disabled={isExportingGif}
+        onclick={exportGif}
+        >{isExportingGif
+          ? translate("texture.preview.exportingGif")
+          : "⬇ GIF"}</button
+      >
+    {/if}
+  </div>
 </div>

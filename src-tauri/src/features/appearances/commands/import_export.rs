@@ -1,4 +1,4 @@
-use super::conversion::{clone_with_new_id, complete_flags_to_proto, complete_to_protobuf};
+use super::conversion::{clone_with_new_id, complete_flags_to_proto, complete_to_protobuf, remap_internal_references};
 use super::helpers::{get_items_by_category, get_items_by_category_mut, get_index_for_category, rebuild_indexes, invalidate_search_cache};
 use crate::core::protobuf::{Appearance, Appearances};
 use crate::features::appearances::{AppearanceCategory, CompleteAppearanceItem, CompleteFlags};
@@ -459,6 +459,65 @@ pub async fn duplicate_appearance(category: AppearanceCategory, source_id: u32, 
     };
 
     Ok(CompleteAppearanceItem::from_protobuf(&stored))
+}
+
+/// Duplicates several appearances in one pass. Each clone gets the next free id;
+/// when `remap_refs` is set, object-id self-references (trade_as / show_as /
+/// changed-to-expire) that point at the source are rewired to the new id. Indexes
+/// and the search cache are rebuilt once at the end. Returns `(source_id, new_id)`
+/// pairs in input order.
+#[tauri::command]
+pub async fn duplicate_appearances_batch(category: AppearanceCategory, source_ids: Vec<u32>, remap_refs: bool, state: State<'_, AppState>) -> Result<Vec<(u32, u32)>, String> {
+    if source_ids.is_empty() {
+        return Err("No source appearances provided".to_string());
+    }
+
+    let mut appearances_lock = state.appearances.write();
+    let appearances = appearances_lock.as_mut().ok_or_else(|| "No appearances loaded".to_string())?;
+
+    let index_map = get_index_for_category(&state, &category);
+    let items = get_items_by_category(appearances, &category);
+
+    // Snapshot the sources (cloned) and validate they all exist before mutating.
+    let mut sources: Vec<(u32, Appearance)> = Vec::with_capacity(source_ids.len());
+    for source_id in &source_ids {
+        let pos = index_map.get(source_id).ok_or_else(|| format!("Appearance {} not found in {:?}", source_id, category))?;
+        let src = items.get(*pos).ok_or_else(|| format!("Appearance {} not found in {:?}", source_id, category))?.clone();
+        sources.push((*source_id, src));
+    }
+
+    // Assign ids without colliding with existing ones or with each other.
+    let mut used: HashSet<u32> = items.iter().filter_map(|a| a.id).collect();
+    let mut candidate = find_next_available_id(items);
+
+    let mut new_items: Vec<Appearance> = Vec::with_capacity(sources.len());
+    let mut assigned: Vec<(u32, u32)> = Vec::with_capacity(sources.len());
+    for (old_id, src) in &sources {
+        while used.contains(&candidate) {
+            candidate += 1;
+        }
+        let new_id = candidate;
+        used.insert(new_id);
+        candidate += 1;
+
+        let mut dup = clone_with_new_id(src, new_id);
+        if remap_refs {
+            remap_internal_references(&mut dup, *old_id, new_id);
+        }
+        new_items.push(dup);
+        assigned.push((*old_id, new_id));
+    }
+
+    {
+        let items_mut = get_items_by_category_mut(appearances, &category);
+        items_mut.extend(new_items);
+        sort_by_id(items_mut);
+    }
+
+    rebuild_indexes(&state, appearances);
+    invalidate_search_cache(&state);
+
+    Ok(assigned)
 }
 
 #[tauri::command]

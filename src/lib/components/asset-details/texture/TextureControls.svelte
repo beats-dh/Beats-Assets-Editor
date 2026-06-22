@@ -1,5 +1,6 @@
 <script lang="ts">
   import { translate } from "../../../../i18n";
+  import { outfitColorHexCache } from "../../monster-editor/utils";
   import type {
     CompleteAppearanceItem,
     CompleteSpriteInfo,
@@ -64,6 +65,18 @@
   function handleNumberChange(key: string, value: string, max: number) {
     handleChange(key, clamp(Number(value || "0"), 0, max));
   }
+  function randomOutfitHex(): string {
+    const i = Math.floor(Math.random() * outfitColorHexCache.length);
+    return outfitColorHexCache[i] ?? "#ffffff";
+  }
+  function randomizeOutfitColors() {
+    onChange?.({
+      headColor: randomOutfitHex(),
+      bodyColor: randomOutfitHex(),
+      legsColor: randomOutfitHex(),
+      feetColor: randomOutfitHex(),
+    });
+  }
 </script>
 
 <div class="texture-preview-controls">
@@ -82,6 +95,28 @@
           >{/each}
       </select>
     </label>
+  </div>
+
+  <div class="texture-control-row texture-zoom-control">
+    <label
+      ><span>🔍 {translate("texture.preview.zoom")}</span><input
+        type="range"
+        class="texture-zoom-input"
+        min="0.5"
+        max="4"
+        step="0.5"
+        value={ps.previewZoom ?? 1}
+        oninput={(e) =>
+          handleChange(
+            "previewZoom",
+            Number((e.target as HTMLInputElement).value),
+          )}
+      /></label
+    ><span class="texture-control-label"
+      >{translate("texture.preview.zoomLabel", {
+        value: ps.previewZoom ?? 1,
+      })}</span
+    >
   </div>
 
   {#if isOutfit}
@@ -166,6 +201,12 @@
           oninput={(e) =>
             handleChange("feetColor", (e.target as HTMLInputElement).value)}
         /></label
+      >
+      <button
+        type="button"
+        class="texture-direction-btn outfit-randomize-btn"
+        title={translate("texture.preview.randomizeColors")}
+        onclick={randomizeOutfitColors}>🎲</button
       >
     </div>
     <div class="texture-control-row">

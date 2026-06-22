@@ -3,7 +3,17 @@
   import { translate } from "../../../../i18n";
   import ColorField from "./ColorField.svelte";
   import MonsterOutfitPreview from "./MonsterOutfitPreview.svelte";
+  import { OUTFIT_COLOR_COUNT } from "../utils";
   let m = $derived(monsterState.currentMonster);
+
+  function randomizeColors() {
+    if (!m) return;
+    const rnd = () => Math.floor(Math.random() * OUTFIT_COLOR_COUNT);
+    handleColorChange("head", rnd());
+    handleColorChange("body", rnd());
+    handleColorChange("legs", rnd());
+    handleColorChange("feet", rnd());
+  }
 
   function handleColorChange(
     field: "head" | "body" | "legs" | "feet",
@@ -89,6 +99,12 @@
             value={m.outfit.lookFeet}
             onChange={(v) => handleColorChange("feet", v)}
           />
+          <button
+            type="button"
+            class="card-edit-button outfit-randomize-btn"
+            title={translate("monster.card.outfit.randomize")}
+            onclick={randomizeColors}>🎲</button
+          >
         </div>
         <div class="form-row">
           <div class="form-group">

@@ -18,7 +18,10 @@
   import { COMMANDS } from "../../commands";
   import { invoke } from "../../utils/invoke";
   import { translate } from "../../i18n";
-  import { loadAssetsData } from "../../services/assetService";
+  import {
+    loadAssetsData,
+    jumpToAppearanceId,
+  } from "../../services/assetService";
   import {
     handleImport as serviceImport,
     handleExport as serviceExport,
@@ -26,9 +29,11 @@
     handlePasteFlagsBatch as servicePasteFlags,
     handleDeleteAppearances as serviceDelete,
     handleDuplicate as serviceDuplicate,
+    handleDuplicateBatch as serviceDuplicateBatch,
     handleCreateNew as serviceCreateNew,
   } from "../../services/importExportService";
   import AddSoundModal from "./AddSoundModal.svelte";
+  import FlagSearchPanel from "./FlagSearchPanel.svelte";
 
   // Back button
   function goBack() {
@@ -50,6 +55,7 @@
   let lastCategory = $state("");
   let showNames = $state(true);
   let subcategories = $state<{ value: string; label: string }[]>([]);
+  let showFlagPanel = $state(false);
 
   $effect(() => {
     if (assetsState.currentCategory !== lastCategory) {
@@ -57,9 +63,25 @@
       showNames = !["Effects", "Missiles", "Outfits"].includes(
         assetsState.currentCategory,
       );
+      // A flag filter is category-scoped; drop it when switching categories.
+      assetsState.flagFilter = null;
+      showFlagPanel = false;
       loadSubcategories();
     }
   });
+
+  function handleApplyFlags(flags: string[], animatedOnly: boolean) {
+    assetsState.flagFilter = { flags, animatedOnly };
+    assetsState.searchQuery = "";
+    assetsState.currentPage = 0;
+    loadAssetsData();
+  }
+
+  function handleClearFlags() {
+    assetsState.flagFilter = null;
+    assetsState.currentPage = 0;
+    loadAssetsData();
+  }
 
   // Load sprites when assets change
   $effect(() => {
@@ -98,11 +120,16 @@
   async function handleDuplicate() {
     const sel = getCurrentSelection();
     if (sel.length === 0) return;
-    const target = sel[sel.length - 1];
-    const duplicatedId = await serviceDuplicate(target.category, target.id);
-    if (duplicatedId) {
-      loadAssetsData();
+    if (sel.length === 1) {
+      const target = sel[0];
+      const duplicatedId = await serviceDuplicate(target.category, target.id);
+      if (duplicatedId) {
+        loadAssetsData();
+      }
+      return;
     }
+    const ids = sel.map((s) => s.id);
+    await serviceDuplicateBatch(assetsState.currentCategory, ids, true);
   }
 
   async function handleCopyFlags() {
@@ -118,6 +145,35 @@
     const sel = getCurrentSelection();
     if (sel.length === 0) return;
     await servicePasteFlags(sel);
+  }
+
+  async function handleJumpToId() {
+    const input = prompt(translate("prompt.jumpToId"), "");
+    if (!input) return;
+    const id = parseInt(input);
+    if (isNaN(id)) return;
+    stopAllAnimationPlayers();
+    clearAssetsQueryCachesForSprites();
+    revokeStaleUrls();
+    const found = await jumpToAppearanceId(id);
+    if (!found) {
+      alert(translate("status.jumpToIdNotFound", { id: String(id) }));
+      return;
+    }
+    await tick();
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        `[data-asset-id="${id}"]`,
+      ) as HTMLElement | null;
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.style.outline = "2px solid #6366f1";
+      el.style.outlineOffset = "2px";
+      setTimeout(() => {
+        el.style.outline = "";
+        el.style.outlineOffset = "";
+      }, 1600);
+    });
   }
 
   async function handleCreate() {
@@ -174,6 +230,8 @@
   function handleSearch(e: Event) {
     const val = (e.target as HTMLInputElement).value;
     assetsState.searchQuery = val;
+    // Text search and the flag filter are mutually exclusive; typing clears flags.
+    if (assetsState.flagFilter) assetsState.flagFilter = null;
     clearTimeout(timer);
     timer = setTimeout(() => {
       assetsState.currentPage = 0;
@@ -346,6 +404,16 @@
     >
       <div class="appearance-action-group">
         {#if assetsState.currentCategory !== "Sounds"}
+          <button class="appearance-action-button" onclick={handleJumpToId}>
+            {translate("action.button.jumpToId")}
+          </button>
+          <button
+            class="appearance-action-button"
+            class:primary={assetsState.flagFilter}
+            onclick={() => (showFlagPanel = !showFlagPanel)}
+          >
+            {translate("action.button.flagSearch")}
+          </button>
           <button class="appearance-action-button" onclick={handleImport}>
             {translate("action.button.import")}
           </button>
@@ -359,7 +427,7 @@
           <button
             class="appearance-action-button"
             onclick={handleDuplicate}
-            disabled={selectedCount !== 1}
+            disabled={selectedCount === 0}
           >
             {translate("action.button.duplicate")}
           </button>
@@ -512,6 +580,10 @@
       {/if}
     </div>
   </header>
+
+  {#if showFlagPanel && assetsState.currentCategory !== "Sounds"}
+    <FlagSearchPanel onApply={handleApplyFlags} onClear={handleClearFlags} />
+  {/if}
 
   <div class="view-content">
     <div id="assets-grid" class="modern-assets-grid">

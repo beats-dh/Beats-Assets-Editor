@@ -1,4 +1,5 @@
 import { save, open } from "@tauri-apps/plugin-dialog";
+import { join } from "@tauri-apps/api/path";
 import { invoke } from "../utils/invoke";
 import { COMMANDS } from "../commands";
 import { translate } from "../i18n";
@@ -35,6 +36,132 @@ export async function handleExport(category: string, id: number): Promise<void> 
   } catch (error) {
     console.error("Failed to export appearance", error);
     alert(translate('status.appearanceExportFailed'));
+  }
+}
+
+export async function exportQueueToFolder(
+  items: { category: string; id: number }[],
+  format: "aec" | "json",
+): Promise<boolean> {
+  if (items.length === 0) return false;
+  const dir = await open({
+    directory: true,
+    multiple: false,
+    title: translate("export.queue.dialogTitle"),
+  });
+  if (!dir || typeof dir !== "string") return false;
+
+  const ext = format === "aec" ? "aec" : "json";
+  const command =
+    format === "aec"
+      ? COMMANDS.EXPORT_APPEARANCE_TO_AEC
+      : COMMANDS.EXPORT_APPEARANCE_TO_JSON;
+
+  let ok = 0;
+  const failed: number[] = [];
+  for (const item of items) {
+    try {
+      const path = `${dir}/${item.category}-${item.id}.${ext}`;
+      await invoke(command, { category: item.category, id: item.id, path });
+      ok++;
+    } catch (err) {
+      console.error("Failed to export queued item", item, err);
+      failed.push(item.id);
+    }
+  }
+  alert(
+    translate("status.queueExported", {
+      ok: String(ok),
+      total: String(items.length),
+    }),
+  );
+  return failed.length === 0;
+}
+
+/**
+ * F2 — compiles all imported sprites into the client's catalog (DESTRUCTIVE:
+ * rewrites catalog-content.json and adds a .cwm sheet, backing the catalog up to
+ * .bak). Reloads the sprite catalog and saves the appearances so the remapped
+ * sprite references persist. Confirmed first because it overwrites game assets.
+ */
+export async function handleCompileImportedSprites(): Promise<void> {
+  const confirmed = await openConfirmModal(
+    translate("confirm.compileSprites"),
+    translate("action.button.compileSprites"),
+  );
+  if (!confirmed) return;
+
+  try {
+    const tibiaPath = await invoke<string | null>(COMMANDS.GET_TIBIA_BASE_PATH);
+    if (!tibiaPath) {
+      alert(translate("status.compileNoPath"));
+      return;
+    }
+    const assetsDir = await join(tibiaPath, "assets");
+    const catalogPath = await join(assetsDir, "catalog-content.json");
+
+    const result = await invoke<{ sprites_compiled: number; sheet_file: string }>(
+      COMMANDS.COMPILE_IMPORTED_SPRITES,
+      { assetsDir, catalogPath },
+    );
+
+    // Reload the catalog so the new sheet is visible, then persist remapped refs.
+    await invoke(COMMANDS.LOAD_SPRITES_CATALOG, { catalogPath, assetsDir });
+    await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
+    await loadAssetsData();
+
+    alert(
+      translate("status.compileDone", {
+        count: String(result.sprites_compiled),
+        file: result.sheet_file,
+      }),
+    );
+  } catch (err) {
+    console.error("Failed to compile imported sprites", err);
+    alert(translate("status.compileFailed", { err: String(err) }));
+  }
+}
+
+export async function handleImportImageTiles(): Promise<number[] | null> {
+  const file = await open({
+    multiple: false,
+    filters: [{ name: "Image", extensions: ["png", "bmp"] }],
+    title: translate("texture.spriteList.importDialogTitle"),
+  });
+  if (!file || typeof file !== "string") return null;
+  try {
+    const ids = await invoke<number[]>(COMMANDS.IMPORT_IMAGE_AS_TILES, {
+      filePath: file,
+      tileWidth: 32,
+      tileHeight: 32,
+      chromaKeyEnabled: true,
+      chromaKeyColor: "#FF00FF",
+    });
+    return ids;
+  } catch (err) {
+    console.error("Failed to import image as tiles", err);
+    alert(translate("status.imageImportFailed"));
+    return null;
+  }
+}
+
+export async function handleExportSprites(spriteIds: number[]): Promise<void> {
+  if (!spriteIds || spriteIds.length === 0) return;
+  try {
+    const dir = await open({
+      directory: true,
+      multiple: false,
+      title: translate("texture.spriteList.exportDialogTitle"),
+    });
+    if (!dir || typeof dir !== "string") return;
+    const written = await invoke<string[]>(COMMANDS.EXPORT_SPRITES_TO_PNG, {
+      spriteIds,
+      destinationDir: dir,
+    });
+    alert(translate("status.spritesExported", { count: String(written.length) }));
+  } catch (error) {
+    console.error("Failed to export sprites", error);
+    alert(translate("status.spritesExportFailed"));
   }
 }
 
@@ -156,6 +283,26 @@ export async function handleDeleteAppearances(targets: AssetTarget[]): Promise<v
   }
 }
 
+export async function handleDuplicateBatch(category: string, ids: number[], remapRefs = true): Promise<number[] | null> {
+  if (ids.length === 0) return null;
+  try {
+    const pairs = await invoke<[number, number][]>(COMMANDS.DUPLICATE_APPEARANCES_BATCH, {
+      category,
+      sourceIds: ids,
+      remapRefs,
+    });
+    await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
+    await loadAssetsData();
+    const newIds = pairs.map((p) => p[1]);
+    alert(translate('status.appearancesDuplicatedBatch', { count: String(newIds.length) }));
+    return newIds;
+  } catch (error) {
+    console.error("Failed to duplicate appearances", error);
+    alert(translate('status.appearanceDuplicateFailed') || 'Failed to duplicate');
+    return null;
+  }
+}
+
 export async function handleDuplicate(category: string, id: number, newId?: number): Promise<number | null> {
   try {
     let targetId = newId;
@@ -174,8 +321,8 @@ export async function handleDuplicate(category: string, id: number, newId?: numb
 
     const duplicatedId = await invoke<number>(COMMANDS.DUPLICATE_APPEARANCE, {
       category,
-      id,
-      newId: targetId,
+      sourceId: id,
+      targetId,
     });
 
     await invoke(COMMANDS.SAVE_APPEARANCES_FILE);

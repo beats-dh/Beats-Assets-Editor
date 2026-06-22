@@ -4,6 +4,7 @@
   import AssetEditorLayout from "./lib/pages/AssetEditorLayout.svelte";
   import MonsterEditorPage from "./lib/pages/MonsterEditorPage.svelte";
   import NpcEditorPage from "./lib/pages/NpcEditorPage.svelte";
+  import LoggerPanel from "./lib/components/LoggerPanel.svelte";
   // Global Styles
   import "./styles/main.css";
   import "./features/layout/headerSpacing.css";
@@ -20,3 +21,5 @@
 {:else if appState.currentView === "npc-editor"}
   <NpcEditorPage />
 {/if}
+
+<LoggerPanel />

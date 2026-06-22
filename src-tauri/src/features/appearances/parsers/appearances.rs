@@ -43,6 +43,29 @@ pub fn load_appearances<P: AsRef<Path>>(path: P) -> Result<Appearances> {
     Ok(appearances)
 }
 
+#[inline]
+fn fnv_mix(h: &mut u64, value: u64) {
+    for b in value.to_le_bytes() {
+        *h ^= b as u64;
+        *h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+}
+
+/// Deterministic content fingerprint of the catalog. The 15.x protobuf has no
+/// version/signature field (unlike the legacy `.dat`), so this FNV-1a hash over
+/// the per-category counts and ids acts as a stable "catalog version" the UI can
+/// display. Stable across runs (fixed seed) and cheap (O(n) over ids only).
+fn compute_content_hash(appearances: &Appearances) -> String {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for arr in [&appearances.object, &appearances.outfit, &appearances.effect, &appearances.missile] {
+        fnv_mix(&mut h, arr.len() as u64);
+        for a in arr {
+            fnv_mix(&mut h, a.id.unwrap_or(0) as u64);
+        }
+    }
+    format!("{:016x}", h)
+}
+
 /// Get appearance statistics (following Assets Editor logic - showing last IDs)
 pub fn get_statistics(appearances: &Appearances) -> AppearanceStats {
     AppearanceStats {
@@ -56,6 +79,7 @@ pub fn get_statistics(appearances: &Appearances) -> AppearanceStats {
         actual_outfits: appearances.outfit.len(),
         actual_effects: appearances.effect.len(),
         actual_missiles: appearances.missile.len(),
+        content_hash: compute_content_hash(appearances),
     }
 }
 
@@ -71,6 +95,8 @@ pub struct AppearanceStats {
     pub actual_outfits: usize,
     pub actual_effects: usize,
     pub actual_missiles: usize,
+    // Deterministic content fingerprint shown as the "catalog version".
+    pub content_hash: String,
 }
 
 #[cfg(test)]

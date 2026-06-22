@@ -9,7 +9,10 @@ export interface AppearanceStats {
   // Additional info - actual item counts in file
   actual_objects: number;
   actual_outfits: number;
+  actual_effects?: number;
   actual_missiles: number;
+  // Deterministic content fingerprint shown as the "catalog version".
+  content_hash?: string;
 }
 
 export interface StaticDataStats {

@@ -85,6 +85,44 @@
   align-items: center;
 }
 
+.texture-zoom-control label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.texture-zoom-input {
+  width: 140px;
+  margin-top: 0;
+}
+
+.texture-apply-all-frames {
+  margin-top: 10px;
+}
+
+.texture-export-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.texture-export-png {
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+}
+.texture-export-png:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+.texture-export-png:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .texture-control-row label {
   display: flex;
   flex-direction: column;
@@ -418,6 +456,12 @@
 .texture-sprite-card-header h4 {
   margin: 0;
   color: var(--text-primary);
+}
+
+.texture-sprite-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .texture-sprite-card-subtitle {

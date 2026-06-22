@@ -3,8 +3,18 @@
   import { translate } from "../../../../i18n";
   import ColorField from "../../monster-editor/cards/ColorField.svelte";
   import MonsterOutfitPreview from "../../monster-editor/cards/MonsterOutfitPreview.svelte";
+  import { OUTFIT_COLOR_COUNT } from "../../monster-editor/utils";
 
   let npc = $derived(npcState.currentNpc);
+
+  function randomizeColors() {
+    if (!npc) return;
+    const rnd = () => Math.floor(Math.random() * OUTFIT_COLOR_COUNT);
+    handleColorChange("head", rnd());
+    handleColorChange("body", rnd());
+    handleColorChange("legs", rnd());
+    handleColorChange("feet", rnd());
+  }
 
   function handleInput(field: string) {
     if (npcState.currentNpc) {
@@ -107,6 +117,12 @@
             value={npc.outfit.lookFeet}
             onChange={(v) => handleColorChange("feet", v)}
           />
+          <button
+            type="button"
+            class="card-edit-button outfit-randomize-btn"
+            title={translate("monster.card.outfit.randomize")}
+            onclick={randomizeColors}>🎲</button
+          >
         </div>
       </div>
     </div>

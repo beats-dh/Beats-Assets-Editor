@@ -15,6 +15,8 @@
   } from "../../i18n";
   import { clearPreviewSpriteCaches } from "../../utils/spriteLoading";
   import { loadAssetsData } from "../../services/assetService";
+  import { handleCompileImportedSprites } from "../../services/importExportService";
+  import PresetsManager from "./PresetsManager.svelte";
 
   const SUPPORTED_THEMES = [
     "default",
@@ -70,6 +72,11 @@
   function handleResetPerf() {
     resetPerfConfig();
     showStatus(translate("status.perfReset"), "success");
+  }
+
+  async function handleCompileSprites() {
+    closeMenu();
+    await handleCompileImportedSprites();
   }
 
   function stopPropagation(e: Event) {
@@ -190,6 +197,28 @@
             >
           {/each}
         </select>
+      </div>
+
+      <div class="menu-divider"></div>
+
+      <PresetsManager />
+
+      <div class="menu-divider"></div>
+
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <h4 class="settings-title">{translate("settings.sprites.title")}</h4>
+          <p class="settings-description">
+            {translate("settings.sprites.description")}
+          </p>
+        </div>
+        <button
+          type="button"
+          class="settings-select"
+          onclick={handleCompileSprites}
+        >
+          {translate("action.button.compileSprites")}
+        </button>
       </div>
 
       <div class="menu-divider"></div>

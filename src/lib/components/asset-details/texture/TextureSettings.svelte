@@ -37,6 +37,18 @@
     }
     onChange?.({ animation: spriteInfo.animation });
   }
+
+  function applyDurationToAllFrames() {
+    if (!spriteInfo?.animation?.phases) return;
+    const phases = spriteInfo.animation.phases;
+    if (phases.length < 2) return;
+    const first = phases[0];
+    for (let i = 1; i < phases.length; i++) {
+      phases[i].duration_min = first.duration_min;
+      phases[i].duration_max = first.duration_max;
+    }
+    onChange?.({ animation: spriteInfo.animation });
+  }
 </script>
 
 {#if spriteInfo}
@@ -162,6 +174,15 @@
             </div>
           {/each}{/if}
       </div>
+      {#if spriteInfo.animation.phases.length > 1}
+        <button
+          type="button"
+          class="btn-secondary texture-apply-all-frames"
+          title={translate("texture.animation.applyAllFrames.tooltip")}
+          onclick={applyDurationToAllFrames}
+          >{translate("texture.animation.applyAllFrames")}</button
+        >
+      {/if}
     {/if}
   </div>
   <div class="texture-form-actions">

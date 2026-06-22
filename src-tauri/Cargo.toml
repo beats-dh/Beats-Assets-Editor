@@ -87,3 +87,4 @@ regex = "1.10"
 
 # Zlib decompression for RCC resources
 flate2 = "1.0"
+tauri-plugin-clipboard-manager = "2.3.2"

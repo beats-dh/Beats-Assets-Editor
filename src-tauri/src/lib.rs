@@ -15,6 +15,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(AppState::new()) // ✅ OPTIMIZED: Uses LRU caches with bounds
         .manage(SoundsState::new())
         .invoke_handler(tauri::generate_handler![
@@ -25,11 +26,13 @@ pub fn run() {
             features::appearances::commands::list_appearance_files,
             features::appearances::commands::list_appearances_by_category,
             features::appearances::commands::find_appearance_position,
+            features::appearances::commands::search_appearances_by_flags,
             features::appearances::commands::get_appearance_details,
             features::appearances::commands::get_appearance_count,
             features::appearances::commands::get_item_subcategories,
             features::appearances::commands::get_complete_appearance,
             features::appearances::commands::get_complete_appearances_batch,
+            features::appearances::commands::get_appearance_raw_dump,
             features::appearances::commands::get_special_meaning_ids,
             features::appearances::commands::update_appearance_name,
             features::appearances::commands::update_appearance_description,
@@ -69,6 +72,7 @@ pub fn run() {
             features::appearances::commands::import_appearances_from_files_all,
             features::appearances::commands::get_import_context,
             features::appearances::commands::duplicate_appearance,
+            features::appearances::commands::duplicate_appearances_batch,
             features::appearances::commands::create_empty_appearance,
             features::appearances::commands::copy_appearance_flags,
             features::appearances::commands::paste_appearance_flags,
@@ -77,6 +81,10 @@ pub fn run() {
             features::sprites::commands::load_sprites_catalog,
             features::sprites::commands::auto_load_sprites,
             features::sprites::commands::get_sprite_by_id,
+            features::sprites::commands::export_sprites_to_png,
+            features::sprites::commands::save_image_bytes,
+            features::sprites::commands::import_image_as_tiles,
+            features::sprites::commands::compile_imported_sprites,
             features::sprites::commands::get_appearance_sprites,
             features::sprites::commands::get_appearance_preview_sprite,
             features::sprites::commands::clear_sprite_cache,
@@ -137,6 +145,10 @@ pub fn run() {
             features::settings::get_monster_base_path,
             features::settings::set_npc_base_path,
             features::settings::get_npc_base_path,
+            features::settings::get_presets,
+            features::settings::save_preset,
+            features::settings::delete_preset,
+            features::settings::apply_preset,
             // StaticData & StaticMapData
             features::staticdata::commands::io::load_staticdata_file,
             features::staticdata::commands::io::list_staticdata_files,

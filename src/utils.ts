@@ -1,5 +1,6 @@
 import type { CompleteFlags, VocationOption } from './types';
 import { translate, type TranslationKey } from './i18n';
+import { addLog } from './stores/loggerState.svelte';
 
 // VOCATION enum helpers para UI
 const VOCATION_OPTION_KEYS: ReadonlyArray<{ value: number; key: TranslationKey }> = [
@@ -84,6 +85,9 @@ export function delay(ms: number): Promise<void> {
 }
 
 export function showStatus(message: string, type: 'loading' | 'success' | 'error'): void {
+  // Mirror every toast into the session log panel (history of ephemeral toasts).
+  addLog(type === 'error' ? 'error' : type === 'success' ? 'success' : 'info', message);
+
   const statusMessage = document.querySelector('#status-message') as HTMLElement | null;
   if (!statusMessage) return;
 

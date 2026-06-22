@@ -3,6 +3,25 @@
   import { translate } from "../../../i18n";
   import { openSelect } from "../../../stores/spriteLibraryState.svelte";
   import { untrack } from "svelte";
+  import Color8BitField from "./Color8BitField.svelte";
+
+  // Lens-help types (DatEditor parity): id = index + 1100 (1100..1112).
+  const lensHelpTypes = [
+    "asset.edit.opt.lensh_ladders",
+    "asset.edit.opt.lensh_sewerGrates",
+    "asset.edit.opt.lensh_dungeonFloor",
+    "asset.edit.opt.lensh_levers",
+    "asset.edit.opt.lensh_doors",
+    "asset.edit.opt.lensh_specialDoors",
+    "asset.edit.opt.lensh_stairs",
+    "asset.edit.opt.lensh_mailboxes",
+    "asset.edit.opt.lensh_depotBoxes",
+    "asset.edit.opt.lensh_dustbins",
+    "asset.edit.opt.lensh_stonePiles",
+    "asset.edit.opt.lensh_signs",
+    "asset.edit.opt.lensh_booksScrolls",
+  ];
+  const LENS_BASE = 1100;
 
   interface Props {
     details: CompleteAppearanceItem;
@@ -162,12 +181,11 @@
         <input type="number" min="0" bind:value={flags.light.brightness} />
       </div>
     </div>
-    <div class="detail-item">
-      <span class="detail-label">{translate("asset.edit.field.color")}</span>
-      <div class="number-input">
-        <input type="number" min="0" bind:value={flags.light.color} />
-      </div>
-    </div>
+    <Color8BitField
+      label={translate("asset.edit.field.color")}
+      value={flags.light.color ?? 0}
+      onChange={(v) => (flags.light.color = v)}
+    />
   </div>
 {/if}
 {#if flags.shift}
@@ -231,12 +249,11 @@
 {#if flags.automap}
   <div class="detail-section">
     <h4>{translate("asset.edit.attr.automap")}</h4>
-    <div class="detail-item">
-      <span class="detail-label">{translate("asset.edit.field.color")}</span>
-      <div class="number-input">
-        <input type="number" bind:value={flags.automap.color} />
-      </div>
-    </div>
+    <Color8BitField
+      label={translate("asset.edit.field.color")}
+      value={flags.automap.color ?? 0}
+      onChange={(v) => (flags.automap.color = v)}
+    />
   </div>
 {/if}
 {#if flags.hook}
@@ -258,6 +275,26 @@
 {#if flags.lenshelp}
   <div class="detail-section">
     <h4>{translate("asset.edit.attr.lensHelp")}</h4>
+    <div class="detail-item">
+      <span class="detail-label">{translate("asset.edit.field.type")}</span>
+      <div class="select-input">
+        <select
+          value={flags.lenshelp.id >= LENS_BASE &&
+          flags.lenshelp.id < LENS_BASE + lensHelpTypes.length
+            ? flags.lenshelp.id
+            : ""}
+          onchange={(e) => {
+            const v = (e.currentTarget as HTMLSelectElement).value;
+            if (v !== "") flags.lenshelp.id = Number(v);
+          }}
+        >
+          <option value="">—</option>
+          {#each lensHelpTypes as key, i}
+            <option value={LENS_BASE + i}>{translate(key as any)}</option>
+          {/each}
+        </select>
+      </div>
+    </div>
     <div class="detail-item">
       <span class="detail-label">{translate("asset.edit.field.id")}</span>
       <div class="number-input" style="display:flex;gap:0.5rem;">

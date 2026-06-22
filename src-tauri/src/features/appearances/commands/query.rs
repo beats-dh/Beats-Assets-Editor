@@ -243,6 +243,138 @@ pub async fn list_appearances_by_category(
     })
 }
 
+/// Read-only mirror of `update::set_bool_flag`: returns true when the protobuf
+/// bool flag named `key` is set (`Some(true)`). Used by the flag-combination
+/// search (DatEditor SearchWindow parity). Accepts the same key aliases.
+pub fn get_bool_flag(flags: &crate::core::protobuf::AppearanceFlags, key: &str) -> bool {
+    let k = key.to_lowercase().replace(['_', ' '], "");
+    let v = match k.as_str() {
+        "clip" => flags.clip,
+        "bottom" => flags.bottom,
+        "top" => flags.top,
+        "container" => flags.container,
+        "cumulative" => flags.cumulative,
+        "usable" => flags.usable,
+        "forceuse" => flags.forceuse,
+        "multiuse" => flags.multiuse,
+        "liquidpool" => flags.liquidpool,
+        "unpass" | "unpassable" => flags.unpass,
+        "unmove" | "unmovable" => flags.unmove,
+        "unsight" | "blocksight" => flags.unsight,
+        "avoid" | "avoidwalk" => flags.avoid,
+        "nomovementanimation" => flags.no_movement_animation,
+        "take" | "takeable" => flags.take,
+        "liquidcontainer" => flags.liquidcontainer,
+        "hang" | "hangable" => flags.hang,
+        "rotate" | "rotatable" => flags.rotate,
+        "donthide" => flags.dont_hide,
+        "translucent" => flags.translucent,
+        "lyingobject" => flags.lying_object,
+        "animatealways" => flags.animate_always,
+        "fullbank" => flags.fullbank,
+        "ignorelook" => flags.ignore_look,
+        "wrap" => flags.wrap,
+        "unwrap" => flags.unwrap,
+        "topeffect" => flags.topeffect,
+        "corpse" => flags.corpse,
+        "playercorpse" => flags.player_corpse,
+        "ammo" => flags.ammo,
+        "showoffsocket" => flags.show_off_socket,
+        "reportable" => flags.reportable,
+        "reverseaddonseast" => flags.reverse_addons_east,
+        "reverseaddonswest" => flags.reverse_addons_west,
+        "reverseaddonssouth" => flags.reverse_addons_south,
+        "reverseaddonsnorth" => flags.reverse_addons_north,
+        "wearout" => flags.wearout,
+        "clockexpire" => flags.clockexpire,
+        "expire" => flags.expire,
+        "expirestop" => flags.expirestop,
+        "decoitemkit" => flags.deco_item_kit,
+        "dualwielding" => flags.dual_wielding,
+        _ => None,
+    };
+    v.unwrap_or(false)
+}
+
+/// An appearance is "animated" when any frame group has an animation with more
+/// than one phase.
+fn is_animated(appearance: &crate::core::protobuf::Appearance) -> bool {
+    appearance.frame_group.iter().any(|fg| fg.sprite_info.as_ref().and_then(|si| si.animation.as_ref()).map_or(false, |an| an.sprite_phase.len() > 1))
+}
+
+/// Searches a category for appearances that have ALL of the requested boolean
+/// flags set (AND), optionally limited to animated ones. Returns a paginated
+/// page in the same shape as `list_appearances_by_category`. (DatEditor
+/// SearchWindow parity — the data already exists, this just exposes a filter.)
+#[tauri::command]
+pub async fn search_appearances_by_flags(
+    category: AppearanceCategory,
+    flags: Vec<String>,
+    animated_only: bool,
+    page: usize,
+    page_size: usize,
+    state: State<'_, AppState>,
+) -> Result<AppearancePage, String> {
+    let appearances_lock = state.appearances.read();
+    let appearances = match &*appearances_lock {
+        Some(a) => a,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category(appearances, &category);
+    let index_map = get_index_for_category(&state, &category);
+
+    let mut filtered_ids: Vec<u32> = items
+        .iter()
+        .filter_map(|appearance| {
+            let id = appearance.id.unwrap_or(0);
+
+            if animated_only && !is_animated(appearance) {
+                return None;
+            }
+
+            if !flags.is_empty() {
+                let af = appearance.flags.as_ref();
+                let all_set = flags.iter().all(|f| af.map_or(false, |flags| get_bool_flag(flags, f)));
+                if !all_set {
+                    return None;
+                }
+            }
+
+            Some(id)
+        })
+        .collect();
+
+    filtered_ids.sort_unstable();
+    let total = filtered_ids.len();
+
+    let start = page * page_size;
+    let end = std::cmp::min(start + page_size, total);
+    if start >= total {
+        return Ok(AppearancePage {
+            total,
+            items: vec![],
+        });
+    }
+
+    let mut result: Vec<AppearanceItem> = Vec::with_capacity(end - start);
+    for &id in &filtered_ids[start..end] {
+        let appearance = if let Some(idx) = index_map.get(&id) {
+            items.get(*idx)
+        } else {
+            items.iter().find(|app| app.id.unwrap_or(0) == id)
+        };
+        if let Some(app) = appearance {
+            result.push(create_appearance_item_response(id, app));
+        }
+    }
+
+    Ok(AppearancePage {
+        total,
+        items: result,
+    })
+}
+
 /// HEAVILY OPTIMIZED find_appearance_position:
 /// - Uses search cache (no repeated filtering)
 /// - Binary search on sorted IDs for O(log n) instead of O(n)
@@ -491,6 +623,32 @@ pub async fn get_complete_appearance(category: AppearanceCategory, id: u32, stat
     };
 
     Ok(CompleteAppearanceItem::from_protobuf(appearance))
+}
+
+/// Returns a human-readable raw dump of the underlying protobuf `Appearance`
+/// (the "Other" / full-info tab in the DatEditor). Uses pretty Debug of the prost
+/// struct so every proto field — including ones not surfaced in the edit form —
+/// is visible. Read-only.
+#[tauri::command]
+pub async fn get_appearance_raw_dump(category: AppearanceCategory, id: u32, state: State<'_, AppState>) -> Result<String, String> {
+    let appearances_lock = state.appearances.read();
+
+    let appearances = match &*appearances_lock {
+        Some(appearances) => appearances,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category(appearances, &category);
+
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        let idx = *idx_ref;
+        items.get(idx).ok_or_else(|| format!("Index {} out of bounds for category {:?}", idx, category))?
+    } else {
+        items.iter().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?
+    };
+
+    Ok(format!("{:#?}", appearance))
 }
 
 /// Batch version of get_complete_appearance - returns multiple items in one IPC call.

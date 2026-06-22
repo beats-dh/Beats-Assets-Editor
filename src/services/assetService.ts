@@ -34,6 +34,33 @@ async function loadSoundItems(sub: string, page: number, size: number): Promise<
   return { items, total };
 }
 
+/**
+ * Navigates the asset list so the appearance with `id` is on the visible page.
+ * Uses `find_appearance_position` (position within the subcategory-filtered,
+ * sorted list — it ignores the text search), so any active text search is
+ * cleared first to keep the displayed list consistent with that position.
+ * Returns false when the id is not found in the current category/subcategory.
+ */
+export async function jumpToAppearanceId(id: number): Promise<boolean> {
+  const category = assetsState.currentCategory;
+  if (category === 'Sounds') return false;
+
+  const sub = assetsState.currentSubcategory;
+  const subcategory = category === 'Objects' && sub !== 'All' ? sub : null;
+
+  const pos = await invoke<number | null>(COMMANDS.FIND_APPEARANCE_POSITION, {
+    category,
+    id,
+    subcategory,
+  });
+  if (pos === null || pos === undefined) return false;
+
+  assetsState.searchQuery = '';
+  assetsState.currentPage = Math.floor(pos / assetsState.pageSize);
+  await loadAssetsData();
+  return true;
+}
+
 export async function loadAssetsData(append = false) {
   assetsState.isLoading = true;
 
@@ -49,6 +76,17 @@ export async function loadAssetsData(append = false) {
 
     if (category === 'Sounds') {
       ({ items, total } = await loadSoundItems(sub, page, size));
+    } else if (assetsState.flagFilter) {
+      // Flag-combination search (DatEditor SearchWindow) — ignores text/subcategory.
+      const response = await invoke<{ total: number; items: CompleteAppearanceItem[] }>(COMMANDS.SEARCH_APPEARANCES_BY_FLAGS, {
+        category,
+        flags: assetsState.flagFilter.flags,
+        animatedOnly: assetsState.flagFilter.animatedOnly,
+        page,
+        pageSize: size,
+      });
+      items = response.items;
+      total = response.total;
     } else {
       // Standard Appearance Assets
       const response = await invoke<{ total: number; items: CompleteAppearanceItem[] }>(COMMANDS.LIST_APPEARANCES_BY_CATEGORY, {

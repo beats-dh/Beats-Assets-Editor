@@ -8,6 +8,7 @@
   import { assetsState } from "../../stores/assetsState.svelte";
   import { translate } from "../../i18n";
   import { loadDetailSprites } from "../../utils/spriteLoading";
+  import { addToExportQueue } from "../../stores/exportQueueState.svelte";
   import { invoke } from "../../utils/invoke";
   import type { CompleteAppearanceItem, CompleteFlags } from "../../types";
 
@@ -18,6 +19,7 @@
   import AssetSpritePreview from "./asset-details/AssetSpritePreview.svelte";
   import AssetEditForm from "./asset-details/AssetEditForm.svelte";
   import TextureEditor from "./asset-details/texture/TextureEditor.svelte";
+  import OtherTabView from "./asset-details/OtherTabView.svelte";
   import SoundDetails from "./asset-details/SoundDetails.svelte";
   import SoundEditForm from "./asset-details/SoundEditForm.svelte";
 
@@ -54,7 +56,7 @@
     }
   }
 
-  function setTab(tab: "details" | "edit" | "texture") {
+  function setTab(tab: "details" | "edit" | "texture" | "other") {
     detailsModal.activeTab = tab;
     if (tab === "details" && detailsModal.selectedAsset) {
       const assetId = detailsModal.selectedAsset.id;
@@ -409,6 +411,14 @@
             onclick={() => setTab("texture")}
             >{translate("modal.textureTab")}</button
           >
+          {#if assetsState.currentCategory !== "Sounds"}
+            <button
+              class="tab-btn"
+              class:active={detailsModal.activeTab === "other"}
+              onclick={() => setTab("other")}
+              >{translate("modal.otherTab")}</button
+            >
+          {/if}
         </div>
         <div class="modal-actions">
           {#if detailsModal.activeTab === "edit"}
@@ -418,6 +428,21 @@
               onclick={triggerSaveFromHeader}
             >
               {translate("action.button.saveChanges")}
+            </button>
+          {/if}
+          {#if assetsState.currentCategory !== "Sounds"}
+            <button
+              class="btn-secondary"
+              style="margin-right: 1rem; padding: 0.4rem 1rem;"
+              title={translate("export.queue.add")}
+              onclick={() =>
+                detailsModal.selectedAsset &&
+                addToExportQueue(
+                  assetsState.currentCategory,
+                  detailsModal.selectedAsset.id,
+                )}
+            >
+              {translate("export.queue.add")}
             </button>
           {/if}
           <div class="modal-nav-controls" role="group">
@@ -480,6 +505,13 @@
         {:else if detailsModal.activeTab === "texture"}
           <div class="tab-content">
             <TextureEditor details={detailsModal.selectedAsset} />
+          </div>
+        {:else if detailsModal.activeTab === "other"}
+          <div class="tab-content">
+            <OtherTabView
+              category={assetsState.currentCategory}
+              id={detailsModal.selectedAsset.id}
+            />
           </div>
         {/if}
       </div>

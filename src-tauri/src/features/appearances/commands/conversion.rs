@@ -286,3 +286,25 @@ pub fn clone_with_new_id(original: &Appearance, new_id: u32) -> Appearance {
     cloned.id = Some(new_id);
     cloned
 }
+
+/// Remaps object-id self-references that point at `old_id` to `new_id`. Used when
+/// duplicating an object whose flags reference itself (market trade_as / show_as,
+/// changed-to-expire former object). Fields that are NOT object ids (lens-help
+/// type id, cyclopedia type) are intentionally left untouched.
+pub fn remap_internal_references(appearance: &mut Appearance, old_id: u32, new_id: u32) {
+    if let Some(flags) = appearance.flags.as_mut() {
+        if let Some(market) = flags.market.as_mut() {
+            if market.trade_as_object_id == Some(old_id) {
+                market.trade_as_object_id = Some(new_id);
+            }
+            if market.show_as_object_id == Some(old_id) {
+                market.show_as_object_id = Some(new_id);
+            }
+        }
+        if let Some(cte) = flags.changedtoexpire.as_mut() {
+            if cte.former_object_typeid == Some(old_id) {
+                cte.former_object_typeid = Some(new_id);
+            }
+        }
+    }
+}

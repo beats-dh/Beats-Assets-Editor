@@ -19,6 +19,10 @@ function createAssetsState() {
         proficiencySelectedId: null as number | null,
 
         currentStats: null as AppearanceStats | null,
+        // Active flag-combination filter (DatEditor SearchWindow). When set,
+        // loadAssetsData routes to search_appearances_by_flags instead of the
+        // text/subcategory listing.
+        flagFilter: null as { flags: string[]; animatedOnly: boolean } | null,
         staticDataStats: null as any,
         staticMapDataStats: null as any,
         currentCategory: 'Objects',

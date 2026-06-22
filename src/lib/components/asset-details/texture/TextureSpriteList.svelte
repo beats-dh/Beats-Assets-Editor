@@ -15,6 +15,8 @@
     onReplace?: (detail: { index: number; spriteIds: number[] }) => void;
     onAppend?: (detail: { spriteIds: number[] }) => void;
     onAdd?: () => void;
+    onExport?: (detail: { spriteIds: number[] }) => void;
+    onImportImage?: () => void;
   }
   let {
     sprites,
@@ -25,6 +27,8 @@
     onReplace,
     onAppend,
     onAdd,
+    onExport,
+    onImportImage,
   }: Props = $props();
 
   type SpriteListItem = {
@@ -108,6 +112,16 @@
     selectedIndices = new Set();
     onRemove?.({ indices });
   }
+  function handleExportClick() {
+    const indices =
+      selectedIndices.size > 0
+        ? Array.from(selectedIndices)
+        : spriteIds.map((_: number, i: number) => i);
+    const ids = indices
+      .map((i: number) => spriteIds[i])
+      .filter((id: number) => typeof id === "number" && id > 0);
+    if (ids.length > 0) onExport?.({ spriteIds: ids });
+  }
   function handleSelection(event: MouseEvent | KeyboardEvent, index: number) {
     const isMulti = event.ctrlKey || event.metaKey;
     const wasSelected = selectedIndices.has(index);
@@ -130,9 +144,29 @@
         {translate("texture.spriteList.subtitle")}
       </p>
     </div>
-    <button type="button" class="texture-sprite-add" onclick={() => onAdd?.()}
-      ><span aria-hidden="true">+</span></button
-    >
+    <div class="texture-sprite-card-actions">
+      {#if onImportImage}
+        <button
+          type="button"
+          class="texture-sprite-add"
+          title={translate("texture.spriteList.importTooltip")}
+          onclick={() => onImportImage?.()}
+          ><span aria-hidden="true">🖼</span></button
+        >
+      {/if}
+      <button
+        type="button"
+        class="texture-sprite-add"
+        title={translate("texture.spriteList.exportTooltip")}
+        onclick={handleExportClick}><span aria-hidden="true">⬇</span></button
+      >
+      <button
+        type="button"
+        class="texture-sprite-add"
+        title={translate("texture.spriteList.addTooltip")}
+        onclick={() => onAdd?.()}><span aria-hidden="true">+</span></button
+      >
+    </div>
   </div>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div

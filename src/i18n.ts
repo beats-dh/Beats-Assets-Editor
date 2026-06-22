@@ -777,6 +777,251 @@ const translationEntries = {
     es: 'Actualizar',
     ru: 'Обновить'
   },
+  'header.about.tooltip': {
+    default: 'About',
+    'pt-BR': 'Sobre',
+    en: 'About',
+    es: 'Acerca de',
+    ru: 'О программе'
+  },
+  'header.logger.tooltip': {
+    default: 'Log',
+    'pt-BR': 'Registro (Log)',
+    en: 'Log',
+    es: 'Registro',
+    ru: 'Журнал'
+  },
+  'logger.title': {
+    default: 'Log',
+    'pt-BR': 'Registro',
+    en: 'Log',
+    es: 'Registro',
+    ru: 'Журнал'
+  },
+  'settings.sprites.title': {
+    default: 'Sprite tools',
+    'pt-BR': 'Ferramentas de sprites',
+    en: 'Sprite tools',
+    es: 'Herramientas de sprites',
+    ru: 'Инструменты спрайтов'
+  },
+  'settings.sprites.description': {
+    default: 'Compile imported sprites into the client catalog.',
+    'pt-BR': 'Compila os sprites importados no catálogo do cliente.',
+    en: 'Compile imported sprites into the client catalog.',
+    es: 'Compila los sprites importados en el catálogo del cliente.',
+    ru: 'Скомпилировать импортированные спрайты в каталог клиента.'
+  },
+  'action.button.compileSprites': {
+    default: 'Compile imported sprites',
+    'pt-BR': 'Compilar sprites importados',
+    en: 'Compile imported sprites',
+    es: 'Compilar sprites importados',
+    ru: 'Скомпилировать спрайты'
+  },
+  'confirm.compileSprites': {
+    default: '<p>This will <b>overwrite</b> the client catalog (<code>catalog-content.json</code>) and add a new sprite sheet. A <code>.bak</code> backup is created first.</p><p>Verify in-game afterwards.</p>',
+    'pt-BR': '<p>Isto vai <b>sobrescrever</b> o catálogo do cliente (<code>catalog-content.json</code>) e adicionar uma nova spritesheet. Um backup <code>.bak</code> é criado antes.</p><p>Verifique no jogo depois.</p>',
+    en: '<p>This will <b>overwrite</b> the client catalog (<code>catalog-content.json</code>) and add a new sprite sheet. A <code>.bak</code> backup is created first.</p><p>Verify in-game afterwards.</p>',
+    es: '<p>Esto <b>sobrescribirá</b> el catálogo del cliente (<code>catalog-content.json</code>) y añadirá una nueva hoja de sprites. Se crea una copia <code>.bak</code> primero.</p><p>Verifica en el juego después.</p>',
+    ru: '<p>Это <b>перезапишет</b> каталог клиента (<code>catalog-content.json</code>) и добавит новый лист спрайтов. Сначала создаётся резервная копия <code>.bak</code>.</p><p>Проверьте в игре после.</p>'
+  },
+  'status.compileNoPath': {
+    default: 'No Tibia path set — load assets first.',
+    'pt-BR': 'Caminho do Tibia não definido — carregue os assets primeiro.',
+    en: 'No Tibia path set — load assets first.',
+    es: 'No hay ruta de Tibia — carga los assets primero.',
+    ru: 'Путь Tibia не задан — сначала загрузите ассеты.'
+  },
+  'status.compileDone': {
+    default: 'Compiled {{count}} sprites into {{file}}',
+    'pt-BR': 'Compilados {{count}} sprites em {{file}}',
+    en: 'Compiled {{count}} sprites into {{file}}',
+    es: 'Compilados {{count}} sprites en {{file}}',
+    ru: 'Скомпилировано {{count}} спрайтов в {{file}}'
+  },
+  'status.compileFailed': {
+    default: 'Failed to compile sprites: {{err}}',
+    'pt-BR': 'Falha ao compilar sprites: {{err}}',
+    en: 'Failed to compile sprites: {{err}}',
+    es: 'Error al compilar sprites: {{err}}',
+    ru: 'Не удалось скомпилировать спрайты: {{err}}'
+  },
+  'settings.presets.title': {
+    default: 'Configuration presets',
+    'pt-BR': 'Presets de configuração',
+    en: 'Configuration presets',
+    es: 'Presets de configuración',
+    ru: 'Профили конфигурации'
+  },
+  'settings.presets.description': {
+    default: 'Save and switch between sets of base paths.',
+    'pt-BR': 'Salve e alterne entre conjuntos de caminhos base.',
+    en: 'Save and switch between sets of base paths.',
+    es: 'Guarda y cambia entre conjuntos de rutas base.',
+    ru: 'Сохраняйте и переключайте наборы базовых путей.'
+  },
+  'settings.presets.empty': {
+    default: 'No presets yet.',
+    'pt-BR': 'Nenhum preset ainda.',
+    en: 'No presets yet.',
+    es: 'No hay presets aún.',
+    ru: 'Профилей пока нет.'
+  },
+  'settings.presets.apply': {
+    default: 'Apply',
+    'pt-BR': 'Aplicar',
+    en: 'Apply',
+    es: 'Aplicar',
+    ru: 'Применить'
+  },
+  'settings.presets.remove': {
+    default: 'Delete preset',
+    'pt-BR': 'Excluir preset',
+    en: 'Delete preset',
+    es: 'Eliminar preset',
+    ru: 'Удалить профиль'
+  },
+  'settings.presets.saveCurrent': {
+    default: '+ Save current as preset',
+    'pt-BR': '+ Salvar atual como preset',
+    en: '+ Save current as preset',
+    es: '+ Guardar actual como preset',
+    ru: '+ Сохранить текущий как профиль'
+  },
+  'settings.presets.namePrompt': {
+    default: 'Preset name:',
+    'pt-BR': 'Nome do preset:',
+    en: 'Preset name:',
+    es: 'Nombre del preset:',
+    ru: 'Имя профиля:'
+  },
+  'settings.presets.saved': {
+    default: 'Preset "{{name}}" saved',
+    'pt-BR': 'Preset "{{name}}" salvo',
+    en: 'Preset "{{name}}" saved',
+    es: 'Preset "{{name}}" guardado',
+    ru: 'Профиль "{{name}}" сохранён'
+  },
+  'settings.presets.applied': {
+    default: 'Preset applied — reload to take effect',
+    'pt-BR': 'Preset aplicado — recarregue para ter efeito',
+    en: 'Preset applied — reload to take effect',
+    es: 'Preset aplicado — recarga para aplicar',
+    ru: 'Профиль применён — перезагрузите для применения'
+  },
+  'settings.presets.error': {
+    default: 'Preset operation failed',
+    'pt-BR': 'Falha na operação de preset',
+    en: 'Preset operation failed',
+    es: 'Error en la operación de preset',
+    ru: 'Ошибка операции с профилем'
+  },
+  'logger.empty': {
+    default: 'No log entries yet.',
+    'pt-BR': 'Nenhum registro ainda.',
+    en: 'No log entries yet.',
+    es: 'No hay registros aún.',
+    ru: 'Записей пока нет.'
+  },
+  'logger.clear': {
+    default: 'Clear log',
+    'pt-BR': 'Limpar registro',
+    en: 'Clear log',
+    es: 'Limpiar registro',
+    ru: 'Очистить журнал'
+  },
+  'logger.close': {
+    default: 'Close',
+    'pt-BR': 'Fechar',
+    en: 'Close',
+    es: 'Cerrar',
+    ru: 'Закрыть'
+  },
+  'logger.count': {
+    default: '{{count}} entries',
+    'pt-BR': '{{count}} registros',
+    en: '{{count}} entries',
+    es: '{{count}} registros',
+    ru: 'Записей: {{count}}'
+  },
+  'logger.filter.all': {
+    default: 'All',
+    'pt-BR': 'Todos',
+    en: 'All',
+    es: 'Todos',
+    ru: 'Все'
+  },
+  'logger.filter.info': {
+    default: 'Info',
+    'pt-BR': 'Info',
+    en: 'Info',
+    es: 'Info',
+    ru: 'Инфо'
+  },
+  'logger.filter.success': {
+    default: 'Success',
+    'pt-BR': 'Sucesso',
+    en: 'Success',
+    es: 'Éxito',
+    ru: 'Успех'
+  },
+  'logger.filter.warn': {
+    default: 'Warning',
+    'pt-BR': 'Aviso',
+    en: 'Warning',
+    es: 'Aviso',
+    ru: 'Предупреждение'
+  },
+  'logger.filter.error': {
+    default: 'Error',
+    'pt-BR': 'Erro',
+    en: 'Error',
+    es: 'Error',
+    ru: 'Ошибка'
+  },
+  'header.catalogVersion.label': {
+    default: 'Catalog v{{hash}}',
+    'pt-BR': 'Catálogo v{{hash}}',
+    en: 'Catalog v{{hash}}',
+    es: 'Catálogo v{{hash}}',
+    ru: 'Каталог v{{hash}}'
+  },
+  'header.catalogVersion.tooltip': {
+    default: 'Content fingerprint of the loaded assets (the 15.x protobuf has no version field)',
+    'pt-BR': 'Impressão digital do conteúdo dos assets carregados (o protobuf 15.x não tem campo de versão)',
+    en: 'Content fingerprint of the loaded assets (the 15.x protobuf has no version field)',
+    es: 'Huella del contenido de los assets cargados (el protobuf 15.x no tiene campo de versión)',
+    ru: 'Отпечаток содержимого загруженных ассетов (в protobuf 15.x нет поля версии)'
+  },
+  'about.title': {
+    default: 'About',
+    'pt-BR': 'Sobre',
+    en: 'About',
+    es: 'Acerca de',
+    ru: 'О программе'
+  },
+  'about.version': {
+    default: 'Version',
+    'pt-BR': 'Versão',
+    en: 'Version',
+    es: 'Versión',
+    ru: 'Версия'
+  },
+  'about.description': {
+    default: 'Desktop editor for Tibia 15.x assets and Canary server data.',
+    'pt-BR': 'Editor desktop para assets do Tibia 15.x e dados de servidor Canary.',
+    en: 'Desktop editor for Tibia 15.x assets and Canary server data.',
+    es: 'Editor de escritorio para assets de Tibia 15.x y datos del servidor Canary.',
+    ru: 'Десктопный редактор ассетов Tibia 15.x и данных сервера Canary.'
+  },
+  'about.close': {
+    default: 'Close',
+    'pt-BR': 'Fechar',
+    en: 'Close',
+    es: 'Cerrar',
+    ru: 'Закрыть'
+  },
   'category.objects': {
     default: 'Objects',
     'pt-BR': 'Objetos',
@@ -1198,6 +1443,27 @@ const translationEntries = {
     es: 'Textura',
     ru: 'Текстура'
   },
+  'modal.otherTab': {
+    default: 'Other',
+    'pt-BR': 'Outros',
+    en: 'Other',
+    es: 'Otros',
+    ru: 'Прочее'
+  },
+  'modal.other.title': {
+    default: 'Raw data (protobuf)',
+    'pt-BR': 'Dados brutos (protobuf)',
+    en: 'Raw data (protobuf)',
+    es: 'Datos sin procesar (protobuf)',
+    ru: 'Сырые данные (protobuf)'
+  },
+  'modal.other.loading': {
+    default: 'Loading…',
+    'pt-BR': 'Carregando…',
+    en: 'Loading…',
+    es: 'Cargando…',
+    ru: 'Загрузка…'
+  },
   'modal.prevTooltip': {
     default: 'Previous asset',
     'pt-BR': 'Asset anterior',
@@ -1415,6 +1681,48 @@ const translationEntries = {
     es: 'Apariencia #{{id}} exportada con éxito',
     ru: 'Внешность №{{id}} успешно экспортирована'
   },
+  'status.spritesExported': {
+    default: '{{count}} sprite(s) exported successfully',
+    'pt-BR': '{{count}} sprite(s) exportado(s) com sucesso',
+    en: '{{count}} sprite(s) exported successfully',
+    es: '{{count}} sprite(s) exportado(s) con éxito',
+    ru: '{{count}} спрайт(ов) успешно экспортировано'
+  },
+  'status.spritesExportFailed': {
+    default: 'Failed to export sprites',
+    'pt-BR': 'Falha ao exportar sprites',
+    en: 'Failed to export sprites',
+    es: 'Error al exportar sprites',
+    ru: 'Не удалось экспортировать спрайты'
+  },
+  'status.imageExported': {
+    default: 'Image exported',
+    'pt-BR': 'Imagem exportada',
+    en: 'Image exported',
+    es: 'Imagen exportada',
+    ru: 'Изображение экспортировано'
+  },
+  'status.imageExportFailed': {
+    default: 'Failed to export image',
+    'pt-BR': 'Falha ao exportar imagem',
+    en: 'Failed to export image',
+    es: 'Error al exportar imagen',
+    ru: 'Не удалось экспортировать изображение'
+  },
+  'status.copied': {
+    default: 'Copied to clipboard',
+    'pt-BR': 'Copiado para a área de transferência',
+    en: 'Copied to clipboard',
+    es: 'Copiado al portapapeles',
+    ru: 'Скопировано в буфер обмена'
+  },
+  'status.copyFailed': {
+    default: 'Failed to copy',
+    'pt-BR': 'Falha ao copiar',
+    en: 'Failed to copy',
+    es: 'Error al copiar',
+    ru: 'Не удалось скопировать'
+  },
   'status.appearanceExportFailed': {
     default: 'Falha ao exportar aparência',
     'pt-BR': 'Falha ao exportar aparência',
@@ -1561,6 +1869,83 @@ const translationEntries = {
     en: 'Appearance duplicated as #{{id}}',
     es: 'Apariencia duplicada como #{{id}}',
     ru: 'Внешность продублирована как №{{id}}'
+  },
+  'status.appearancesDuplicatedBatch': {
+    default: '{{count}} appearances duplicated',
+    'pt-BR': '{{count}} aparências duplicadas',
+    en: '{{count}} appearances duplicated',
+    es: '{{count}} apariencias duplicadas',
+    ru: 'Продублировано внешностей: {{count}}'
+  },
+  'status.queueExported': {
+    default: 'Exported {{ok}} of {{total}} items',
+    'pt-BR': 'Exportados {{ok}} de {{total}} itens',
+    en: 'Exported {{ok}} of {{total}} items',
+    es: 'Exportados {{ok}} de {{total}} elementos',
+    ru: 'Экспортировано {{ok}} из {{total}} элементов'
+  },
+  'export.queue.title': {
+    default: 'Export queue ({{count}})',
+    'pt-BR': 'Fila de exportação ({{count}})',
+    en: 'Export queue ({{count}})',
+    es: 'Cola de exportación ({{count}})',
+    ru: 'Очередь экспорта ({{count}})'
+  },
+  'export.queue.add': {
+    default: 'Add to export list',
+    'pt-BR': 'Adicionar à lista de export',
+    en: 'Add to export list',
+    es: 'Añadir a la lista de exportación',
+    ru: 'Добавить в список экспорта'
+  },
+  'export.queue.openTooltip': {
+    default: 'Open export queue',
+    'pt-BR': 'Abrir fila de exportação',
+    en: 'Open export queue',
+    es: 'Abrir cola de exportación',
+    ru: 'Открыть очередь экспорта'
+  },
+  'export.queue.empty': {
+    default: 'The export queue is empty.',
+    'pt-BR': 'A fila de exportação está vazia.',
+    en: 'The export queue is empty.',
+    es: 'La cola de exportación está vacía.',
+    ru: 'Очередь экспорта пуста.'
+  },
+  'export.queue.remove': {
+    default: 'Remove from queue',
+    'pt-BR': 'Remover da fila',
+    en: 'Remove from queue',
+    es: 'Eliminar de la cola',
+    ru: 'Удалить из очереди'
+  },
+  'export.queue.clear': {
+    default: 'Clear',
+    'pt-BR': 'Limpar',
+    en: 'Clear',
+    es: 'Limpiar',
+    ru: 'Очистить'
+  },
+  'export.queue.exportAll': {
+    default: 'Export all',
+    'pt-BR': 'Exportar todos',
+    en: 'Export all',
+    es: 'Exportar todo',
+    ru: 'Экспортировать все'
+  },
+  'export.queue.close': {
+    default: 'Close',
+    'pt-BR': 'Fechar',
+    en: 'Close',
+    es: 'Cerrar',
+    ru: 'Закрыть'
+  },
+  'export.queue.dialogTitle': {
+    default: 'Choose a folder to export the queue',
+    'pt-BR': 'Escolha uma pasta para exportar a fila',
+    en: 'Choose a folder to export the queue',
+    es: 'Elige una carpeta para exportar la cola',
+    ru: 'Выберите папку для экспорта очереди'
   },
   'status.appearanceDuplicateFailed': {
     default: 'Falha ao duplicar aparência',
@@ -1807,6 +2192,48 @@ const translationEntries = {
     es: 'Eliminar sprite del espacio',
     ru: 'Удалить спрайт из слота'
   },
+  'texture.spriteList.addTooltip': {
+    default: 'Add sprite from library',
+    'pt-BR': 'Adicionar sprite da biblioteca',
+    en: 'Add sprite from library',
+    es: 'Añadir sprite de la biblioteca',
+    ru: 'Добавить спрайт из библиотеки'
+  },
+  'texture.spriteList.exportTooltip': {
+    default: 'Export selected sprites as PNG (all if none selected)',
+    'pt-BR': 'Exportar sprites selecionados como PNG (todos se nenhum)',
+    en: 'Export selected sprites as PNG (all if none selected)',
+    es: 'Exportar sprites seleccionados como PNG (todos si ninguno)',
+    ru: 'Экспорт выбранных спрайтов в PNG (все, если не выбрано)'
+  },
+  'texture.spriteList.importTooltip': {
+    default: 'Import an image as 32×32 tiles (magenta = transparent)',
+    'pt-BR': 'Importar imagem como tiles 32×32 (magenta = transparente)',
+    en: 'Import an image as 32×32 tiles (magenta = transparent)',
+    es: 'Importar imagen como tiles 32×32 (magenta = transparente)',
+    ru: 'Импорт изображения как плиток 32×32 (пурпурный = прозрачный)'
+  },
+  'texture.spriteList.importDialogTitle': {
+    default: 'Choose a PNG/BMP to import as tiles',
+    'pt-BR': 'Escolha um PNG/BMP para importar como tiles',
+    en: 'Choose a PNG/BMP to import as tiles',
+    es: 'Elige un PNG/BMP para importar como tiles',
+    ru: 'Выберите PNG/BMP для импорта как плитки'
+  },
+  'status.imageImportFailed': {
+    default: 'Failed to import image',
+    'pt-BR': 'Falha ao importar imagem',
+    en: 'Failed to import image',
+    es: 'Error al importar imagen',
+    ru: 'Не удалось импортировать изображение'
+  },
+  'texture.spriteList.exportDialogTitle': {
+    default: 'Choose a folder to export the sprites',
+    'pt-BR': 'Escolha uma pasta para exportar os sprites',
+    en: 'Choose a folder to export the sprites',
+    es: 'Elige una carpeta para exportar los sprites',
+    ru: 'Выберите папку для экспорта спрайтов'
+  },
   'texture.library.title': {
     default: 'Biblioteca de Sprites',
     'pt-BR': 'Biblioteca de Sprites',
@@ -1918,6 +2345,20 @@ const translationEntries = {
     en: 'No animation phases defined.',
     es: 'No hay fases de animación definidas.',
     ru: 'Фазы анимации не заданы.'
+  },
+  'texture.animation.applyAllFrames': {
+    default: 'Apply to all frames',
+    'pt-BR': 'Aplicar a todas as fases',
+    en: 'Apply to all frames',
+    es: 'Aplicar a todos los fotogramas',
+    ru: 'Применить ко всем кадрам'
+  },
+  'texture.animation.applyAllFrames.tooltip': {
+    default: 'Copy the first frame duration to all frames',
+    'pt-BR': 'Copia a duração da primeira fase para todas as fases',
+    en: 'Copy the first frame duration to all frames',
+    es: 'Copia la duración del primer fotograma a todos',
+    ru: 'Скопировать длительность первого кадра во все кадры'
   },
   'texture.animation.phaseMax': {
     default: 'Máx',
@@ -2143,6 +2584,13 @@ const translationEntries = {
     es: 'Pies',
     ru: 'Ступни'
   },
+  'texture.preview.randomizeColors': {
+    default: 'Randomize colors',
+    'pt-BR': 'Randomizar cores',
+    en: 'Randomize colors',
+    es: 'Aleatorizar colores',
+    ru: 'Случайные цвета'
+  },
   'texture.preview.colors.head': {
     default: 'Cabeça',
     'pt-BR': 'Cabeça',
@@ -2212,6 +2660,41 @@ const translationEntries = {
     en: 'Frame {{value}}',
     es: 'Fotograma {{value}}',
     ru: 'Кадр {{value}}'
+  },
+  'texture.preview.zoom': {
+    default: 'Zoom',
+    'pt-BR': 'Zoom',
+    en: 'Zoom',
+    es: 'Zoom',
+    ru: 'Масштаб'
+  },
+  'texture.preview.exportPng': {
+    default: 'Export the current preview as PNG',
+    'pt-BR': 'Exportar o preview atual como PNG',
+    en: 'Export the current preview as PNG',
+    es: 'Exportar la vista previa actual como PNG',
+    ru: 'Экспортировать текущий предпросмотр в PNG'
+  },
+  'texture.preview.exportGif': {
+    default: 'Export the animation as GIF',
+    'pt-BR': 'Exportar a animação como GIF',
+    en: 'Export the animation as GIF',
+    es: 'Exportar la animación como GIF',
+    ru: 'Экспортировать анимацию в GIF'
+  },
+  'texture.preview.exportingGif': {
+    default: 'Encoding…',
+    'pt-BR': 'Codificando…',
+    en: 'Encoding…',
+    es: 'Codificando…',
+    ru: 'Кодирование…'
+  },
+  'texture.preview.zoomLabel': {
+    default: '{{value}}x',
+    'pt-BR': '{{value}}x',
+    en: '{{value}}x',
+    es: '{{value}}x',
+    ru: '{{value}}x'
   },
   'texture.preview.layer': {
     default: 'Camada',
@@ -2296,6 +2779,55 @@ const translationEntries = {
     en: 'Import',
     es: 'Importar',
     ru: 'Импорт'
+  },
+  'action.button.jumpToId': {
+    default: 'Jump to ID',
+    'pt-BR': 'Ir para ID',
+    en: 'Jump to ID',
+    es: 'Ir a ID',
+    ru: 'Перейти к ID'
+  },
+  'action.button.flagSearch': {
+    default: 'Flags',
+    'pt-BR': 'Flags',
+    en: 'Flags',
+    es: 'Flags',
+    ru: 'Флаги'
+  },
+  'flagSearch.animatedOnly': {
+    default: 'Animated only',
+    'pt-BR': 'Somente animados',
+    en: 'Animated only',
+    es: 'Solo animados',
+    ru: 'Только анимированные'
+  },
+  'flagSearch.apply': {
+    default: 'Search ({{count}})',
+    'pt-BR': 'Buscar ({{count}})',
+    en: 'Search ({{count}})',
+    es: 'Buscar ({{count}})',
+    ru: 'Искать ({{count}})'
+  },
+  'flagSearch.clear': {
+    default: 'Clear filter',
+    'pt-BR': 'Limpar filtro',
+    en: 'Clear filter',
+    es: 'Limpiar filtro',
+    ru: 'Сбросить фильтр'
+  },
+  'prompt.jumpToId': {
+    default: 'Enter the appearance ID to jump to',
+    'pt-BR': 'Informe o ID da aparência para ir',
+    en: 'Enter the appearance ID to jump to',
+    es: 'Introduce el ID de la apariencia',
+    ru: 'Введите ID внешнего вида для перехода'
+  },
+  'status.jumpToIdNotFound': {
+    default: 'ID {{id}} not found in this category',
+    'pt-BR': 'ID {{id}} não encontrado nesta categoria',
+    en: 'ID {{id}} not found in this category',
+    es: 'ID {{id}} no encontrado en esta categoría',
+    ru: 'ID {{id}} не найден в этой категории'
   },
   'action.button.cancel': {
     default: 'Cancelar',
@@ -2570,6 +3102,8 @@ const translationEntries = {
   'asset.info.desc': { default: 'Description:', 'pt-BR': 'Descrição:', en: 'Description:', es: 'Descripción:', ru: 'Описание:' },
   'asset.info.category': { default: 'Category:', 'pt-BR': 'Categoria:', en: 'Category:', es: 'Categoría:', ru: 'Категория:' },
   'asset.info.minLevel': { default: 'Minimum Level:', 'pt-BR': 'Level Mínimo:', en: 'Minimum Level:', es: 'Nivel Mínimo:', ru: 'Мин. уровень:' },
+  'asset.info.copyId': { default: 'Copy ID', 'pt-BR': 'Copiar ID', en: 'Copy ID', es: 'Copiar ID', ru: 'Копировать ID' },
+  'asset.info.copyXml': { default: 'Copy XML', 'pt-BR': 'Copiar XML', en: 'Copy XML', es: 'Copiar XML', ru: 'Копировать XML' },
 
   // Asset Details - Sprite Preview
   'asset.preview.title': { default: 'Sprite Preview', 'pt-BR': 'Visualização de Sprites', en: 'Sprite Preview', es: 'Vista previa de Sprites', ru: 'Предпросмотр спрайтов' },
@@ -2757,6 +3291,21 @@ const translationEntries = {
   'asset.edit.opt.boots': { default: 'Boots', 'pt-BR': 'Botas', en: 'Boots', es: 'Botas', ru: 'Ботинки' },
   'asset.edit.opt.ring': { default: 'Ring', 'pt-BR': 'Anel', en: 'Ring', es: 'Anillo', ru: 'Кольцо' },
   'asset.edit.opt.arrowQuiver': { default: 'Arrow / Quiver', 'pt-BR': 'Flecha / Aljava', en: 'Arrow / Quiver', es: 'Flecha / Carcaj', ru: 'Стрела / Колчан' },
+
+  // Select Options (Lens Help types — id = index + 1100)
+  'asset.edit.opt.lensh_ladders': { default: 'Ladders', 'pt-BR': 'Escadas (Ladders)', en: 'Ladders', es: 'Escaleras', ru: 'Лестницы' },
+  'asset.edit.opt.lensh_sewerGrates': { default: 'Sewer Grates', 'pt-BR': 'Grades de Esgoto', en: 'Sewer Grates', es: 'Rejillas de alcantarilla', ru: 'Канализационные решётки' },
+  'asset.edit.opt.lensh_dungeonFloor': { default: 'Dungeon Floor', 'pt-BR': 'Chão de Masmorra', en: 'Dungeon Floor', es: 'Suelo de mazmorra', ru: 'Пол подземелья' },
+  'asset.edit.opt.lensh_levers': { default: 'Levers', 'pt-BR': 'Alavancas', en: 'Levers', es: 'Palancas', ru: 'Рычаги' },
+  'asset.edit.opt.lensh_doors': { default: 'Doors', 'pt-BR': 'Portas', en: 'Doors', es: 'Puertas', ru: 'Двери' },
+  'asset.edit.opt.lensh_specialDoors': { default: 'Special Doors', 'pt-BR': 'Portas Especiais', en: 'Special Doors', es: 'Puertas especiales', ru: 'Особые двери' },
+  'asset.edit.opt.lensh_stairs': { default: 'Stairs', 'pt-BR': 'Escadarias', en: 'Stairs', es: 'Escaleras', ru: 'Ступени' },
+  'asset.edit.opt.lensh_mailboxes': { default: 'Mailboxes', 'pt-BR': 'Caixas de Correio', en: 'Mailboxes', es: 'Buzones', ru: 'Почтовые ящики' },
+  'asset.edit.opt.lensh_depotBoxes': { default: 'Depot Boxes', 'pt-BR': 'Caixas de Depósito', en: 'Depot Boxes', es: 'Cajas de depósito', ru: 'Ящики склада' },
+  'asset.edit.opt.lensh_dustbins': { default: 'Dustbins', 'pt-BR': 'Lixeiras', en: 'Dustbins', es: 'Papeleras', ru: 'Урны' },
+  'asset.edit.opt.lensh_stonePiles': { default: 'Stone Piles', 'pt-BR': 'Pilhas de Pedra', en: 'Stone Piles', es: 'Montones de piedra', ru: 'Груды камней' },
+  'asset.edit.opt.lensh_signs': { default: 'Signs', 'pt-BR': 'Placas', en: 'Signs', es: 'Letreros', ru: 'Знаки' },
+  'asset.edit.opt.lensh_booksScrolls': { default: 'Books and Scrolls', 'pt-BR': 'Livros e Pergaminhos', en: 'Books and Scrolls', es: 'Libros y pergaminos', ru: 'Книги и свитки' },
 
   // Select Options (Default Action)
   'asset.edit.opt.look': { default: 'Look', 'pt-BR': 'Olhar', en: 'Look', es: 'Mirar', ru: 'Смотреть' },
@@ -3087,6 +3636,7 @@ const translationEntries = {
   'monster.card.outfit.corpse': { default: 'Corpse', 'pt-BR': 'Cadáver', en: 'Corpse', es: 'Cadáver', ru: 'Труп' },
   'monster.card.outfit.type': { default: 'Type', 'pt-BR': 'Tipo', en: 'Type', es: 'Tipo', ru: 'Тип' },
   'monster.card.outfit.rotate': { default: 'Rotate sprite', 'pt-BR': 'Rotacionar sprite', en: 'Rotate sprite', es: 'Rotar sprite', ru: 'Повернуть спрайт' },
+  'monster.card.outfit.randomize': { default: 'Randomize colors', 'pt-BR': 'Randomizar cores', en: 'Randomize colors', es: 'Aleatorizar colores', ru: 'Случайные цвета' },
 
   // Summons
   'monster.card.summons.title': { default: '📣 Summons', 'pt-BR': '📣 Summons', en: '📣 Summons', es: '📣 Invocaciones', ru: '📣 Призывы' },

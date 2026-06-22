@@ -9,7 +9,7 @@ import { recordAction } from '../history';
 export const detailsModal = $state({
     selectedAsset: null as CompleteAppearanceItem | null,
     isOpen: false,
-    activeTab: 'details' as 'details' | 'edit' | 'texture',
+    activeTab: 'details' as 'details' | 'edit' | 'texture' | 'other',
 });
 
 export function openAssetDetails(asset: CompleteAppearanceItem, resetTab = true) {

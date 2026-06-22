@@ -21,6 +21,10 @@
     refreshAssetPreview,
   } from "../../../../utils/spriteLoading";
   import { showStatus } from "../../../../utils";
+  import {
+    handleExportSprites,
+    handleImportImageTiles,
+  } from "../../../../services/importExportService";
   import { openBrowse } from "../../../../stores/spriteLibraryState.svelte";
   import { translate } from "../../../../i18n";
   import "../../../../styles/texture.css";
@@ -50,6 +54,7 @@
     patternY: 0,
     patternZ: 0,
     layer: 0,
+    previewZoom: 1,
   };
   let viewState = $state({ ...defaultState });
   let lastDetailsId = $state<number | null>(null);
@@ -334,6 +339,13 @@
     /* Settings mutated via bindings */
   }
 
+  async function handleImportImage() {
+    const ids = await handleImportImageTiles();
+    if (ids && ids.length > 0) {
+      await handleAppend({ spriteIds: ids });
+    }
+  }
+
   function collectTextureUpdatePayload() {
     if (!spriteInfo) return null;
     const payload: any = {
@@ -395,6 +407,7 @@
         {details}
         {sprites}
         previewState={viewState}
+        previewZoom={viewState.previewZoom}
         {spriteInfo}
         {isOutfit}
         onDropSprites={(d) => handleAppend(d)}
@@ -416,6 +429,8 @@
         onReplace={handleReplace}
         onAppend={handleAppend}
         onAdd={() => openBrowse()}
+        onExport={(d) => handleExportSprites(d.spriteIds)}
+        onImportImage={handleImportImage}
       />
       <TextureBoundingBox bind:spriteInfo onChange={handleSettingsChange} />
     </div>

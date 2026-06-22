@@ -123,6 +123,60 @@ pub async fn get_sprite_by_id(sprite_id: u32, state: State<'_, AppState>) -> Res
     }
 }
 
+/// Writes raw bytes to a file. Used by the frontend image export (composed
+/// preview canvas → PNG bytes → disk) since the webview has no direct fs access.
+#[tauri::command]
+pub async fn save_image_bytes(path: String, bytes: Vec<u8>) -> Result<(), String> {
+    std::fs::write(&path, &bytes).map_err(|e| format!("Failed to write {}: {}", path, e))
+}
+
+/// Exports the given sprite IDs as individual PNG files into `destination_dir`.
+/// Each file is named `sprite_<id>.png`. Individual failures are collected and
+/// logged; the command only errors if nothing could be written. Returns the list
+/// of written file paths.
+#[tauri::command]
+pub async fn export_sprites_to_png(sprite_ids: Vec<u32>, destination_dir: String, state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    use std::path::Path;
+
+    if sprite_ids.is_empty() {
+        return Err("No sprites selected".to_string());
+    }
+
+    let dir = Path::new(&destination_dir);
+    if !dir.is_dir() {
+        return Err(format!("Destination is not a directory: {}", destination_dir));
+    }
+
+    let sprite_loader_lock = state.sprite_loader.read();
+    let loader = match &*sprite_loader_lock {
+        Some(loader) => loader,
+        None => return Err("No sprites loaded".to_string()),
+    };
+
+    let mut written: Vec<String> = Vec::new();
+    let mut errors: Vec<String> = Vec::new();
+    for id in sprite_ids {
+        match resolve_sprite_bytes(state.inner(), loader, id) {
+            Ok(png) => {
+                let path = dir.join(format!("sprite_{}.png", id));
+                match std::fs::write(&path, &png) {
+                    Ok(_) => written.push(path.to_string_lossy().to_string()),
+                    Err(e) => errors.push(format!("sprite {}: {}", id, e)),
+                }
+            }
+            Err(e) => errors.push(format!("sprite {}: {}", id, e)),
+        }
+    }
+
+    if written.is_empty() {
+        return Err(format!("Failed to export sprites: {}", errors.join("; ")));
+    }
+    if !errors.is_empty() {
+        log::warn!("Some sprites failed to export: {}", errors.join("; "));
+    }
+    Ok(written)
+}
+
 /// Get sprites for an appearance (from sprite IDs in frame groups)
 /// Optimized: Lock-free cache with Arc for zero-copy sharing
 #[tauri::command]

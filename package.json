@@ -12,8 +12,10 @@
   "dependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
     "@tauri-apps/plugin-dialog": "^2",
     "@tauri-apps/plugin-opener": "^2",
+    "gifenc": "^1.0.3",
     "svelte": "^5.48.2",
     "svelte-dnd-action": "^0.9.69",
     "svelte-preprocess": "^6.0.3"
