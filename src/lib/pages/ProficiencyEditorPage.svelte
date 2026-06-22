@@ -3,6 +3,7 @@
   import { open, save } from "@tauri-apps/plugin-dialog";
   import { appState } from "../../stores/appState.svelte";
   import { assetsState } from "../../stores/assetsState.svelte";
+  import { openConfirmModal } from "../../stores/confirmState.svelte";
   import { invoke } from "../../utils/invoke";
   import { COMMANDS } from "../../commands";
   import { showStatus } from "../../utils";
@@ -700,9 +701,13 @@
     markDirty();
   }
 
-  function deleteSelectedProficiency() {
+  async function deleteSelectedProficiency() {
     if (selectedIndex < 0) return;
-    if (!confirm(translate("proficiency.config.deleteConfirm", { name: selectedEntry?.Name ?? "", id: String(selectedEntry?.ProficiencyId ?? "") }))) return;
+    const ok = await openConfirmModal(
+      translate("proficiency.config.deleteConfirm", { name: selectedEntry?.Name ?? "", id: String(selectedEntry?.ProficiencyId ?? "") }),
+      translate("action.verb.delete"),
+    );
+    if (!ok) return;
     const profId = entries[selectedIndex].ProficiencyId;
     entries = entries.filter((_, i) => i !== selectedIndex);
     selectedId = entries[0]?.ProficiencyId ?? null;

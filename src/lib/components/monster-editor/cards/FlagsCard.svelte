@@ -175,6 +175,6 @@
   .checkbox-group input {
     width: 16px;
     height: 16px;
-    accent-color: #8b5cf6;
+    accent-color: var(--primary-accent);
   }
 </style>

@@ -5,6 +5,7 @@
   import { invoke } from "../../../utils/invoke";
   import { COMMANDS } from "../../../commands";
   import { ensureAppearancesLoaded } from "../../../appearanceLoader";
+  import { showStatus } from "../../../utils";
   import { open } from "@tauri-apps/plugin-dialog";
 
   import NpcSidebar from "./NpcSidebar.svelte";
@@ -37,7 +38,7 @@
       }
     } catch (error) {
       console.error("Failed to select NPC directory:", error);
-      alert("Não foi possível selecionar a nova pasta de NPCs.");
+      showStatus("Não foi possível selecionar a nova pasta de NPCs.", "error");
     }
   }
 

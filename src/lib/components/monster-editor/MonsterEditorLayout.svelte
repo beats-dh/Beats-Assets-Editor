@@ -7,6 +7,7 @@
   import { ensureAppearancesLoaded } from "../../../appearanceLoader";
   import { open } from "@tauri-apps/plugin-dialog";
   import { translate } from "../../../i18n";
+  import { showStatus } from "../../../utils";
   import MonsterSidebar from "./MonsterSidebar.svelte";
   import MonsterForm from "./MonsterForm.svelte";
 
@@ -36,7 +37,7 @@
       }
     } catch (error) {
       console.error("Failed to select monster directory:", error);
-      alert(translate("monster.editor.error.selectDir"));
+      showStatus(translate("monster.editor.error.selectDir"), "error");
     }
   }
 

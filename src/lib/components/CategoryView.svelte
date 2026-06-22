@@ -18,6 +18,8 @@
   import { COMMANDS } from "../../commands";
   import { invoke } from "../../utils/invoke";
   import { translate } from "../../i18n";
+  import { showStatus } from "../../utils";
+  import { openPromptModal } from "../../stores/promptState.svelte";
   import {
     loadAssetsData,
     jumpToAppearanceId,
@@ -106,7 +108,9 @@
   async function handleExport() {
     const sel = getCurrentSelection();
     if (sel.length === 0) {
-      const idInput = prompt(translate("prompt.enterExportId"), "");
+      const idInput = await openPromptModal({
+        title: translate("prompt.enterExportId"),
+      });
       if (!idInput) return;
       const id = parseInt(idInput);
       if (isNaN(id)) return;
@@ -148,7 +152,7 @@
   }
 
   async function handleJumpToId() {
-    const input = prompt(translate("prompt.jumpToId"), "");
+    const input = await openPromptModal({ title: translate("prompt.jumpToId") });
     if (!input) return;
     const id = parseInt(input);
     if (isNaN(id)) return;
@@ -157,7 +161,7 @@
     revokeStaleUrls();
     const found = await jumpToAppearanceId(id);
     if (!found) {
-      alert(translate("status.jumpToIdNotFound", { id: String(id) }));
+      showStatus(translate("status.jumpToIdNotFound", { id: String(id) }), "error");
       return;
     }
     await tick();

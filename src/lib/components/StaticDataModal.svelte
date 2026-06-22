@@ -1,5 +1,6 @@
 <script lang="ts">
   import { translate } from "../../i18n";
+  import { openConfirmModal } from "../../stores/confirmState.svelte";
   import "../../styles/modals.css";
   import {
     getAppearancePreviewSpritesBatch,
@@ -133,10 +134,13 @@
           {#if onDelete && dataType !== "houses" && dataType !== "map_houses"}
             <button
               class="close-btn"
-              style="background: var(--bg-error, #ef4444); width: auto; padding: 0 10px; font-size: 0.9rem; font-weight: bold;"
-              onclick={() => {
-                if (confirm(translate("modal.static.confirmDelete")))
-                  onDelete(itemDetails.id ?? itemDetails.house_id);
+              style="background: var(--error-color); width: auto; padding: 0 10px; font-size: 0.9rem; font-weight: bold;"
+              onclick={async () => {
+                const ok = await openConfirmModal(
+                  translate("modal.static.confirmDelete"),
+                  translate("modal.static.btn.delete"),
+                );
+                if (ok) onDelete(itemDetails.id ?? itemDetails.house_id);
               }}
               title={translate("modal.static.btn.delete")}
             >

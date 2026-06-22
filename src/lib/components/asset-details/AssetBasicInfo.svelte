@@ -9,6 +9,7 @@
   import { invoke } from "../../../utils/invoke";
   import { COMMANDS } from "../../../commands";
   import { showStatus } from "../../../utils";
+  import { openPromptModal } from "../../../stores/promptState.svelte";
   import { detailsModal } from "../../../stores/selectionState.svelte";
   import { loadAssetsData } from "../../../services/assetService";
   interface Props {
@@ -19,10 +20,10 @@
   let flags = $derived(details.flags);
 
   async function editId() {
-    const input = prompt(
-      translate("asset.info.editIdPrompt"),
-      String(details.id),
-    );
+    const input = await openPromptModal({
+      title: translate("asset.info.editIdPrompt"),
+      defaultValue: String(details.id),
+    });
     if (!input) return;
     const newId = Number.parseInt(input, 10);
     if (Number.isNaN(newId) || newId === details.id) return;

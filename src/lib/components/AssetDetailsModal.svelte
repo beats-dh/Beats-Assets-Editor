@@ -10,6 +10,7 @@
   import { loadDetailSprites } from "../../utils/spriteLoading";
   import { addToExportQueue } from "../../stores/exportQueueState.svelte";
   import { invoke } from "../../utils/invoke";
+  import { showStatus } from "../../utils";
   import type { CompleteAppearanceItem, CompleteFlags } from "../../types";
 
   // Sub-components
@@ -362,10 +363,10 @@
         id,
       });
       detailsModal.selectedAsset = newDetails as CompleteAppearanceItem;
-      alert(translate("status.saveSuccess"));
+      showStatus(translate("status.saveSuccess"), "success");
     } catch (err) {
       console.error("Failed to save asset:", err);
-      alert(translate("status.saveError", { err: String(err) }));
+      showStatus(translate("status.saveError", { err: String(err) }), "error");
     }
   }
 </script>

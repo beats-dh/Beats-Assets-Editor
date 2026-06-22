@@ -3,9 +3,11 @@ import { join } from "@tauri-apps/api/path";
 import { invoke } from "../utils/invoke";
 import { COMMANDS } from "../commands";
 import { translate } from "../i18n";
+import { showStatus } from "../utils";
 import { loadAssetsData } from "./assetService";
 import { openImportModal, type ImportContext } from "../stores/importExportState.svelte";
 import { openConfirmModal } from "../stores/confirmState.svelte";
+import { openPromptModal } from "../stores/promptState.svelte";
 import { clearAssetSelection, removeAssetSelection } from "../stores/selectionState.svelte";
 
 interface AssetTarget {
@@ -32,10 +34,10 @@ export async function handleExport(category: string, id: number): Promise<void> 
     const useAec = lower.endsWith('.aec');
     const command = useAec ? COMMANDS.EXPORT_APPEARANCE_TO_AEC : COMMANDS.EXPORT_APPEARANCE_TO_JSON;
     await invoke(command, { category, id, path: destination });
-    alert(translate('status.appearanceExported', { id }));
+    showStatus(translate('status.appearanceExported', { id }), 'success');
   } catch (error) {
     console.error("Failed to export appearance", error);
-    alert(translate('status.appearanceExportFailed'));
+    showStatus(translate('status.appearanceExportFailed'), 'error');
   }
 }
 
@@ -69,11 +71,12 @@ export async function exportQueueToFolder(
       failed.push(item.id);
     }
   }
-  alert(
+  showStatus(
     translate("status.queueExported", {
       ok: String(ok),
       total: String(items.length),
     }),
+    failed.length === 0 ? "success" : "error",
   );
   return failed.length === 0;
 }
@@ -94,7 +97,7 @@ export async function handleCompileImportedSprites(): Promise<void> {
   try {
     const tibiaPath = await invoke<string | null>(COMMANDS.GET_TIBIA_BASE_PATH);
     if (!tibiaPath) {
-      alert(translate("status.compileNoPath"));
+      showStatus(translate("status.compileNoPath"), 'error');
       return;
     }
     const assetsDir = await join(tibiaPath, "assets");
@@ -110,15 +113,16 @@ export async function handleCompileImportedSprites(): Promise<void> {
     await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssetsData();
 
-    alert(
+    showStatus(
       translate("status.compileDone", {
         count: String(result.sprites_compiled),
         file: result.sheet_file,
       }),
+      "success",
     );
   } catch (err) {
     console.error("Failed to compile imported sprites", err);
-    alert(translate("status.compileFailed", { err: String(err) }));
+    showStatus(translate("status.compileFailed", { err: String(err) }), 'error');
   }
 }
 
@@ -140,7 +144,7 @@ export async function handleImportImageTiles(): Promise<number[] | null> {
     return ids;
   } catch (err) {
     console.error("Failed to import image as tiles", err);
-    alert(translate("status.imageImportFailed"));
+    showStatus(translate("status.imageImportFailed"), 'error');
     return null;
   }
 }
@@ -158,10 +162,10 @@ export async function handleExportSprites(spriteIds: number[]): Promise<void> {
       spriteIds,
       destinationDir: dir,
     });
-    alert(translate("status.spritesExported", { count: String(written.length) }));
+    showStatus(translate("status.spritesExported", { count: String(written.length) }), 'success');
   } catch (error) {
     console.error("Failed to export sprites", error);
-    alert(translate("status.spritesExportFailed"));
+    showStatus(translate("status.spritesExportFailed"), 'error');
   }
 }
 
@@ -206,10 +210,10 @@ export async function handleImport(): Promise<void> {
       imported: importedCount,
       skipped: skippedCount,
     });
-    alert(message);
+    showStatus(message, 'success');
   } catch (error) {
     console.error("Failed to import appearance", error);
-    alert(translate('status.appearanceImportFailed'));
+    showStatus(translate('status.appearanceImportFailed'), 'error');
   }
 }
 
@@ -220,18 +224,18 @@ export async function handleCopyFlags(category: string, id: number): Promise<voi
   try {
     await invoke(COMMANDS.COPY_APPEARANCE_FLAGS, { category, id });
     hasClipboard = true;
-    alert(translate('status.flagsCopied', { id }));
+    showStatus(translate('status.flagsCopied', { id }), 'success');
   } catch (error) {
     console.error("Failed to copy flags", error);
     hasClipboard = false;
-    alert(translate('status.flagsCopyFailed'));
+    showStatus(translate('status.flagsCopyFailed'), 'error');
   }
 }
 
 export async function handlePasteFlagsBatch(targets: AssetTarget[]): Promise<void> {
   if (targets.length === 0) return;
   if (!hasClipboard) {
-    alert(translate('status.copyFlagsBeforePasting'));
+    showStatus(translate('status.copyFlagsBeforePasting'), 'error');
     return;
   }
 
@@ -245,10 +249,10 @@ export async function handlePasteFlagsBatch(targets: AssetTarget[]): Promise<voi
     const message = targets.length === 1
       ? translate('status.flagsAppliedSingle', { id: targets[0].id })
       : translate('status.flagsAppliedMultiple', { count: targets.length });
-    alert(message);
+    showStatus(message, 'success');
   } catch (error) {
     console.error("Failed to paste flags", error);
-    alert(translate('status.flagsPasteFailed'));
+    showStatus(translate('status.flagsPasteFailed'), 'error');
   }
 }
 
@@ -276,10 +280,10 @@ export async function handleDeleteAppearances(targets: AssetTarget[]): Promise<v
     const message = targets.length === 1
       ? translate('status.appearanceDeletedSingle', { id: targets[0].id })
       : translate('status.appearanceDeletedMultiple', { count: targets.length });
-    alert(message);
+    showStatus(message, 'success');
   } catch (error) {
     console.error("Failed to delete appearance", error);
-    alert(translate('status.appearanceDeleteFailed'));
+    showStatus(translate('status.appearanceDeleteFailed'), 'error');
   }
 }
 
@@ -294,11 +298,11 @@ export async function handleDuplicateBatch(category: string, ids: number[], rema
     await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssetsData();
     const newIds = pairs.map((p) => p[1]);
-    alert(translate('status.appearancesDuplicatedBatch', { count: String(newIds.length) }));
+    showStatus(translate('status.appearancesDuplicatedBatch', { count: String(newIds.length) }), 'success');
     return newIds;
   } catch (error) {
     console.error("Failed to duplicate appearances", error);
-    alert(translate('status.appearanceDuplicateFailed') || 'Failed to duplicate');
+    showStatus(translate('status.appearanceDuplicateFailed') || 'Failed to duplicate', 'error');
     return null;
   }
 }
@@ -307,17 +311,17 @@ export async function handleDuplicate(category: string, id: number, newId?: numb
   try {
     let targetId = newId;
     if (targetId === undefined) {
-      const idInput = prompt(translate('prompt.enterDuplicateId') || 'Enter new ID for duplicate (leave empty for auto):', '');
+      const idInput = await openPromptModal({ title: translate('prompt.enterDuplicateId') });
       if (idInput === null) return null;
 
       if (idInput.trim()) {
         targetId = Number.parseInt(idInput, 10);
         if (Number.isNaN(targetId)) {
-          alert(translate('status.invalidId') || 'Invalid ID');
+          showStatus(translate('status.invalidId') || 'Invalid ID', 'error');
           return null;
         }
         if (category === 'Objects' && targetId <= 100) {
-          alert(translate('status.idTooLow'));
+          showStatus(translate('status.idTooLow'), 'error');
           return null;
         }
       }
@@ -332,11 +336,11 @@ export async function handleDuplicate(category: string, id: number, newId?: numb
     await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssetsData();
 
-    alert(translate('status.appearanceDuplicated', { id, newId: duplicatedId }) || `Duplicated #${id} to #${duplicatedId}`);
+    showStatus(translate('status.appearanceDuplicated', { id, newId: duplicatedId }) || `Duplicated #${id} to #${duplicatedId}`, 'success');
     return duplicatedId;
   } catch (error) {
     console.error("Failed to duplicate appearance", error);
-    alert(translate('status.appearanceDuplicateFailed') || 'Failed to duplicate');
+    showStatus(translate('status.appearanceDuplicateFailed') || 'Failed to duplicate', 'error');
     return null;
   }
 }
@@ -346,17 +350,17 @@ export async function handleCreateNew(category: string, desiredId?: number): Pro
     let newId = desiredId;
 
     if (newId === undefined) {
-      const idInput = prompt(translate('prompt.enterNewId') || 'Enter ID for new appearance (leave empty for auto):', '');
+      const idInput = await openPromptModal({ title: translate('prompt.enterNewId') });
       if (idInput === null) return null;
 
       if (idInput.trim()) {
         newId = Number.parseInt(idInput, 10);
         if (Number.isNaN(newId)) {
-          alert(translate('status.invalidId') || 'Invalid ID');
+          showStatus(translate('status.invalidId') || 'Invalid ID', 'error');
           return null;
         }
         if (category === 'Objects' && newId <= 100) {
-          alert(translate('status.idTooLow'));
+          showStatus(translate('status.idTooLow'), 'error');
           return null;
         }
       }
@@ -370,11 +374,11 @@ export async function handleCreateNew(category: string, desiredId?: number): Pro
     await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssetsData();
 
-    alert(translate('status.appearanceCreated', { id: createdId }) || `Created appearance #${createdId}`);
+    showStatus(translate('status.appearanceCreated', { id: createdId }) || `Created appearance #${createdId}`, 'success');
     return createdId;
   } catch (error) {
     console.error("Failed to create appearance", error);
-    alert(translate('status.appearanceCreateFailed') || 'Failed to create');
+    showStatus(translate('status.appearanceCreateFailed') || 'Failed to create', 'error');
     return null;
   }
 }

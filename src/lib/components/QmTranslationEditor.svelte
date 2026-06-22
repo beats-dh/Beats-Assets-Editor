@@ -3,6 +3,7 @@
   import { open, save } from "@tauri-apps/plugin-dialog";
   import { assetsState } from "../../stores/assetsState.svelte";
   import { invoke } from "../../utils/invoke";
+  import { showStatus } from "../../utils";
   import { COMMANDS } from "../../commands";
   import { translate } from "../../i18n";
   import { SvelteMap } from "svelte/reactivity";
@@ -290,9 +291,9 @@
   async function debugRaw() {
     try {
       const result = await invoke<string>(COMMANDS.QM_DEBUG_RAW);
-      alert(result);
+      showStatus(result, "success");
     } catch (e) {
-      alert(String(e));
+      showStatus(String(e), "error");
     }
   }
 

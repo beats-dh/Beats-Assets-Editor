@@ -5,6 +5,8 @@
   import MonsterEditorPage from "./lib/pages/MonsterEditorPage.svelte";
   import NpcEditorPage from "./lib/pages/NpcEditorPage.svelte";
   import LoggerPanel from "./lib/components/LoggerPanel.svelte";
+  import ConfirmModal from "./lib/components/ConfirmModal.svelte";
+  import PromptModal from "./lib/components/PromptModal.svelte";
   // Global Styles
   import "./styles/main.css";
   import "./features/layout/headerSpacing.css";
@@ -22,4 +24,8 @@
   <NpcEditorPage />
 {/if}
 
+<!-- Global overlays / toast (available on every page) -->
+<ConfirmModal />
+<PromptModal />
 <LoggerPanel />
+<div id="status-message" class="status-toast"></div>

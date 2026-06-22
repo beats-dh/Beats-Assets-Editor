@@ -2,6 +2,7 @@
   import { npcState } from "../../../stores/npcState.svelte";
   import { invoke } from "../../../utils/invoke";
   import { translate } from "../../../i18n";
+  import { showStatus } from "../../../utils";
   import type { NpcListEntry, Npc } from "../../../npcTypes";
 
   interface Props {
@@ -25,7 +26,7 @@
       npcState.currentFilePath = entry.filePath;
     } catch (err) {
       console.error(err);
-      alert(translate("npc.list.error.load", { err: String(err) }));
+      showStatus(translate("npc.list.error.load", { err: String(err) }), "error");
     }
   }
 </script>

@@ -110,7 +110,7 @@
                 >
                   <input
                     type="checkbox"
-                    style="accent-color: #8b5cf6; width: 16px; height: 16px; cursor: pointer; margin: 0;"
+                    style="accent-color: var(--primary-accent); width: 16px; height: 16px; cursor: pointer; margin: 0;"
                     bind:checked={voice.yell}
                     onchange={handleInput}
                   />

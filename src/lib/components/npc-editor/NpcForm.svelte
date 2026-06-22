@@ -3,6 +3,7 @@
   import { invoke } from "../../../utils/invoke";
   import { COMMANDS } from "../../../commands";
   import { translate } from "../../../i18n";
+  import { showStatus } from "../../../utils";
 
   import BasicInfoCard from "./cards/BasicInfoCard.svelte";
   import OutfitCard from "./cards/OutfitCard.svelte";
@@ -24,10 +25,10 @@
         filePath: npcState.currentFilePath,
         npc: npcState.currentNpc,
       });
-      alert(translate("npc.form.saved"));
+      showStatus(translate("npc.form.saved"), "success");
       window.dispatchEvent(new CustomEvent("reload-npc-list"));
     } catch (err) {
-      alert(translate("npc.form.error.save", { err: String(err) }));
+      showStatus(translate("npc.form.error.save", { err: String(err) }), "error");
     }
   }
 </script>

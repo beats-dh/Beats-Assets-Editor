@@ -22,6 +22,7 @@
   import { getSpriteUrl } from "../../utils/spriteUrlCache";
   import StaticDataModal from "./StaticDataModal.svelte";
   import StaticDataFormModal from "./StaticDataFormModal.svelte";
+  import { showStatus } from "../../utils";
 
   let dataReady = $state(false);
   let isCreateModalOpen = $state(false);
@@ -246,7 +247,7 @@
     }
 
     if (currentArr.some((i: any) => i.id === newItem.id)) {
-      alert(`Já existe um item com o ID ${newItem.id} em ${currentDataType}!`);
+      showStatus(`Já existe um item com o ID ${newItem.id} em ${currentDataType}!`, 'error');
       return;
     }
 
@@ -279,7 +280,7 @@
       isCreateModalOpen = false;
     } catch (e) {
       console.error("Failed to create item", e);
-      alert("Erro ao criar: " + e);
+      showStatus("Erro ao criar: " + e, 'error');
     }
   }
 
@@ -310,7 +311,7 @@
       isModalOpen = false;
     } catch (e) {
       console.error("Failed to delete item", e);
-      alert("Failed to delete item: " + e);
+      showStatus("Failed to delete item: " + e, 'error');
     }
   }
 

@@ -7,7 +7,6 @@
   import RccBrowser from "../components/RccBrowser.svelte";
   import QmTranslationEditor from "../components/QmTranslationEditor.svelte";
   import AssetDetailsModal from "../components/AssetDetailsModal.svelte";
-  import ConfirmModal from "../components/ConfirmModal.svelte";
   import ImportStartIdModal from "../components/ImportStartIdModal.svelte";
   import SpriteLibraryDrawer from "../components/SpriteLibraryDrawer.svelte";
   import ProficiencyEditorPage from "./ProficiencyEditorPage.svelte";
@@ -32,6 +31,5 @@
 {/if}
 
 <AssetDetailsModal />
-<ConfirmModal />
 <ImportStartIdModal />
 <SpriteLibraryDrawer />

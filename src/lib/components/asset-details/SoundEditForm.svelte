@@ -5,6 +5,7 @@
   import { confirm } from "../../../stores/confirmState.svelte";
   import { closeAssetDetails } from "../../../stores/selectionState.svelte";
   import { loadAssetsData } from "../../../services/assetService";
+  import { showStatus } from "../../../utils";
   interface Props {
     id: number;
     onSave?: () => void;
@@ -143,11 +144,11 @@
         });
       }
       await invoke("save_sounds_file");
-      alert(translate("asset.sound.edit.saved"));
+      showStatus(translate("asset.sound.edit.saved"), "success");
       if (onSave) onSave();
     } catch (e) {
       console.error("Failed to save sound", e);
-      alert(translate("asset.sound.edit.saveFail", { err: String(e) }));
+      showStatus(translate("asset.sound.edit.saveFail", { err: String(e) }), "error");
     }
   }
 
@@ -164,7 +165,7 @@
           await loadAssetsData();
         } catch (e) {
           console.error("Failed to delete sound", e);
-          alert(translate("asset.sound.edit.deleteFail", { err: String(e) }));
+          showStatus(translate("asset.sound.edit.deleteFail", { err: String(e) }), "error");
         }
       },
     });

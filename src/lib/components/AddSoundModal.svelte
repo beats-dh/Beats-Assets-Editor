@@ -586,7 +586,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 2000;
   }
   .modal-backdrop {
     position: absolute;
@@ -691,7 +691,7 @@
   .modern-input:focus,
   .modern-select:focus {
     outline: none;
-    border-color: var(--accent-color, #6366f1);
+    border-color: var(--primary-accent);
   }
   .upload-section {
     background: var(--section-bg, #252535);
@@ -753,7 +753,7 @@
     align-items: center;
     gap: 0.25rem;
     padding: 0.25rem 0.5rem;
-    background: var(--accent-color, #6366f1);
+    background: var(--primary-accent);
     color: white;
     border: none;
     border-radius: 4px;
@@ -785,7 +785,7 @@
   }
   .sound-id {
     font-weight: 600;
-    color: var(--accent-color, #6366f1);
+    color: var(--primary-accent);
     min-width: 3rem;
   }
   .sound-name {
@@ -828,7 +828,7 @@
   }
   .btn-primary,
   .btn-save {
-    background: var(--accent-color, #6366f1);
+    background: var(--primary-accent);
     color: white;
   }
   .btn-primary:hover,

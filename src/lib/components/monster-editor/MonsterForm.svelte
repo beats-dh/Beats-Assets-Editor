@@ -1,6 +1,7 @@
 <script lang="ts">
   import { monsterState } from "../../../stores/monsterState.svelte";
   import { invoke } from "../../../utils/invoke";
+  import { showStatus } from "../../../utils";
   import { COMMANDS } from "../../../commands";
   import { translate } from "../../../i18n";
 
@@ -32,10 +33,10 @@
         filePath: monsterState.currentFilePath,
         monster: monsterState.currentMonster,
       });
-      alert(translate("monster.form.saved"));
+      showStatus(translate("monster.form.saved"), "success");
       window.dispatchEvent(new CustomEvent("reload-monster-list"));
     } catch (err) {
-      alert(translate("monster.form.error.save", { err: String(err) }));
+      showStatus(translate("monster.form.error.save", { err: String(err) }), "error");
     }
   }
 </script>

@@ -2,6 +2,7 @@
   import type { CompleteAppearanceItem } from "../../../types";
   import { translate } from "../../../i18n";
   import { openSelect } from "../../../stores/spriteLibraryState.svelte";
+  import { openPromptModal } from "../../../stores/promptState.svelte";
   import { untrack } from "svelte";
   import Color8BitField from "./Color8BitField.svelte";
 
@@ -557,8 +558,10 @@
         <button
           class="btn-secondary"
           style="margin-top: 0.5rem;"
-          onclick={() => {
-            const id = prompt(translate("asset.edit.prompt.vocId"));
+          onclick={async () => {
+            const id = await openPromptModal({
+              title: translate("asset.edit.prompt.vocId"),
+            });
             if (id && !isNaN(parseInt(id))) {
               if (!flags.restrict_to_vocation.includes(parseInt(id)))
                 flags.restrict_to_vocation = [

@@ -88,7 +88,7 @@
         style="font-size: 13px; font-weight: normal; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-primary);"
       >
         <input
-          style="accent-color: #8b5cf6; width: 16px; height: 16px; cursor: pointer; margin: 0;"
+          style="accent-color: var(--primary-accent); width: 16px; height: 16px; cursor: pointer; margin: 0;"
           type="checkbox"
           checked={hasInteractions}
           onchange={toggleInteractions}

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { translate } from "../../i18n";
+  import { showStatus } from "../../utils";
   import "../../styles/modals.css";
   import MonsterOutfitPreview from "./monster-editor/cards/MonsterOutfitPreview.svelte";
 
@@ -65,7 +66,7 @@
   function handleSubmit(e: Event) {
     e.preventDefault();
     if (id === "" || name.trim() === "") {
-      alert(translate("modal.static.error.required"));
+      showStatus(translate("modal.static.error.required"), "error");
       return;
     }
 

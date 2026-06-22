@@ -111,7 +111,7 @@
   .eq-overlay {
     position: fixed;
     inset: 0;
-    z-index: 2100;
+    z-index: 2000;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -124,7 +124,7 @@
   }
   .eq-dialog {
     position: relative;
-    z-index: 2101;
+    z-index: 2001;
     background: var(--secondary-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
@@ -230,8 +230,8 @@
     cursor: not-allowed;
   }
   .eq-btn.primary {
-    background: var(--accent-color, #4f46e5);
-    border-color: var(--accent-color, #4f46e5);
+    background: var(--primary-accent);
+    border-color: var(--primary-accent);
     color: #fff;
   }
 </style>

@@ -2,6 +2,7 @@
   import { monsterState } from "../../../stores/monsterState.svelte";
   import { invoke } from "../../../utils/invoke";
   import { translate } from "../../../i18n";
+  import { showStatus } from "../../../utils";
   import type { MonsterListEntry, Monster } from "../../../monsterTypes";
 
   interface Props {
@@ -27,7 +28,7 @@
       monsterState.currentFilePath = entry.filePath;
     } catch (err) {
       console.error(err);
-      alert(translate("monster.list.error.load", { err: String(err) }));
+      showStatus(translate("monster.list.error.load", { err: String(err) }), "error");
     }
   }
 </script>

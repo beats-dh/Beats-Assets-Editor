@@ -4,6 +4,7 @@
   import { COMMANDS } from "../../commands";
   import { translate } from "../../i18n";
   import { showStatus } from "../../utils";
+  import { openPromptModal } from "../../stores/promptState.svelte";
 
   interface Preset {
     id: string;
@@ -32,7 +33,9 @@
   onMount(load);
 
   async function saveCurrent() {
-    const name = prompt(translate("settings.presets.namePrompt"));
+    const name = await openPromptModal({
+      title: translate("settings.presets.namePrompt"),
+    });
     if (!name) return;
     try {
       const [tibia, monster, npc] = await Promise.all([
@@ -135,7 +138,7 @@
     font-size: 13px;
   }
   .preset-row.active {
-    border-color: var(--accent-color, #4f46e5);
+    border-color: var(--primary-accent);
   }
   .preset-name {
     color: var(--text-secondary);

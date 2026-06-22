@@ -16,6 +16,7 @@
   import { clearPreviewSpriteCaches } from "../../utils/spriteLoading";
   import { loadAssetsData } from "../../services/assetService";
   import { handleCompileImportedSprites } from "../../services/importExportService";
+  import { openConfirmModal } from "../../stores/confirmState.svelte";
   import PresetsManager from "./PresetsManager.svelte";
 
   const SUPPORTED_THEMES = [
@@ -80,7 +81,11 @@
   }
 
   async function handleExit() {
-    if (!confirm(translate("settings.exit.confirm"))) return;
+    const ok = await openConfirmModal(
+      translate("settings.exit.confirm"),
+      translate("settings.exit.button"),
+    );
+    if (!ok) return;
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     await getCurrentWindow().close();
   }

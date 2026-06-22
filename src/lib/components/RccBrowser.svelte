@@ -4,6 +4,7 @@
     import { assetsState } from "../../stores/assetsState.svelte";
     import { appState } from "../../stores/appState.svelte";
     import { openConfirmModal } from "../../stores/confirmState.svelte";
+    import { openPromptModal } from "../../stores/promptState.svelte";
     import { open, save } from "@tauri-apps/plugin-dialog";
     import { onMount } from "svelte";
     import { translate } from "../../i18n";
@@ -1046,7 +1047,10 @@
         const defaultDir = selectedFile
             ? selectedFile.path.substring(0, selectedFile.path.lastIndexOf("/"))
             : "";
-        const targetDir = prompt(translate("rcc.prompt.rccPath"), defaultDir);
+        const targetDir = await openPromptModal({
+            title: translate("rcc.prompt.rccPath"),
+            defaultValue: defaultDir,
+        });
         if (targetDir === null) return; // cancelled
 
         try {

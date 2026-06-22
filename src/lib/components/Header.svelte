@@ -141,7 +141,7 @@
     height: 16px;
     padding: 0 4px;
     border-radius: 8px;
-    background: var(--accent-color, #4f46e5);
+    background: var(--primary-accent);
     color: #fff;
     font-size: 10px;
     line-height: 16px;
