@@ -534,7 +534,7 @@
       >
         {#each [1, 2, 3, 4] as _, i}
           <label
-            style="display: flex; align-items: center; gap: 0.5rem; color: #ccc;"
+            style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary);"
           >
             <input
               type="checkbox"
@@ -573,7 +573,7 @@
         >
         {#each flags.restrict_to_vocation.filter((v: number) => v > 4) as extraVoc}
           <div
-            style="display: flex; align-items: center; justify-content: space-between; background: #222; padding: 0.5rem; border-radius: 4px;"
+            style="display: flex; align-items: center; justify-content: space-between; background: var(--tertiary-bg); padding: var(--space-sm); border-radius: var(--radius-sm);"
           >
             <span
               >{translate("asset.edit.lbl.vocId", {

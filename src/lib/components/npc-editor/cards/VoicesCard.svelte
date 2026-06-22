@@ -136,16 +136,16 @@
 
 <style>
   .btn-danger-icon {
-    background: rgba(255, 60, 60, 0.1);
-    color: #ff4444;
-    border: 1px solid rgba(255, 60, 60, 0.2);
+    background: color-mix(in srgb, var(--error-color) 10%, transparent);
+    color: var(--error-color);
+    border: 1px solid color-mix(in srgb, var(--error-color) 20%, transparent);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
   }
 
   .btn-danger-icon:hover {
-    background: #ff4444;
+    background: var(--error-color);
     color: white;
   }
 </style>

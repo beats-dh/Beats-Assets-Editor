@@ -480,7 +480,7 @@
             </div>
           {:else if detailsModal.activeTab === "texture"}
             <div class="tab-content">
-              <p style="color: #888; text-align: center;">
+              <p style="color: var(--text-muted); text-align: center;">
                 {translate("asset.notApplicableSounds")}
               </p>
             </div>

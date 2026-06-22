@@ -69,7 +69,7 @@
   }
   .loading-audio,
   .audio-error {
-    color: #888;
+    color: var(--text-muted);
     font-size: 0.9rem;
     padding: 0.5rem;
     text-align: center;
