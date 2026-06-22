@@ -7,8 +7,13 @@
     import { open, save } from "@tauri-apps/plugin-dialog";
     import { onMount } from "svelte";
     import { translate } from "../../i18n";
+    import SpriteGrid from "./SpriteGrid.svelte";
+    import SpellEditorPanel from "./spell-editor/SpellEditorPanel.svelte";
 
     const RCC_CACHE_KEY = "lastRccPath";
+    const EXE_CACHE_KEY = "lastExePath";
+
+    type Source = "rcc" | "exe";
 
     interface RccFileInfo {
         index: number;
@@ -18,6 +23,11 @@
         compressed: boolean;
     }
 
+    /** A resource in the unified list, tagged with the source it came from. */
+    interface UIFile extends RccFileInfo {
+        source: Source;
+    }
+
     interface RccLoadResult {
         files: RccFileInfo[];
         total_files: number;
@@ -25,15 +35,67 @@
         version: number;
     }
 
-    let files = $state<RccFileInfo[]>([]);
-    let filteredFiles = $state<RccFileInfo[]>([]);
-    let selectedFile = $state<RccFileInfo | null>(null);
+    // Per-source state — both sources can be loaded at the same time.
+    let rccFiles = $state<RccFileInfo[]>([]);
+    let exeFiles = $state<RccFileInfo[]>([]);
+    let rccPath = $state("");
+    let exePath = $state("");
+    let rccVersion = $state(0);
+
+    // Unified, source-tagged list shown in the UI.
+    let files = $derived<UIFile[]>([
+        ...rccFiles.map((f) => ({ ...f, source: "rcc" as const })),
+        ...exeFiles.map((f) => ({ ...f, source: "exe" as const })),
+    ]);
+
+    let selectedFile = $state<UIFile | null>(null);
     let previewUrl = $state<string | null>(null);
     let audioUrl = $state<string | null>(null);
     let textContent = $state<string | null>(null);
     let originalTextContent = $state<string | null>(null);
     let textModified = $state(false);
     let hexPreview = $state<string | null>(null);
+    // True when the selected exe resource can be written back into the binary
+    // in place (it has a physical slot recorded during the scan).
+    let canApplyToExe = $state(false);
+
+    // Sprite-grid editing state (for .rcc image sheets shown as a cell grid).
+    interface ImageGridInfo {
+        width: number;
+        height: number;
+        cell: number;
+        count: number;
+    }
+    let gridBytes = $state<Uint8Array | null>(null);
+    let gridInfo = $state<ImageGridInfo | null>(null);
+    let gridCell = $state(0);
+    let gridSelected = $state(-1);
+    let gridZoom = $state(2);
+    // A sheet is grid-editable when it has more than one cell (a real strip).
+    let isGridSheet = $derived(
+        selectedFile?.source === "rcc" &&
+            gridInfo !== null &&
+            gridInfo.count > 1 &&
+            gridInfo.cell < gridInfo.width,
+    );
+
+    // Structured spell editor: shown for the two spell JSONs, toggled on demand.
+    const SPELL_FILE_NAMES = ["spells.json", "spells-previews.json"];
+    let isSpellJsonFile = $derived(
+        SPELL_FILE_NAMES.includes(selectedFile?.name ?? ""),
+    );
+    let spellEditorOpen = $state(false);
+    // Indices of the two spell JSONs within the selected file's source.
+    let spellEditorIndices = $derived.by(() => {
+        if (!selectedFile) return { spells: null, previews: null };
+        const list = selectedFile.source === "exe" ? exeFiles : rccFiles;
+        const find = (n: string) =>
+            list.find((f) => f.name === n)?.index ?? null;
+        return {
+            spells: find("spells.json"),
+            previews: find("spells-previews.json"),
+        };
+    });
 
     interface DmpEntry {
         field: number;
@@ -51,12 +113,42 @@
     }
     let dmpInfo = $state<DmpInfo | null>(null);
     let searchQuery = $state("");
-    let loadedPath = $state("");
-    let totalFiles = $state(0);
-    let totalSize = $state(0);
-    let rccVersion = $state(0);
     let isLoading = $state(false);
     let statusMessage = $state("");
+
+    // True once either source is loaded.
+    let hasContent = $derived(rccFiles.length > 0 || exeFiles.length > 0);
+    let totalFiles = $derived(files.length);
+    let totalSize = $derived(files.reduce((sum, f) => sum + f.size, 0));
+
+    /** Command set for a given source (.rcc = read/write, .exe = read-only). */
+    function cmdsFor(source: Source) {
+        return source === "exe"
+            ? {
+                  GET: COMMANDS.EXE_GET_RESOURCE,
+                  REPLACE: COMMANDS.EXE_REPLACE_RESOURCE,
+                  EXTRACT_ALL: COMMANDS.EXE_EXTRACT_ALL,
+                  EXTRACT_SINGLE: COMMANDS.EXE_EXTRACT_SINGLE,
+              }
+            : {
+                  GET: COMMANDS.RCC_GET_RESOURCE,
+                  REPLACE: COMMANDS.RCC_REPLACE_RESOURCE,
+                  EXTRACT_ALL: COMMANDS.RCC_EXTRACT_ALL,
+                  EXTRACT_SINGLE: COMMANDS.RCC_EXTRACT_SINGLE,
+              };
+    }
+
+    // Filtered view derived from the unified list + search query.
+    let filteredFiles = $derived.by(() => {
+        const q = searchQuery.toLowerCase();
+        return q
+            ? files.filter(
+                  (f) =>
+                      f.name.toLowerCase().includes(q) ||
+                      f.path.toLowerCase().includes(q),
+              )
+            : files;
+    });
 
     // Cleanup blob URLs when they change
     $effect(() => {
@@ -66,64 +158,69 @@
         };
     });
 
-    // Filter files when search changes
-    $effect(() => {
-        const q = searchQuery.toLowerCase();
-        filteredFiles = q
-            ? files.filter(
-                  (f) =>
-                      f.name.toLowerCase().includes(q) ||
-                      f.path.toLowerCase().includes(q),
-              )
-            : files;
-    });
-
-    // Auto-load RCC on mount
+    // Auto-load both sources on mount (cached paths first, then auto-discovery).
     onMount(async () => {
-        // Try cached path first
-        const cachedPath = localStorage.getItem(RCC_CACHE_KEY);
-        if (cachedPath) {
+        // .rcc — cached path, else discover from the Tibia client path.
+        const cachedRcc = localStorage.getItem(RCC_CACHE_KEY);
+        if (cachedRcc) {
             try {
-                await loadRccFile(cachedPath);
-                return;
+                await loadSource(cachedRcc, "rcc");
             } catch {
                 localStorage.removeItem(RCC_CACHE_KEY);
             }
-        }
-
-        // Try to find .rcc from the Tibia client path
-        if (appState.tibiaPath) {
+        } else if (appState.tibiaPath) {
             try {
                 const found = await invoke<string[]>(COMMANDS.RCC_FIND_FILES, {
                     basePath: appState.tibiaPath,
                 });
-                if (found.length > 0) {
-                    await loadRccFile(found[0]);
-                }
+                if (found.length > 0) await loadSource(found[0], "rcc");
+            } catch {
+                // Silent — user can still open manually
+            }
+        }
+
+        // .exe — cached path, else discover from the Tibia client path.
+        const cachedExe = localStorage.getItem(EXE_CACHE_KEY);
+        if (cachedExe) {
+            try {
+                await loadSource(cachedExe, "exe");
+            } catch {
+                localStorage.removeItem(EXE_CACHE_KEY);
+            }
+        } else if (appState.tibiaPath) {
+            try {
+                const found = await invoke<string[]>(COMMANDS.EXE_FIND_FILES, {
+                    basePath: appState.tibiaPath,
+                });
+                if (found.length > 0) await loadSource(found[0], "exe");
             } catch {
                 // Silent — user can still open manually
             }
         }
     });
 
-    async function loadRccFile(path: string) {
+    /** Load one source (.rcc or .exe) into its own slot, keeping the other. */
+    async function loadSource(path: string, source: Source) {
         isLoading = true;
         statusMessage = translate("rcc.status.loading");
         try {
-            const result = await invoke<RccLoadResult>(COMMANDS.RCC_LOAD, {
-                path,
-            });
-            files = result.files;
-            totalFiles = result.total_files;
-            totalSize = result.total_size;
-            rccVersion = result.version;
-            loadedPath = path;
+            const cmd = source === "exe" ? COMMANDS.EXE_LOAD : COMMANDS.RCC_LOAD;
+            const result = await invoke<RccLoadResult>(cmd, { path });
+            if (source === "exe") {
+                exeFiles = result.files;
+                exePath = path;
+                localStorage.setItem(EXE_CACHE_KEY, path);
+            } else {
+                rccFiles = result.files;
+                rccVersion = result.version;
+                rccPath = path;
+                localStorage.setItem(RCC_CACHE_KEY, path);
+            }
             selectedFile = null;
             previewUrl = null;
-            localStorage.setItem(RCC_CACHE_KEY, path);
             statusMessage = translate("rcc.status.loaded", {
-                count: totalFiles,
-                size: formatSize(totalSize),
+                count: result.total_files,
+                size: formatSize(result.total_size),
             });
         } catch (e) {
             statusMessage = translate("rcc.status.error", { err: String(e) });
@@ -278,7 +375,20 @@
         });
         if (!selected) return;
         try {
-            await loadRccFile(selected as string);
+            await loadSource(selected as string, "rcc");
+        } catch {
+            // Error already shown via statusMessage
+        }
+    }
+
+    async function openExeFile() {
+        const selected = await open({
+            title: translate("rcc.dialog.openExeTitle"),
+            filters: [{ name: "Executable", extensions: ["exe"] }],
+        });
+        if (!selected) return;
+        try {
+            await loadSource(selected as string, "exe");
         } catch {
             // Error already shown via statusMessage
         }
@@ -384,7 +494,7 @@
         };
     }
 
-    async function selectResource(file: RccFileInfo) {
+    async function selectResource(file: UIFile) {
         // Cleanup previous blob URLs
         if (previewUrl) {
             URL.revokeObjectURL(previewUrl);
@@ -400,9 +510,25 @@
         hexPreview = null;
         dmpInfo = null;
         selectedFile = file;
+        canApplyToExe = false;
+        gridBytes = null;
+        gridInfo = null;
+        gridSelected = -1;
+
+        // Does this exe resource have a physical slot we can write back in place?
+        if (file.source === "exe") {
+            try {
+                canApplyToExe = await invoke<boolean>(
+                    COMMANDS.EXE_CAN_APPLY_RESOURCE,
+                    { index: file.index },
+                );
+            } catch {
+                canApplyToExe = false;
+            }
+        }
 
         try {
-            const data = await invoke<number[]>(COMMANDS.RCC_GET_RESOURCE, {
+            const data = await invoke<number[]>(cmdsFor(file.source).GET, {
                 index: file.index,
             });
             const bytes = new Uint8Array(data);
@@ -412,6 +538,21 @@
                     type: getImageMimeType(file.name),
                 });
                 previewUrl = URL.createObjectURL(blob);
+                // For .rcc PNGs, also probe whether it's a multi-cell strip so
+                // we can offer the sprite-grid editor.
+                if (file.source === "rcc" && getFileExtension(file.name) === "png") {
+                    try {
+                        const info = await invoke<ImageGridInfo>(
+                            COMMANDS.RCC_IMAGE_INFO,
+                            { index: file.index },
+                        );
+                        gridInfo = info;
+                        gridCell = info.cell;
+                        gridBytes = bytes;
+                    } catch {
+                        gridInfo = null;
+                    }
+                }
             } else if (isAudioFile(file.name)) {
                 const blob = new Blob([bytes], {
                     type: getAudioMimeType(file.name),
@@ -459,27 +600,246 @@
         }
     }
 
-    /** Save the currently edited text back into the RCC */
-    async function saveTextEdit() {
+    /** Find an .rcc resource whose path (or name) matches the given file. */
+    function matchingRccFile(file: UIFile): RccFileInfo | null {
+        const byPath = rccFiles.find((f) => f.path === file.path);
+        if (byPath) return byPath;
+        // .exe resources have synthetic paths (recovered/…); fall back to name.
+        return rccFiles.find((f) => f.name === file.name) ?? null;
+    }
+
+    interface EmbedReport {
+        name: string;
+        compressed_used: number;
+        compressed_max: number;
+        uncompressed_used: number;
+        uncompressed_max: number;
+    }
+    interface ExeApplyResult {
+        embedded: EmbedReport[];
+        path_patched: boolean;
+    }
+    interface SpellDiskResult {
+        written_path: string;
+        path_patched: boolean;
+    }
+
+    // The two spell JSONs additionally support unlimited "disk mode".
+    const SPELL_JSONS = ["spells.json", "spells-previews.json"];
+    function isSpellJson(name: string): boolean {
+        return SPELL_JSONS.includes(name);
+    }
+
+    /** If applying to the exe fails because the content doesn't fit the slot,
+     *  suggest the right fallback: disk mode for spells, the .rcc for twins,
+     *  otherwise disk export. */
+    function applyFailureHint(sel: UIFile, err: unknown): string {
+        const base = `${translate("rcc.status.applyExeError")}: ${err}`;
+        if (isSpellJson(sel.name))
+            return `${base} — ${translate("rcc.status.applyExeHintSpellDisk")}`;
+        const twin = matchingRccFile(sel);
+        if (twin) return `${base} — ${translate("rcc.status.applyExeHintRcc")}`;
+        return `${base} — ${translate("rcc.status.applyExeHintDisk")}`;
+    }
+
+    /** Apply a spell JSON via DISK MODE — no size limit. Writes the loose file
+     *  into the client's spells/ folder and patches the binary to read from
+     *  disk. Use this when the embed doesn't fit, or to grow spells freely. */
+    async function applySpellToDisk() {
         if (!selectedFile || textContent === null) return;
+        if (!isSpellJson(selectedFile.name)) return;
+        const sel = selectedFile;
+        const confirmed = await openConfirmModal(
+            translate("rcc.dialog.applyDiskMsg", { name: sel.name }) +
+                `<div class="confirm-warning">${translate("rcc.dialog.applyDiskWarning")}</div>`,
+            translate("rcc.dialog.applyDiskTitle"),
+            translate("rcc.btn.applyDisk").replace(/^[^\w]*/, ""),
+            translate("modal.btn.cancel"),
+        );
+        if (!confirmed) return;
+
+        isLoading = true;
+        statusMessage = translate("rcc.status.applyingDisk");
         try {
-            const bytes = Array.from(new TextEncoder().encode(textContent));
-            const updated = await invoke<RccFileInfo>(
-                COMMANDS.RCC_REPLACE_RESOURCE,
-                {
-                    index: selectedFile.index,
-                    data: bytes,
-                },
+            const result = await invoke<SpellDiskResult>(
+                COMMANDS.EXE_APPLY_SPELL_TO_DISK,
+                { name: sel.name, content: textContent },
             );
-            selectedFile = updated;
+            statusMessage = translate("rcc.status.appliedDisk", {
+                path: result.written_path,
+            });
             originalTextContent = textContent;
             textModified = false;
-            const idx = files.findIndex((f) => f.index === updated.index);
-            if (idx >= 0) files[idx] = updated;
-            statusMessage = translate("rcc.status.replaced", {
-                name: updated.name,
-                size: formatSize(updated.size),
+        } catch (e) {
+            statusMessage = `${translate("rcc.status.applyExeError")}: ${e}`;
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    /** Embed the currently selected exe resource (the in-memory edited bytes)
+     *  back INTO client.exe in place, so the game reads it. Works for ANY
+     *  recovered resource that has a slot — text or binary. For the spell JSONs
+     *  it also patches the spell paths. Confirms first (rewrites the binary;
+     *  a one-time backup is made). Assumes the edit is already in memory. */
+    async function applyToClientExe() {
+        if (!selectedFile || !canApplyToExe) return;
+        const sel = selectedFile;
+        const confirmed = await openConfirmModal(
+            translate("rcc.dialog.applyExeMsg", { name: sel.name }) +
+                `<div class="confirm-warning">${translate("rcc.dialog.applyExeWarning")}</div>`,
+            translate("rcc.dialog.applyExeTitle"),
+            translate("rcc.btn.applyToClient").replace(/^[^\w]*/, ""),
+            translate("modal.btn.cancel"),
+        );
+        if (!confirmed) return;
+
+        isLoading = true;
+        statusMessage = translate("rcc.status.applyingExe");
+        try {
+            // Persist the current text edit into the exe's in-memory copy first
+            // (binary resources are already updated via replace-from-file).
+            if (textContent !== null) {
+                const bytes = Array.from(new TextEncoder().encode(textContent));
+                await invoke<RccFileInfo>(COMMANDS.EXE_REPLACE_RESOURCE, {
+                    index: sel.index,
+                    data: bytes,
+                });
+            }
+            const result = await invoke<ExeApplyResult>(
+                COMMANDS.EXE_APPLY_RESOURCE,
+                { index: sel.index },
+            );
+            const rep = result.embedded[0];
+            statusMessage = translate("rcc.status.appliedExe", {
+                name: rep.name,
+                used: rep.compressed_used,
+                max: rep.compressed_max,
             });
+            if (textContent !== null) originalTextContent = textContent;
+            textModified = false;
+            exeFiles = await invoke<RccFileInfo[]>(COMMANDS.EXE_GET_FILES);
+        } catch (e) {
+            statusMessage = applyFailureHint(sel, e);
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    /** Replace a binary exe resource (e.g. PNG) from a file on disk, then apply
+     *  it into the binary in place. */
+    async function replaceExeResourceFromFile() {
+        if (!selectedFile || selectedFile.source !== "exe" || !canApplyToExe)
+            return;
+        const sel = selectedFile;
+        const ext = getFileExtension(sel.name);
+        const picked = await open({
+            title: translate("rcc.dialog.replaceTitle", { name: sel.name }),
+            filters: [
+                { name: `Original (${ext})`, extensions: ext ? [ext] : ["*"] },
+                { name: "All Files", extensions: ["*"] },
+            ],
+        });
+        if (!picked) return;
+
+        const confirmed = await openConfirmModal(
+            translate("rcc.dialog.applyExeMsg", { name: sel.name }) +
+                `<div class="confirm-warning">${translate("rcc.dialog.applyExeWarning")}</div>`,
+            translate("rcc.dialog.applyExeTitle"),
+            translate("rcc.btn.applyToClient").replace(/^[^\w]*/, ""),
+            translate("modal.btn.cancel"),
+        );
+        if (!confirmed) return;
+
+        isLoading = true;
+        statusMessage = translate("rcc.status.applyingExe");
+        try {
+            const result = await invoke<ExeApplyResult>(
+                COMMANDS.EXE_REPLACE_RESOURCE_FROM_FILE,
+                { index: sel.index, filePath: picked },
+            );
+            const rep = result.embedded[0];
+            statusMessage = translate("rcc.status.appliedExe", {
+                name: rep.name,
+                used: rep.compressed_used,
+                max: rep.compressed_max,
+            });
+            exeFiles = await invoke<RccFileInfo[]>(COMMANDS.EXE_GET_FILES);
+            await selectResource(sel);
+        } catch (e) {
+            statusMessage = applyFailureHint(sel, e);
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    /** Save the currently edited text.
+     *  - .rcc: write back into the bundle (client reads the .rcc).
+     *  - .exe: the binary is never rewritten. If the same resource also exists
+     *    in the loaded .rcc, write the edit there (the client recognises it);
+     *    otherwise export the edited file to disk. */
+    async function saveTextEdit() {
+        if (!selectedFile || textContent === null) return;
+        const sel = selectedFile;
+        const bytes = Array.from(new TextEncoder().encode(textContent));
+        try {
+            // Always update the in-memory copy of the source it came from.
+            const updated = await invoke<RccFileInfo>(
+                cmdsFor(sel.source).REPLACE,
+                { index: sel.index, data: bytes },
+            );
+
+            if (sel.source === "exe") {
+                if (canApplyToExe) {
+                    // The resource lives INSIDE client.exe and we have its slot —
+                    // embedding in place is the only edit the game actually reads.
+                    await applyToClientExe();
+                    return;
+                }
+                const twin = matchingRccFile(sel);
+                if (twin) {
+                    // Mirror the edit into the .rcc so the client picks it up.
+                    await invoke<RccFileInfo>(COMMANDS.RCC_REPLACE_RESOURCE, {
+                        index: twin.index,
+                        data: bytes,
+                    });
+                    rccFiles = await invoke<RccFileInfo[]>(
+                        COMMANDS.RCC_GET_FILES,
+                    );
+                    statusMessage = translate("rcc.status.savedToRcc", {
+                        name: twin.path || twin.name,
+                    });
+                } else {
+                    // No twin — export to disk (binary stays untouched).
+                    const dest = await save({
+                        title: translate("rcc.dialog.saveFile", {
+                            name: sel.name,
+                        }),
+                        defaultPath: sel.name,
+                    });
+                    if (dest) {
+                        await invoke(cmdsFor("exe").EXTRACT_SINGLE, {
+                            index: sel.index,
+                            outputPath: dest,
+                        });
+                        statusMessage = translate("rcc.status.saved", {
+                            path: dest,
+                        });
+                    }
+                }
+                // Refresh the exe-side size in its slot.
+                exeFiles = await invoke<RccFileInfo[]>(COMMANDS.EXE_GET_FILES);
+            } else {
+                rccFiles = await invoke<RccFileInfo[]>(COMMANDS.RCC_GET_FILES);
+                statusMessage = translate("rcc.status.replaced", {
+                    name: updated.name,
+                    size: formatSize(updated.size),
+                });
+            }
+
+            selectedFile = { ...sel, size: bytes.length };
+            originalTextContent = textContent;
+            textModified = false;
         } catch (e) {
             statusMessage = `Save error: ${e}`;
         }
@@ -571,7 +931,7 @@
         if (!selected) return;
 
         try {
-            // Do the replacement
+            // Do the replacement (replace-from-file is .rcc only)
             const updated = await invoke<RccFileInfo>(
                 COMMANDS.RCC_REPLACE_FROM_FILE,
                 { index: selectedFile.index, filePath: selected },
@@ -620,12 +980,9 @@
                 });
             }
 
-            // Update local state
-            selectedFile = updated;
-            const idx = files.findIndex((f) => f.index === updated.index);
-            if (idx >= 0) files[idx] = updated;
-            // Refresh preview
-            await selectResource(updated);
+            // Update local state and refresh preview
+            rccFiles = await invoke<RccFileInfo[]>(COMMANDS.RCC_GET_FILES);
+            await selectResource({ ...updated, source: "rcc" });
         } catch (e) {
             statusMessage = `Replace error: ${e}`;
         }
@@ -646,15 +1003,12 @@
         if (!confirmed) return;
 
         try {
-            const updatedFiles = await invoke<RccFileInfo[]>(
+            rccFiles = await invoke<RccFileInfo[]>(
                 COMMANDS.RCC_DELETE_RESOURCE,
                 {
                     index: selectedFile.index,
                 },
             );
-            files = updatedFiles;
-            totalFiles = updatedFiles.length;
-            totalSize = updatedFiles.reduce((sum, f) => sum + f.size, 0);
             selectedFile = null;
             previewUrl = null;
             statusMessage = translate("rcc.status.deleted", { name });
@@ -710,9 +1064,7 @@
                     },
                 );
             }
-            files = updatedFiles;
-            totalFiles = updatedFiles.length;
-            totalSize = updatedFiles.reduce((sum, f) => sum + f.size, 0);
+            rccFiles = updatedFiles;
             statusMessage = translate("rcc.status.added", {
                 count: filePaths.length,
             });
@@ -724,17 +1076,25 @@
     async function extractAll() {
         const dir = await save({
             title: translate("rcc.dialog.extractAllTitle"),
-            defaultPath: "rcc_extracted",
+            defaultPath: "client_extracted",
         });
         if (!dir) return;
 
         isLoading = true;
         statusMessage = translate("rcc.status.extracting");
         try {
-            // Use dialog to pick folder
-            const count = await invoke<number>(COMMANDS.RCC_EXTRACT_ALL, {
-                outputDir: dir,
-            });
+            // Extract every loaded source into its own subfolder.
+            let count = 0;
+            if (rccFiles.length > 0) {
+                count += await invoke<number>(COMMANDS.RCC_EXTRACT_ALL, {
+                    outputDir: `${dir}/rcc`,
+                });
+            }
+            if (exeFiles.length > 0) {
+                count += await invoke<number>(COMMANDS.EXE_EXTRACT_ALL, {
+                    outputDir: `${dir}/exe`,
+                });
+            }
             statusMessage = translate("rcc.status.extractedCount", { count });
         } catch (e) {
             statusMessage = translate("rcc.status.error", { err: String(e) });
@@ -754,7 +1114,7 @@
         if (!dest) return;
 
         try {
-            await invoke(COMMANDS.RCC_EXTRACT_SINGLE, {
+            await invoke(cmdsFor(selectedFile.source).EXTRACT_SINGLE, {
                 index: selectedFile.index,
                 outputPath: dest,
             });
@@ -769,7 +1129,7 @@
     async function saveRcc() {
         const dest = await save({
             title: translate("rcc.dialog.saveTitle"),
-            defaultPath: loadedPath || "output.rcc",
+            defaultPath: rccPath || "output.rcc",
             filters: [{ name: "Qt Resource", extensions: ["rcc"] }],
         });
         if (!dest) return;
@@ -788,6 +1148,204 @@
         }
     }
 
+    const QT_RCC_CACHE_KEY = "qtRccExePath";
+
+    /** Resolve a usable Qt rcc.exe: cached path → auto-detect → ask the user. */
+    async function resolveQtRcc(): Promise<string | null> {
+        const cached = localStorage.getItem(QT_RCC_CACHE_KEY);
+        if (cached) return cached;
+        const detected = await invoke<string | null>(
+            COMMANDS.RCC_DETECT_QT_RCC,
+        );
+        if (detected) {
+            localStorage.setItem(QT_RCC_CACHE_KEY, detected);
+            return detected;
+        }
+        // Ask the user to point at rcc.exe (e.g. PySide6/rcc.exe).
+        const picked = await open({
+            title: translate("rcc.dialog.pickRccExe"),
+            filters: [{ name: "rcc", extensions: ["exe"] }],
+        });
+        if (!picked) return null;
+        localStorage.setItem(QT_RCC_CACHE_KEY, picked as string);
+        return picked as string;
+    }
+
+    /** Recompile the loaded .rcc with Qt's official rcc (preserving compression)
+     *  and install it over the client's source .rcc so the game reads the edits.
+     *  Backup + atomic write happen on the Rust side. Falls back to the in-house
+     *  writer only if no Qt rcc is available (produces a larger, uncompressed
+     *  but still valid .rcc). */
+    async function installRccToClient() {
+        const confirmed = await openConfirmModal(
+            translate("rcc.dialog.installRccMsg") +
+                `<div class="confirm-warning">${translate("rcc.dialog.installRccWarning")}</div>`,
+            translate("rcc.dialog.installRccTitle"),
+            translate("rcc.btn.installRcc").replace(/^[^\w]*/, ""),
+            translate("modal.btn.cancel"),
+        );
+        if (!confirmed) return;
+        isLoading = true;
+        statusMessage = translate("rcc.status.installingRcc");
+        try {
+            const rccExe = await resolveQtRcc();
+            let path: string;
+            if (rccExe) {
+                path = await invoke<string>(COMMANDS.RCC_INSTALL_TO_CLIENT_QT, {
+                    rccExe,
+                });
+            } else {
+                // No Qt rcc — fall back to the uncompressed in-house writer.
+                statusMessage = translate("rcc.status.installingRccFallback");
+                path = await invoke<string>(COMMANDS.RCC_INSTALL_TO_CLIENT);
+            }
+            statusMessage = translate("rcc.status.installedRcc", { path });
+        } catch (e) {
+            // If a cached rcc.exe path went stale, clear it so next try re-detects.
+            localStorage.removeItem(QT_RCC_CACHE_KEY);
+            statusMessage = `${translate("rcc.status.error", { err: String(e) })}`;
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    // ---- generic sprite-grid editing (any .rcc image sheet) --------------
+
+    /** Re-fetch the selected sheet's bytes + grid info after an edit so the
+     *  SpriteGrid re-renders without losing the selection. */
+    async function refreshGrid() {
+        if (!selectedFile) return;
+        const data = await invoke<number[]>(COMMANDS.RCC_GET_RESOURCE, {
+            index: selectedFile.index,
+        });
+        gridBytes = new Uint8Array(data);
+        gridInfo = await invoke<ImageGridInfo>(COMMANDS.RCC_IMAGE_INFO, {
+            index: selectedFile.index,
+        });
+        rccFiles = await invoke<RccFileInfo[]>(COMMANDS.RCC_GET_FILES);
+    }
+
+    /** Add (append) or replace a cell from a PNG file. `at` = null appends. */
+    async function gridAddOrReplace(at: number | null) {
+        if (!selectedFile || !gridInfo) return;
+        const picked = await open({
+            title: translate("rcc.dialog.pickIcon"),
+            filters: [{ name: "PNG", extensions: ["png"] }],
+        });
+        if (!picked) return;
+        isLoading = true;
+        try {
+            const written = await invoke<number>(
+                COMMANDS.RCC_IMAGE_ADD_OR_REPLACE,
+                {
+                    index: selectedFile.index,
+                    cell: gridCell,
+                    iconFile: picked,
+                    atIndex: at,
+                },
+            );
+            await refreshGrid();
+            gridSelected = written;
+            statusMessage = translate("rcc.status.iconAdded", { idx: written });
+        } catch (e) {
+            statusMessage = translate("rcc.status.error", { err: String(e) });
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    async function gridRemoveSelected() {
+        if (!selectedFile || gridSelected < 0) return;
+        const idx = gridSelected;
+        isLoading = true;
+        try {
+            await invoke(COMMANDS.RCC_IMAGE_REMOVE, {
+                index: selectedFile.index,
+                cell: gridCell,
+                atIndex: idx,
+            });
+            await refreshGrid();
+            statusMessage = translate("rcc.status.iconRemoved", { idx });
+        } catch (e) {
+            statusMessage = translate("rcc.status.error", { err: String(e) });
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    async function gridMove(source: number, target: number) {
+        if (!selectedFile) return;
+        isLoading = true;
+        try {
+            await invoke(COMMANDS.RCC_IMAGE_MOVE, {
+                index: selectedFile.index,
+                cell: gridCell,
+                sourceIndex: source,
+                targetIndex: target,
+            });
+            await refreshGrid();
+            gridSelected = target;
+            statusMessage = translate("rcc.status.iconMoved", {
+                source,
+                target,
+            });
+        } catch (e) {
+            statusMessage = translate("rcc.status.error", { err: String(e) });
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    // Save handler for the structured spell editor. Routes the serialized JSON
+    // to the right place: exe → embed in place (or disk on overflow); rcc →
+    // replace + recompile-install. The panel calls this per file.
+    async function saveSpellJson(
+        which: "spells.json" | "spells-previews.json",
+        content: string,
+    ) {
+        if (!selectedFile) return;
+        const list = selectedFile.source === "exe" ? exeFiles : rccFiles;
+        const target = list.find((f) => f.name === which);
+        if (!target) throw new Error(`${which} not found in the loaded source`);
+        const bytes = Array.from(new TextEncoder().encode(content));
+
+        if (selectedFile.source === "exe") {
+            // Update the in-memory copy, then embed in place. On slot overflow
+            // fall back to disk mode (unlimited) automatically.
+            await invoke(COMMANDS.EXE_REPLACE_RESOURCE, {
+                index: target.index,
+                data: bytes,
+            });
+            try {
+                await invoke(COMMANDS.EXE_APPLY_RESOURCE, {
+                    index: target.index,
+                });
+            } catch (e) {
+                if (String(e).includes("too large")) {
+                    await invoke(COMMANDS.EXE_APPLY_SPELL_TO_DISK, {
+                        name: which,
+                        content,
+                    });
+                } else {
+                    throw e;
+                }
+            }
+            exeFiles = await invoke<RccFileInfo[]>(COMMANDS.EXE_GET_FILES);
+        } else {
+            await invoke(COMMANDS.RCC_REPLACE_RESOURCE, {
+                index: target.index,
+                data: bytes,
+            });
+            await invoke<string>(COMMANDS.RCC_INSTALL_TO_CLIENT_QT, {
+                rccExe: localStorage.getItem("qtRccExePath"),
+            }).catch(async () => {
+                // Fallback to the in-house writer if Qt rcc isn't available.
+                await invoke<string>(COMMANDS.RCC_INSTALL_TO_CLIENT);
+            });
+            rccFiles = await invoke<RccFileInfo[]>(COMMANDS.RCC_GET_FILES);
+        }
+    }
+
     function goBack() {
         assetsState.viewMode = "categories";
     }
@@ -800,7 +1358,15 @@
             <span>←</span>
             {translate("rcc.back")}
         </button>
-        <h2 class="rcc-title">{translate("rcc.title")}</h2>
+        <h2 class="rcc-title">
+            {translate("rcc.title")}
+            {#if rccFiles.length > 0}
+                <span class="source-badge">RCC</span>
+            {/if}
+            {#if exeFiles.length > 0}
+                <span class="source-badge exe">EXE</span>
+            {/if}
+        </h2>
         <div class="toolbar-actions">
             <button
                 class="rcc-btn primary"
@@ -809,7 +1375,14 @@
             >
                 {translate("rcc.btn.open")}
             </button>
-            {#if files.length > 0}
+            <button
+                class="rcc-btn primary"
+                onclick={openExeFile}
+                disabled={isLoading}
+            >
+                {translate("rcc.btn.openExe")}
+            </button>
+            {#if hasContent}
                 <button
                     class="rcc-btn"
                     onclick={extractAll}
@@ -817,35 +1390,51 @@
                 >
                     {translate("rcc.btn.extractAll")}
                 </button>
-                <button
-                    class="rcc-btn primary"
-                    onclick={addResource}
-                    disabled={isLoading}
-                >
-                    {translate("rcc.btn.add")}
-                </button>
-                <button
-                    class="rcc-btn accent"
-                    onclick={saveRcc}
-                    disabled={isLoading}
-                >
-                    {translate("rcc.btn.save")}
-                </button>
+                {#if rccFiles.length > 0}
+                    <button
+                        class="rcc-btn primary"
+                        onclick={addResource}
+                        disabled={isLoading}
+                    >
+                        {translate("rcc.btn.add")}
+                    </button>
+                    <button
+                        class="rcc-btn accent"
+                        onclick={saveRcc}
+                        disabled={isLoading}
+                    >
+                        {translate("rcc.btn.save")}
+                    </button>
+                    <button
+                        class="rcc-btn accent"
+                        onclick={installRccToClient}
+                        disabled={isLoading}
+                        title={translate("rcc.btn.installRccHint")}
+                    >
+                        {translate("rcc.btn.installRcc")}
+                    </button>
+                {/if}
             {/if}
         </div>
     </div>
 
-    {#if loadedPath}
+    {#if hasContent}
         <!-- Stats bar -->
         <div class="rcc-stats">
             <span class="stat-item"
                 >📄 {totalFiles} {translate("rcc.stats.files")}</span
             >
             <span class="stat-item">💾 {formatSize(totalSize)}</span>
-            <span class="stat-item">🏷️ v{rccVersion}</span>
-            <span class="stat-item path-item" title={loadedPath}
-                >📁 {loadedPath.split(/[\\/]/).pop()}</span
-            >
+            {#if rccFiles.length > 0}
+                <span class="stat-item path-item" title={rccPath}
+                    >📦 {rccPath.split(/[\\/]/).pop()} (v{rccVersion})</span
+                >
+            {/if}
+            {#if exeFiles.length > 0}
+                <span class="stat-item path-item" title={exePath}
+                    >🎯 {exePath.split(/[\\/]/).pop()}</span
+                >
+            {/if}
             {#if statusMessage}
                 <span class="stat-status">{statusMessage}</span>
             {/if}
@@ -868,10 +1457,11 @@
         <div class="rcc-content">
             <!-- File list -->
             <div class="file-list">
-                {#each filteredFiles as file (file.index)}
+                {#each filteredFiles as file (file.source + ":" + file.index)}
                     <button
                         class="file-item"
-                        class:selected={selectedFile?.index === file.index}
+                        class:selected={selectedFile?.index === file.index &&
+                            selectedFile?.source === file.source}
                         onclick={() => selectResource(file)}
                     >
                         <span class="file-icon">{getFileIcon(file.name)}</span>
@@ -879,6 +1469,14 @@
                             <span class="file-name">{file.name}</span>
                             <span class="file-path">{file.path}</span>
                         </div>
+                        <span
+                            class="src-tag"
+                            class:exe={file.source === "exe"}
+                            title={file.source === "exe"
+                                ? translate("rcc.src.exe")
+                                : translate("rcc.src.rcc")}
+                            >{file.source === "exe" ? "EXE" : "RCC"}</span
+                        >
                         <span class="file-size">{formatSize(file.size)}</span>
                     </button>
                 {/each}
@@ -890,24 +1488,51 @@
                     <div class="preview-header">
                         <h3>{selectedFile.name}</h3>
                         <div class="preview-actions">
-                            <button
-                                class="rcc-btn small primary"
-                                onclick={replaceResource}
-                            >
-                                {translate("rcc.btn.replace")}
-                            </button>
+                            {#if isSpellJsonFile}
+                                <button
+                                    class="rcc-btn small accent"
+                                    onclick={() =>
+                                        (spellEditorOpen = !spellEditorOpen)}
+                                >
+                                    {spellEditorOpen
+                                        ? translate("spell.btn.rawJson")
+                                        : translate("spell.btn.structured")}
+                                </button>
+                            {/if}
+                            {#if selectedFile.source === "rcc"}
+                                <button
+                                    class="rcc-btn small primary"
+                                    onclick={replaceResource}
+                                >
+                                    {translate("rcc.btn.replace")}
+                                </button>
+                            {/if}
+                            {#if selectedFile.source === "exe" && canApplyToExe && textContent === null}
+                                <button
+                                    class="rcc-btn small accent"
+                                    onclick={replaceExeResourceFromFile}
+                                    disabled={isLoading}
+                                    title={translate(
+                                        "rcc.btn.replaceApplyHint",
+                                    )}
+                                >
+                                    {translate("rcc.btn.replaceApply")}
+                                </button>
+                            {/if}
                             <button
                                 class="rcc-btn small"
                                 onclick={extractSingle}
                             >
                                 {translate("rcc.btn.export")}
                             </button>
-                            <button
-                                class="rcc-btn small danger"
-                                onclick={deleteResource}
-                            >
-                                {translate("rcc.btn.delete")}
-                            </button>
+                            {#if selectedFile.source === "rcc"}
+                                <button
+                                    class="rcc-btn small danger"
+                                    onclick={deleteResource}
+                                >
+                                    {translate("rcc.btn.delete")}
+                                </button>
+                            {/if}
                         </div>
                     </div>
                     <div class="preview-meta">
@@ -927,11 +1552,79 @@
                     </div>
                     <div
                         class="preview-content"
-                        class:text-mode={textContent !== null}
+                        class:text-mode={textContent !== null &&
+                            !(isSpellJsonFile && spellEditorOpen)}
                         class:hex-mode={hexPreview !== null}
                         class:dmp-mode={dmpInfo !== null}
+                        class:grid-mode={isGridSheet}
+                        class:panel-mode={isSpellJsonFile && spellEditorOpen}
                     >
-                        {#if previewUrl}
+                        {#if isSpellJsonFile && spellEditorOpen}
+                            <SpellEditorPanel
+                                source={selectedFile.source}
+                                spellsIndex={spellEditorIndices.spells}
+                                previewsIndex={spellEditorIndices.previews}
+                                onsave={saveSpellJson}
+                                onstatus={(m) => (statusMessage = m)}
+                            />
+                        {:else if isGridSheet && gridBytes && gridInfo}
+                            <div class="grid-view">
+                                <div class="grid-toolbar">
+                                    <span class="text-ext-badge">GRID</span>
+                                    <span class="text-char-count">
+                                        {gridInfo.count}
+                                        {translate("rcc.grid.cells")} · {gridInfo.cell}px
+                                        {#if gridSelected >= 0}
+                                            · #{gridSelected}
+                                        {/if}
+                                    </span>
+                                    <label class="grid-zoom">
+                                        🔍
+                                        <input
+                                            type="range"
+                                            min="1"
+                                            max="6"
+                                            step="1"
+                                            bind:value={gridZoom}
+                                        />
+                                    </label>
+                                    <button
+                                        class="rcc-btn small accent"
+                                        onclick={() => gridAddOrReplace(null)}
+                                        disabled={isLoading}
+                                        title={translate("rcc.grid.appendHint")}
+                                    >
+                                        {translate("rcc.grid.append")}
+                                    </button>
+                                    <button
+                                        class="rcc-btn small primary"
+                                        onclick={() =>
+                                            gridAddOrReplace(gridSelected)}
+                                        disabled={isLoading || gridSelected < 0}
+                                        title={translate("rcc.grid.replaceHint")}
+                                    >
+                                        {translate("rcc.grid.replace")}
+                                    </button>
+                                    <button
+                                        class="rcc-btn small danger"
+                                        onclick={gridRemoveSelected}
+                                        disabled={isLoading || gridSelected < 0}
+                                    >
+                                        {translate("rcc.grid.remove")}
+                                    </button>
+                                </div>
+                                <SpriteGrid
+                                    bytes={gridBytes}
+                                    cell={gridCell}
+                                    bind:selectedIndex={gridSelected}
+                                    zoom={gridZoom}
+                                    onreorder={gridMove}
+                                />
+                                <p class="grid-hint">
+                                    {translate("rcc.grid.dragHint")}
+                                </p>
+                            </div>
+                        {:else if previewUrl}
                             <img
                                 src={previewUrl}
                                 alt={selectedFile.name}
@@ -972,13 +1665,45 @@
                                             class="rcc-btn small primary"
                                             onclick={saveTextEdit}
                                         >
-                                            💾 Salvar
+                                            {selectedFile.source === "rcc"
+                                                ? translate("rcc.btn.saveText")
+                                                : matchingRccFile(selectedFile)
+                                                  ? translate(
+                                                        "rcc.btn.saveToRcc",
+                                                    )
+                                                  : translate(
+                                                        "rcc.btn.saveToDisk",
+                                                    )}
                                         </button>
                                         <button
                                             class="rcc-btn small"
                                             onclick={discardTextEdit}
                                         >
                                             ↩ Descartar
+                                        </button>
+                                    {/if}
+                                    {#if selectedFile.source === "exe" && canApplyToExe}
+                                        <button
+                                            class="rcc-btn small accent"
+                                            onclick={applyToClientExe}
+                                            disabled={isLoading}
+                                            title={translate(
+                                                "rcc.btn.applyToClientHint",
+                                            )}
+                                        >
+                                            {translate("rcc.btn.applyToClient")}
+                                        </button>
+                                    {/if}
+                                    {#if selectedFile.source === "exe" && isSpellJson(selectedFile.name)}
+                                        <button
+                                            class="rcc-btn small"
+                                            onclick={applySpellToDisk}
+                                            disabled={isLoading}
+                                            title={translate(
+                                                "rcc.btn.applyDiskHint",
+                                            )}
+                                        >
+                                            {translate("rcc.btn.applyDisk")}
                                         </button>
                                     {/if}
                                 </div>
@@ -1126,9 +1851,14 @@
             <div class="empty-icon">🗂️</div>
             <h3>{translate("rcc.empty.title")}</h3>
             <p>{translate("rcc.empty.desc")}</p>
-            <button class="rcc-btn primary large" onclick={openRccFile}>
-                {translate("rcc.empty.btn")}
-            </button>
+            <div class="empty-actions">
+                <button class="rcc-btn primary large" onclick={openRccFile}>
+                    {translate("rcc.empty.btn")}
+                </button>
+                <button class="rcc-btn primary large" onclick={openExeFile}>
+                    {translate("rcc.btn.openExe")}
+                </button>
+            </div>
         </div>
     {/if}
 </div>
@@ -1157,6 +1887,41 @@
         font-weight: 700;
         margin: 0;
         flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .source-badge {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        padding: 2px 7px;
+        border-radius: var(--radius-sm);
+        background: rgba(99, 102, 241, 0.2);
+        color: var(--primary-accent);
+    }
+    .source-badge.exe {
+        background: rgba(245, 158, 11, 0.2);
+        color: var(--warning-color);
+    }
+    .empty-actions {
+        display: flex;
+        gap: 12px;
+    }
+    /* Per-row source tag in the file list */
+    .src-tag {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        padding: 1px 5px;
+        border-radius: var(--radius-sm);
+        background: rgba(99, 102, 241, 0.18);
+        color: var(--primary-accent);
+        flex-shrink: 0;
+    }
+    .src-tag.exe {
+        background: rgba(245, 158, 11, 0.18);
+        color: var(--warning-color);
     }
     .toolbar-actions {
         display: flex;
@@ -1440,11 +2205,52 @@
 
     /* Text editor */
     .preview-content.text-mode,
-    .preview-content.hex-mode {
+    .preview-content.hex-mode,
+    .preview-content.grid-mode,
+    .preview-content.panel-mode {
         align-items: stretch;
         justify-content: flex-start;
         padding: 0;
         background: none;
+    }
+    .preview-content.panel-mode {
+        display: flex;
+        min-height: 0;
+    }
+
+    /* Sprite grid view */
+    .grid-view {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
+    }
+    .grid-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        background: var(--tertiary-bg);
+        border-bottom: 1px solid var(--border-color);
+        flex-shrink: 0;
+        flex-wrap: wrap;
+    }
+    .grid-zoom {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+    .grid-zoom input {
+        width: 80px;
+    }
+    .grid-hint {
+        margin: 0;
+        padding: 6px 12px;
+        font-size: 11px;
+        color: var(--text-muted);
+        flex-shrink: 0;
     }
     .text-editor,
     .hex-preview {

@@ -330,6 +330,54 @@ const translationEntries = {
   'rcc.status.saved': {
     default: 'Salvo em {{path}}', 'pt-BR': 'Salvo em {{path}}', en: 'Saved to {{path}}', es: 'Guardado en {{path}}', ru: 'Сохранено в {{path}}'
   },
+  'rcc.status.savedToRcc': {
+    default: 'Salvo no RCC: {{name}}', 'pt-BR': 'Salvo no RCC: {{name}}', en: 'Saved into the RCC: {{name}}', es: 'Guardado en el RCC: {{name}}', ru: 'Сохранено в RCC: {{name}}'
+  },
+  'rcc.status.applyingExe': {
+    default: 'Aplicando no client.exe...', 'pt-BR': 'Aplicando no client.exe...', en: 'Applying to client.exe...', es: 'Aplicando al client.exe...', ru: 'Применение к client.exe...'
+  },
+  'rcc.status.appliedExe': {
+    default: '✅ {{name}} embedado no client.exe ({{used}}/{{max}} bytes)', 'pt-BR': '✅ {{name}} embedado no client.exe ({{used}}/{{max}} bytes)', en: '✅ {{name}} embedded into client.exe ({{used}}/{{max}} bytes)', es: '✅ {{name}} incrustado en client.exe ({{used}}/{{max}} bytes)', ru: '✅ {{name}} встроен в client.exe ({{used}}/{{max}} байт)'
+  },
+  'rcc.status.applyExeError': {
+    default: 'Erro ao aplicar no client.exe', 'pt-BR': 'Erro ao aplicar no client.exe', en: 'Error applying to client.exe', es: 'Error al aplicar al client.exe', ru: 'Ошибка применения к client.exe'
+  },
+  'rcc.status.applyExeHintRcc': {
+    default: 'tente salvar no .rcc (botão Salvar)', 'pt-BR': 'tente salvar no .rcc (botão Salvar)', en: 'try saving to the .rcc instead (Save button)', es: 'prueba a guardar en el .rcc (botón Guardar)', ru: 'попробуйте сохранить в .rcc (кнопка Сохранить)'
+  },
+  'rcc.status.applyExeHintDisk': {
+    default: 'reduza o conteúdo ou exporte para o disco', 'pt-BR': 'reduza o conteúdo ou exporte para o disco', en: 'reduce the content or export it to disk', es: 'reduce el contenido o expórtalo al disco', ru: 'уменьшите содержимое или экспортируйте на диск'
+  },
+  'rcc.status.applyExeHintSpellDisk': {
+    default: 'use "Aplicar via disco (sem limite)"', 'pt-BR': 'use "Aplicar via disco (sem limite)"', en: 'use "Apply via disk (no limit)"', es: 'usa "Aplicar vía disco (sin límite)"', ru: 'используйте «Применить через диск (без лимита)»'
+  },
+  'rcc.status.applyingDisk': {
+    default: 'Aplicando via disco...', 'pt-BR': 'Aplicando via disco...', en: 'Applying via disk...', es: 'Aplicando vía disco...', ru: 'Применение через диск...'
+  },
+  'rcc.status.appliedDisk': {
+    default: '✅ Aplicado via disco: {{path}}', 'pt-BR': '✅ Aplicado via disco: {{path}}', en: '✅ Applied via disk: {{path}}', es: '✅ Aplicado vía disco: {{path}}', ru: '✅ Применено через диск: {{path}}'
+  },
+  'rcc.status.installingRcc': {
+    default: 'Instalando RCC no cliente...', 'pt-BR': 'Instalando RCC no cliente...', en: 'Installing RCC to client...', es: 'Instalando RCC al cliente...', ru: 'Установка RCC в клиент...'
+  },
+  'rcc.status.installingRccFallback': {
+    default: 'rcc.exe não encontrado — usando compilador interno (sem compressão)...', 'pt-BR': 'rcc.exe não encontrado — usando compilador interno (sem compressão)...', en: 'rcc.exe not found — using built-in compiler (no compression)...', es: 'rcc.exe no encontrado — usando compilador interno (sin compresión)...', ru: 'rcc.exe не найден — используется встроенный компилятор (без сжатия)...'
+  },
+  'rcc.status.installedRcc': {
+    default: '✅ RCC instalado: {{path}}', 'pt-BR': '✅ RCC instalado: {{path}}', en: '✅ RCC installed: {{path}}', es: '✅ RCC instalado: {{path}}', ru: '✅ RCC установлен: {{path}}'
+  },
+  'rcc.status.iconAdded': {
+    default: '✅ Ícone aplicado no index {{idx}}', 'pt-BR': '✅ Ícone aplicado no index {{idx}}', en: '✅ Icon applied at index {{idx}}', es: '✅ Icono aplicado en el índice {{idx}}', ru: '✅ Иконка применена с индексом {{idx}}'
+  },
+  'rcc.status.iconRemoved': {
+    default: '✅ Ícone removido no index {{idx}}', 'pt-BR': '✅ Ícone removido no index {{idx}}', en: '✅ Icon removed at index {{idx}}', es: '✅ Icono eliminado en el índice {{idx}}', ru: '✅ Иконка удалена с индексом {{idx}}'
+  },
+  'rcc.status.iconMoved': {
+    default: '✅ Movido {{source}} → {{target}}', 'pt-BR': '✅ Movido {{source}} → {{target}}', en: '✅ Moved {{source}} → {{target}}', es: '✅ Movido {{source}} → {{target}}', ru: '✅ Перемещено {{source}} → {{target}}'
+  },
+  'rcc.prompt.iconIndex': {
+    default: 'Index do ícone para remover:', 'pt-BR': 'Index do ícone para remover:', en: 'Icon index to remove:', es: 'Índice del icono a eliminar:', ru: 'Индекс иконки для удаления:'
+  },
   'rcc.status.warningDim': {
     default: '⚠️ Aviso: imagem é {{width}}×{{height}} (esperado {{expWidth}}×{{expHeight}})', 'pt-BR': '⚠️ Aviso: imagem é {{width}}×{{height}} (esperado {{expWidth}}×{{expHeight}})', en: '⚠️ Warning: image is {{width}}×{{height}} (expected {{expWidth}}×{{expHeight}})', es: '⚠️ Aviso: la imagen es {{width}}×{{height}} (esperado {{expWidth}}×{{expHeight}})', ru: '⚠️ Предупреждение: размер изображения {{width}}×{{height}} (ожидается {{expWidth}}×{{expHeight}})'
   },
@@ -2421,6 +2469,53 @@ const translationEntries = {
   'rcc.title': { default: '🗂️ RCC Resource Editor', 'pt-BR': '🗂️ Editor de Recursos RCC', en: '🗂️ RCC Resource Editor', es: '🗂️ Editor de Recursos RCC', ru: '🗂️ Редактор Ресурсов RCC' },
   'rcc.back': { default: 'Back', 'pt-BR': 'Voltar', en: 'Back', es: 'Atrás', ru: 'Назад' },
   'rcc.btn.open': { default: '📂 Open RCC', 'pt-BR': '📂 Abrir RCC', en: '📂 Open RCC', es: '📂 Abrir RCC', ru: '📂 Открыть RCC' },
+  'rcc.btn.openExe': { default: '🎯 Open EXE', 'pt-BR': '🎯 Abrir EXE', en: '🎯 Open EXE', es: '🎯 Abrir EXE', ru: '🎯 Открыть EXE' },
+  'rcc.btn.saveText': { default: '💾 Save', 'pt-BR': '💾 Salvar', en: '💾 Save', es: '💾 Guardar', ru: '💾 Сохранить' },
+  'rcc.btn.saveToDisk': { default: '💾 Save to disk', 'pt-BR': '💾 Salvar no disco', en: '💾 Save to disk', es: '💾 Guardar en disco', ru: '💾 Сохранить на диск' },
+  'rcc.btn.saveToRcc': { default: '💾 Save to RCC', 'pt-BR': '💾 Salvar no RCC', en: '💾 Save to RCC', es: '💾 Guardar en RCC', ru: '💾 Сохранить в RCC' },
+  'rcc.btn.applyToClient': { default: '🚀 Apply to client', 'pt-BR': '🚀 Aplicar no cliente', en: '🚀 Apply to client', es: '🚀 Aplicar al cliente', ru: '🚀 Применить к клиенту' },
+  'rcc.btn.applyToClientHint': { default: 'Embed this resource back into client.exe so the game reads it (a backup is created).', 'pt-BR': 'Embute este recurso no client.exe para o jogo reconhecer (um backup é criado).', en: 'Embed this resource back into client.exe so the game reads it (a backup is created).', es: 'Incrusta este recurso en client.exe para que el juego lo lea (se crea una copia de seguridad).', ru: 'Встроить этот ресурс в client.exe, чтобы игра его читала (создаётся резервная копия).' },
+  'rcc.btn.replaceApply': { default: '🔄 Replace & apply', 'pt-BR': '🔄 Substituir e aplicar', en: '🔄 Replace & apply', es: '🔄 Reemplazar y aplicar', ru: '🔄 Заменить и применить' },
+  'rcc.btn.applyDisk': { default: '📂 Apply via disk (no limit)', 'pt-BR': '📂 Aplicar via disco (sem limite)', en: '📂 Apply via disk (no limit)', es: '📂 Aplicar vía disco (sin límite)', ru: '📂 Применить через диск (без лимита)' },
+  'rcc.btn.applyDiskHint': { default: 'Write the JSON to the client spells/ folder and make the client read from disk — no size limit.', 'pt-BR': 'Grava o JSON na pasta spells/ do cliente e faz o cliente ler do disco — sem limite de tamanho.', en: 'Write the JSON to the client spells/ folder and make the client read from disk — no size limit.', es: 'Escribe el JSON en la carpeta spells/ del cliente y hace que el cliente lea del disco — sin límite.', ru: 'Записать JSON в папку spells/ клиента и заставить клиент читать с диска — без ограничения размера.' },
+  'rcc.btn.replaceApplyHint': { default: 'Replace this resource from a file on disk and embed it into client.exe.', 'pt-BR': 'Substitui este recurso por um arquivo do disco e embute no client.exe.', en: 'Replace this resource from a file on disk and embed it into client.exe.', es: 'Reemplaza este recurso con un archivo del disco e incrústalo en client.exe.', ru: 'Заменить этот ресурс файлом с диска и встроить в client.exe.' },
+  'rcc.btn.installRcc': { default: '🚀 Install to client', 'pt-BR': '🚀 Instalar no cliente', en: '🚀 Install to client', es: '🚀 Instalar al cliente', ru: '🚀 Установить в клиент' },
+  'rcc.btn.installRccHint': { default: 'Recompile and overwrite the client’s graphics_resources.rcc (a backup is created).', 'pt-BR': 'Recompila e sobrescreve o graphics_resources.rcc do cliente (um backup é criado).', en: 'Recompile and overwrite the client’s graphics_resources.rcc (a backup is created).', es: 'Recompila y sobrescribe el graphics_resources.rcc del cliente (se crea una copia).', ru: 'Перекомпилировать и перезаписать graphics_resources.rcc клиента (создаётся копия).' },
+  'rcc.btn.iconAdd': { default: '➕ Add icon', 'pt-BR': '➕ Add ícone', en: '➕ Add icon', es: '➕ Añadir icono', ru: '➕ Добавить иконку' },
+  'rcc.btn.iconAddHint': { default: 'Add a new spell icon (PNG) at the end of the sheet.', 'pt-BR': 'Adiciona um novo ícone de magia (PNG) no fim do sheet.', en: 'Add a new spell icon (PNG) at the end of the sheet.', es: 'Añade un nuevo icono de hechizo (PNG) al final.', ru: 'Добавить новую иконку заклинания (PNG) в конец.' },
+  'rcc.btn.iconRemove': { default: '🗑️ Remove icon', 'pt-BR': '🗑️ Remover ícone', en: '🗑️ Remove icon', es: '🗑️ Eliminar icono', ru: '🗑️ Удалить иконку' },
+  'rcc.grid.cells': { default: 'cells', 'pt-BR': 'células', en: 'cells', es: 'celdas', ru: 'ячеек' },
+  'rcc.grid.append': { default: '➕ Add', 'pt-BR': '➕ Adicionar', en: '➕ Add', es: '➕ Añadir', ru: '➕ Добавить' },
+  'rcc.grid.appendHint': { default: 'Add a new cell (PNG) at the end of the sheet.', 'pt-BR': 'Adiciona uma nova célula (PNG) no fim do sheet.', en: 'Add a new cell (PNG) at the end of the sheet.', es: 'Añade una nueva celda (PNG) al final.', ru: 'Добавить новую ячейку (PNG) в конец.' },
+  'rcc.grid.replace': { default: '🔄 Replace selected', 'pt-BR': '🔄 Substituir selecionada', en: '🔄 Replace selected', es: '🔄 Reemplazar seleccionada', ru: '🔄 Заменить выбранную' },
+  'rcc.grid.replaceHint': { default: 'Replace the selected cell with a PNG file.', 'pt-BR': 'Substitui a célula selecionada por um arquivo PNG.', en: 'Replace the selected cell with a PNG file.', es: 'Reemplaza la celda seleccionada con un PNG.', ru: 'Заменить выбранную ячейку файлом PNG.' },
+  'rcc.grid.remove': { default: '🗑️ Remove selected', 'pt-BR': '🗑️ Remover selecionada', en: '🗑️ Remove selected', es: '🗑️ Eliminar seleccionada', ru: '🗑️ Удалить выбранную' },
+  'rcc.grid.dragHint': { default: 'Click to select · drag a cell onto another to swap them.', 'pt-BR': 'Clique para selecionar · arraste uma célula sobre outra para trocar.', en: 'Click to select · drag a cell onto another to swap them.', es: 'Haz clic para seleccionar · arrastra una celda sobre otra para intercambiar.', ru: 'Клик — выбрать · перетащите ячейку на другую, чтобы поменять местами.' },
+  // Structured spell editor
+  'spell.btn.structured': { default: '🧩 Structured editor', 'pt-BR': '🧩 Editor estruturado', en: '🧩 Structured editor', es: '🧩 Editor estructurado', ru: '🧩 Структурный редактор' },
+  'spell.btn.rawJson': { default: '📄 Raw JSON', 'pt-BR': '📄 JSON puro', en: '📄 Raw JSON', es: '📄 JSON puro', ru: '📄 Чистый JSON' },
+  'spell.tab.spells': { default: 'Spells', 'pt-BR': 'Spells', en: 'Spells', es: 'Hechizos', ru: 'Заклинания' },
+  'spell.tab.previews': { default: 'FX / Previews', 'pt-BR': 'FX / Previews', en: 'FX / Previews', es: 'FX / Previews', ru: 'FX / Превью' },
+  'spell.search': { default: 'Search by id / name…', 'pt-BR': 'Buscar por id / nome…', en: 'Search by id / name…', es: 'Buscar por id / nombre…', ru: 'Поиск по id / имени…' },
+  'spell.selectPrompt': { default: 'Select a record to edit', 'pt-BR': 'Selecione um registro para editar', en: 'Select a record to edit', es: 'Selecciona un registro para editar', ru: 'Выберите запись для редактирования' },
+  'spell.loading': { default: 'Loading spell data…', 'pt-BR': 'Carregando dados de spells…', en: 'Loading spell data…', es: 'Cargando datos de hechizos…', ru: 'Загрузка данных заклинаний…' },
+  'spell.btn.new': { default: '➕ New', 'pt-BR': '➕ Novo', en: '➕ New', es: '➕ Nuevo', ru: '➕ Новый' },
+  'spell.btn.duplicate': { default: '⧉ Duplicate', 'pt-BR': '⧉ Duplicar', en: '⧉ Duplicate', es: '⧉ Duplicar', ru: '⧉ Дублировать' },
+  'spell.btn.delete': { default: '🗑️ Delete', 'pt-BR': '🗑️ Deletar', en: '🗑️ Delete', es: '🗑️ Eliminar', ru: '🗑️ Удалить' },
+  'spell.btn.saveApply': { default: '💾 Save & apply', 'pt-BR': '💾 Salvar e aplicar', en: '💾 Save & apply', es: '💾 Guardar y aplicar', ru: '💾 Сохранить и применить' },
+  'spell.fx.timestamps': { default: 'Timestamps', 'pt-BR': 'Timestamps', en: 'Timestamps', es: 'Timestamps', ru: 'Таймстампы' },
+  'spell.fx.actions': { default: 'actions', 'pt-BR': 'ações', en: 'actions', es: 'acciones', ru: 'действий' },
+  'spell.fx.actionsOf': { default: 'Actions of timestamp', 'pt-BR': 'Ações do timestamp', en: 'Actions of timestamp', es: 'Acciones del timestamp', ru: 'Действия таймстампа' },
+  'spell.fx.initActions': { default: 'Init actions', 'pt-BR': 'Init actions', en: 'Init actions', es: 'Init actions', ru: 'Init-действия' },
+  'spell.fx.add': { default: '➕ Add', 'pt-BR': '➕ Adicionar', en: '➕ Add', es: '➕ Añadir', ru: '➕ Добавить' },
+  'spell.fx.pickTimestamp': { default: 'Pick a timestamp to edit its actions', 'pt-BR': 'Selecione um timestamp para editar suas ações', en: 'Pick a timestamp to edit its actions', es: 'Selecciona un timestamp para editar sus acciones', ru: 'Выберите таймстамп для редактирования действий' },
+  'spell.orphans.label': { default: 'desynced', 'pt-BR': 'dessincronizados', en: 'desynced', es: 'desincronizados', ru: 'рассинхронизировано' },
+  'spell.orphans.spells': { default: 'Only in spells.json', 'pt-BR': 'Só em spells.json', en: 'Only in spells.json', es: 'Solo en spells.json', ru: 'Только в spells.json' },
+  'spell.orphans.previews': { default: 'Only in previews', 'pt-BR': 'Só em previews', en: 'Only in previews', es: 'Solo en previews', ru: 'Только в превью' },
+  'spell.status.saved': { default: '✅ Spells saved & applied', 'pt-BR': '✅ Spells salvos e aplicados', en: '✅ Spells saved & applied', es: '✅ Hechizos guardados y aplicados', ru: '✅ Заклинания сохранены и применены' },
+  'spell.status.saveError': { default: 'Error saving spells', 'pt-BR': 'Erro ao salvar spells', en: 'Error saving spells', es: 'Error al guardar hechizos', ru: 'Ошибка сохранения заклинаний' },
+  'rcc.src.rcc': { default: 'From the .rcc (editable, client reads it)', 'pt-BR': 'Do .rcc (editável, o cliente lê)', en: 'From the .rcc (editable, client reads it)', es: 'Del .rcc (editable, el cliente lo lee)', ru: 'Из .rcc (редактируемо, клиент читает)' },
+  'rcc.src.exe': { default: 'From the .exe (read-only)', 'pt-BR': 'Do .exe (somente leitura)', en: 'From the .exe (read-only)', es: 'Del .exe (solo lectura)', ru: 'Из .exe (только чтение)' },
   'rcc.btn.extractAll': { default: '📤 Extract All', 'pt-BR': '📤 Extrair Tudo', en: '📤 Extract All', es: '📤 Extraer Todo', ru: '📤 Извлечь Все' },
   'rcc.btn.add': { default: '➕ Add', 'pt-BR': '➕ Adicionar', en: '➕ Add', es: '➕ Añadir', ru: '➕ Добавить' },
   'rcc.btn.save': { default: '💾 Save RCC', 'pt-BR': '💾 Salvar RCC', en: '💾 Save RCC', es: '💾 Guardar RCC', ru: '💾 Сохранить RCC' },
@@ -2440,6 +2535,18 @@ const translationEntries = {
   'rcc.empty.desc': { default: 'Open an .rcc file to browse and edit Qt compiled resources', 'pt-BR': 'Abra um arquivo .rcc para navegar e editar recursos compilados do Qt', en: 'Open an .rcc file to browse and edit Qt compiled resources', es: 'Abre un archivo .rcc para explorar y editar recursos de Qt', ru: 'Откройте файл .rcc для просмотра и редактирования ресурсов Qt' },
   'rcc.empty.btn': { default: '📂 Open RCC File', 'pt-BR': '📂 Abrir Arquivo RCC', en: '📂 Open RCC File', es: '📂 Abrir archivo RCC', ru: '📂 Открыть файл RCC' },
   'rcc.dialog.openTitle': { default: 'Open RCC File', 'pt-BR': 'Abrir Arquivo RCC', en: 'Open RCC File', es: 'Abrir archivo RCC', ru: 'Открыть файл RCC' },
+  'rcc.dialog.openExeTitle': { default: 'Open EXE (Qt resources)', 'pt-BR': 'Abrir EXE (recursos Qt)', en: 'Open EXE (Qt resources)', es: 'Abrir EXE (recursos Qt)', ru: 'Открыть EXE (ресурсы Qt)' },
+  'rcc.dialog.applyExeTitle': { default: '🚀 Apply to client.exe', 'pt-BR': '🚀 Aplicar no client.exe', en: '🚀 Apply to client.exe', es: '🚀 Aplicar al client.exe', ru: '🚀 Применить к client.exe' },
+  'rcc.dialog.applyExeMsg': { default: '<p>Embed <span class="confirm-filename">{{name}}</span> back into <b>client.exe</b> so the game reads your edit?</p>', 'pt-BR': '<p>Embutir <span class="confirm-filename">{{name}}</span> de volta no <b>client.exe</b> para o jogo reconhecer sua edição?</p>', en: '<p>Embed <span class="confirm-filename">{{name}}</span> back into <b>client.exe</b> so the game reads your edit?</p>', es: '<p>¿Incrustar <span class="confirm-filename">{{name}}</span> en <b>client.exe</b> para que el juego lea tu edición?</p>', ru: '<p>Встроить <span class="confirm-filename">{{name}}</span> в <b>client.exe</b>, чтобы игра прочитала правку?</p>' },
+  'rcc.dialog.applyExeWarning': { default: '⚠ Rewrites client.exe in place. A one-time client.original.exe backup is created. Close the game first.', 'pt-BR': '⚠ Reescreve o client.exe no lugar. Um backup client.original.exe é criado uma vez. Feche o jogo antes.', en: '⚠ Rewrites client.exe in place. A one-time client.original.exe backup is created. Close the game first.', es: '⚠ Reescribe client.exe in situ. Se crea una copia client.original.exe una vez. Cierra el juego primero.', ru: '⚠ Перезаписывает client.exe на месте. Один раз создаётся резервная копия client.original.exe. Сначала закройте игру.' },
+  'rcc.dialog.installRccTitle': { default: '🚀 Install RCC to client', 'pt-BR': '🚀 Instalar RCC no cliente', en: '🚀 Install RCC to client', es: '🚀 Instalar RCC al cliente', ru: '🚀 Установить RCC в клиент' },
+  'rcc.dialog.installRccMsg': { default: '<p>Recompile and overwrite the client’s <b>graphics_resources.rcc</b> with your edits?</p>', 'pt-BR': '<p>Recompilar e sobrescrever o <b>graphics_resources.rcc</b> do cliente com suas edições?</p>', en: '<p>Recompile and overwrite the client’s <b>graphics_resources.rcc</b> with your edits?</p>', es: '<p>¿Recompilar y sobrescribir el <b>graphics_resources.rcc</b> del cliente con tus cambios?</p>', ru: '<p>Перекомпилировать и перезаписать <b>graphics_resources.rcc</b> клиента вашими правками?</p>' },
+  'rcc.dialog.installRccWarning': { default: '⚠ Overwrites the client RCC. A one-time graphics_resources.original.rcc backup is created. Close the game first.', 'pt-BR': '⚠ Sobrescreve o RCC do cliente. Um backup graphics_resources.original.rcc é criado uma vez. Feche o jogo antes.', en: '⚠ Overwrites the client RCC. A one-time graphics_resources.original.rcc backup is created. Close the game first.', es: '⚠ Sobrescribe el RCC del cliente. Se crea una copia graphics_resources.original.rcc una vez. Cierra el juego primero.', ru: '⚠ Перезаписывает RCC клиента. Один раз создаётся резервная копия graphics_resources.original.rcc. Сначала закройте игру.' },
+  'rcc.dialog.pickIcon': { default: 'Choose an icon (PNG)', 'pt-BR': 'Escolha um ícone (PNG)', en: 'Choose an icon (PNG)', es: 'Elige un icono (PNG)', ru: 'Выберите иконку (PNG)' },
+  'rcc.dialog.pickRccExe': { default: 'Locate Qt rcc.exe (e.g. PySide6/rcc.exe)', 'pt-BR': 'Localize o rcc.exe da Qt (ex: PySide6/rcc.exe)', en: 'Locate Qt rcc.exe (e.g. PySide6/rcc.exe)', es: 'Ubica el rcc.exe de Qt (ej. PySide6/rcc.exe)', ru: 'Укажите rcc.exe от Qt (напр. PySide6/rcc.exe)' },
+  'rcc.dialog.applyDiskTitle': { default: '📂 Apply via disk', 'pt-BR': '📂 Aplicar via disco', en: '📂 Apply via disk', es: '📂 Aplicar vía disco', ru: '📂 Применить через диск' },
+  'rcc.dialog.applyDiskMsg': { default: '<p>Write <span class="confirm-filename">{{name}}</span> to the client <b>spells/</b> folder and make the client read it from disk (no size limit)?</p>', 'pt-BR': '<p>Gravar <span class="confirm-filename">{{name}}</span> na pasta <b>spells/</b> do cliente e fazer o cliente ler do disco (sem limite de tamanho)?</p>', en: '<p>Write <span class="confirm-filename">{{name}}</span> to the client <b>spells/</b> folder and make the client read it from disk (no size limit)?</p>', es: '<p>¿Escribir <span class="confirm-filename">{{name}}</span> en la carpeta <b>spells/</b> del cliente y hacer que lo lea del disco (sin límite)?</p>', ru: '<p>Записать <span class="confirm-filename">{{name}}</span> в папку <b>spells/</b> клиента и заставить читать с диска (без лимита)?</p>' },
+  'rcc.dialog.applyDiskWarning': { default: '⚠ Patches client.exe to read spells from disk and writes a loose file. A backup is created. Close the game first.', 'pt-BR': '⚠ Patcheia o client.exe para ler spells do disco e grava um arquivo solto. Um backup é criado. Feche o jogo antes.', en: '⚠ Patches client.exe to read spells from disk and writes a loose file. A backup is created. Close the game first.', es: '⚠ Parchea client.exe para leer spells del disco y escribe un archivo suelto. Se crea una copia. Cierra el juego primero.', ru: '⚠ Патчит client.exe для чтения спеллов с диска и пишет отдельный файл. Создаётся копия. Сначала закройте игру.' },
   'rcc.dialog.replaceTitle': { default: 'Replace {{name}}', 'pt-BR': 'Substituir {{name}}', en: 'Replace {{name}}', es: 'Reemplazar {{name}}', ru: 'Заменить {{name}}' },
   'rcc.dialog.deleteTitle': { default: '🗑️ Delete Resource', 'pt-BR': '🗑️ Deletar Recurso', en: '🗑️ Delete Resource', es: '🗑️ Eliminar recurso', ru: '🗑️ Удалить ресурс' },
   'rcc.dialog.deleteMsg': { default: '<p>Are you sure you want to delete <span class="confirm-filename">{{name}}</span>?</p>', 'pt-BR': '<p>Tem certeza de que deseja deletar <span class="confirm-filename">{{name}}</span>?</p>', en: '<p>Are you sure you want to delete <span class="confirm-filename">{{name}}</span>?</p>', es: '<p>¿Estás seguro de que deseas eliminar <span class="confirm-filename">{{name}}</span>?</p>', ru: '<p>Вы уверены, что хотите удалить <span class="confirm-filename">{{name}}</span>?</p>' },

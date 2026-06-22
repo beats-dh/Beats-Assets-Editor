@@ -140,4 +140,36 @@ mod tests {
         let h2 = qt_hash("b.png");
         assert_ne!(h1, h2);
     }
+
+    /// Round-trip: parse a real .rcc, write it back, re-parse, and confirm every
+    /// file's path+bytes survive. Proves recompile-and-install is lossless even
+    /// though the writer stores entries uncompressed. Set CANARY_TEST_RCC.
+    #[test]
+    fn real_rcc_roundtrip_when_env_set() {
+        use super::super::rcc_parser::RccFile;
+        let Ok(path) = std::env::var("CANARY_TEST_RCC") else {
+            return;
+        };
+        let data = std::fs::read(&path).expect("read CANARY_TEST_RCC");
+        let original = RccFile::parse(&data).expect("parse original rcc");
+
+        let rebuilt_bytes = write_rcc(&original.entries).expect("write rcc");
+        let rebuilt = RccFile::parse(&rebuilt_bytes).expect("re-parse rebuilt rcc");
+
+        // Same set of files, same bytes per path.
+        assert_eq!(rebuilt.files.len(), original.files.len(), "file count changed");
+        let mut orig_by_path: std::collections::HashMap<&str, &[u8]> = std::collections::HashMap::new();
+        for e in &original.entries {
+            if !e.is_directory {
+                orig_by_path.insert(e.path.as_str(), e.data.as_slice());
+            }
+        }
+        for e in &rebuilt.entries {
+            if e.is_directory {
+                continue;
+            }
+            let orig = orig_by_path.get(e.path.as_str()).unwrap_or_else(|| panic!("path missing after roundtrip: {}", e.path));
+            assert_eq!(*orig, e.data.as_slice(), "bytes changed for {}", e.path);
+        }
+    }
 }

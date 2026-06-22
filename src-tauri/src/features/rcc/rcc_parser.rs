@@ -1,9 +1,10 @@
 // Native Qt RCC (qres) binary format parser
 // Supports format versions 1, 2, and 3
 
+use super::qt_format::{self, FLAG_DIRECTORY};
 use byteorder::{BigEndian, ReadBytesExt};
 use std::collections::HashMap;
-use std::io::{Cursor, Read};
+use std::io::Cursor;
 
 /// Header of a Qt RCC file: magic "qres" + metadata offsets
 #[derive(Debug, Clone)]
@@ -51,10 +52,6 @@ pub struct RccFileInfo {
 }
 
 const RCC_MAGIC: &[u8; 4] = b"qres";
-
-/// Flags in tree nodes
-const FLAG_DIRECTORY: u16 = 0x02;
-const FLAG_COMPRESSED: u16 = 0x01;
 
 impl RccFile {
     /// Parse an RCC file from raw bytes
@@ -206,11 +203,11 @@ impl RccFile {
 
         // Second pass: resolve names and data for each node
         for node in &raw_nodes {
-            let name = Self::read_name(data, header.names_offset as usize, node.name_offset)?;
+            let name = qt_format::read_name(data, header.names_offset as usize, node.name_offset)?;
 
             let (entry_data, compressed) = if !node.is_dir {
                 if let Some(d_off) = node.data_offset {
-                    Self::read_data(data, header.data_offset as usize, d_off, node.flags)?
+                    qt_format::read_data(data, header.data_offset as usize, d_off, node.flags)?
                 } else {
                     (Vec::new(), false)
                 }
@@ -241,81 +238,12 @@ impl RccFile {
         Ok(())
     }
 
-    /// Read a name from the names section
-    fn read_name(data: &[u8], names_base: usize, name_offset: u32) -> Result<String, String> {
-        let pos = names_base + name_offset as usize;
-        if pos + 4 > data.len() {
-            return Err(format!("Name offset {} out of bounds", name_offset));
-        }
-
-        let mut cursor = Cursor::new(&data[pos..]);
-        let str_len = cursor.read_u16::<BigEndian>().map_err(|e| e.to_string())?;
-        let _hash = cursor.read_u32::<BigEndian>().map_err(|e| e.to_string())?;
-
-        // Names are UTF-16BE encoded
-        let mut chars = Vec::with_capacity(str_len as usize);
-        for _ in 0..str_len {
-            let ch = cursor.read_u16::<BigEndian>().map_err(|e| e.to_string())?;
-            chars.push(ch);
-        }
-
-        String::from_utf16(&chars).map_err(|e| format!("Invalid UTF-16 name: {}", e))
-    }
-
-    /// Read and decompress data from the data section
-    fn read_data(data: &[u8], data_base: usize, data_offset: u32, flags: u16) -> Result<(Vec<u8>, bool), String> {
-        let pos = data_base + data_offset as usize;
-        if pos + 4 > data.len() {
-            return Err(format!("Data offset {} out of bounds", data_offset));
-        }
-
-        let mut cursor = Cursor::new(&data[pos..]);
-        let size = cursor.read_u32::<BigEndian>().map_err(|e| e.to_string())? as usize;
-
-        if size == 0 {
-            return Ok((Vec::new(), false));
-        }
-
-        let remaining = &data[pos + 4..];
-        let is_compressed = (flags & FLAG_COMPRESSED) != 0;
-
-        if is_compressed {
-            // First 4 bytes after size = uncompressed size
-            if remaining.len() < 4 {
-                return Err("Compressed data too short".into());
-            }
-            let mut sz_cursor = Cursor::new(&remaining[0..4]);
-            let _uncompressed_size = sz_cursor.read_u32::<BigEndian>().map_err(|e| e.to_string())?;
-
-            // Clamp to the buffer: `size` is attacker-controlled and slicing
-            // `remaining[4..size]` would panic if it overruns.
-            let end = std::cmp::min(size, remaining.len());
-            if end <= 4 {
-                return Err("Compressed data section too short".into());
-            }
-            let compressed_data = &remaining[4..end];
-            Self::decompress_zlib(compressed_data).map(|d| (d, true)).map_err(|e| format!("Zlib decompress failed: {}", e))
-        } else {
-            let end = std::cmp::min(size, remaining.len());
-            Ok((remaining[..end].to_vec(), false))
-        }
-    }
-
-    /// Decompress zlib data
-    fn decompress_zlib(data: &[u8]) -> Result<Vec<u8>, String> {
-        use flate2::read::ZlibDecoder;
-        let mut decoder = ZlibDecoder::new(data);
-        let mut decompressed = Vec::new();
-        decoder.read_to_end(&mut decompressed).map_err(|e| format!("Zlib decompression error: {}", e))?;
-        Ok(decompressed)
-    }
-
     /// Maximum directory nesting depth when building paths, to guard against
     /// stack overflow from malformed/cyclic RCC trees.
     const MAX_TREE_DEPTH: usize = 256;
 
     /// Recursively build full paths for all entries
-    fn build_paths(entries: &[RccEntry], index: usize, prefix: &str, path_map: &mut HashMap<usize, String>, depth: usize) {
+    pub fn build_paths(entries: &[RccEntry], index: usize, prefix: &str, path_map: &mut HashMap<usize, String>, depth: usize) {
         if index >= entries.len() || depth >= Self::MAX_TREE_DEPTH {
             return;
         }
@@ -325,12 +253,21 @@ impl RccFile {
         }
 
         let entry = &entries[index];
+        // The tree root (node 0) is the anonymous bundle root: its name field is
+        // not part of any path (Qt exposes its children directly under ":/").
+        // Its `name_offset` is typically 0, which points at whatever string sits
+        // first in the names blob — using it would wrongly prefix every path.
+        let node_name = if index == 0 {
+            ""
+        } else {
+            entry.name.as_str()
+        };
         let full_path = if prefix.is_empty() {
-            entry.name.clone()
-        } else if entry.name.is_empty() {
+            node_name.to_string()
+        } else if node_name.is_empty() {
             prefix.to_string()
         } else {
-            format!("{}/{}", prefix, entry.name)
+            format!("{}/{}", prefix, node_name)
         };
 
         path_map.insert(index, full_path.clone());

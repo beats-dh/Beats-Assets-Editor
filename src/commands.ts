@@ -203,6 +203,33 @@ export const COMMANDS = {
   RCC_DELETE_RESOURCE: 'rcc_delete_resource',
   RCC_FIND_FILES: 'rcc_find_files',
   RCC_ADD_RESOURCE: 'rcc_add_resource',
+  RCC_INSTALL_TO_CLIENT: 'rcc_install_to_client',
+  RCC_SPELL_ICON_COUNT: 'rcc_spell_icon_count',
+  RCC_SPELL_SHEET_PNG: 'rcc_spell_sheet_png',
+  RCC_ADD_OR_REPLACE_SPELL_ICON: 'rcc_add_or_replace_spell_icon',
+  RCC_REMOVE_SPELL_ICON: 'rcc_remove_spell_icon',
+  RCC_MOVE_SPELL_ICON: 'rcc_move_spell_icon',
+  RCC_IMAGE_INFO: 'rcc_image_info',
+  RCC_IMAGE_ADD_OR_REPLACE: 'rcc_image_add_or_replace',
+  RCC_IMAGE_REMOVE: 'rcc_image_remove',
+  RCC_IMAGE_MOVE: 'rcc_image_move',
+  RCC_DETECT_QT_RCC: 'rcc_detect_qt_rcc',
+  RCC_INSTALL_TO_CLIENT_QT: 'rcc_install_to_client_qt',
+
+  // EXE (compiled-in Qt resources) Commands — read-only source
+  EXE_FIND_FILES: 'exe_find_files',
+  EXE_LOAD: 'exe_load',
+  EXE_GET_RESOURCE: 'exe_get_resource',
+  EXE_GET_FILES: 'exe_get_files',
+  EXE_REPLACE_RESOURCE: 'exe_replace_resource',
+  EXE_EXTRACT_ALL: 'exe_extract_all',
+  EXE_EXTRACT_SINGLE: 'exe_extract_single',
+  EXE_APPLY_TO_CLIENT: 'exe_apply_to_client',
+  EXE_PATCH_SPELL_PATHS: 'exe_patch_spell_paths',
+  EXE_CAN_APPLY_RESOURCE: 'exe_can_apply_resource',
+  EXE_APPLY_RESOURCE: 'exe_apply_resource',
+  EXE_REPLACE_RESOURCE_FROM_FILE: 'exe_replace_resource_from_file',
+  EXE_APPLY_SPELL_TO_DISK: 'exe_apply_spell_to_disk',
 } as const;
 
 // Type for command names

@@ -1,3 +1,9 @@
 pub mod commands;
+pub mod exe_commands;
+pub mod pe_qt_parser;
+pub mod pe_qt_writer;
+pub mod qt_format;
+pub mod qt_rcc;
 pub mod rcc_parser;
 pub mod rcc_writer;
+pub mod spell_icons;
