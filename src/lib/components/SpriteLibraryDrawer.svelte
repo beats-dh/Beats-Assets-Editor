@@ -192,19 +192,10 @@
 
 {#if spriteLibraryState.isOpen}
   <div id="sprite-library-drawer" class="is-open" aria-hidden="false">
-    <div
-      class="sprite-library-backdrop"
-      role="button"
-      tabindex="0"
-      onclick={closeDrawer}
-      onkeydown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          closeDrawer();
-        }
-      }}
-      aria-label="Close"
-    ></div>
+    <!-- Non-modal drawer: the backdrop is transparent and lets you keep using
+         the grid behind it (pointer-events:none), so it is decorative only.
+         Use the header close button to dismiss. -->
+    <div class="sprite-library-backdrop" aria-hidden="true"></div>
     <div
       class="sprite-library-panel"
       role="dialog"
