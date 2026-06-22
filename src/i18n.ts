@@ -405,6 +405,21 @@ const translationEntries = {
   'static.fallback.mapLayout': {
     default: 'Layout do Mapa #{{id}}', 'pt-BR': 'Layout do Mapa #{{id}}', en: 'Map Layout #{{id}}', es: 'Diseño del mapa #{{id}}', ru: 'Макет карты #{{id}}'
   },
+  'static.error.duplicateId': {
+    default: 'An item with ID {{id}} already exists in {{category}}!', 'pt-BR': 'Já existe um item com o ID {{id}} em {{category}}!', en: 'An item with ID {{id}} already exists in {{category}}!', es: '¡Ya existe un elemento con el ID {{id}} en {{category}}!', ru: 'Элемент с ID {{id}} уже существует в {{category}}!'
+  },
+  'static.error.create': {
+    default: 'Error creating: {{err}}', 'pt-BR': 'Erro ao criar: {{err}}', en: 'Error creating: {{err}}', es: 'Error al crear: {{err}}', ru: 'Ошибка при создании: {{err}}'
+  },
+  'static.error.delete': {
+    default: 'Failed to delete item: {{err}}', 'pt-BR': 'Falha ao excluir o item: {{err}}', en: 'Failed to delete item: {{err}}', es: 'Error al eliminar el elemento: {{err}}', ru: 'Не удалось удалить элемент: {{err}}'
+  },
+  'static.form.idPl': {
+    default: 'Ex: 2000', 'pt-BR': 'Ex: 2000', en: 'e.g. 2000', es: 'Ej: 2000', ru: 'Например: 2000'
+  },
+  'static.form.namePl': {
+    default: 'Ex: Demon', 'pt-BR': 'Ex: Demon', en: 'e.g. Demon', es: 'Ej: Demon', ru: 'Например: Demon'
+  },
   'modal.static.error.required': {
     default: 'ID e Nome são obrigatórios.', 'pt-BR': 'ID e Nome são obrigatórios.', en: 'ID and Name are required.', es: 'ID y Nombre son requeridos.', ru: 'ID и имя обязательны.'
   },
@@ -457,6 +472,7 @@ const translationEntries = {
   'npc.card.shop.addFirst': { default: 'Add First Item', 'pt-BR': 'Adicionar Primeiro Item', en: 'Add First Item', es: 'Agregar primer artículo', ru: 'Добавить primeiro товар' },
   'npc.card.shop.addItem': { default: '+ Add Item', 'pt-BR': '+ Adicionar Item', en: '+ Add Item', es: '+ Agregar artículo', ru: '+ Добавить товар' },
   'npc.card.shop.itemName': { default: 'Item Name', 'pt-BR': 'Nome do Item', en: 'Item Name', es: 'Nombre del artículo', ru: 'Название товара' },
+  'npc.card.shop.itemNamePl': { default: 'sword', 'pt-BR': 'sword', en: 'sword', es: 'sword', ru: 'sword' },
   'npc.card.shop.clientId': { default: 'Client ID', 'pt-BR': 'Client ID', en: 'Client ID', es: 'Client ID', ru: 'Client ID' },
   'npc.card.shop.buyPrice': { default: 'Buy Price', 'pt-BR': 'Preço de Compra', en: 'Buy Price', es: 'Precio de compra', ru: 'Цена покупки' },
   'npc.card.shop.sellPrice': { default: 'Sell Price', 'pt-BR': 'Preço de Venda', en: 'Sell Price', es: 'Precio de venta', ru: 'Цена продажи' },
@@ -488,8 +504,15 @@ const translationEntries = {
   'npc.modal.sync.source.proto': { default: 'Proto (loaded appearances)', 'pt-BR': 'Proto (aparências carregadas)', en: 'Proto (loaded appearances)', es: 'Proto (apariencias cargadas)', ru: 'Proto (загруженные внешности)' },
   'npc.modal.sync.source.fandom': { default: 'Fandom (Category:NPCs)', 'pt-BR': 'Fandom (Category:NPCs)', en: 'Fandom (Category:NPCs)', es: 'Fandom (Categoría:NPCs)', ru: 'Fandom (Категория:NPCs)' },
   'npc.modal.sync.itemsXml': { default: 'items.xml path', 'pt-BR': 'Caminho do items.xml', en: 'items.xml path', es: 'Ruta de items.xml', ru: 'Путь к items.xml' },
+  'npc.modal.sync.itemsXml.proto': { default: 'items.xml (name fallback for items without name in proto)', 'pt-BR': 'items.xml (nome alternativo para itens sem nome no proto)', en: 'items.xml (name fallback for items without name in proto)', es: 'items.xml (nombre alternativo para artículos sin nombre en el proto)', ru: 'items.xml (запасное имя для предметов без имени в proto)' },
+  'npc.modal.sync.itemsXml.fandom': { default: 'items.xml (maps Fandom item names to clientId)', 'pt-BR': 'items.xml (mapeia nomes de itens do Fandom para clientId)', en: 'items.xml (maps Fandom item names to clientId)', es: 'items.xml (asigna nombres de artículos de Fandom a clientId)', ru: 'items.xml (сопоставляет названия предметов Fandom с clientId)' },
+  'npc.modal.sync.itemsXml.pathPl': { default: 'Path to items.xml', 'pt-BR': 'Caminho para o items.xml', en: 'Path to items.xml', es: 'Ruta a items.xml', ru: 'Путь к items.xml' },
+  'npc.modal.sync.btn.default': { default: 'Default', 'pt-BR': 'Padrão', en: 'Default', es: 'Predeterminado', ru: 'По умолчанию' },
+  'npc.modal.sync.btn.browse': { default: 'Browse', 'pt-BR': 'Procurar', en: 'Browse', es: 'Examinar', ru: 'Обзор' },
   'npc.modal.sync.ignoreIds': { default: 'Ignore Item IDs (comma-separated)', 'pt-BR': 'Ignorar IDs de Itens (separados por vírgula)', en: 'Ignore Item IDs (comma-separated)', es: 'Ignorar IDs de artículos (separados por coma)', ru: 'Игнорировать ID предметов (через запятую)' },
+  'npc.modal.sync.ignoreIdsPl': { default: 'e.g. 100, 200, 300', 'pt-BR': 'ex: 100, 200, 300', en: 'e.g. 100, 200, 300', es: 'ej: 100, 200, 300', ru: 'например, 100, 200, 300' },
   'npc.modal.sync.ignoreNames': { default: 'Ignore Item Names (comma-separated)', 'pt-BR': 'Ignorar Nomes de Itens (separados por vírgula)', en: 'Ignore Item Names (comma-separated)', es: 'Ignorar nombres de artículos (separados por coma)', ru: 'Игнорировать названия предметов (через запятую)' },
+  'npc.modal.sync.ignoreNamesPl': { default: 'e.g. sword, magic plate armor', 'pt-BR': 'ex: sword, magic plate armor', en: 'e.g. sword, magic plate armor', es: 'ej: sword, magic plate armor', ru: 'например, sword, magic plate armor' },
   'npc.modal.sync.keepCustom': { default: 'Keep custom items (items not in source)', 'pt-BR': 'Manter itens personalizados (itens não na origem)', en: 'Keep custom items (items not in source)', es: 'Mantener artículos personalizados', ru: 'Сохранять кастомные предметы' },
   'npc.modal.sync.btn.syncing': { default: 'Syncing...', 'pt-BR': 'Sincronizando...', en: 'Syncing...', es: 'Sincronizando...', ru: 'Синхронизация...' },
   'npc.modal.sync.btn.syncAll': { default: 'Sync All NPCs', 'pt-BR': 'Sincronizar Todos NPCs', en: 'Sync All NPCs', es: 'Sincronizar todos los NPCs', ru: 'Синхронизировать всех NPC' },
@@ -517,6 +540,19 @@ const translationEntries = {
   'npc.card.basic.walkInterval': { default: 'Intervalo Caminhada (ms)', 'pt-BR': 'Intervalo Caminhada (ms)', en: 'Walk Interval (ms)', es: 'Intervalo de caminata (ms)', ru: 'Инterval ходьбы (мс)' },
   'npc.card.basic.walkRadius': { default: 'Raio Máx. Caminhada', 'pt-BR': 'Raio Máx. Caminhada', en: 'Max Walk Radius', es: 'Radio máx. de caminata', ru: 'Макс. радиус ходьбы' },
   'npc.card.basic.respawnType': { default: 'Tipo de Respawn', 'pt-BR': 'Tipo de Respawn', en: 'Respawn Type', es: 'Tipo de respawn', ru: 'Тип респауна' },
+
+  // NPC Editor Header
+  'npc.editor.title': { default: 'NPC Editor', 'pt-BR': 'Editor de NPCs', en: 'NPC Editor', es: 'Editor de NPCs', ru: 'Редактор NPC' },
+  'npc.editor.back': { default: 'Back to Home', 'pt-BR': 'Voltar à Home', en: 'Back to Home', es: 'Volver a Inicio', ru: 'Вернуться на главную' },
+  'npc.editor.reload': { default: 'Reload', 'pt-BR': 'Recarregar', en: 'Reload', es: 'Recargar', ru: 'Перезагрузить' },
+  'npc.editor.reloadTitle': { default: 'Recarregar diretório atual', 'pt-BR': 'Recarregar diretório atual', en: 'Reload current directory', es: 'Recargar directorio actual', ru: 'Перезагрузить текущий каталог' },
+  'npc.editor.changeDir': { default: 'Mudar pasta', 'pt-BR': 'Mudar pasta', en: 'Change folder', es: 'Cambiar carpeta', ru: 'Изменить папку' },
+  'npc.editor.changeDirTitle': { default: 'Escolher um novo diretório de NPCs', 'pt-BR': 'Escolher um novo diretório de NPCs', en: 'Choose a new NPCs directory', es: 'Elegir un nuevo directorio de NPCs', ru: 'Выберите новый каталог NPC' },
+  'npc.editor.syncShop': { default: 'Sync Shop', 'pt-BR': 'Sincronizar Loja', en: 'Sync Shop', es: 'Sincronizar tienda', ru: 'Синхронизировать магазин' },
+  'npc.editor.syncShopTitle': { default: 'Sync all NPC shops from proto npcsaledata', 'pt-BR': 'Sincronizar todas as lojas de NPCs a partir do proto npcsaledata', en: 'Sync all NPC shops from proto npcsaledata', es: 'Sincronizar todas las tiendas de NPCs desde el proto npcsaledata', ru: 'Синхронизировать все магазины NPC из proto npcsaledata' },
+  'npc.editor.loadingSprites': { default: 'Loading Sprite dependencies...', 'pt-BR': 'Carregando dependências de Sprites...', en: 'Loading Sprite dependencies...', es: 'Cargando dependencias de Sprites...', ru: 'Загрузка зависимостей спрайтов...' },
+  'npc.editor.retry': { default: 'Try again', 'pt-BR': 'Tentar novamente', en: 'Try again', es: 'Intentar de nuevo', ru: 'Попробовать снова' },
+  'npc.editor.error.selectDir': { default: 'Could not select the new NPCs folder.', 'pt-BR': 'Não foi possível selecionar a nova pasta de NPCs.', en: 'Could not select the new NPCs folder.', es: 'No se pudo seleccionar la nueva carpeta de NPCs.', ru: 'Не удалось выбрать новую папку с NPC.' },
 
   // Asset Setup & Header
   'modal.static.head': {
@@ -3844,6 +3880,8 @@ const translationEntries = {
 
   // Sound Modal
   'modal.sound.add': { default: 'Add Sound Effect', 'pt-BR': 'Adicionar Efeito de Som', en: 'Add Sound Effect', es: 'Agregar efecto de sonido', ru: 'Добавить звуковой эффект' },
+  'modal.sound.close': { default: 'Close', 'pt-BR': 'Fechar', en: 'Close', es: 'Cerrar', ru: 'Закрыть' },
+  'modal.sound.searchAria': { default: 'Search sounds', 'pt-BR': 'Buscar sons', en: 'Search sounds', es: 'Buscar sonidos', ru: 'Поиск звуков' },
   'modal.sound.mode.simple': { default: 'Simple Sound', 'pt-BR': 'Som Simples', en: 'Simple Sound', es: 'Sonido simple', ru: 'Простой звук' },
   'modal.sound.mode.random': { default: 'Randomized Sound', 'pt-BR': 'Som Aleatório', en: 'Randomized Sound', es: 'Sonido aleatorio', ru: 'Случайный звук' },
   'modal.sound.type': { default: 'Sound Type', 'pt-BR': 'Tipo de Som', en: 'Sound Type', es: 'Tipo de sonido', ru: 'Тип звука' },

@@ -272,7 +272,7 @@
                 required
                 min="1"
                 class="modern-input"
-                placeholder="Ex: 2000"
+                placeholder={translate("static.form.idPl")}
               />
             </div>
             <div class="field" style="flex: 2;">
@@ -283,7 +283,7 @@
                 bind:value={name}
                 required
                 class="modern-input"
-                placeholder="Ex: Demon"
+                placeholder={translate("static.form.namePl")}
               />
             </div>
           </div>

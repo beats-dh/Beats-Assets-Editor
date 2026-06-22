@@ -468,15 +468,15 @@
           <div class="monster-modal-field" style="margin-bottom: 12px;">
             <label for="sync-items-xml-path">
               {shopSource === "proto"
-                ? "items.xml (name fallback for items without name in proto)"
-                : "items.xml (maps Fandom item names to clientId)"}
+                ? translate("npc.modal.sync.itemsXml.proto")
+                : translate("npc.modal.sync.itemsXml.fandom")}
             </label>
             <div style="display: flex; gap: 8px; align-items: center;">
               <input
                 id="sync-items-xml-path"
                 type="text"
                 bind:value={itemsXmlPath}
-                placeholder="Path to items.xml"
+                placeholder={translate("npc.modal.sync.itemsXml.pathPl")}
                 disabled={isSyncing}
                 style="flex: 1;"
               />
@@ -484,13 +484,15 @@
                 class="btn-secondary"
                 onclick={useDefaultItemsXmlPath}
                 disabled={isSyncing}
-                style="white-space: nowrap;">Default</button
+                style="white-space: nowrap;"
+                >{translate("npc.modal.sync.btn.default")}</button
               >
               <button
                 class="btn-secondary"
                 onclick={selectItemsXml}
                 disabled={isSyncing}
-                style="white-space: nowrap;">Browse</button
+                style="white-space: nowrap;"
+                >{translate("npc.modal.sync.btn.browse")}</button
               >
             </div>
             <small style="color: var(--text-secondary);">
@@ -507,7 +509,7 @@
               id="sync-ignore-item-ids"
               type="text"
               bind:value={ignoreIds}
-              placeholder="e.g. 100, 200, 300"
+              placeholder={translate("npc.modal.sync.ignoreIdsPl")}
               disabled={isSyncing}
             />
             <small style="color: var(--text-secondary);"
@@ -524,7 +526,7 @@
               id="sync-ignore-item-names"
               type="text"
               bind:value={ignoreNames}
-              placeholder="e.g. sword, magic plate armor"
+              placeholder={translate("npc.modal.sync.ignoreNamesPl")}
               disabled={isSyncing}
             />
             <small style="color: var(--text-secondary);"

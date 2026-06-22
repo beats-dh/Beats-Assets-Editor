@@ -73,7 +73,7 @@
                   <input
                     id="shop-item-{i}"
                     type="text"
-                    placeholder="sword"
+                    placeholder={translate("npc.card.shop.itemNamePl")}
                     bind:value={item.itemName}
                     onchange={handleInput}
                   />

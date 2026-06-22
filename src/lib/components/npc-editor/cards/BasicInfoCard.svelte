@@ -52,7 +52,7 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label for="npc-health">Vida Atual</label>
+          <label for="npc-health">{translate("npc.card.basic.health")}</label>
           <input
             type="number"
             id="npc-health"
@@ -64,7 +64,9 @@
         </div>
 
         <div class="form-group">
-          <label for="npc-max-health">Vida Máxima</label>
+          <label for="npc-max-health"
+            >{translate("npc.card.basic.maxHealth")}</label
+          >
           <input
             type="number"
             id="npc-max-health"
@@ -78,7 +80,9 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label for="npc-walk-interval">Intervalo Caminhada (ms)</label>
+          <label for="npc-walk-interval"
+            >{translate("npc.card.basic.walkInterval")}</label
+          >
           <input
             type="number"
             id="npc-walk-interval"
@@ -90,7 +94,9 @@
         </div>
 
         <div class="form-group">
-          <label for="npc-walk-radius">Raio Máx. Caminhada</label>
+          <label for="npc-walk-radius"
+            >{translate("npc.card.basic.walkRadius")}</label
+          >
           <input
             type="number"
             id="npc-walk-radius"
@@ -102,7 +108,9 @@
         </div>
 
         <div class="form-group">
-          <label for="npc-respawn-type">Respawn Type</label>
+          <label for="npc-respawn-type"
+            >{translate("npc.card.basic.respawnType")}</label
+          >
           <input
             type="text"
             id="npc-respawn-type"

@@ -247,7 +247,7 @@
     }
 
     if (currentArr.some((i: any) => i.id === newItem.id)) {
-      showStatus(`Já existe um item com o ID ${newItem.id} em ${currentDataType}!`, 'error');
+      showStatus(translate("static.error.duplicateId", { id: newItem.id, category: currentDataType }), 'error');
       return;
     }
 
@@ -280,7 +280,7 @@
       isCreateModalOpen = false;
     } catch (e) {
       console.error("Failed to create item", e);
-      showStatus("Erro ao criar: " + e, 'error');
+      showStatus(translate("static.error.create", { err: String(e) }), 'error');
     }
   }
 
@@ -311,7 +311,7 @@
       isModalOpen = false;
     } catch (e) {
       console.error("Failed to delete item", e);
-      showStatus("Failed to delete item: " + e, 'error');
+      showStatus(translate("static.error.delete", { err: String(e) }), 'error');
     }
   }
 
@@ -387,8 +387,8 @@
               class="clear-search-btn"
               onclick={() => (searchQuery = "")}
               style="display: flex;"
-              aria-label="Limpar pesquisa"
-              title="Limpar pesquisa"
+              aria-label={translate("search.clear")}
+              title={translate("search.clear")}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <line x1="18" y1="6" x2="6" y2="18" />

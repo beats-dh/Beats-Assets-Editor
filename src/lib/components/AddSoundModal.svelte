@@ -328,7 +328,7 @@
           class="close-btn"
           type="button"
           onclick={handleClose}
-          aria-label="Fechar">✕</button
+          aria-label={translate("modal.sound.close")}>✕</button
         >
       </div>
 
@@ -480,7 +480,7 @@
                 class="modern-input"
                 placeholder={translate("modal.sound.search")}
                 bind:value={searchFilter}
-                aria-label="Buscar sons"
+                aria-label={translate("modal.sound.searchAria")}
               />
               <div class="picker-actions">
                 <button

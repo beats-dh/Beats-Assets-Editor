@@ -6,6 +6,7 @@
   import { COMMANDS } from "../../../commands";
   import { ensureAppearancesLoaded } from "../../../appearanceLoader";
   import { showStatus } from "../../../utils";
+  import { translate } from "../../../i18n";
   import { open } from "@tauri-apps/plugin-dialog";
 
   import NpcSidebar from "./NpcSidebar.svelte";
@@ -38,7 +39,7 @@
       }
     } catch (error) {
       console.error("Failed to select NPC directory:", error);
-      showStatus("Não foi possível selecionar a nova pasta de NPCs.", "error");
+      showStatus(translate("npc.editor.error.selectDir"), "error");
     }
   }
 
@@ -68,38 +69,38 @@
   <header class="monster-editor-header">
     <button class="editor-back-button" onclick={goBack}>
       <span class="btn-icon">🏠</span>
-      <span>Back to Home</span>
+      <span>{translate("npc.editor.back")}</span>
     </button>
 
-    <h1>NPC Editor</h1>
+    <h1>{translate("npc.editor.title")}</h1>
 
     <div class="monster-header-actions">
       <button
         type="button"
         class="editor-icon-button"
         onclick={handleReload}
-        title="Recarregar diretório atual"
+        title={translate("npc.editor.reloadTitle")}
       >
         <span class="btn-icon">🔄</span>
-        <span>Reload</span>
+        <span>{translate("npc.editor.reload")}</span>
       </button>
       <button
         type="button"
         class="editor-icon-button"
         onclick={handleChangeDirectory}
-        title="Escolher um novo diretório de NPCs"
+        title={translate("npc.editor.changeDirTitle")}
       >
         <span class="btn-icon">📁</span>
-        <span>Mudar pasta</span>
+        <span>{translate("npc.editor.changeDir")}</span>
       </button>
       <button
         type="button"
         class="editor-icon-button"
         onclick={() => (showSyncModal = true)}
-        title="Sync all NPC shops from proto npcsaledata"
+        title={translate("npc.editor.syncShopTitle")}
       >
         <span class="btn-icon">🛍️</span>
-        <span>Sync Shop</span>
+        <span>{translate("npc.editor.syncShop")}</span>
       </button>
     </div>
   </header>
@@ -108,13 +109,13 @@
     {#if isInitializing}
       <div class="loading-state">
         <div class="spinner"></div>
-        <p>Carregando dependências de Sprites...</p>
+        <p>{translate("npc.editor.loadingSprites")}</p>
       </div>
     {:else if initError}
       <div class="error-state">
         <p class="error">{initError}</p>
         <button class="btn-primary" onclick={() => window.location.reload()}
-          >Tentar novamente</button
+          >{translate("npc.editor.retry")}</button
         >
       </div>
     {:else}
