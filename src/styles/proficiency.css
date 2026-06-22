@@ -16,8 +16,9 @@
     display: flex;
     flex-direction: column;
     padding: 0;
-    width: 1009px;
-    height: 572px;
+    /* Keep the full game-window size on large screens, shrink to fit on small ones. */
+    width: min(1009px, 96vw);
+    height: min(572px, 90vh);
     position: relative;
 }
 
@@ -31,6 +32,7 @@
     background: #404040;
     margin: 4px;
     border: 1px solid #1c1c1c;
+    overflow: auto;
 }
 
 .window-tibia {
