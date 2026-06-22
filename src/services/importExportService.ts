@@ -316,6 +316,10 @@ export async function handleDuplicate(category: string, id: number, newId?: numb
           alert(translate('status.invalidId') || 'Invalid ID');
           return null;
         }
+        if (category === 'Objects' && targetId <= 100) {
+          alert(translate('status.idTooLow'));
+          return null;
+        }
       }
     }
 
@@ -351,12 +355,16 @@ export async function handleCreateNew(category: string, desiredId?: number): Pro
           alert(translate('status.invalidId') || 'Invalid ID');
           return null;
         }
+        if (category === 'Objects' && newId <= 100) {
+          alert(translate('status.idTooLow'));
+          return null;
+        }
       }
     }
 
     const createdId = await invoke<number>(COMMANDS.CREATE_EMPTY_APPEARANCE, {
       category,
-      id: newId,
+      newId,
     });
 
     await invoke(COMMANDS.SAVE_APPEARANCES_FILE);

@@ -79,6 +79,12 @@
     await handleCompileImportedSprites();
   }
 
+  async function handleExit() {
+    if (!confirm(translate("settings.exit.confirm"))) return;
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().close();
+  }
+
   function stopPropagation(e: Event) {
     e.stopPropagation();
   }
@@ -436,6 +442,14 @@
 
         <button class="menu-btn reset-btn" onclick={handleResetPerf}
           >{translate("settings.perf.resetBtn")}</button
+        >
+      </div>
+
+      <div class="menu-divider"></div>
+
+      <div class="settings-section">
+        <button class="menu-btn reset-btn" onclick={handleExit}
+          >{translate("settings.exit.button")}</button
         >
       </div>
     </div>

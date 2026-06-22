@@ -1,8 +1,76 @@
 use super::category_types::{AppearanceCategory, AppearanceItem};
 use super::helpers::{create_appearance_item_response, ensure_flags, get_items_by_category_mut, get_index_for_category, invalidate_search_cache};
-use crate::core::protobuf::{Box as ProtoBoundingBox, SpriteInfo as ProtoSpriteInfo, SpritePhase as ProtoSpritePhase};
+use crate::core::protobuf::{Box as ProtoBoundingBox, FrameGroup as ProtoFrameGroup, SpriteInfo as ProtoSpriteInfo, SpritePhase as ProtoSpritePhase};
 use crate::state::AppState;
 use serde::Deserialize;
+
+/// Adds a second frame group (DatEditor: outfit idle -> walking). Clones the last
+/// group as a starting point and marks it as the moving group (FIXED_FRAME_GROUP
+/// OUTFIT_MOVING = 1). Capped at 2 groups.
+#[tauri::command]
+pub async fn add_frame_group(category: AppearanceCategory, id: u32, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+    let mut appearances_lock = state.appearances.write();
+    let appearances = match &mut *appearances_lock {
+        Some(a) => a,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category_mut(appearances, &category);
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        items.get_mut(*idx_ref).ok_or_else(|| format!("Index {} out of bounds for category {:?}", *idx_ref, category))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?
+    };
+
+    if appearance.frame_group.len() >= 2 {
+        return Err("An appearance can have at most 2 frame groups".to_string());
+    }
+
+    let mut new_group: ProtoFrameGroup = appearance.frame_group.last().cloned().unwrap_or_default();
+    new_group.fixed_frame_group = Some(1); // OUTFIT_MOVING
+    appearance.frame_group.push(new_group);
+
+    let cache_key = format!("{:?}:{}", category, id);
+    state.sprite_cache.remove(&cache_key);
+    state.preview_cache.remove(&cache_key);
+    invalidate_search_cache(&state);
+
+    Ok(create_appearance_item_response(id, appearance))
+}
+
+/// Removes the frame group at `frame_group_index`. Refuses to remove the last one.
+#[tauri::command]
+pub async fn remove_frame_group(category: AppearanceCategory, id: u32, frame_group_index: usize, state: tauri::State<'_, AppState>) -> Result<AppearanceItem, String> {
+    let mut appearances_lock = state.appearances.write();
+    let appearances = match &mut *appearances_lock {
+        Some(a) => a,
+        None => return Err("No appearances loaded".to_string()),
+    };
+
+    let items = get_items_by_category_mut(appearances, &category);
+    let index_map = get_index_for_category(&state, &category);
+    let appearance = if let Some(idx_ref) = index_map.get(&id) {
+        items.get_mut(*idx_ref).ok_or_else(|| format!("Index {} out of bounds for category {:?}", *idx_ref, category))?
+    } else {
+        items.iter_mut().find(|app| app.id.unwrap_or(0) == id).ok_or_else(|| format!("Appearance with ID {} not found in {:?}", id, category))?
+    };
+
+    if appearance.frame_group.len() <= 1 {
+        return Err("Cannot remove the only frame group".to_string());
+    }
+    if frame_group_index >= appearance.frame_group.len() {
+        return Err(format!("Frame group {} not found for appearance {}", frame_group_index, id));
+    }
+    appearance.frame_group.remove(frame_group_index);
+
+    let cache_key = format!("{:?}:{}", category, id);
+    state.sprite_cache.remove(&cache_key);
+    state.preview_cache.remove(&cache_key);
+    invalidate_search_cache(&state);
+
+    Ok(create_appearance_item_response(id, appearance))
+}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct BoundingBoxInput {

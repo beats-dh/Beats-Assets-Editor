@@ -401,6 +401,9 @@
     canvas.width = width * scale;
     canvas.height = height * scale;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const objBg = hexToRgb(ps.backgroundColor);
+    ctx.fillStyle = `rgb(${objBg.r}, ${objBg.g}, ${objBg.b})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(
       image,
       0,

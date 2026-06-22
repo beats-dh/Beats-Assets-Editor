@@ -26,6 +26,7 @@
     handleImportImageTiles,
   } from "../../../../services/importExportService";
   import { openBrowse } from "../../../../stores/spriteLibraryState.svelte";
+  import { detailsModal } from "../../../../stores/selectionState.svelte";
   import { translate } from "../../../../i18n";
   import "../../../../styles/texture.css";
 
@@ -346,6 +347,58 @@
     }
   }
 
+  async function refreshDetailsAfterStructureChange() {
+    if (!activeTextureCategory) return;
+    try {
+      const updated = await invoke("get_complete_appearance", {
+        category: activeTextureCategory,
+        id: details.id,
+      });
+      if (updated && detailsModal.selectedAsset?.id === details.id) {
+        detailsModal.selectedAsset = updated as CompleteAppearanceItem;
+      }
+    } catch (err) {
+      console.error("Failed to refresh details", err);
+    }
+    await loadSprites();
+  }
+
+  async function handleAddFrameGroup() {
+    if (!activeTextureCategory) return;
+    try {
+      await invoke("add_frame_group", {
+        category: activeTextureCategory,
+        id: details.id,
+      });
+      await invoke("save_appearances_file");
+      invalidateAppearanceCache(activeTextureCategory, details.id);
+      await refreshDetailsAfterStructureChange();
+      showStatus(translate("status.frameGroupAdded"), "success");
+    } catch (err) {
+      console.error("Failed to add frame group", err);
+      showStatus(translate("status.frameGroupFailed"), "error");
+    }
+  }
+
+  async function handleRemoveFrameGroup() {
+    if (!activeTextureCategory) return;
+    try {
+      await invoke("remove_frame_group", {
+        category: activeTextureCategory,
+        id: details.id,
+        frameGroupIndex: viewState.frameGroupIndex,
+      });
+      await invoke("save_appearances_file");
+      invalidateAppearanceCache(activeTextureCategory, details.id);
+      viewState = { ...viewState, frameGroupIndex: 0 };
+      await refreshDetailsAfterStructureChange();
+      showStatus(translate("status.frameGroupRemoved"), "success");
+    } catch (err) {
+      console.error("Failed to remove frame group", err);
+      showStatus(translate("status.frameGroupFailed"), "error");
+    }
+  }
+
   function collectTextureUpdatePayload() {
     if (!spriteInfo) return null;
     const payload: any = {
@@ -419,6 +472,8 @@
         {isOutfit}
         {details}
         onChange={(d) => handleStateChange(d)}
+        onAddFrameGroup={handleAddFrameGroup}
+        onRemoveFrameGroup={handleRemoveFrameGroup}
       />
       <TextureSpriteList
         {sprites}

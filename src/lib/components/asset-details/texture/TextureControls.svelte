@@ -11,6 +11,8 @@
     isOutfit: boolean;
     details: CompleteAppearanceItem;
     onChange?: (detail: any) => void;
+    onAddFrameGroup?: () => void;
+    onRemoveFrameGroup?: () => void;
   }
   let {
     previewState: ps,
@@ -18,6 +20,8 @@
     isOutfit,
     details,
     onChange,
+    onAddFrameGroup,
+    onRemoveFrameGroup,
   }: Props = $props();
 
   const clamp = (value: number, min: number, max: number) => {
@@ -95,6 +99,22 @@
           >{/each}
       </select>
     </label>
+    {#if onAddFrameGroup && frameGroupOptions.length < 2}
+      <button
+        type="button"
+        class="texture-direction-btn"
+        title={translate("texture.preview.addFrameGroup")}
+        onclick={() => onAddFrameGroup?.()}>＋</button
+      >
+    {/if}
+    {#if onRemoveFrameGroup && frameGroupOptions.length > 1}
+      <button
+        type="button"
+        class="texture-direction-btn"
+        title={translate("texture.preview.removeFrameGroup")}
+        onclick={() => onRemoveFrameGroup?.()}>－</button
+      >
+    {/if}
   </div>
 
   <div class="texture-control-row texture-zoom-control">
@@ -363,6 +383,20 @@
               (e.target as HTMLInputElement).checked,
             )}
         /><span>{translate("texture.preview.showBoundingBoxes")}</span></label
+      >
+    </div>
+    <div class="texture-control-row">
+      <label
+        ><span>{translate("texture.preview.background")}</span><input
+          type="color"
+          id="object-background-color"
+          value={ps.backgroundColor}
+          oninput={(e) =>
+            handleChange(
+              "backgroundColor",
+              (e.target as HTMLInputElement).value,
+            )}
+        /></label
       >
     </div>
   {/if}

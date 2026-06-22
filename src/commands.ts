@@ -67,6 +67,9 @@ export const COMMANDS = {
   // Appearance Management
   DUPLICATE_APPEARANCE: 'duplicate_appearance',
   DUPLICATE_APPEARANCES_BATCH: 'duplicate_appearances_batch',
+  CHANGE_APPEARANCE_ID: 'change_appearance_id',
+  ADD_FRAME_GROUP: 'add_frame_group',
+  REMOVE_FRAME_GROUP: 'remove_frame_group',
   CREATE_EMPTY_APPEARANCE: 'create_empty_appearance',
   COPY_APPEARANCE_FLAGS: 'copy_appearance_flags',
   PASTE_APPEARANCE_FLAGS: 'paste_appearance_flags',

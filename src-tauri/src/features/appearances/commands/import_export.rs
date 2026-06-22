@@ -520,6 +520,43 @@ pub async fn duplicate_appearances_batch(category: AppearanceCategory, source_id
     Ok(assigned)
 }
 
+/// Renames an appearance to `new_id` (DatEditor "edit id"). Rejects collisions.
+/// Note: references from other appearances (trade_as, etc.) are not rewired —
+/// matches the original editor's behavior.
+#[tauri::command]
+pub async fn change_appearance_id(category: AppearanceCategory, old_id: u32, new_id: u32, state: State<'_, AppState>) -> Result<(), String> {
+    if new_id == old_id {
+        return Ok(());
+    }
+    if new_id == 0 {
+        return Err("New id must be greater than 0".to_string());
+    }
+
+    let mut appearances_lock = state.appearances.write();
+    let appearances = appearances_lock.as_mut().ok_or_else(|| "No appearances loaded".to_string())?;
+
+    {
+        let index_map = get_index_for_category(&state, &category);
+        if index_map.contains_key(&new_id) {
+            return Err(format!("Appearance with id {} already exists in {:?}", new_id, category));
+        }
+        if !index_map.contains_key(&old_id) {
+            return Err(format!("Appearance {} not found in {:?}", old_id, category));
+        }
+    }
+
+    {
+        let items = get_items_by_category_mut(appearances, &category);
+        let app = items.iter_mut().find(|a| a.id.unwrap_or(0) == old_id).ok_or_else(|| format!("Appearance {} not found in {:?}", old_id, category))?;
+        app.id = Some(new_id);
+        sort_by_id(items);
+    }
+
+    rebuild_indexes(&state, appearances);
+    invalidate_search_cache(&state);
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn create_empty_appearance(
     category: AppearanceCategory,

@@ -798,6 +798,20 @@ const translationEntries = {
     es: 'Registro',
     ru: 'Журнал'
   },
+  'settings.exit.button': {
+    default: 'Exit',
+    'pt-BR': 'Sair',
+    en: 'Exit',
+    es: 'Salir',
+    ru: 'Выход'
+  },
+  'settings.exit.confirm': {
+    default: 'Close Canary Studio?',
+    'pt-BR': 'Fechar o Canary Studio?',
+    en: 'Close Canary Studio?',
+    es: '¿Cerrar Canary Studio?',
+    ru: 'Закрыть Canary Studio?'
+  },
   'settings.sprites.title': {
     default: 'Sprite tools',
     'pt-BR': 'Ferramentas de sprites',
@@ -1680,6 +1694,48 @@ const translationEntries = {
     en: 'Appearance #{{id}} exported successfully',
     es: 'Apariencia #{{id}} exportada con éxito',
     ru: 'Внешность №{{id}} успешно экспортирована'
+  },
+  'status.frameGroupAdded': {
+    default: 'Frame group added',
+    'pt-BR': 'Frame group adicionado',
+    en: 'Frame group added',
+    es: 'Frame group añadido',
+    ru: 'Группа кадров добавлена'
+  },
+  'status.frameGroupRemoved': {
+    default: 'Frame group removed',
+    'pt-BR': 'Frame group removido',
+    en: 'Frame group removed',
+    es: 'Frame group eliminado',
+    ru: 'Группа кадров удалена'
+  },
+  'status.frameGroupFailed': {
+    default: 'Frame group operation failed',
+    'pt-BR': 'Falha na operação de frame group',
+    en: 'Frame group operation failed',
+    es: 'Error en la operación de frame group',
+    ru: 'Ошибка операции с группой кадров'
+  },
+  'status.idTooLow': {
+    default: 'Item IDs must be greater than 100',
+    'pt-BR': 'IDs de item devem ser maiores que 100',
+    en: 'Item IDs must be greater than 100',
+    es: 'Los IDs de objeto deben ser mayores que 100',
+    ru: 'ID предметов должны быть больше 100'
+  },
+  'status.idChanged': {
+    default: 'ID changed to #{{id}}',
+    'pt-BR': 'ID alterado para #{{id}}',
+    en: 'ID changed to #{{id}}',
+    es: 'ID cambiado a #{{id}}',
+    ru: 'ID изменён на #{{id}}'
+  },
+  'status.idChangeFailed': {
+    default: 'Failed to change ID: {{err}}',
+    'pt-BR': 'Falha ao alterar ID: {{err}}',
+    en: 'Failed to change ID: {{err}}',
+    es: 'Error al cambiar ID: {{err}}',
+    ru: 'Не удалось изменить ID: {{err}}'
   },
   'status.spritesExported': {
     default: '{{count}} sprite(s) exported successfully',
@@ -2675,6 +2731,20 @@ const translationEntries = {
     es: 'Exportar la vista previa actual como PNG',
     ru: 'Экспортировать текущий предпросмотр в PNG'
   },
+  'texture.preview.addFrameGroup': {
+    default: 'Add a second frame group (walking)',
+    'pt-BR': 'Adicionar 2º frame group (andando)',
+    en: 'Add a second frame group (walking)',
+    es: 'Añadir un segundo frame group (caminar)',
+    ru: 'Добавить вторую группу кадров (ходьба)'
+  },
+  'texture.preview.removeFrameGroup': {
+    default: 'Remove this frame group',
+    'pt-BR': 'Remover este frame group',
+    en: 'Remove this frame group',
+    es: 'Eliminar este frame group',
+    ru: 'Удалить эту группу кадров'
+  },
   'texture.preview.exportGif': {
     default: 'Export the animation as GIF',
     'pt-BR': 'Exportar a animação como GIF',
@@ -3104,6 +3174,8 @@ const translationEntries = {
   'asset.info.minLevel': { default: 'Minimum Level:', 'pt-BR': 'Level Mínimo:', en: 'Minimum Level:', es: 'Nivel Mínimo:', ru: 'Мин. уровень:' },
   'asset.info.copyId': { default: 'Copy ID', 'pt-BR': 'Copiar ID', en: 'Copy ID', es: 'Copiar ID', ru: 'Копировать ID' },
   'asset.info.copyXml': { default: 'Copy XML', 'pt-BR': 'Copiar XML', en: 'Copy XML', es: 'Copiar XML', ru: 'Копировать XML' },
+  'asset.info.editId': { default: 'Change ID', 'pt-BR': 'Alterar ID', en: 'Change ID', es: 'Cambiar ID', ru: 'Изменить ID' },
+  'asset.info.editIdPrompt': { default: 'New ID for this appearance:', 'pt-BR': 'Novo ID para esta aparência:', en: 'New ID for this appearance:', es: 'Nuevo ID para esta apariencia:', ru: 'Новый ID для этого внешнего вида:' },
 
   // Asset Details - Sprite Preview
   'asset.preview.title': { default: 'Sprite Preview', 'pt-BR': 'Visualização de Sprites', en: 'Sprite Preview', es: 'Vista previa de Sprites', ru: 'Предпросмотр спрайтов' },

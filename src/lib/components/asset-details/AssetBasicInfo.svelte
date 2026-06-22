@@ -6,12 +6,49 @@
     buildOutfitXml,
     buildItemXml,
   } from "../../../services/clipboardService";
+  import { invoke } from "../../../utils/invoke";
+  import { COMMANDS } from "../../../commands";
+  import { showStatus } from "../../../utils";
+  import { detailsModal } from "../../../stores/selectionState.svelte";
+  import { loadAssetsData } from "../../../services/assetService";
   interface Props {
     details: CompleteAppearanceItem;
     category: string;
   }
   let { details, category }: Props = $props();
   let flags = $derived(details.flags);
+
+  async function editId() {
+    const input = prompt(
+      translate("asset.info.editIdPrompt"),
+      String(details.id),
+    );
+    if (!input) return;
+    const newId = Number.parseInt(input, 10);
+    if (Number.isNaN(newId) || newId === details.id) return;
+    if (category === "Objects" && newId <= 100) {
+      showStatus(translate("status.idTooLow"), "error");
+      return;
+    }
+    try {
+      await invoke(COMMANDS.CHANGE_APPEARANCE_ID, {
+        category,
+        oldId: details.id,
+        newId,
+      });
+      await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
+      if (detailsModal.selectedAsset?.id === details.id) {
+        detailsModal.selectedAsset = { ...detailsModal.selectedAsset, id: newId };
+      }
+      await loadAssetsData();
+      showStatus(translate("status.idChanged", { id: String(newId) }), "success");
+    } catch (err) {
+      showStatus(
+        translate("status.idChangeFailed", { err: String(err) }),
+        "error",
+      );
+    }
+  }
 
   let xmlText = $derived(
     category === "Outfits"
@@ -32,6 +69,12 @@
       class="copy-btn"
       title={translate("asset.info.copyId")}
       onclick={() => copyText(String(details.id))}>📋</button
+    >
+    <button
+      type="button"
+      class="copy-btn"
+      title={translate("asset.info.editId")}
+      onclick={editId}>✏️</button
     >
     {#if xmlText}
       <button
