@@ -25,7 +25,7 @@
             style="display: flex; justify-content: space-between; align-items: center; width: 100%;"
         >
             <span style="display: flex; gap: 8px; align-items: center;">
-                <span style="font-size: 14px; color: #E5C07B;">⚡</span>
+                <span style="font-size: 14px; color: var(--ide-icon-warn);">⚡</span>
                 {translate("npc.card.scripting.title")}
             </span>
             <label
@@ -34,7 +34,7 @@
             >
                 <input
                     id="viewEditor"
-                    style="accent-color: #8b5cf6; width: 16px; height: 16px; cursor: pointer; margin: 0;"
+                    style="accent-color: var(--primary-accent); width: 16px; height: 16px; cursor: pointer; margin: 0;"
                     type="checkbox"
                     checked={hasScripts}
                     onchange={toggleEditor}
@@ -45,7 +45,7 @@
     </div>
     <div
         class="monster-card-body"
-        style="padding: 0; background-color: #1e1e1e; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; overflow: hidden; display: flex; flex-direction: column;"
+        style="padding: 0; background-color: var(--ide-bg); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; overflow: hidden; display: flex; flex-direction: column;"
         class:disabled={!hasScripts}
     >
         {#if !hasScripts}
@@ -59,7 +59,7 @@
             <div class="ide-toolbar">
                 <div class="ide-tabs">
                     <div class="ide-tab active">
-                        <span class="ide-icon" style="color: #519ABA;">📄</span>
+                        <span class="ide-icon" style="color: var(--ide-file-icon);">📄</span>
                         script.lua
                     </div>
                 </div>
@@ -103,8 +103,8 @@
     .ide-toolbar {
         display: flex;
         justify-content: space-between;
-        background-color: #252526;
-        border-bottom: 1px solid #1e1e1e;
+        background-color: var(--ide-toolbar);
+        border-bottom: 1px solid var(--ide-bg);
         position: relative;
     }
 
@@ -119,14 +119,14 @@
         padding: 8px 16px;
         font-size: 13px;
         color: rgba(255, 255, 255, 0.4);
-        background-color: #2d2d2d;
+        background-color: var(--ide-tab);
         cursor: pointer;
         position: relative;
     }
 
     .ide-tab.active {
-        background-color: #1e1e1e;
-        color: #d4d4d4;
+        background-color: var(--ide-bg);
+        color: var(--ide-text);
     }
 
     .ide-tab.active::before {
@@ -136,7 +136,7 @@
         left: 0;
         width: 100%;
         height: 1px;
-        background-color: #007acc;
+        background-color: var(--ide-accent);
     }
 
     .ide-actions {
@@ -157,7 +157,7 @@
         min-height: 350px;
         width: 100%;
         flex: 1;
-        background-color: #1e1e1e;
+        background-color: var(--ide-bg);
     }
 
     .line-numbers {
@@ -165,13 +165,13 @@
         flex-direction: column;
         align-items: flex-end;
         padding: 12px 16px;
-        background-color: #1e1e1e;
-        color: #858585;
+        background-color: var(--ide-bg);
+        color: var(--ide-muted);
         font-family: "Consolas", "Courier New", monospace;
         font-size: 13px;
         line-height: 1.6;
         user-select: none;
-        border-right: 1px solid #333;
+        border-right: 1px solid var(--ide-border);
     }
 
     .code-textarea {
@@ -179,7 +179,7 @@
         width: 100%;
         background-color: transparent;
         border: none;
-        color: #d4d4d4; /* VSCode Light Gray */
+        color: var(--ide-text); /* VSCode Light Gray */
         font-family: "Consolas", "Courier New", monospace;
         font-size: 13px;
         line-height: 1.6;
@@ -203,10 +203,10 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        background-color: #007acc;
+        background-color: var(--ide-accent);
         padding: 6px 12px;
         font-size: 12px;
-        color: #ffffff;
+        color: var(--ide-text-bright);
     }
 
     .footer-icon {

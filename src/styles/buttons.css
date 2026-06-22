@@ -82,6 +82,16 @@
   border-color: var(--border-hover);
 }
 
+.btn:disabled,
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-save:disabled,
+.btn-add:disabled,
+.btn-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* New standardized buttons for Save/Add/Delete in modal */
 .btn-save,
 .btn-add,

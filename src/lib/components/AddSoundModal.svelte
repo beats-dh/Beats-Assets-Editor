@@ -816,36 +816,7 @@
   .btn-icon:hover {
     background: var(--btn-secondary-hover, #4a4a5e);
   }
-  .btn-primary,
-  .btn-secondary,
-  .btn-save {
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background 0.2s;
-  }
-  .btn-primary,
-  .btn-save {
-    background: var(--primary-accent);
-    color: white;
-  }
-  .btn-primary:hover,
-  .btn-save:hover {
-    background: var(--accent-hover, #5558e3);
-  }
-  .btn-primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  .btn-secondary {
-    background: var(--btn-secondary-bg, #3a3a4e);
-    color: var(--text-primary, #fff);
-  }
-  .btn-secondary:hover {
-    background: var(--btn-secondary-hover, #4a4a5e);
-  }
+  /* .btn-primary/.btn-secondary/.btn-save use the global buttons.css */
   .loading {
     padding: 2rem;
     text-align: center;

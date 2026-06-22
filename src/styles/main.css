@@ -34,5 +34,8 @@
 /* 7. Texture Styles */
 @import './texture.css';
 
-/* 8. Theme Styles (overrides) */
+/* 8. IDE editor theme tokens (ScriptingCard) */
+@import './ide-theme.css';
+
+/* 9. Theme Styles (overrides) */
 @import './theme.css';

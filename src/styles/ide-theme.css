@@ -1,0 +1,15 @@
+/* IDE / code-editor theme tokens (used by the NPC ScriptingCard "VSCode" view).
+   Kept as a dedicated dark IDE palette rather than the app theme so the embedded
+   editor reads like a real code editor regardless of the active app theme. */
+:root {
+  --ide-bg: #1e1e1e;
+  --ide-toolbar: #252526;
+  --ide-tab: #2d2d2d;
+  --ide-text: #d4d4d4;
+  --ide-text-bright: #ffffff;
+  --ide-muted: #858585;
+  --ide-accent: #007acc;
+  --ide-border: #333333;
+  --ide-file-icon: #519aba;
+  --ide-icon-warn: #e5c07b;
+}
