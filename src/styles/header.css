@@ -120,14 +120,27 @@
   transform: translateY(-1px);
 }
 
+.compile-sprites-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
 @media (max-width: 1024px) {
   .compile-sprites-label {
     display: none;
   }
   .compile-sprites-btn {
-    padding: 0;
-    width: 40px;
-    justify-content: center;
+    padding: 0 var(--space-sm);
   }
 }
 

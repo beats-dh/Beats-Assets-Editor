@@ -9,6 +9,7 @@ import { openImportModal, type ImportContext } from "../stores/importExportState
 import { openConfirmModal } from "../stores/confirmState.svelte";
 import { openPromptModal } from "../stores/promptState.svelte";
 import { clearAssetSelection, removeAssetSelection } from "../stores/selectionState.svelte";
+import { refreshImportedSpriteCount } from "../stores/importedSpritesState.svelte";
 
 interface AssetTarget {
   category: string;
@@ -112,6 +113,8 @@ export async function handleCompileImportedSprites(): Promise<void> {
     await invoke(COMMANDS.LOAD_SPRITES_CATALOG, { catalogPath, assetsDir });
     await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssetsData();
+    // The backend cleared the imported buffer; sync the badge/button visibility.
+    await refreshImportedSpriteCount();
 
     showStatus(
       translate("status.compileDone", {
@@ -141,6 +144,9 @@ export async function handleImportImageTiles(): Promise<number[] | null> {
       chromaKeyEnabled: true,
       chromaKeyColor: "#FF00FF",
     });
+    // Reveal the header "Compile imported sprites" action now that there are
+    // pending sprites to compile.
+    await refreshImportedSpriteCount();
     return ids;
   } catch (err) {
     console.error("Failed to import image as tiles", err);

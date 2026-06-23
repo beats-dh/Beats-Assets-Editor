@@ -89,6 +89,7 @@ export const COMMANDS = {
   SAVE_IMAGE_BYTES: 'save_image_bytes',
   IMPORT_IMAGE_AS_TILES: 'import_image_as_tiles',
   COMPILE_IMPORTED_SPRITES: 'compile_imported_sprites',
+  COUNT_IMPORTED_SPRITES: 'count_imported_sprites',
 
   // Sounds Commands
   LOAD_SOUNDS_FILE: 'load_sounds_file',

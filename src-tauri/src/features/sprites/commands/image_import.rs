@@ -53,6 +53,13 @@ fn next_imported_sprite_id(state: &AppState) -> Result<u32, String> {
     Ok(start)
 }
 
+/// Number of imported (not-yet-compiled) sprites currently held in memory. The
+/// header surfaces the "Compile imported sprites" action only when this is > 0.
+#[tauri::command]
+pub fn count_imported_sprites(state: State<'_, AppState>) -> usize {
+    state.imported_sprites.len()
+}
+
 /// Slices an image into `tile_width`x`tile_height` tiles (row-major), optionally
 /// turning the chroma-key color transparent, and registers each as an imported
 /// sprite. Returns the new sprite ids in row-major order.
@@ -262,6 +269,14 @@ pub async fn compile_imported_sprites(assets_dir: String, catalog_path: String, 
             }
         }
     }
+
+    // The imported sprites are now baked into the catalog and references remapped,
+    // so they are no longer "pending": drop the in-memory buffer (the count goes
+    // back to 0 and re-importing the same image starts fresh) and reset the id
+    // counter so the next import is recomputed above the freshly reloaded catalog.
+    state.imported_sprites.clear();
+    state.imported_sprite_hashes.clear();
+    *state.imported_sprite_next_id.lock() = None;
 
     Ok(CompileResult {
         sheet_file: filename,

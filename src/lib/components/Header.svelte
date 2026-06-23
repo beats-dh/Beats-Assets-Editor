@@ -14,9 +14,18 @@
   } from "../../stores/exportQueueState.svelte";
   import { toggleLogger } from "../../stores/loggerState.svelte";
   import { handleCompileImportedSprites } from "../../services/importExportService";
+  import {
+    importedSpritesState,
+    refreshImportedSpriteCount,
+  } from "../../stores/importedSpritesState.svelte";
+  import { onMount } from "svelte";
 
   // Import styles
   import "../../styles/header.css";
+
+  onMount(() => {
+    refreshImportedSpriteCount();
+  });
 
   let isSettingsOpen = $state(false);
   let isAboutOpen = $state(false);
@@ -84,16 +93,19 @@
     </div>
 
     <div class="header-actions">
-      <button
-        class="compile-sprites-btn"
-        title={translate("action.button.compileSprites")}
-        onclick={handleCompile}
-      >
-        <span aria-hidden="true">🧩</span>
-        <span class="compile-sprites-label"
-          >{translate("header.compile.label")}</span
+      {#if importedSpritesState.count > 0}
+        <button
+          class="compile-sprites-btn"
+          title={translate("action.button.compileSprites")}
+          onclick={handleCompile}
         >
-      </button>
+          <span aria-hidden="true">🧩</span>
+          <span class="compile-sprites-label"
+            >{translate("header.compile.label")}</span
+          >
+          <span class="compile-sprites-badge">{importedSpritesState.count}</span>
+        </button>
+      {/if}
 
       <button
         class="icon-btn"

@@ -88,6 +88,7 @@ pub fn run() {
             features::sprites::commands::save_image_bytes,
             features::sprites::commands::import_image_as_tiles,
             features::sprites::commands::compile_imported_sprites,
+            features::sprites::commands::count_imported_sprites,
             features::sprites::commands::get_appearance_sprites,
             features::sprites::commands::get_appearance_preview_sprite,
             features::sprites::commands::clear_sprite_cache,
