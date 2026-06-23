@@ -28,4 +28,5 @@
 <ConfirmModal />
 <PromptModal />
 <LoggerPanel />
-<div id="status-message" class="status-toast"></div>
+<!-- Hidden until showStatus() sets display:block; avoids an empty sliver at the edge -->
+<div id="status-message" class="status-toast" style="display: none;"></div>
