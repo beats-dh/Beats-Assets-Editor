@@ -475,7 +475,6 @@
         onAddFrameGroup={handleAddFrameGroup}
         onRemoveFrameGroup={handleRemoveFrameGroup}
       />
-      <TextureBoundingBox bind:spriteInfo onChange={handleSettingsChange} />
     </div>
     <div class="texture-settings-column">
       <TextureSettings
@@ -485,8 +484,12 @@
       />
     </div>
   </div>
-  <!-- Full-width below the two columns: the sprite grid auto-fills, so it uses
-       the whole modal width instead of leaving a tall empty area on the right. -->
+  <!-- Full-width rows below the two columns: keeps the left/right columns short
+       and balanced, and lets the wide tables/grids use the whole modal width
+       instead of leaving a tall empty area on the right. -->
+  <div class="texture-sprite-list-row">
+    <TextureBoundingBox bind:spriteInfo onChange={handleSettingsChange} />
+  </div>
   <div class="texture-sprite-list-row">
     <TextureSpriteList
       {sprites}

@@ -869,6 +869,13 @@ const translationEntries = {
     es: 'Compilar sprites importados',
     ru: 'Скомпилировать спрайты'
   },
+  'header.compile.label': {
+    default: 'Compile sprites',
+    'pt-BR': 'Compilar sprites',
+    en: 'Compile sprites',
+    es: 'Compilar sprites',
+    ru: 'Сборка спрайтов'
+  },
   'confirm.compileSprites': {
     default: '<p>This will <b>overwrite</b> the client catalog (<code>catalog-content.json</code>) and add a new sprite sheet. A <code>.bak</code> backup is created first.</p><p>Verify in-game afterwards.</p>',
     'pt-BR': '<p>Isto vai <b>sobrescrever</b> o catálogo do cliente (<code>catalog-content.json</code>) e adicionar uma nova spritesheet. Um backup <code>.bak</code> é criado antes.</p><p>Verifique no jogo depois.</p>',

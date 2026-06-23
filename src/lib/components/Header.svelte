@@ -13,6 +13,7 @@
     openExportQueue,
   } from "../../stores/exportQueueState.svelte";
   import { toggleLogger } from "../../stores/loggerState.svelte";
+  import { handleCompileImportedSprites } from "../../services/importExportService";
 
   // Import styles
   import "../../styles/header.css";
@@ -51,6 +52,10 @@
   function onWindowClick() {
     if (isSettingsOpen) closeSettings();
   }
+
+  async function handleCompile() {
+    await handleCompileImportedSprites();
+  }
 </script>
 
 <svelte:window onclick={onWindowClick} />
@@ -79,6 +84,17 @@
     </div>
 
     <div class="header-actions">
+      <button
+        class="compile-sprites-btn"
+        title={translate("action.button.compileSprites")}
+        onclick={handleCompile}
+      >
+        <span aria-hidden="true">🧩</span>
+        <span class="compile-sprites-label"
+          >{translate("header.compile.label")}</span
+        >
+      </button>
+
       <button
         class="icon-btn"
         title={translate("header.settings.tooltip")}
