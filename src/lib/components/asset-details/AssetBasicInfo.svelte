@@ -64,27 +64,50 @@
   <h4>{translate("asset.info.title")}</h4>
   <div class="detail-item">
     <span class="detail-label">{translate("asset.info.id")}</span>
-    <span class="detail-value">#{details.id}</span>
-    <button
-      type="button"
-      class="copy-btn"
-      title={translate("asset.info.copyId")}
-      onclick={() => copyText(String(details.id))}>📋</button
-    >
-    <button
-      type="button"
-      class="copy-btn"
-      title={translate("asset.info.editId")}
-      onclick={editId}>✏️</button
-    >
-    {#if xmlText}
-      <button
-        type="button"
-        class="copy-btn"
-        title={translate("asset.info.copyXml")}
-        onclick={() => copyText(xmlText)}>{"</>"}</button
-      >
-    {/if}
+    <span class="id-value-group">
+      <span class="detail-value">#{details.id}</span>
+      <span class="id-actions">
+        <button
+          type="button"
+          class="icon-action"
+          title={translate("asset.info.copyId")}
+          aria-label={translate("asset.info.copyId")}
+          onclick={() => copyText(String(details.id))}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            ><rect x="9" y="9" width="11" height="11" rx="2" /><path
+              d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+            /></svg
+          >
+        </button>
+        <button
+          type="button"
+          class="icon-action"
+          title={translate("asset.info.editId")}
+          aria-label={translate("asset.info.editId")}
+          onclick={editId}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            ><path d="M12 20h9" /><path
+              d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"
+            /></svg
+          >
+        </button>
+        {#if xmlText}
+          <button
+            type="button"
+            class="icon-action"
+            title={translate("asset.info.copyXml")}
+            aria-label={translate("asset.info.copyXml")}
+            onclick={() => copyText(xmlText)}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              ><path d="m16 18 6-6-6-6" /><path d="m8 6-6 6 6 6" /></svg
+            >
+          </button>
+        {/if}
+      </span>
+    </span>
   </div>
   {#if details.name}<div class="detail-item">
       <span class="detail-label">{translate("asset.info.name")}</span><span
@@ -112,19 +135,43 @@
 </div>
 
 <style>
-  .copy-btn {
-    margin-left: 6px;
-    padding: 1px 6px;
-    font-size: 12px;
-    line-height: 1.4;
-    cursor: pointer;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: var(--surface-bg, transparent);
-    color: var(--text-secondary);
+  .id-value-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
   }
-  .copy-btn:hover {
+  .id-actions {
+    display: flex;
+    gap: var(--space-xs);
+    flex-shrink: 0;
+  }
+  .icon-action {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 1px solid var(--border-soft-20);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    transition: all var(--transition-fast);
+  }
+  .icon-action svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .icon-action:hover {
     color: var(--text-primary);
-    border-color: var(--text-muted);
+    border-color: var(--border-hover);
+    background: var(--tertiary-bg);
+  }
+  .icon-action:active {
+    transform: scale(0.94);
   }
 </style>

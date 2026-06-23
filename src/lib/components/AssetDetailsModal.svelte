@@ -425,7 +425,7 @@
           {#if detailsModal.activeTab === "edit"}
             <button
               class="btn-primary"
-              style="margin-right: 1rem; padding: 0.4rem 1rem;"
+              style="margin-right: 0.5rem;"
               onclick={triggerSaveFromHeader}
             >
               {translate("action.button.saveChanges")}
@@ -434,7 +434,7 @@
           {#if assetsState.currentCategory !== "Sounds"}
             <button
               class="btn-secondary"
-              style="margin-right: 1rem; padding: 0.4rem 1rem;"
+              style="margin-right: 0.5rem;"
               title={translate("export.queue.add")}
               onclick={() =>
                 detailsModal.selectedAsset &&

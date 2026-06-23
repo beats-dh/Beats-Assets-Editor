@@ -228,6 +228,11 @@
   gap: 16px;
 }
 
+/* Sprite list spans the full modal width below the two columns. */
+.texture-sprite-list-row {
+  margin-top: 24px;
+}
+
 .texture-form-section {
   background: var(--surface-elevated);
   border: 1px solid var(--border-color);

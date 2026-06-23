@@ -475,18 +475,6 @@
         onAddFrameGroup={handleAddFrameGroup}
         onRemoveFrameGroup={handleRemoveFrameGroup}
       />
-      <TextureSpriteList
-        {sprites}
-        {details}
-        frameGroupIndex={viewState.frameGroupIndex}
-        onReorder={handleReorder}
-        onRemove={handleRemove}
-        onReplace={handleReplace}
-        onAppend={handleAppend}
-        onAdd={() => openBrowse()}
-        onExport={(d) => handleExportSprites(d.spriteIds)}
-        onImportImage={handleImportImage}
-      />
       <TextureBoundingBox bind:spriteInfo onChange={handleSettingsChange} />
     </div>
     <div class="texture-settings-column">
@@ -496,5 +484,21 @@
         onSave={handleSaveSettings}
       />
     </div>
+  </div>
+  <!-- Full-width below the two columns: the sprite grid auto-fills, so it uses
+       the whole modal width instead of leaving a tall empty area on the right. -->
+  <div class="texture-sprite-list-row">
+    <TextureSpriteList
+      {sprites}
+      {details}
+      frameGroupIndex={viewState.frameGroupIndex}
+      onReorder={handleReorder}
+      onRemove={handleRemove}
+      onReplace={handleReplace}
+      onAppend={handleAppend}
+      onAdd={() => openBrowse()}
+      onExport={(d) => handleExportSprites(d.spriteIds)}
+      onImportImage={handleImportImage}
+    />
   </div>
 {/if}

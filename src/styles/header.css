@@ -262,7 +262,7 @@
 .appearance-action-group {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
   flex-wrap: wrap;
 }
 
@@ -271,9 +271,10 @@
   background: rgba(15, 23, 42, 0.35);
   color: var(--text-primary, #e2e8f0);
   border-radius: var(--radius-md);
-  padding: 0.45rem 0.85rem;
+  padding: 0.4rem 0.7rem;
   font-size: 0.78rem;
   font-weight: 600;
+  white-space: nowrap;
   letter-spacing: 0.02em;
   text-transform: none;
   cursor: pointer;
