@@ -4,9 +4,8 @@
   interface Props {
     spriteInfo: CompleteSpriteInfo | undefined;
     onChange?: (detail: any) => void;
-    onSave?: () => void;
   }
-  let { spriteInfo = $bindable(), onChange, onSave }: Props = $props();
+  let { spriteInfo = $bindable(), onChange }: Props = $props();
 
   function getFrameCount() {
     if (!spriteInfo) return 1;
@@ -184,12 +183,5 @@
         >
       {/if}
     {/if}
-  </div>
-  <div class="texture-form-actions">
-    <button
-      id="texture-save-button"
-      class="btn-primary"
-      onclick={() => onSave?.()}>{translate("texture.button.save")}</button
-    >
   </div>
 {/if}

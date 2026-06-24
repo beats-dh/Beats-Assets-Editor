@@ -278,6 +278,11 @@
   margin-top: 24px;
 }
 
+/* Primary save action, pinned to the end of the texture editor. */
+.texture-save-row {
+  margin-top: 24px;
+}
+
 .texture-form-section {
   background: var(--surface-elevated);
   border: 1px solid var(--border-color);

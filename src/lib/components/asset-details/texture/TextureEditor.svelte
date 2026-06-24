@@ -477,11 +477,7 @@
       />
     </div>
     <div class="texture-settings-column">
-      <TextureSettings
-        bind:spriteInfo
-        onChange={handleSettingsChange}
-        onSave={handleSaveSettings}
-      />
+      <TextureSettings bind:spriteInfo onChange={handleSettingsChange} />
     </div>
   </div>
   <!-- Full-width rows below the two columns: keeps the left/right columns short
@@ -503,5 +499,13 @@
       onExport={(d) => handleExportSprites(d.spriteIds)}
       onImportImage={handleImportImage}
     />
+  </div>
+  <!-- Primary save action lives at the very end of the texture editor. -->
+  <div class="texture-form-actions texture-save-row">
+    <button
+      id="texture-save-button"
+      class="btn-primary"
+      onclick={handleSaveSettings}>{translate("texture.button.save")}</button
+    >
   </div>
 {/if}
