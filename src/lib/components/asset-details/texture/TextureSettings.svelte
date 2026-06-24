@@ -4,8 +4,14 @@
   interface Props {
     spriteInfo: CompleteSpriteInfo | undefined;
     onChange?: (detail: any) => void;
+    /** Which card(s) to render, so they can live in different layout columns. */
+    section?: "all" | "sprite" | "animation";
   }
-  let { spriteInfo = $bindable(), onChange }: Props = $props();
+  let {
+    spriteInfo = $bindable(),
+    onChange,
+    section = "all",
+  }: Props = $props();
 
   function getFrameCount() {
     if (!spriteInfo) return 1;
@@ -51,6 +57,7 @@
 </script>
 
 {#if spriteInfo}
+  {#if section === "all" || section === "sprite"}
   <div class="texture-form-section">
     <h4>{translate("texture.section.spriteSettings")}</h4>
     <div class="texture-form-grid">
@@ -103,6 +110,8 @@
       >
     </div>
   </div>
+  {/if}
+  {#if section === "all" || section === "animation"}
   <div class="texture-form-section">
     <h4>{translate("texture.section.animation")}</h4>
     <div class="texture-form-grid texture-animation-grid">
@@ -184,4 +193,5 @@
       {/if}
     {/if}
   </div>
+  {/if}
 {/if}

@@ -1,31 +1,34 @@
-/* Texture tab layout — masonry. The cards balance themselves across two columns
-   by height (CSS multi-column), so a card that grows with its data never leaves
-   a fixed-column empty gap. The sprite list spans both columns (column-span). */
-.texture-masonry {
-  column-count: 2;
-  column-gap: 24px;
+/* Texture tab layout. Two equal-height columns (Preview + Sprite settings on the
+   left, Controls + Animation on the right) with the wide tables full-width below. */
+.texture-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.texture-masonry > * {
-  break-inside: avoid;
-  margin-bottom: 16px;
+.texture-columns {
+  display: flex;
+  gap: 24px;
+  align-items: stretch;
 }
 
-/* Preview + controls stay together as one unbreakable masonry item. */
-.texture-masonry-item {
+.texture-column {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.texture-masonry-span {
-  column-span: all;
-  margin-top: 8px;
+/* The bottom card stretches to absorb the column's slack, so both columns end at
+   the same line — no empty gap below whichever side has the shorter content. */
+.texture-column > :last-child {
+  flex: 1 0 auto;
 }
 
 @media (max-width: 760px) {
-  .texture-masonry {
-    column-count: 1;
+  .texture-columns {
+    flex-direction: column;
   }
 }
 
