@@ -84,7 +84,7 @@
 </script>
 
 <div class="texture-preview-controls">
-  <div class="texture-control-row">
+  <div class="texture-control-row texture-frame-group-row">
     <label
       ><span>{translate("texture.preview.frameGroup")}</span>
       <select

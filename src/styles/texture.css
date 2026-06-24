@@ -104,6 +104,11 @@
   align-items: center;
 }
 
+/* Bottom-align so the +/- buttons line up with the select, not the label text. */
+.texture-frame-group-row {
+  align-items: flex-end;
+}
+
 /* Object preview fields as a fixed 2-column grid (always aligned, regardless of
    the column width — labels can shrink so the inputs never wrap to one column). */
 .texture-control-grid {
@@ -167,7 +172,12 @@
 .texture-export-row {
   display: flex;
   gap: 8px;
-  margin-top: 8px;
+  /* Pinned to the top-right corner of the preview card instead of floating
+     centered next to the canvas. */
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  margin-top: 0;
 }
 .texture-export-png {
   padding: 4px 10px;
