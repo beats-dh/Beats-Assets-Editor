@@ -300,7 +300,7 @@
         >{/if}
     </div>
   {:else}
-    <div class="texture-control-row">
+    <div class="texture-control-grid">
       <label
         ><span>{translate("texture.preview.patternX")}</span><input
           type="number"
@@ -314,7 +314,8 @@
               patternWidthMax,
             )}
         /></label
-      ><label
+      >
+      <label
         ><span>{translate("texture.preview.patternY")}</span><input
           type="number"
           id="object-preview-pattern-y"
@@ -328,8 +329,6 @@
             )}
         /></label
       >
-    </div>
-    <div class="texture-control-row">
       <label
         ><span>{translate("texture.preview.patternZ")}</span><input
           type="number"
@@ -343,7 +342,8 @@
               patternDepthMax,
             )}
         /></label
-      ><label
+      >
+      <label
         ><span>{translate("texture.preview.layer")}</span><input
           type="number"
           id="object-preview-layer"
@@ -357,8 +357,6 @@
             )}
         /></label
       >
-    </div>
-    <div class="texture-control-row">
       <label
         ><span>{translate("texture.preview.frame")}</span><input
           type="number"
@@ -372,20 +370,7 @@
               frameMax,
             )}
         /></label
-      ><label class="texture-checkbox"
-        ><input
-          type="checkbox"
-          id="object-preview-show-bboxes"
-          checked={ps.showBoundingBoxes}
-          onchange={(e) =>
-            handleChange(
-              "showBoundingBoxes",
-              (e.target as HTMLInputElement).checked,
-            )}
-        /><span>{translate("texture.preview.showBoundingBoxes")}</span></label
       >
-    </div>
-    <div class="texture-control-row">
       <label
         ><span>{translate("texture.preview.background")}</span><input
           type="color"
@@ -397,6 +382,20 @@
               (e.target as HTMLInputElement).value,
             )}
         /></label
+      >
+    </div>
+    <div class="texture-control-row texture-checkbox-row">
+      <label class="texture-checkbox"
+        ><input
+          type="checkbox"
+          id="object-preview-show-bboxes"
+          checked={ps.showBoundingBoxes}
+          onchange={(e) =>
+            handleChange(
+              "showBoundingBoxes",
+              (e.target as HTMLInputElement).checked,
+            )}
+        /><span>{translate("texture.preview.showBoundingBoxes")}</span></label
       >
     </div>
   {/if}
