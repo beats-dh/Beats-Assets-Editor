@@ -527,8 +527,12 @@
 
 .texture-sprite-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  /* auto-fit (not auto-fill) collapses empty tracks, so a few sprites grow to
+     fill the row instead of leaving reserved gaps; the 220px cap keeps a lone
+     chip from stretching the whole width. More sprites add columns on their own. */
+  grid-template-columns: repeat(auto-fit, minmax(140px, 220px));
   gap: 10px;
+  justify-content: start;
 }
 
 .texture-sprite-chip {
