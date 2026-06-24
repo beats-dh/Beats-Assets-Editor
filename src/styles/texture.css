@@ -1,16 +1,32 @@
-/* Texture tab layout */
-.texture-layout {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  align-items: flex-start;
+/* Texture tab layout — masonry. The cards balance themselves across two columns
+   by height (CSS multi-column), so a card that grows with its data never leaves
+   a fixed-column empty gap. The sprite list spans both columns (column-span). */
+.texture-masonry {
+  column-count: 2;
+  column-gap: 24px;
 }
 
-.texture-preview-column {
-  flex: 1 1 320px;
+.texture-masonry > * {
+  break-inside: avoid;
+  margin-bottom: 16px;
+}
+
+/* Preview + controls stay together as one unbreakable masonry item. */
+.texture-masonry-item {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.texture-masonry-span {
+  column-span: all;
+  margin-top: 8px;
+}
+
+@media (max-width: 760px) {
+  .texture-masonry {
+    column-count: 1;
+  }
 }
 
 .texture-preview-card {
@@ -264,18 +280,6 @@
   color: #fff;
   border-color: var(--primary-accent);
   box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
-}
-
-.texture-settings-column {
-  flex: 1 1 380px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* Sprite list spans the full modal width below the two columns. */
-.texture-sprite-list-row {
-  margin-top: 24px;
 }
 
 /* Primary save action, pinned to the end of the texture editor. */

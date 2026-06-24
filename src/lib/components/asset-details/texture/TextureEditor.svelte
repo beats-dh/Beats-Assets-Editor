@@ -454,8 +454,11 @@
     <p>{translate("texture.emptyState.unsupported")}</p>
   </div>
 {:else}
-  <div class="texture-layout">
-    <div class="texture-preview-column">
+  <!-- Masonry: the cards balance themselves across 2 columns regardless of their
+       (data-driven) heights, so there is no fixed-column empty gap. The sprite
+       list spans both columns (column-span) and stays full-width at the bottom. -->
+  <div class="texture-masonry">
+    <div class="texture-masonry-item">
       <TexturePreview
         {details}
         {sprites}
@@ -476,27 +479,22 @@
         onRemoveFrameGroup={handleRemoveFrameGroup}
       />
     </div>
-    <div class="texture-settings-column">
-      <TextureSettings bind:spriteInfo onChange={handleSettingsChange} />
-      <!-- Lives in the right column (below Animation) so it fills the space the
-           shorter settings column would otherwise leave empty. -->
-      <TextureBoundingBox bind:spriteInfo onChange={handleSettingsChange} />
+    <TextureSettings bind:spriteInfo onChange={handleSettingsChange} />
+    <TextureBoundingBox bind:spriteInfo onChange={handleSettingsChange} />
+    <div class="texture-masonry-span">
+      <TextureSpriteList
+        {sprites}
+        {details}
+        frameGroupIndex={viewState.frameGroupIndex}
+        onReorder={handleReorder}
+        onRemove={handleRemove}
+        onReplace={handleReplace}
+        onAppend={handleAppend}
+        onAdd={() => openBrowse()}
+        onExport={(d) => handleExportSprites(d.spriteIds)}
+        onImportImage={handleImportImage}
+      />
     </div>
-  </div>
-  <!-- Full-width row: the sprite grid auto-fills the whole modal width. -->
-  <div class="texture-sprite-list-row">
-    <TextureSpriteList
-      {sprites}
-      {details}
-      frameGroupIndex={viewState.frameGroupIndex}
-      onReorder={handleReorder}
-      onRemove={handleRemove}
-      onReplace={handleReplace}
-      onAppend={handleAppend}
-      onAdd={() => openBrowse()}
-      onExport={(d) => handleExportSprites(d.spriteIds)}
-      onImportImage={handleImportImage}
-    />
   </div>
   <!-- Primary save action lives at the very end of the texture editor. -->
   <div class="texture-form-actions texture-save-row">
