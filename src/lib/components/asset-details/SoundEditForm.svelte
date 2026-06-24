@@ -394,7 +394,7 @@
     margin-top: 1rem;
   }
   .btn-save {
-    background: var(--primary-color);
+    background: var(--primary-accent);
     color: white;
     padding: 0.5rem 1rem;
     border: none;

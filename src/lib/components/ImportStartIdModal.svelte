@@ -276,7 +276,7 @@
     gap: 1rem;
   }
   .btn-primary {
-    background: var(--primary-color);
+    background: var(--primary-accent);
     color: white;
     padding: 0.5rem 1rem;
     border-radius: 4px;

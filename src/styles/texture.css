@@ -139,7 +139,7 @@
 
 .texture-control-grid input[type="number"]:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--primary-accent);
   box-shadow: 0 0 0 2px rgba(47, 128, 237, 0.15);
 }
 
@@ -216,7 +216,7 @@
 
 .texture-control-row input[type="number"]:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--primary-accent);
   box-shadow: 0 0 0 2px rgba(47, 128, 237, 0.15);
 }
 
@@ -237,7 +237,7 @@
 
 .texture-control-row select:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--primary-accent);
   box-shadow: 0 0 0 2px rgba(47, 128, 237, 0.15);
 }
 
@@ -342,7 +342,7 @@
 .texture-form-grid input[type="number"]:focus,
 .texture-form-grid input[type="text"]:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--primary-accent);
   box-shadow: 0 0 0 2px rgba(47, 128, 237, 0.15);
 }
 
@@ -384,7 +384,7 @@
 
 .texture-phase-row input[type="number"]:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--primary-accent);
   box-shadow: 0 0 0 2px rgba(47, 128, 237, 0.15);
 }
 
@@ -444,7 +444,7 @@
 
 .texture-bounding-table input[type="number"]:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--primary-accent);
   box-shadow: 0 0 0 2px rgba(47, 128, 237, 0.15);
 }
 
@@ -571,7 +571,7 @@
 }
 
 .texture-sprite-chip.is-selected {
-  border-color: var(--primary-color);
+  border-color: var(--primary-accent);
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
   background: var(--tertiary-bg);
 }

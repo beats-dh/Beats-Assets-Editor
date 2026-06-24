@@ -241,7 +241,7 @@
     cursor: pointer;
   }
   .random-sound-btn:hover {
-    background: var(--primary-color);
+    background: var(--primary-accent);
     color: white;
   }
   .table-like {
@@ -269,7 +269,7 @@
   }
   .tag {
     background: var(--primary-color-alpha, rgba(62, 166, 255, 0.2));
-    color: var(--primary-color);
+    color: var(--primary-accent);
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
     font-size: 0.9rem;
