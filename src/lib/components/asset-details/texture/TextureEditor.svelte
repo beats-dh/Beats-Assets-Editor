@@ -478,14 +478,12 @@
     </div>
     <div class="texture-settings-column">
       <TextureSettings bind:spriteInfo onChange={handleSettingsChange} />
+      <!-- Lives in the right column (below Animation) so it fills the space the
+           shorter settings column would otherwise leave empty. -->
+      <TextureBoundingBox bind:spriteInfo onChange={handleSettingsChange} />
     </div>
   </div>
-  <!-- Full-width rows below the two columns: keeps the left/right columns short
-       and balanced, and lets the wide tables/grids use the whole modal width
-       instead of leaving a tall empty area on the right. -->
-  <div class="texture-sprite-list-row">
-    <TextureBoundingBox bind:spriteInfo onChange={handleSettingsChange} />
-  </div>
+  <!-- Full-width row: the sprite grid auto-fills the whole modal width. -->
   <div class="texture-sprite-list-row">
     <TextureSpriteList
       {sprites}
