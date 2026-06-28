@@ -57,13 +57,15 @@ pub fn read_data(data: &[u8], data_base: usize, data_offset: u32, flags: u16) ->
         return Ok((Vec::new(), false));
     }
 
-    // zstd payloads use a different framing we don't support — fail loudly
-    // rather than returning garbage.
+    let remaining = &data[pos + 4..];
+
+    // zstd (Qt >= 5.13): the data block is a self-describing zstd frame — no
+    // 4-byte uncompressed-size prefix (unlike the zlib path below).
     if (flags & FLAG_COMPRESSED_ZSTD) != 0 {
-        return Err("Resource is zstd-compressed (unsupported)".into());
+        let end = std::cmp::min(size, remaining.len());
+        return decompress_zstd(&remaining[..end]).map(|d| (d, true)).map_err(|e| format!("Zstd decompress failed: {}", e));
     }
 
-    let remaining = &data[pos + 4..];
     let is_compressed = (flags & FLAG_COMPRESSED) != 0;
 
     if is_compressed {
@@ -93,4 +95,12 @@ pub fn decompress_zlib(data: &[u8]) -> Result<Vec<u8>, String> {
     let mut decompressed = Vec::new();
     decoder.read_to_end(&mut decompressed).map_err(|e| format!("Zlib decompression error: {}", e))?;
     Ok(decompressed)
+}
+
+/// Decompress a zstd frame (Qt resource compression, Qt >= 5.13).
+pub fn decompress_zstd(data: &[u8]) -> Result<Vec<u8>, String> {
+    let mut decoder = ruzstd::StreamingDecoder::new(data).map_err(|e| format!("zstd init: {}", e))?;
+    let mut out = Vec::new();
+    decoder.read_to_end(&mut out).map_err(|e| format!("zstd read: {}", e))?;
+    Ok(out)
 }

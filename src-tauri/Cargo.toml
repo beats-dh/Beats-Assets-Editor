@@ -87,4 +87,6 @@ regex = "1.10"
 
 # Zlib decompression for RCC resources
 flate2 = "1.0"
+# Pure-Rust zstd decoder for Qt RCC resources (Qt 5.13+/Qt6 compress with zstd)
+ruzstd = "0.7"
 tauri-plugin-clipboard-manager = "2.3.2"

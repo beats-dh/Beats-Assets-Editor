@@ -139,9 +139,14 @@ impl RccFile {
         // First pass: read all raw tree nodes
         let mut raw_nodes: Vec<RawTreeNode> = Vec::new();
 
-        // We need to figure out how many nodes there are.
-        // Read nodes until we hit the end or names section.
-        let tree_size = data.len() - tree_start;
+        // The tree section ends where the names/data section begins. Using the
+        // whole remaining file would parse names/data bytes as garbage nodes.
+        let tree_end = [header.names_offset as usize, header.data_offset as usize]
+            .into_iter()
+            .filter(|&o| o > tree_start && o <= data.len())
+            .min()
+            .unwrap_or(data.len());
+        let tree_size = tree_end - tree_start;
         let node_size = if header.version >= 2 {
             22
         } else {
@@ -160,6 +165,15 @@ impl RccFile {
                 let child_count = cursor.read_u32::<BigEndian>().map_err(|e| e.to_string())?;
                 let first_child = cursor.read_u32::<BigEndian>().map_err(|e| e.to_string())?;
 
+                // Qt v2+ stores an 8-byte last-modified field on EVERY node,
+                // directories included. Skipping it for dirs desyncs every node
+                // after the first directory → wrong names and missing files.
+                let last_modified = if header.version >= 2 {
+                    cursor.read_u64::<BigEndian>().map_err(|e| e.to_string())?
+                } else {
+                    0
+                };
+
                 raw_nodes.push(RawTreeNode {
                     name_offset,
                     flags,
@@ -169,7 +183,7 @@ impl RccFile {
                     data_offset: None,
                     country: 0,
                     language: 0,
-                    last_modified: 0,
+                    last_modified,
                 });
             } else {
                 let country = cursor.read_u16::<BigEndian>().map_err(|e| e.to_string())?;
@@ -207,7 +221,12 @@ impl RccFile {
 
             let (entry_data, compressed) = if !node.is_dir {
                 if let Some(d_off) = node.data_offset {
-                    qt_format::read_data(data, header.data_offset as usize, d_off, node.flags)?
+                    // A single unreadable resource (corrupt offset, unsupported
+                    // codec) must not abort the whole bundle — list it empty.
+                    qt_format::read_data(data, header.data_offset as usize, d_off, node.flags).unwrap_or_else(|e| {
+                        eprintln!("RCC: skipping resource data: {}", e);
+                        (Vec::new(), false)
+                    })
                 } else {
                     (Vec::new(), false)
                 }
