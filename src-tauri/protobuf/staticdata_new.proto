@@ -1,0 +1,79 @@
+syntax = "proto2";
+
+// Newer-client staticdata schema. The field numbers in `StaticData` are NOT
+// compatible with the legacy `staticdata.proto` (titles/houses/bosses/quests
+// were renumbered and `monster_classes`/`achievements` inserted), so this lives
+// in its own package and the loader detects which schema a file uses.
+package tibia.protobuf.staticdata_new;
+
+import "shared.proto";
+
+message StaticData {
+  repeated Monster monsters = 1;
+  repeated MonsterClass monster_classes = 2;
+  repeated Achievement achievements = 3;
+  repeated House houses = 4;
+  repeated BossMonster bosses = 5;
+  repeated Quest quests = 6;
+}
+
+message Monster {
+  optional uint32 id = 1;
+  optional string name = 2;
+  optional OutfitLook outfit = 3;
+  optional uint32 difficulty = 4;
+  optional uint32 occurrence = 5;
+  optional bool is_npc = 6;
+  optional bool is_hostile = 7;
+}
+
+message MonsterClass {
+  optional uint32 id = 1;
+  optional string name = 2;
+}
+
+message Achievement {
+  optional uint32 id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional uint32 grade = 4;
+}
+
+message House {
+  optional uint32 id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional uint32 rent = 4;
+  optional uint32 beds = 5;
+  optional tibia.protobuf.shared.Coordinate position = 6;
+  optional uint32 size = 7;
+  optional bool guildhall = 8;
+  optional string town = 9;
+  optional bool is_premium = 10;
+}
+
+message BossMonster {
+  optional uint32 id = 1;
+  optional string name = 2;
+  optional OutfitLook outfit = 3;
+  optional bool is_archfoe = 4;
+}
+
+message Quest {
+  optional uint32 id = 1;
+  optional string name = 2;
+}
+
+message OutfitLook {
+  optional uint32 looktype = 1;
+  optional OutfitColors colors = 2;
+  optional uint32 addons = 3;
+  optional uint32 mount = 4;
+}
+
+message OutfitColors {
+  optional uint32 head = 1;
+  optional uint32 body = 2;
+  optional uint32 legs = 3;
+  optional uint32 feet = 4;
+}

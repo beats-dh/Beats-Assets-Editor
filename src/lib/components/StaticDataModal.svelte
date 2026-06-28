@@ -80,6 +80,8 @@
         return "📜";
       case "titles":
         return "🏅";
+      case "monster_classes":
+        return "🧬";
       case "houses":
         return "🏘️";
       case "map_houses":
@@ -331,15 +333,19 @@
         <!-- ======================= -->
         <!-- QUESTS                  -->
         <!-- ======================= -->
-        {#if dataType === "quests"}
+        {#if dataType === "quests" || dataType === "monster_classes"}
           <div class="detail-section">
             <h3 class="section-title">
-              {translate("modal.static.info.questEntity")}
+              {dataType === "monster_classes"
+                ? "Monster Class"
+                : translate("modal.static.info.questEntity")}
             </h3>
             <div class="info-grid">
               <div class="info-item">
                 <span class="info-label"
-                  >{translate("modal.static.info.questId")}</span
+                  >{dataType === "monster_classes"
+                    ? "ID"
+                    : translate("modal.static.info.questId")}</span
                 >
                 <span class="info-value">{itemDetails.id}</span>
               </div>

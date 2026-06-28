@@ -1128,6 +1128,33 @@ const translationEntries = {
     es: 'Editor RCC',
     ru: 'Редактор RCC'
   },
+  'category.minimapEditor': {
+    default: 'Minimap',
+    'pt-BR': 'Minimapa',
+    en: 'Minimap',
+    es: 'Minimapa',
+    ru: 'Миникарта'
+  },
+  'minimap.tab.markers': { default: 'Markers', 'pt-BR': 'Marcadores', en: 'Markers', es: 'Marcadores', ru: 'Метки' },
+  'minimap.tab.map': { default: 'Map', 'pt-BR': 'Mapa', en: 'Map', es: 'Mapa', ru: 'Карта' },
+  'minimap.search.markers': { default: 'Search markers…', 'pt-BR': 'Buscar marcadores…', en: 'Search markers…', es: 'Buscar marcadores…', ru: 'Поиск меток…' },
+  'minimap.btn.reload': { default: 'Reload', 'pt-BR': 'Recarregar', en: 'Reload', es: 'Recargar', ru: 'Обновить' },
+  'minimap.btn.openFile': { default: 'Open file', 'pt-BR': 'Abrir arquivo', en: 'Open file', es: 'Abrir archivo', ru: 'Открыть файл' },
+  'minimap.dialog.openMarkers': { default: 'Open minimapmarkers.bin', 'pt-BR': 'Abrir minimapmarkers.bin', en: 'Open minimapmarkers.bin', es: 'Abrir minimapmarkers.bin', ru: 'Открыть minimapmarkers.bin' },
+  'minimap.empty.markers': { default: 'No markers (the client has no minimapmarkers.bin yet).', 'pt-BR': 'Sem marcadores (o client ainda não tem minimapmarkers.bin).', en: 'No markers (the client has no minimapmarkers.bin yet).', es: 'Sin marcadores (el cliente aún no tiene minimapmarkers.bin).', ru: 'Нет меток (у клиента ещё нет minimapmarkers.bin).' },
+  'minimap.empty.tiles': { default: 'No minimap tiles found.', 'pt-BR': 'Nenhum tile de minimapa encontrado.', en: 'No minimap tiles found.', es: 'No se encontraron tiles de minimapa.', ru: 'Тайлы миникарты не найдены.' },
+  'minimap.col.type': { default: 'Type', 'pt-BR': 'Tipo', en: 'Type', es: 'Tipo', ru: 'Тип' },
+  'minimap.col.description': { default: 'Description', 'pt-BR': 'Descrição', en: 'Description', es: 'Descripción', ru: 'Описание' },
+  'minimap.floor': { default: 'Floor', 'pt-BR': 'Andar', en: 'Floor', es: 'Piso', ru: 'Этаж' },
+  'minimap.status.markers': { default: '{{count}} markers', 'pt-BR': '{{count}} marcadores', en: '{{count}} markers', es: '{{count}} marcadores', ru: '{{count}} меток' },
+  'minimap.status.tiles': { default: '{{count}} tiles', 'pt-BR': '{{count}} tiles', en: '{{count}} tiles', es: '{{count}} tiles', ru: '{{count}} тайлов' },
+  'minimap.status.rendering': { default: 'Rendering {{done}}/{{total}}…', 'pt-BR': 'Renderizando {{done}}/{{total}}…', en: 'Rendering {{done}}/{{total}}…', es: 'Renderizando {{done}}/{{total}}…', ru: 'Отрисовка {{done}}/{{total}}…' },
+  'minimap.status.renderingFloor': { default: 'Rendering…', 'pt-BR': 'Renderizando…', en: 'Rendering…', es: 'Renderizando…', ru: 'Отрисовка…' },
+  'minimap.src.otmm': { default: 'OTClient (.otmm)', 'pt-BR': 'OTClient (.otmm)', en: 'OTClient (.otmm)', es: 'OTClient (.otmm)', ru: 'OTClient (.otmm)' },
+  'minimap.src.tiles': { default: 'Client tiles', 'pt-BR': 'Tiles do client', en: 'Client tiles', es: 'Tiles del cliente', ru: 'Тайлы клиента' },
+  'minimap.btn.openOtmm': { default: 'Open .otmm', 'pt-BR': 'Abrir .otmm', en: 'Open .otmm', es: 'Abrir .otmm', ru: 'Открыть .otmm' },
+  'minimap.dialog.openOtmm': { default: 'Open OTClient minimap (.otmm)', 'pt-BR': 'Abrir minimapa OTClient (.otmm)', en: 'Open OTClient minimap (.otmm)', es: 'Abrir minimapa OTClient (.otmm)', ru: 'Открыть миникарту OTClient (.otmm)' },
+  'minimap.empty.otmm': { default: 'No .otmm found. Use "Open .otmm".', 'pt-BR': 'Nenhum .otmm encontrado. Use "Abrir .otmm".', en: 'No .otmm found. Use "Open .otmm".', es: 'No se encontró .otmm. Usa "Abrir .otmm".', ru: 'Файл .otmm не найден. Нажмите «Открыть .otmm».' },
   'category.itemsCount': {
     default: '{{count}} items',
     'pt-BR': '{{count}} itens',
@@ -1162,6 +1189,13 @@ const translationEntries = {
     en: '{{count}} titles',
     es: '{{count}} títulos',
     ru: '{{count}} титулов'
+  },
+  'category.monsterClassesCount': {
+    default: '{{count}} monster classes',
+    'pt-BR': '{{count}} classes de monstro',
+    en: '{{count}} monster classes',
+    es: '{{count}} clases de monstruo',
+    ru: '{{count}} классов монстров'
   },
   'category.housesCount': {
     default: '{{count}} houses',

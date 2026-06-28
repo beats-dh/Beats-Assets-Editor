@@ -16,11 +16,19 @@ export interface AppearanceStats {
 }
 
 export interface StaticDataStats {
-  total_creatures: number;
-  total_titles: number;
+  /** "old" | "new" — which client schema the loaded file matched. */
+  version: string;
+  total_creatures: number; // new schema: monsters
+  total_monster_classes: number; // new schema only
+  total_titles: number; // new schema: achievements
   total_houses: number;
   total_bosses: number;
   total_quests: number;
+}
+
+export interface StaticMonsterClass {
+  id: number;
+  name: string;
 }
 
 export interface StaticMapDataStats {

@@ -26,8 +26,21 @@ pub mod map {
 
 #[allow(non_snake_case)]
 #[allow(clippy::all)]
+pub mod minimap {
+    include!(concat!(env!("OUT_DIR"), "/tibia.protobuf.minimap.rs"));
+}
+
+#[allow(non_snake_case)]
+#[allow(clippy::all)]
 pub mod staticdata {
     include!(concat!(env!("OUT_DIR"), "/tibia.protobuf.staticdata.rs"));
+}
+
+// Newer-client staticdata schema (incompatible field numbers vs `staticdata`).
+#[allow(non_snake_case)]
+#[allow(clippy::all)]
+pub mod staticdata_new {
+    include!(concat!(env!("OUT_DIR"), "/tibia.protobuf.staticdata_new.rs"));
 }
 
 #[allow(non_snake_case)]
