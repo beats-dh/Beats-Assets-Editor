@@ -65,12 +65,14 @@ fn try_read_name_entry(data: &[u8], pos: usize) -> Option<(String, usize)> {
     Some((s, cend))
 }
 
-/// Find the names section as the contiguous run with the most *non-empty* name
-/// entries. Counting only non-empty names keeps long runs of zero bytes (very
-/// common in a binary) from being mistaken for the names section, while still
-/// allowing the leading empty root entry to anchor the true section start.
-fn find_names_section(data: &[u8]) -> Option<(usize, usize)> {
-    let mut best: Option<(usize, usize, usize)> = None; // (start, end, meaningful)
+/// Find ALL names-section candidates: every contiguous run with at least
+/// `MIN_NAMES_RUN` non-empty name entries. Counting only non-empty names keeps
+/// long runs of zero bytes (common in a binary) from being mistaken for a names
+/// section. A Qt exe commonly embeds SEVERAL resource bundles, so we must collect
+/// every run — using only the largest drops files that live in smaller bundles
+/// (e.g. `bds/animation/...`).
+fn find_all_names_sections(data: &[u8]) -> Vec<(usize, usize)> {
+    let mut sections: Vec<(usize, usize)> = Vec::new();
     let mut p = 0usize;
     while p + 6 <= data.len() {
         if let Some((first_name, first_next)) = try_read_name_entry(data, p) {
@@ -83,15 +85,15 @@ fn find_names_section(data: &[u8]) -> Option<(usize, usize)> {
                     meaningful += 1;
                 }
             }
-            if best.map_or(true, |(_, _, m)| meaningful > m) {
-                best = Some((start, next, meaningful));
+            if meaningful >= MIN_NAMES_RUN {
+                sections.push((start, next));
             }
             p = next.max(p + 1); // skip past the run we just consumed
         } else {
             p += 1;
         }
     }
-    best.filter(|(_, _, m)| *m >= MIN_NAMES_RUN).map(|(s, e, _)| (s, e))
+    sections
 }
 
 /// Build a map from relative name offset -> decoded name for the names section.
@@ -263,14 +265,15 @@ fn find_data_base(data: &[u8], nodes: &[RawNode]) -> Option<usize> {
 }
 
 /// Reconstruct the full resource tree from a compiled-in Qt bundle.
-fn parse_tree(data: &[u8]) -> Result<RccFile, String> {
-    let (names_start, names_end) = find_names_section(data).ok_or("Could not locate Qt names section")?;
+/// Parse a single bundle anchored at the given names section. Returns the
+/// bundle's entries (node 0 = root), with children indices local to the bundle.
+fn parse_bundle(data: &[u8], names_start: usize, names_end: usize) -> Option<Vec<RccEntry>> {
     let name_map = build_name_map(data, names_start, names_end);
     if name_map.is_empty() {
-        return Err("Empty Qt names section".into());
+        return None;
     }
 
-    let (struct_base, ns, node_count) = find_struct_section(data, &name_map).ok_or("Could not locate Qt struct section")?;
+    let (struct_base, ns, node_count) = find_struct_section(data, &name_map)?;
 
     let mut raw_nodes: Vec<RawNode> = Vec::with_capacity(node_count);
     for i in 0..node_count {
@@ -280,10 +283,10 @@ fn parse_tree(data: &[u8]) -> Result<RccFile, String> {
         }
     }
     if raw_nodes.is_empty() {
-        return Err("No Qt struct nodes decoded".into());
+        return None;
     }
 
-    let data_base = find_data_base(data, &raw_nodes).ok_or("Could not locate Qt data section")?;
+    let data_base = find_data_base(data, &raw_nodes)?;
 
     // Build entries (index-aligned with struct nodes).
     let count = raw_nodes.len();
@@ -319,7 +322,68 @@ fn parse_tree(data: &[u8]) -> Result<RccFile, String> {
         });
     }
 
-    finalize(entries, ns, struct_base, data_base, names_start)
+    Some(entries)
+}
+
+/// Reconstruct resources from ALL Qt bundles compiled into the binary and merge
+/// them into one file list. Parsing only the largest bundle previously dropped
+/// files that lived in other bundles (e.g. `bds/animation/...`).
+fn parse_tree(data: &[u8]) -> Result<RccFile, String> {
+    let sections = find_all_names_sections(data);
+    if sections.is_empty() {
+        return Err("Could not locate any Qt names section".into());
+    }
+
+    let mut all_entries: Vec<RccEntry> = Vec::new();
+    let mut all_files: Vec<RccFileInfo> = Vec::new();
+    let mut seen_paths: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for (ns_start, ns_end) in sections {
+        let bundle = match parse_bundle(data, ns_start, ns_end) {
+            Some(b) if !b.is_empty() => b,
+            _ => continue,
+        };
+
+        // Paths are built per-bundle from that bundle's own root (index 0).
+        let mut path_map: HashMap<usize, String> = HashMap::new();
+        RccFile::build_paths(&bundle, 0, "", &mut path_map, 0);
+
+        let base = all_entries.len();
+        for (i, mut entry) in bundle.into_iter().enumerate() {
+            entry.path = path_map.get(&i).cloned().unwrap_or_default();
+            // Re-base child indices into the combined entries vec.
+            entry.children = entry.children.iter().map(|c| c + base).collect();
+
+            let combined_idx = all_entries.len();
+            if !entry.is_directory && !entry.path.is_empty() && seen_paths.insert(entry.path.clone()) {
+                all_files.push(RccFileInfo {
+                    index: combined_idx,
+                    name: entry.name.clone(),
+                    path: entry.path.clone(),
+                    size: entry.data.len(),
+                    compressed: entry.compressed,
+                });
+            }
+            all_entries.push(entry);
+        }
+    }
+
+    if all_files.is_empty() {
+        return Err("No files decoded from any Qt bundle".into());
+    }
+    all_files.sort_by(|a, b| a.path.cmp(&b.path));
+
+    Ok(RccFile {
+        header: RccHeader {
+            version: 2,
+            tree_offset: 0,
+            data_offset: 0,
+            names_offset: 0,
+            overallflags: 0,
+        },
+        entries: all_entries,
+        files: all_files,
+    })
 }
 
 /// Fill in paths, collect the flat file list and wrap into an `RccFile`.
