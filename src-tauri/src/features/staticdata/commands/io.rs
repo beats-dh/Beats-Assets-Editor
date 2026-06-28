@@ -1,8 +1,15 @@
-use crate::features::staticdata::parsers::{load_staticdata, save_staticdata, get_statistics, StaticDataStats};
-use crate::core::protobuf::staticdata::{CreatureType, Title, HouseData, BossData, QuestData};
+use crate::features::staticdata::parsers::{doc_statistics, load_staticdata, load_staticdata_doc, save_staticdata_doc, StaticDataDoc, StaticDataStats};
 use crate::state::AppState;
 use std::path::PathBuf;
 use tauri::State;
+
+// The staticdata browser reads/edits/saves the version-detected document
+// (`state.staticdata_doc`), which transparently handles both the legacy schema
+// and the newer client schema. Because the per-category message shapes share
+// field names across schemas, getters return `serde_json::Value` (identical JSON
+// either way) and updaters accept `serde_json::Value` (deserialized into the
+// loaded schema's type). `state.staticdata` keeps a legacy decode purely so the
+// DAT-merge feature keeps working unchanged.
 
 #[tauri::command]
 pub fn load_staticdata_file(path: String, state: State<'_, AppState>) -> Result<StaticDataStats, String> {
@@ -11,57 +18,65 @@ pub fn load_staticdata_file(path: String, state: State<'_, AppState>) -> Result<
         return Err(format!("File does not exist: {}", path));
     }
 
-    match load_staticdata(&path_buf) {
-        Ok(staticdata) => {
-            let stats = get_statistics(&staticdata);
-            *state.staticdata.write() = Some(staticdata);
-            Ok(stats)
+    let doc = load_staticdata_doc(&path_buf).map_err(|e| format!("Failed to parse staticdata: {}", e))?;
+    let stats = doc_statistics(&doc);
+
+    // Best-effort legacy decode for the DAT-merge feature (it operates on the
+    // legacy schema). Never fatal — the browser uses the versioned doc.
+    if let Ok(legacy) = load_staticdata(&path_buf) {
+        *state.staticdata.write() = Some(legacy);
+    }
+    *state.staticdata_doc.write() = Some(doc);
+    Ok(stats)
+}
+
+/// Serialize a slice to JSON (the frontend receives the same shape for both
+/// schemas because the per-category messages share field names).
+fn to_json<T: serde::Serialize>(items: &[T]) -> Result<serde_json::Value, String> {
+    serde_json::to_value(items).map_err(|e| e.to_string())
+}
+
+/// Upsert `item` (by `id`) into a category vector of the loaded schema.
+fn upsert<T: serde::de::DeserializeOwned>(vec: &mut Vec<T>, item: serde_json::Value, get_id: impl Fn(&T) -> Option<u32>) -> Result<(), String> {
+    let parsed: T = serde_json::from_value(item).map_err(|e| format!("Invalid item: {}", e))?;
+    let id = get_id(&parsed).ok_or("Item must have an ID")?;
+    if let Some(pos) = vec.iter().position(|x| get_id(x) == Some(id)) {
+        vec[pos] = parsed;
+    } else {
+        vec.push(parsed);
+    }
+    Ok(())
+}
+
+macro_rules! getter {
+    ($name:ident, $new_field:ident, $old_field:ident) => {
+        #[tauri::command]
+        pub fn $name(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
+            let lock = state.staticdata_doc.read();
+            match &*lock {
+                Some(StaticDataDoc::New(n)) => to_json(&n.$new_field),
+                Some(StaticDataDoc::Old(o)) => to_json(&o.$old_field),
+                None => Err("No staticdata loaded".to_string()),
+            }
         }
-        Err(e) => Err(format!("Failed to parse staticdata: {}", e)),
-    }
+    };
 }
 
-#[tauri::command]
-pub fn get_staticdata_creatures(state: State<'_, AppState>) -> Result<Vec<CreatureType>, String> {
-    let staticdata_lock = state.staticdata.read();
-    match &*staticdata_lock {
-        Some(sd) => Ok(sd.creatures.clone()),
-        None => Err("No staticdata loaded".to_string()),
-    }
-}
+// Legacy category labels map to the new schema's equivalents:
+//   creatures→monsters, titles→achievements, houses, bosses, quests.
+getter!(get_staticdata_creatures, monsters, creatures);
+getter!(get_staticdata_titles, achievements, titles);
+getter!(get_staticdata_houses, houses, houses);
+getter!(get_staticdata_bosses, bosses, bosses);
+getter!(get_staticdata_quests, quests, quests);
 
+/// New-schema-only category (legacy files have none → empty list).
 #[tauri::command]
-pub fn get_staticdata_titles(state: State<'_, AppState>) -> Result<Vec<Title>, String> {
-    let staticdata_lock = state.staticdata.read();
-    match &*staticdata_lock {
-        Some(sd) => Ok(sd.titles.clone()),
-        None => Err("No staticdata loaded".to_string()),
-    }
-}
-
-#[tauri::command]
-pub fn get_staticdata_houses(state: State<'_, AppState>) -> Result<Vec<HouseData>, String> {
-    let staticdata_lock = state.staticdata.read();
-    match &*staticdata_lock {
-        Some(sd) => Ok(sd.houses.clone()),
-        None => Err("No staticdata loaded".to_string()),
-    }
-}
-
-#[tauri::command]
-pub fn get_staticdata_bosses(state: State<'_, AppState>) -> Result<Vec<BossData>, String> {
-    let staticdata_lock = state.staticdata.read();
-    match &*staticdata_lock {
-        Some(sd) => Ok(sd.bosses.clone()),
-        None => Err("No staticdata loaded".to_string()),
-    }
-}
-
-#[tauri::command]
-pub fn get_staticdata_quests(state: State<'_, AppState>) -> Result<Vec<QuestData>, String> {
-    let staticdata_lock = state.staticdata.read();
-    match &*staticdata_lock {
-        Some(sd) => Ok(sd.quests.clone()),
+pub fn get_staticdata_monster_classes(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let lock = state.staticdata_doc.read();
+    match &*lock {
+        Some(StaticDataDoc::New(n)) => to_json(&n.monster_classes),
+        Some(StaticDataDoc::Old(_)) => Ok(serde_json::Value::Array(Vec::new())),
         None => Err("No staticdata loaded".to_string()),
     }
 }
@@ -91,102 +106,84 @@ pub async fn list_staticdata_files(tibia_path: String) -> Result<Vec<String>, St
 
 #[tauri::command]
 pub fn save_staticdata_file(path: String, state: State<'_, AppState>) -> Result<(), String> {
-    let staticdata_lock = state.staticdata.read();
-    match &*staticdata_lock {
-        Some(sd) => save_staticdata(path, sd).map_err(|e| format!("Failed to save staticdata: {}", e)),
+    let lock = state.staticdata_doc.read();
+    match &*lock {
+        Some(doc) => save_staticdata_doc(path, doc).map_err(|e| format!("Failed to save staticdata: {}", e)),
         None => Err("No staticdata loaded to save".to_string()),
     }
 }
 
 #[tauri::command]
 pub fn remove_staticdata_item(category: String, id: u32, state: State<'_, AppState>) -> Result<(), String> {
-    let mut staticdata_lock = state.staticdata.write();
-    if let Some(sd) = staticdata_lock.as_mut() {
-        match category.as_str() {
-            "creatures" => sd.creatures.retain(|x| x.id != Some(id)),
-            "bosses" => sd.bosses.retain(|x| x.id != Some(id)),
-            "quests" => sd.quests.retain(|x| x.id != Some(id)),
-            "titles" => sd.titles.retain(|x| x.id != Some(id)),
+    let mut lock = state.staticdata_doc.write();
+    let doc = lock.as_mut().ok_or("No staticdata loaded")?;
+    match doc {
+        StaticDataDoc::New(n) => match category.as_str() {
+            "creatures" => n.monsters.retain(|x| x.id != Some(id)),
+            "bosses" => n.bosses.retain(|x| x.id != Some(id)),
+            "quests" => n.quests.retain(|x| x.id != Some(id)),
+            "titles" => n.achievements.retain(|x| x.id != Some(id)),
+            "monster_classes" => n.monster_classes.retain(|x| x.id != Some(id)),
             _ => return Err(format!("Category {} is not supported for removal", category)),
-        }
-        Ok(())
-    } else {
-        Err("No staticdata loaded".to_string())
+        },
+        StaticDataDoc::Old(o) => match category.as_str() {
+            "creatures" => o.creatures.retain(|x| x.id != Some(id)),
+            "bosses" => o.bosses.retain(|x| x.id != Some(id)),
+            "quests" => o.quests.retain(|x| x.id != Some(id)),
+            "titles" => o.titles.retain(|x| x.id != Some(id)),
+            _ => return Err(format!("Category {} is not supported for removal", category)),
+        },
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_staticdata_creature(item: serde_json::Value, state: State<'_, AppState>) -> Result<(), String> {
+    let mut lock = state.staticdata_doc.write();
+    let doc = lock.as_mut().ok_or("No staticdata loaded")?;
+    match doc {
+        StaticDataDoc::New(n) => upsert(&mut n.monsters, item, |x| x.id),
+        StaticDataDoc::Old(o) => upsert(&mut o.creatures, item, |x| x.id),
     }
 }
 
 #[tauri::command]
-pub fn update_staticdata_creature(item: CreatureType, state: State<'_, AppState>) -> Result<(), String> {
-    let mut staticdata_lock = state.staticdata.write();
-    if let Some(sd) = staticdata_lock.as_mut() {
-        if let Some(id) = item.id {
-            if let Some(pos) = sd.creatures.iter().position(|x| x.id == Some(id)) {
-                sd.creatures[pos] = item;
-            } else {
-                sd.creatures.push(item);
-            }
-            Ok(())
-        } else {
-            Err("Item must have an ID".to_string())
-        }
-    } else {
-        Err("No staticdata loaded".to_string())
+pub fn update_staticdata_boss(item: serde_json::Value, state: State<'_, AppState>) -> Result<(), String> {
+    let mut lock = state.staticdata_doc.write();
+    let doc = lock.as_mut().ok_or("No staticdata loaded")?;
+    match doc {
+        StaticDataDoc::New(n) => upsert(&mut n.bosses, item, |x| x.id),
+        StaticDataDoc::Old(o) => upsert(&mut o.bosses, item, |x| x.id),
     }
 }
 
 #[tauri::command]
-pub fn update_staticdata_boss(item: BossData, state: State<'_, AppState>) -> Result<(), String> {
-    let mut staticdata_lock = state.staticdata.write();
-    if let Some(sd) = staticdata_lock.as_mut() {
-        if let Some(id) = item.id {
-            if let Some(pos) = sd.bosses.iter().position(|x| x.id == Some(id)) {
-                sd.bosses[pos] = item;
-            } else {
-                sd.bosses.push(item);
-            }
-            Ok(())
-        } else {
-            Err("Item must have an ID".to_string())
-        }
-    } else {
-        Err("No staticdata loaded".to_string())
+pub fn update_staticdata_quest(item: serde_json::Value, state: State<'_, AppState>) -> Result<(), String> {
+    let mut lock = state.staticdata_doc.write();
+    let doc = lock.as_mut().ok_or("No staticdata loaded")?;
+    match doc {
+        StaticDataDoc::New(n) => upsert(&mut n.quests, item, |x| x.id),
+        StaticDataDoc::Old(o) => upsert(&mut o.quests, item, |x| x.id),
     }
 }
 
 #[tauri::command]
-pub fn update_staticdata_quest(item: QuestData, state: State<'_, AppState>) -> Result<(), String> {
-    let mut staticdata_lock = state.staticdata.write();
-    if let Some(sd) = staticdata_lock.as_mut() {
-        if let Some(id) = item.id {
-            if let Some(pos) = sd.quests.iter().position(|x| x.id == Some(id)) {
-                sd.quests[pos] = item;
-            } else {
-                sd.quests.push(item);
-            }
-            Ok(())
-        } else {
-            Err("Item must have an ID".to_string())
-        }
-    } else {
-        Err("No staticdata loaded".to_string())
+pub fn update_staticdata_title(item: serde_json::Value, state: State<'_, AppState>) -> Result<(), String> {
+    let mut lock = state.staticdata_doc.write();
+    let doc = lock.as_mut().ok_or("No staticdata loaded")?;
+    match doc {
+        StaticDataDoc::New(n) => upsert(&mut n.achievements, item, |x| x.id),
+        StaticDataDoc::Old(o) => upsert(&mut o.titles, item, |x| x.id),
     }
 }
 
+/// New-schema-only category editor (no-op on legacy files).
 #[tauri::command]
-pub fn update_staticdata_title(item: Title, state: State<'_, AppState>) -> Result<(), String> {
-    let mut staticdata_lock = state.staticdata.write();
-    if let Some(sd) = staticdata_lock.as_mut() {
-        if let Some(id) = item.id {
-            if let Some(pos) = sd.titles.iter().position(|x| x.id == Some(id)) {
-                sd.titles[pos] = item;
-            } else {
-                sd.titles.push(item);
-            }
-            Ok(())
-        } else {
-            Err("Item must have an ID".to_string())
-        }
-    } else {
-        Err("No staticdata loaded".to_string())
+pub fn update_staticdata_monster_class(item: serde_json::Value, state: State<'_, AppState>) -> Result<(), String> {
+    let mut lock = state.staticdata_doc.write();
+    let doc = lock.as_mut().ok_or("No staticdata loaded")?;
+    match doc {
+        StaticDataDoc::New(n) => upsert(&mut n.monster_classes, item, |x| x.id),
+        StaticDataDoc::Old(_) => Err("monster_classes only exist in the new client schema".to_string()),
     }
 }

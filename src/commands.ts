@@ -172,7 +172,17 @@ export const COMMANDS = {
   GET_STATICDATA_HOUSES: 'get_staticdata_houses',
   GET_STATICDATA_BOSSES: 'get_staticdata_bosses',
   GET_STATICDATA_QUESTS: 'get_staticdata_quests',
+  GET_STATICDATA_MONSTER_CLASSES: 'get_staticdata_monster_classes',
+  UPDATE_STATICDATA_MONSTER_CLASS: 'update_staticdata_monster_class',
   GET_STATICMAPDATA_HOUSES: 'get_staticmapdata_houses',
+  // Minimap (markers + tiles)
+  MINIMAP_FIND_MARKERS_FILE: 'minimap_find_markers_file',
+  MINIMAP_LOAD_MARKERS: 'minimap_load_markers',
+  MINIMAP_LOAD_MARKERS_AUTO: 'minimap_load_markers_auto',
+  MINIMAP_LIST_TILES: 'minimap_list_tiles',
+  MINIMAP_GET_TILE: 'minimap_get_tile',
+  MINIMAP_OTMM_INFO: 'minimap_otmm_info',
+  MINIMAP_RENDER_OTMM: 'minimap_render_otmm',
 
   // Proficiency Editor Commands
   LOAD_PROFICIENCY_FILE: 'load_proficiency_file',

@@ -11,6 +11,7 @@ function createAssetsState() {
         bosses: [] as any[],
         quests: [] as any[],
         titles: [] as any[],
+        monsterClasses: [] as any[],
         houses: [] as any[],
         mapHouses: [] as any[],
         outfitSprites: new SvelteMap<number, string>(),
@@ -31,8 +32,8 @@ function createAssetsState() {
         currentPage: 0,
         pageSize: 100,
         totalItems: 0,
-        viewMode: 'categories' as 'categories' | 'grid' | 'staticdata' | 'rcc' | 'qm' | 'proficiency' | 'dat-merge',
-        currentStaticDataType: 'creatures' as 'creatures' | 'bosses' | 'quests' | 'titles' | 'houses' | 'map_houses',
+        viewMode: 'categories' as 'categories' | 'grid' | 'staticdata' | 'rcc' | 'qm' | 'proficiency' | 'dat-merge' | 'minimap',
+        currentStaticDataType: 'creatures' as 'creatures' | 'bosses' | 'quests' | 'titles' | 'monster_classes' | 'houses' | 'map_houses',
         isLoading: false,
         loadingProgress: 0,
         loadingText: '',
@@ -61,7 +62,7 @@ export function setCategory(category: string) {
     }
 }
 
-export function selectStaticDataMode(dataType: 'creatures' | 'bosses' | 'quests' | 'titles' | 'houses' | 'map_houses') {
+export function selectStaticDataMode(dataType: 'creatures' | 'bosses' | 'quests' | 'titles' | 'monster_classes' | 'houses' | 'map_houses') {
     assetsState.currentStaticDataType = dataType;
     assetsState.viewMode = 'staticdata';
 }
@@ -72,6 +73,7 @@ export function updateStaticDataState(category: string, updatedList: any[]) {
         case 'bosses': assetsState.bosses = updatedList; break;
         case 'quests': assetsState.quests = updatedList; break;
         case 'titles': assetsState.titles = updatedList; break;
+        case 'monster_classes': assetsState.monsterClasses = updatedList; break;
         case 'houses': assetsState.houses = updatedList; break;
         case 'map_houses': assetsState.mapHouses = updatedList; break;
     }
@@ -91,4 +93,8 @@ export function selectProficiencyMode() {
 
 export function selectDatMergeMode() {
     assetsState.viewMode = 'dat-merge';
+}
+
+export function selectMinimapMode() {
+    assetsState.viewMode = 'minimap';
 }

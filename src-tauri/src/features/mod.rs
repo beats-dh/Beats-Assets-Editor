@@ -3,6 +3,7 @@
 
 pub mod appearances;
 pub mod dat_merge;
+pub mod minimap;
 pub mod monsters;
 pub mod npcs;
 pub mod proficiency;

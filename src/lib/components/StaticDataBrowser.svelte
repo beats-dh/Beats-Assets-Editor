@@ -13,6 +13,7 @@
     StaticHouse,
     StaticBoss,
     StaticQuest,
+    StaticMonsterClass,
   } from "../../types";
   import {
     getAppearancePreviewSpritesBatch,
@@ -39,6 +40,7 @@
   let houses = $derived(assetsState.houses);
   let bosses = $derived(assetsState.bosses);
   let quests = $derived(assetsState.quests);
+  let monsterClasses = $derived(assetsState.monsterClasses);
   let mapHouses = $derived(assetsState.mapHouses);
   let outfitSprites = $derived(assetsState.outfitSprites);
 
@@ -81,6 +83,13 @@
       } else if (type === "quests" && assetsState.quests.length === 0) {
         assetsState.quests = await invoke<StaticQuest[]>(
           COMMANDS.GET_STATICDATA_QUESTS,
+        );
+      } else if (
+        type === "monster_classes" &&
+        assetsState.monsterClasses.length === 0
+      ) {
+        assetsState.monsterClasses = await invoke<StaticMonsterClass[]>(
+          COMMANDS.GET_STATICDATA_MONSTER_CLASSES,
         );
       } else if (type === "map_houses" && assetsState.mapHouses.length === 0) {
         assetsState.mapHouses = await invoke<any[]>(
@@ -155,6 +164,11 @@
       q.name.toLowerCase().includes(searchQuery.toLowerCase()),
     ),
   );
+  let filteredMonsterClasses = $derived(
+    monsterClasses.filter((m) =>
+      (m.name ?? "").toLowerCase().includes(searchQuery.toLowerCase()),
+    ),
+  );
   let filteredMapHouses = $derived(
     mapHouses.filter((m) =>
       (m.house_id?.toString() || "").includes(searchQuery),
@@ -172,9 +186,11 @@
             ? filteredQuests
             : currentDataType === "houses"
               ? filteredHouses
-              : currentDataType === "map_houses"
-                ? filteredMapHouses
-                : [],
+              : currentDataType === "monster_classes"
+                ? filteredMonsterClasses
+                : currentDataType === "map_houses"
+                  ? filteredMapHouses
+                  : [],
   );
 
   let selectedItem = $state<any>(null);
@@ -195,6 +211,8 @@
         return "📜";
       case "titles":
         return "🏅";
+      case "monster_classes":
+        return "🧬";
       case "houses":
         return "🏘️";
       case "map_houses":
@@ -244,6 +262,9 @@
       case "titles":
         currentArr = titles;
         break;
+      case "monster_classes":
+        currentArr = monsterClasses;
+        break;
     }
 
     if (currentArr.some((i: any) => i.id === newItem.id)) {
@@ -264,6 +285,9 @@
         break;
       case "titles":
         command = COMMANDS.UPDATE_STATICDATA_TITLE;
+        break;
+      case "monster_classes":
+        command = COMMANDS.UPDATE_STATICDATA_MONSTER_CLASS;
         break;
     }
 
@@ -304,6 +328,9 @@
           break;
         case "titles":
           newList = titles.filter((i) => i.id !== id);
+          break;
+        case "monster_classes":
+          newList = monsterClasses.filter((i) => i.id !== id);
           break;
       }
 
@@ -349,6 +376,7 @@
         {#if currentDataType === "bosses"}👑{/if}
         {#if currentDataType === "quests"}📜{/if}
         {#if currentDataType === "titles"}🏅{/if}
+        {#if currentDataType === "monster_classes"}🧬{/if}
         {#if currentDataType === "houses"}🏘️{/if}
         {#if currentDataType === "map_houses"}🗺️{/if}
       </span>
@@ -359,6 +387,7 @@
         {#if currentDataType === "bosses"}Bosses{/if}
         {#if currentDataType === "quests"}Quests{/if}
         {#if currentDataType === "titles"}Titles{/if}
+        {#if currentDataType === "monster_classes"}Monster Classes{/if}
         {#if currentDataType === "houses"}Houses{/if}
         {#if currentDataType === "map_houses"}Map Houses{/if}
       </h2>

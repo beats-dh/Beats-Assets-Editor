@@ -11,6 +11,7 @@ use crate::core::cache::LRUCache;
 use crate::features::appearances::{Appearances, CompleteFlags};
 use crate::features::sprites::parsers::SpriteLoader;
 use crate::features::staticdata::StaticData;
+use crate::features::staticdata::parsers::StaticDataDoc;
 use crate::features::staticmapdata::StaticMapData;
 
 /// Application state to hold loaded appearances and sprites
@@ -26,7 +27,11 @@ pub struct AppState {
     pub tibia_path: Mutex<Option<PathBuf>>,
 
     // StaticData
+    // `staticdata` keeps the legacy-schema decode for the DAT-merge feature.
+    // `staticdata_doc` holds the version-detected document (legacy OR new client
+    // schema) that the staticdata browser reads/edits/saves.
     pub staticdata: RwLock<Option<StaticData>>,
+    pub staticdata_doc: RwLock<Option<StaticDataDoc>>,
     pub staticmapdata: RwLock<Option<StaticMapData>>,
 
     // ✅ OPTIMIZED: Bounded LRU caches (prevents memory exhaustion)
@@ -72,6 +77,7 @@ impl AppState {
             sprite_loader: RwLock::new(None),
             tibia_path: Mutex::new(None),
             staticdata: RwLock::new(None),
+            staticdata_doc: RwLock::new(None),
             staticmapdata: RwLock::new(None),
 
             // LRU caches with size limits

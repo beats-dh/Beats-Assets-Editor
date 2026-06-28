@@ -1,0 +1,18 @@
+syntax = "proto2";
+
+// Minimap marker file (`minimap/minimapmarkers.bin`). Markers are created by the
+// player in-game; the file may be absent until then.
+package tibia.protobuf.minimap;
+
+import "shared.proto";
+
+message MinimapMarkerFileContent {
+  repeated MinimapMarker markers = 1;
+}
+
+message MinimapMarker {
+  optional tibia.protobuf.shared.Coordinate position = 1;
+  optional uint32 type = 2;
+  optional string description = 3;
+  optional uint32 unknown_4 = 4;
+}

@@ -7,6 +7,7 @@
     selectQmMode,
     selectProficiencyMode,
     selectDatMergeMode,
+    selectMinimapMode,
   } from "../../stores/assetsState.svelte";
   import { translate } from "../../i18n";
   import { bindHandler } from "../../utils/handlerFactories";
@@ -48,6 +49,7 @@
   const selectBosses = bindHandler(selectStaticDataMode, "bosses");
   const selectQuests = bindHandler(selectStaticDataMode, "quests");
   const selectTitles = bindHandler(selectStaticDataMode, "titles");
+  const selectMonsterClasses = bindHandler(selectStaticDataMode, "monster_classes");
   const selectHouses = bindHandler(selectStaticDataMode, "houses");
   const selectMapHouses = bindHandler(selectStaticDataMode, "map_houses");
 </script>
@@ -330,6 +332,20 @@
                 })}</span
               >
             </button>
+            {#if (assetsState.staticDataStats.total_monster_classes ?? 0) > 0}
+              <button
+                type="button"
+                class="subcategory-card"
+                onclick={selectMonsterClasses}
+              >
+                <span class="subcat-icon">🧬</span>
+                <span class="subcat-name"
+                  >{translate("category.monsterClassesCount", {
+                    count: assetsState.staticDataStats.total_monster_classes,
+                  })}</span
+                >
+              </button>
+            {/if}
             <button
               type="button"
               class="subcategory-card"
@@ -391,6 +407,14 @@
         >
           <span class="subcat-icon">🔀</span>
           <span class="subcat-name">DAT Merge</span>
+        </button>
+        <button
+          type="button"
+          class="subcategory-card"
+          onclick={selectMinimapMode}
+        >
+          <span class="subcat-icon">🗺️</span>
+          <span class="subcat-name">{translate("category.minimapEditor")}</span>
         </button>
       </div>
     </div>

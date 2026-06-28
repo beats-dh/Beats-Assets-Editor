@@ -5,6 +5,7 @@
   import CategoryView from "../components/CategoryView.svelte";
   import StaticDataBrowser from "../components/StaticDataBrowser.svelte";
   import RccBrowser from "../components/RccBrowser.svelte";
+  import MinimapBrowser from "../components/MinimapBrowser.svelte";
   import QmTranslationEditor from "../components/QmTranslationEditor.svelte";
   import AssetDetailsModal from "../components/AssetDetailsModal.svelte";
   import ImportStartIdModal from "../components/ImportStartIdModal.svelte";
@@ -22,6 +23,8 @@
   <StaticDataBrowser />
 {:else if assetsState.viewMode === "rcc"}
   <RccBrowser />
+{:else if assetsState.viewMode === "minimap"}
+  <MinimapBrowser />
 {:else if assetsState.viewMode === "qm"}
   <QmTranslationEditor />
 {:else if assetsState.viewMode === "proficiency"}
