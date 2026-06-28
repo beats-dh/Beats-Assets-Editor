@@ -60,6 +60,20 @@ pub fn count_imported_sprites(state: State<'_, AppState>) -> usize {
     state.imported_sprites.len()
 }
 
+/// Drops the given sprite ids from the in-memory imported buffer (those that are
+/// imported-but-not-compiled). Used when the user removes imported sprites from
+/// an appearance before compiling, so the pending count / compile button reflect
+/// reality. Ids that aren't imported are ignored. Returns the remaining count.
+#[tauri::command]
+pub fn remove_imported_sprites(sprite_ids: Vec<u32>, state: State<'_, AppState>) -> usize {
+    for id in &sprite_ids {
+        state.imported_sprites.remove(id);
+    }
+    let removed: std::collections::HashSet<u32> = sprite_ids.into_iter().collect();
+    state.imported_sprite_hashes.retain(|_, v| !removed.contains(&*v));
+    state.imported_sprites.len()
+}
+
 /// Slices an image into `tile_width`x`tile_height` tiles (row-major), optionally
 /// turning the chroma-key color transparent, and registers each as an imported
 /// sprite. Returns the new sprite ids in row-major order.

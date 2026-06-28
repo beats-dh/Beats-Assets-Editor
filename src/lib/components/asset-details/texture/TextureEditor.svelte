@@ -15,6 +15,7 @@
   import TextureSettings from "./TextureSettings.svelte";
   import TextureBoundingBox from "./TextureBoundingBox.svelte";
   import { invoke } from "../../../../utils/invoke";
+  import { refreshImportedSpriteCount } from "../../../../stores/importedSpritesState.svelte";
   import {
     invalidateDetailSpriteCache,
     loadDetailSprites,
@@ -190,6 +191,11 @@
       .filter((i) => Number.isInteger(i))
       .sort((a, b) => a - b);
     if (indices.length === 0) return;
+    // Sprite ids being removed — used to drop any imported-but-not-compiled
+    // sprites from the backend buffer so the compile button reflects reality.
+    const removedIds = indices
+      .map((i) => spriteInfo!.sprite_ids?.[i])
+      .filter((x): x is number => typeof x === "number");
     try {
       await invoke("remove_appearance_sprites", {
         category,
@@ -197,6 +203,14 @@
         update: { frame_group_index: viewState.frameGroupIndex, indices },
       });
       await invoke("save_appearances_file");
+      if (removedIds.length > 0) {
+        try {
+          await invoke("remove_imported_sprites", { spriteIds: removedIds });
+          await refreshImportedSpriteCount();
+        } catch (e) {
+          console.warn("Failed to prune imported sprites:", e);
+        }
+      }
       indices
         .slice()
         .sort((a, b) => b - a)
