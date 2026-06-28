@@ -159,46 +159,52 @@
         };
     });
 
-    // Auto-load both sources on mount (cached paths first, then auto-discovery).
+    // Auto-load both sources on mount, always following the ACTIVE client folder.
     onMount(async () => {
-        // .rcc — cached path, else discover from the Tibia client path.
-        const cachedRcc = localStorage.getItem(RCC_CACHE_KEY);
-        if (cachedRcc) {
+        await autoLoadSource("rcc");
+        await autoLoadSource("exe");
+    });
+
+    /** Auto-load one source for the currently active client folder.
+     *
+     *  The active client path (`appState.tibiaPath`) is the source of truth:
+     *  whenever it's set we (re)discover from it, so switching clients makes the
+     *  browser follow the new folder instead of re-opening the previous client's
+     *  files. The cached last-used path is only a fallback for when no client
+     *  folder is configured. The "Open .rcc/.exe" buttons stay as the manual
+     *  override for ad-hoc files outside the active client. */
+    async function autoLoadSource(source: Source) {
+        const cacheKey = source === "exe" ? EXE_CACHE_KEY : RCC_CACHE_KEY;
+        const findCmd =
+            source === "exe"
+                ? COMMANDS.EXE_FIND_FILES
+                : COMMANDS.RCC_FIND_FILES;
+
+        // Active client folder wins (and follows folder switches). When one is
+        // set we never fall back to the cache, so a stale path from another
+        // client can't shadow the current one.
+        if (appState.tibiaPath) {
             try {
-                await loadSource(cachedRcc, "rcc");
-            } catch {
-                localStorage.removeItem(RCC_CACHE_KEY);
-            }
-        } else if (appState.tibiaPath) {
-            try {
-                const found = await invoke<string[]>(COMMANDS.RCC_FIND_FILES, {
+                const found = await invoke<string[]>(findCmd, {
                     basePath: appState.tibiaPath,
                 });
-                if (found.length > 0) await loadSource(found[0], "rcc");
+                if (found.length > 0) await loadSource(found[0], source);
             } catch {
-                // Silent — user can still open manually
+                // Discovery failed — leave empty; the user can open manually.
             }
+            return;
         }
 
-        // .exe — cached path, else discover from the Tibia client path.
-        const cachedExe = localStorage.getItem(EXE_CACHE_KEY);
-        if (cachedExe) {
+        // No active client folder: fall back to the last-used path.
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
             try {
-                await loadSource(cachedExe, "exe");
+                await loadSource(cached, source);
             } catch {
-                localStorage.removeItem(EXE_CACHE_KEY);
-            }
-        } else if (appState.tibiaPath) {
-            try {
-                const found = await invoke<string[]>(COMMANDS.EXE_FIND_FILES, {
-                    basePath: appState.tibiaPath,
-                });
-                if (found.length > 0) await loadSource(found[0], "exe");
-            } catch {
-                // Silent — user can still open manually
+                localStorage.removeItem(cacheKey);
             }
         }
-    });
+    }
 
     /** Load one source (.rcc or .exe) into its own slot, keeping the other. */
     async function loadSource(path: string, source: Source) {
