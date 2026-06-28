@@ -141,11 +141,7 @@ impl RccFile {
 
         // The tree section ends where the names/data section begins. Using the
         // whole remaining file would parse names/data bytes as garbage nodes.
-        let tree_end = [header.names_offset as usize, header.data_offset as usize]
-            .into_iter()
-            .filter(|&o| o > tree_start && o <= data.len())
-            .min()
-            .unwrap_or(data.len());
+        let tree_end = [header.names_offset as usize, header.data_offset as usize].into_iter().filter(|&o| o > tree_start && o <= data.len()).min().unwrap_or(data.len());
         let tree_size = tree_end - tree_start;
         let node_size = if header.version >= 2 {
             22
