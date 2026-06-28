@@ -26,6 +26,15 @@ const MAX_NAME_LEN: usize = 256;
 /// names section (filters out coincidental matches in code/data).
 const MIN_NAMES_RUN: usize = 16;
 const MAX_STRUCT_NODES: usize = 200_000;
+/// Most consecutive empty-name (offset 0) nodes tolerated inside a struct run.
+/// A few empty-named directories near the root are legitimate (Qt's anonymous
+/// root and intermediate prefix dirs all reference name offset 0), but a long
+/// run of offset-0 nodes means we've wandered into zero padding, not a real
+/// struct array — so bail once we exceed this.
+const MAX_CONSECUTIVE_EMPTY: usize = 8;
+/// How many alternative name-section bases to try when calibrating (bounds the
+/// extra struct scans triggered by leading zero padding before the names table).
+const MAX_BASE_CANDIDATES: usize = 6;
 
 fn be16(data: &[u8], off: usize) -> Option<u16> {
     data.get(off..off + 2).map(|b| u16::from_be_bytes([b[0], b[1]]))
@@ -94,6 +103,29 @@ fn find_names_section(data: &[u8]) -> Option<(usize, usize)> {
     best.filter(|(_, _, m)| *m >= MIN_NAMES_RUN).map(|(s, e, _)| (s, e))
 }
 
+/// Candidate base offsets for the names table.
+///
+/// `find_names_section` anchors on the first parseable entry, but zero padding
+/// in front of `qt_resource_name` parses as leading *empty* name entries, so the
+/// real table can start a few entries after the detected start. The struct's
+/// name offsets are relative to that real start, so we offer the detected start
+/// plus each leading-empty boundary and let the caller keep whichever base
+/// yields the longest struct run.
+fn candidate_name_bases(data: &[u8], start: usize, end: usize) -> Vec<usize> {
+    let mut bases = vec![start];
+    let mut p = start;
+    while bases.len() < MAX_BASE_CANDIDATES {
+        match try_read_name_entry(data, p) {
+            Some((name, next)) if name.is_empty() && next > p && next < end => {
+                bases.push(next);
+                p = next;
+            }
+            _ => break,
+        }
+    }
+    bases
+}
+
 /// Build a map from relative name offset -> decoded name for the names section.
 fn build_name_map(data: &[u8], start: usize, end: usize) -> HashMap<u32, String> {
     let mut map = HashMap::new();
@@ -115,12 +147,14 @@ fn build_name_map(data: &[u8], start: usize, end: usize) -> HashMap<u32, String>
 /// Count how many consecutive struct nodes at `base` (stride `ns`) have a name
 /// offset present in `name_map`.
 ///
-/// Only the root node (index 0) may reference the empty name at offset 0; any
-/// later node doing so means we've wandered into a run of zero bytes, so stop.
-/// Without this guard a multi-KB region of zeros would look like an endless
-/// (and bogus) struct array.
+/// Several nodes may legitimately reference the empty name at offset 0 — Qt's
+/// anonymous root plus any unnamed prefix directories all do — so we tolerate a
+/// short run of them. A *long* run of offset-0 nodes, however, means we've
+/// wandered into zero padding, so we stop and drop that trailing run (otherwise
+/// a multi-KB region of zeros would look like an endless, bogus struct array).
 fn struct_run_len(data: &[u8], base: usize, ns: usize, name_map: &HashMap<u32, String>) -> usize {
     let mut i = 0usize;
+    let mut empties = 0usize;
     loop {
         let off = match base.checked_add(i * ns) {
             Some(o) => o,
@@ -130,8 +164,16 @@ fn struct_run_len(data: &[u8], base: usize, ns: usize, name_map: &HashMap<u32, S
             break;
         }
         match be32(data, off) {
-            Some(0) if i > 0 => break,
             Some(name_off) if name_map.contains_key(&name_off) => {
+                if name_off == 0 {
+                    empties += 1;
+                    if empties > MAX_CONSECUTIVE_EMPTY {
+                        // The tail is zero padding, not nodes — exclude it.
+                        return i.saturating_sub(empties - 1);
+                    }
+                } else {
+                    empties = 0;
+                }
                 i += 1;
                 if i >= MAX_STRUCT_NODES {
                     break;
@@ -203,6 +245,13 @@ fn read_struct_node(data: &[u8], base: usize, ns: usize, i: usize) -> Option<Raw
 }
 
 /// Validate that a length-prefixed payload sits at `data_base + data_offset`.
+///
+/// Used only for locating the data section, so this is deliberately strict: a
+/// zero-length payload is rejected. Empty payloads ARE legal when *reading* (see
+/// `qt_format::read_data`), but accepting them here let `find_data_base` lock
+/// onto a region of zero bytes — every offset "validated" as an empty payload —
+/// which yielded empty file contents (and giant garbage blobs for the few
+/// offsets whose size field happened to be non-zero).
 fn payload_valid(data: &[u8], data_base: usize, data_offset: u32, flags: u16) -> bool {
     let pos = match data_base.checked_add(data_offset as usize) {
         Some(p) => p,
@@ -213,7 +262,7 @@ fn payload_valid(data: &[u8], data_base: usize, data_offset: u32, flags: u16) ->
         None => return false,
     };
     if size == 0 {
-        return true; // empty payload is legal
+        return false; // see doc comment: empty payloads must not anchor calibration
     }
     let end = match pos.checked_add(4 + size) {
         Some(e) => e,
@@ -235,27 +284,51 @@ fn payload_valid(data: &[u8], data_base: usize, data_offset: u32, flags: u16) ->
     true
 }
 
+/// True if a node is zlib-compressed (the strong discriminator: random bytes
+/// almost never form a valid zlib stream that inflates).
+fn is_zlib(n: &RawNode) -> bool {
+    (n.flags & FLAG_COMPRESSED) != 0 && (n.flags & FLAG_COMPRESSED_ZSTD) == 0
+}
+
 /// Find the data array base by validating several file nodes' payloads.
+///
+/// Two-stage per candidate base: a cheap structural filter (each validator has a
+/// non-empty, in-bounds, length-prefixed payload, with a plausible zlib header
+/// when compressed), then a strong check that every compressed validator
+/// *actually inflates*. The inflate check is what uniquely pins the real base —
+/// at a wrong base the zlib streams are garbage and fail to decompress.
 fn find_data_base(data: &[u8], nodes: &[RawNode]) -> Option<usize> {
-    // Pick validator nodes: spread across the data offset range, biggest first
-    // (the largest offset is the strongest in-bounds constraint).
     let mut files: Vec<&RawNode> = nodes.iter().filter(|n| !n.is_dir).collect();
     if files.is_empty() {
         return None;
     }
     files.sort_by_key(|n| n.data_offset);
-    let mut validators: Vec<&RawNode> = Vec::new();
     let n = files.len();
-    for k in 0..8 {
-        let idx = (n - 1) * k / 7; // 0,.. ,n-1
-        validators.push(files[idx]);
-    }
+
+    // Validators spread across the offset range (the largest offset is the
+    // strongest in-bounds constraint)...
+    let mut validators: Vec<&RawNode> = (0..8).map(|k| files[(n - 1) * k / 7]).collect();
+    // ...plus the highest-offset zlib files, so the inflate check has teeth.
+    let mut zlib_files: Vec<&RawNode> = files.iter().copied().filter(|f| is_zlib(f)).collect();
+    zlib_files.sort_by_key(|n| std::cmp::Reverse(n.data_offset));
+    validators.extend(zlib_files.into_iter().take(3));
+    validators.sort_by_key(|n| n.data_offset);
     validators.dedup_by_key(|n| n.data_offset);
+
+    let has_zlib = validators.iter().any(|v| is_zlib(v));
     let max_off = files[n - 1].data_offset as usize;
     let limit = data.len().saturating_sub(max_off);
 
     for base in 0..limit {
-        if validators.iter().all(|v| payload_valid(data, base, v.data_offset, v.flags)) {
+        // Cheap structural pre-filter.
+        if !validators.iter().all(|v| payload_valid(data, base, v.data_offset, v.flags)) {
+            continue;
+        }
+        // Strong check: every compressed validator must inflate to non-empty
+        // bytes. (When the bundle has no compressed files, the structural filter
+        // is all we have — still far stronger than before, since empty payloads
+        // no longer validate.)
+        if !has_zlib || validators.iter().filter(|v| is_zlib(v)).all(|v| qt_format::read_data(data, base, v.data_offset, v.flags).map(|(d, _)| !d.is_empty()).unwrap_or(false)) {
             return Some(base);
         }
     }
@@ -265,12 +338,29 @@ fn find_data_base(data: &[u8], nodes: &[RawNode]) -> Option<usize> {
 /// Reconstruct the full resource tree from a compiled-in Qt bundle.
 fn parse_tree(data: &[u8]) -> Result<RccFile, String> {
     let (names_start, names_end) = find_names_section(data).ok_or("Could not locate Qt names section")?;
-    let name_map = build_name_map(data, names_start, names_end);
-    if name_map.is_empty() {
-        return Err("Empty Qt names section".into());
-    }
 
-    let (struct_base, ns, node_count) = find_struct_section(data, &name_map).ok_or("Could not locate Qt struct section")?;
+    // Calibrate the names base: leading zero padding can put `names_start` a few
+    // entries before the real `qt_resource_name`, so try each leading-empty
+    // boundary and keep the base whose name map yields the longest struct run.
+    // Probe the most-trimmed base first (PE-embedded bundles usually have such
+    // padding) so the common case settles in a single struct scan.
+    let mut best: Option<(usize, HashMap<u32, String>, usize, usize, usize)> = None; // (base, map, struct_base, ns, count)
+    for base in candidate_name_bases(data, names_start, names_end).into_iter().rev() {
+        let name_map = build_name_map(data, base, names_end);
+        if name_map.len() < MIN_NAMES_RUN {
+            continue;
+        }
+        if let Some((sb, ns, count)) = find_struct_section(data, &name_map) {
+            if best.as_ref().map_or(true, |b| count > b.4) {
+                best = Some((base, name_map, sb, ns, count));
+            }
+            // A strong match is unambiguous — stop probing further bases.
+            if count >= 64 {
+                break;
+            }
+        }
+    }
+    let (names_start, name_map, struct_base, ns, node_count) = best.ok_or("Could not locate Qt struct section")?;
 
     let mut raw_nodes: Vec<RawNode> = Vec::with_capacity(node_count);
     for i in 0..node_count {
@@ -289,7 +379,14 @@ fn parse_tree(data: &[u8]) -> Result<RccFile, String> {
     let count = raw_nodes.len();
     let mut entries: Vec<RccEntry> = Vec::with_capacity(count);
     for node in &raw_nodes {
-        let name = name_map.get(&node.name_offset).cloned().unwrap_or_default();
+        // Name offset 0 is Qt's sentinel for the anonymous root / unnamed prefix
+        // directories. After base calibration offset 0 may resolve to the first
+        // real name, so force it empty (build_paths collapses empty segments).
+        let name = if node.name_offset == 0 {
+            String::new()
+        } else {
+            name_map.get(&node.name_offset).cloned().unwrap_or_default()
+        };
 
         let (entry_data, compressed) = if node.is_dir {
             (Vec::new(), false)
@@ -710,21 +807,93 @@ pub fn parse_pe_resources(data: &[u8]) -> Result<RccFile, String> {
 /// Like [`parse_pe_resources`], but also returns a map from each file entry's
 /// index to its physical [`ExeSlot`] in the binary (for in-place writeback).
 ///
-/// Tree-reconstructed bundles return an empty slot map (no in-place writeback);
-/// the scan path returns one entry per recovered resource.
+/// The scan recovers every embedded payload (zlib streams + raw PNGs), including
+/// the ones we can write back in place (the spell JSONs, via slots). Tree
+/// reconstruction additionally recovers the largest bundle's REAL file names
+/// (e.g. the `.qml` UI files). We run both and merge: real names where the tree
+/// succeeds, plus the scan's coverage and writeback slots for everything else.
+///
+/// Tree-only entries carry no slot (no in-place writeback); the scan entries
+/// keep theirs, remapped to their merged index.
 pub fn parse_pe_resources_with_slots(data: &[u8]) -> Result<(RccFile, HashMap<usize, ExeSlot>), String> {
+    let (scan_entries, scan_slots) = scan_resources(data);
+    // entries[0]=root dir, [1]=recovered dir, rest are dirs/files.
+    let scanned = scan_entries.len() > 2;
+
     match parse_tree(data) {
-        Ok(rcc) if !rcc.files.is_empty() => Ok((rcc, HashMap::new())),
+        // Trust the tree only when it recovered a substantial bundle; a tiny
+        // spurious match shouldn't shadow the scan's coverage.
+        Ok(tree) if tree.files.len() >= MIN_NAMES_RUN => {
+            if scanned {
+                let (entries, slots) = merge_tree_and_scan(tree.entries, &scan_entries, scan_slots);
+                Ok((finalize(entries, 22, 0, 0, 0)?, slots))
+            } else {
+                Ok((tree, HashMap::new()))
+            }
+        }
         _ => {
-            let (entries, slots) = scan_resources(data);
-            // entries[0]=root dir, [1]=recovered dir, rest are dirs/files
-            if entries.len() <= 2 {
+            if !scanned {
                 return Err("No Qt resources, zlib streams or raw assets found in binary".into());
             }
-            let rcc = finalize(entries, 14, 0, 0, 0)?;
-            Ok((rcc, slots))
+            Ok((finalize(scan_entries, 14, 0, 0, 0)?, scan_slots))
         }
     }
+}
+
+/// Graft the scan's recovered subtree onto the tree-reconstructed entries.
+///
+/// The tree (real names) becomes the spine; the scan's `recovered` directory —
+/// minus its `qml` bucket, which the tree already provides with real names — is
+/// copied in and attached under the shared root. Scan slot indices are remapped
+/// to the merged entry indices so in-place writeback still works.
+fn merge_tree_and_scan(tree_entries: Vec<RccEntry>, scan_entries: &[RccEntry], scan_slots: HashMap<usize, ExeSlot>) -> (Vec<RccEntry>, HashMap<usize, ExeSlot>) {
+    let mut combined = tree_entries;
+    let mut remap: HashMap<usize, usize> = HashMap::new();
+
+    // DFS-copy a scan subtree into `combined`, recording old->new indices and
+    // skipping the recovered `qml` bucket (already covered by the tree).
+    fn copy_subtree(src: &[RccEntry], idx: usize, combined: &mut Vec<RccEntry>, remap: &mut HashMap<usize, usize>) -> usize {
+        let new_idx = combined.len();
+        remap.insert(idx, new_idx);
+        let e = &src[idx];
+        combined.push(RccEntry {
+            name: e.name.clone(),
+            path: String::new(),
+            is_directory: e.is_directory,
+            data: e.data.clone(),
+            children: Vec::new(),
+            compressed: e.compressed,
+            country: e.country,
+            language: e.language,
+        });
+        let mut kids = Vec::new();
+        for &c in &e.children {
+            if c >= src.len() {
+                continue;
+            }
+            // The tree already supplies the qml files with their real names.
+            if src[c].is_directory && src[c].name == "qml" {
+                continue;
+            }
+            kids.push(copy_subtree(src, c, combined, remap));
+        }
+        combined[new_idx].children = kids;
+        new_idx
+    }
+
+    // scan_entries[1] is the "recovered" directory holding all scanned payloads.
+    if scan_entries.len() > 1 && !combined.is_empty() {
+        let recovered_new = copy_subtree(scan_entries, 1, &mut combined, &mut remap);
+        combined[0].children.push(recovered_new);
+    }
+
+    let mut slots: HashMap<usize, ExeSlot> = HashMap::new();
+    for (old_idx, slot) in scan_slots {
+        if let Some(&new_idx) = remap.get(&old_idx) {
+            slots.insert(new_idx, slot);
+        }
+    }
+    (combined, slots)
 }
 
 #[cfg(test)]
@@ -820,6 +989,32 @@ mod tests {
         let has_named_previews = rcc.files.iter().any(|f| f.name == "spells-previews.json");
         assert!(has_named_spells, "spells.json not surfaced by canonical name");
         assert!(has_named_previews, "spells-previews.json not surfaced by canonical name");
+
+        // Tree reconstruction must recover the QML bundle with REAL file names
+        // (the user-facing regression: previously every .qml came back as a
+        // synthetic `recovered/qml/qml_NNNN.qml`).
+        let qml: Vec<&str> = rcc.files.iter().filter(|f| f.name.ends_with(".qml")).map(|f| f.name.as_str()).collect();
+        let real_qml = qml.iter().filter(|n| !n.starts_with("qml_")).count();
+        let synthetic_qml = qml.iter().filter(|n| n.starts_with("qml_")).count();
+        println!("QML files: {} total, {} real-named, {} synthetic", qml.len(), real_qml, synthetic_qml);
+        println!("sample real qml: {:?}", qml.iter().filter(|n| !n.starts_with("qml_")).take(8).collect::<Vec<_>>());
+        assert!(real_qml >= 100, "expected >=100 real-named .qml files, got {} (synthetic {})", real_qml, synthetic_qml);
+        // No synthetic qml should remain — the tree supersedes the scan's qml bucket.
+        assert_eq!(synthetic_qml, 0, "found {} synthetic qml_* names that should have been superseded", synthetic_qml);
+        // A couple of known real names from this client must be present.
+        assert!(rcc.files.iter().any(|f| f.name == "container.qml"), "container.qml missing");
+
+        // QML PAYLOADS must be present and correctly decoded. Regression guard:
+        // a mis-calibrated data base gave empty content for most files and a
+        // giant garbage blob for the rest (which froze the UI on open).
+        let qml_entries: Vec<&RccEntry> = rcc.entries.iter().filter(|e| !e.is_directory && e.name.ends_with(".qml")).collect();
+        let nonempty = qml_entries.iter().filter(|e| !e.data.is_empty()).count();
+        let max_qml = qml_entries.iter().map(|e| e.data.len()).max().unwrap_or(0);
+        println!("QML payloads: {}/{} non-empty, largest {} bytes", nonempty, qml_entries.len(), max_qml);
+        assert_eq!(nonempty, qml_entries.len(), "every .qml payload must be non-empty");
+        assert!(max_qml < 5 * 1024 * 1024, "a .qml payload is implausibly large ({max_qml} bytes) — likely a garbage blob from a wrong data base");
+        let any_import = qml_entries.iter().any(|e| String::from_utf8_lossy(&e.data[..e.data.len().min(64)]).contains("import "));
+        assert!(any_import, "no .qml payload looks like QML source (data base likely wrong)");
     }
 
     #[test]
