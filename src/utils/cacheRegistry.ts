@@ -310,7 +310,7 @@ export const spriteUrlStore = {
     if (cached && !_revokedUrls.has(cached)) return cached;
 
     // Use the buffer directly — no need to .slice() since Blob constructor copies
-    const url = URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
+    const url = URL.createObjectURL(new Blob([buffer as BlobPart], { type: 'image/png' }));
     _spriteUrlWeakMap.set(buffer, url);
     _urlRegistry.add(url);
     // Clean up old revoked entry if present
