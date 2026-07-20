@@ -168,9 +168,7 @@ pub fn render_floor(data: &[u8], blocks: &[OtmmBlock], floor: u8, max_dim: u32) 
     }
 
     let mut png = Vec::new();
-    image::DynamicImage::ImageRgba8(img)
-        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
-        .context("Encode OTMM floor PNG")?;
+    image::DynamicImage::ImageRgba8(img).write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).context("Encode OTMM floor PNG")?;
 
     Ok(OtmmFloorRender {
         png,
