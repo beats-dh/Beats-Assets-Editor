@@ -67,6 +67,11 @@
     25: "Skill Pct Auto-Attack Damage",
     26: "Skill Pct Spell Damage",
     27: "Skill Pct Healing",
+    28: "Alpha Strike",
+    29: "Omega Strike",
+    30: "Armor Penetration",
+    31: "Elemental Pierce",
+    32: "Homing Missile",
   };
 
   const PERK_VISUAL_DATA: Record<number, { source: string; offset: string }> = {
@@ -1135,7 +1140,11 @@
                           >{getPerkLabel(lvl.Perks[selRow].Type)}</span
                         >
                         <span class="detail-value-proficiency"
-                          >+{lvl.Perks[selRow].Value}</span
+                          >{lvl.Perks[selRow].Value !== undefined
+                            ? `+${lvl.Perks[selRow].Value}`
+                            : lvl.Perks[selRow].Probability !== undefined
+                              ? `${(lvl.Perks[selRow].Probability ?? 0) * 100}% proc`
+                              : ""}</span
                         >
                       </div>
                     {:else}
@@ -1300,9 +1309,9 @@
               type="number"
               class="tibia-input"
               step="0.01"
-              value={selectedPerk.Value}
+              value={selectedPerk.Value ?? ""}
               oninput={(e) =>
-                updateSelPerk("Value", Number(e.currentTarget.value))}
+                updateSelPerkOptional("Value", e.currentTarget.value)}
             />
           </div>
           <div class="config-field">
@@ -1347,6 +1356,41 @@
               value={selectedPerk.ElementId ?? ""}
               oninput={(e) =>
                 updateSelPerkOptional("ElementId", e.currentTarget.value)}
+            />
+          </div>
+          <div class="config-field">
+            <label for="perk-missileId">MissileId</label>
+            <input
+              id="perk-missileId"
+              type="number"
+              class="tibia-input"
+              value={selectedPerk.MissileId ?? ""}
+              oninput={(e) =>
+                updateSelPerkOptional("MissileId", e.currentTarget.value)}
+            />
+          </div>
+          <div class="config-field">
+            <label for="perk-multiplier">Multiplier</label>
+            <input
+              id="perk-multiplier"
+              type="number"
+              class="tibia-input"
+              step="0.1"
+              value={selectedPerk.Multiplier ?? ""}
+              oninput={(e) =>
+                updateSelPerkOptional("Multiplier", e.currentTarget.value)}
+            />
+          </div>
+          <div class="config-field">
+            <label for="perk-probability">Probability</label>
+            <input
+              id="perk-probability"
+              type="number"
+              class="tibia-input"
+              step="0.01"
+              value={selectedPerk.Probability ?? ""}
+              oninput={(e) =>
+                updateSelPerkOptional("Probability", e.currentTarget.value)}
             />
           </div>
           <div class="config-field">

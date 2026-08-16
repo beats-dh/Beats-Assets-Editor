@@ -12,6 +12,14 @@ fn serialize_numeric_value<S: Serializer>(value: &f64, serializer: S) -> Result<
     }
 }
 
+/// Option variant; only reached for Some thanks to skip_serializing_if.
+fn serialize_opt_numeric_value<S: Serializer>(value: &Option<f64>, serializer: S) -> Result<S::Ok, S::Error> {
+    match value {
+        Some(v) => serialize_numeric_value(v, serializer),
+        None => serializer.serialize_none(),
+    }
+}
+
 // ── Types matching the real client format ──────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -27,6 +35,12 @@ pub struct ProficiencyPerk {
     pub damage_type: Option<u32>,
     #[serde(rename = "ElementId", skip_serializing_if = "Option::is_none")]
     pub element_id: Option<u32>,
+    #[serde(rename = "MissileId", skip_serializing_if = "Option::is_none")]
+    pub missile_id: Option<u32>,
+    #[serde(rename = "Multiplier", skip_serializing_if = "Option::is_none", serialize_with = "serialize_opt_numeric_value", default)]
+    pub multiplier: Option<f64>,
+    #[serde(rename = "Probability", skip_serializing_if = "Option::is_none", serialize_with = "serialize_opt_numeric_value", default)]
+    pub probability: Option<f64>,
     #[serde(rename = "Range", skip_serializing_if = "Option::is_none")]
     pub range: Option<u32>,
     #[serde(rename = "SkillId", skip_serializing_if = "Option::is_none")]
@@ -35,8 +49,10 @@ pub struct ProficiencyPerk {
     pub spell_id: Option<u32>,
     #[serde(rename = "Type")]
     pub perk_type: u32,
-    #[serde(rename = "Value", serialize_with = "serialize_numeric_value")]
-    pub value: f64,
+    // Type 32 (Homing Missile) perks carry no Value at all — they use
+    // Probability/Multiplier instead (see client proficiency_data.lua).
+    #[serde(rename = "Value", skip_serializing_if = "Option::is_none", serialize_with = "serialize_opt_numeric_value", default)]
+    pub value: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

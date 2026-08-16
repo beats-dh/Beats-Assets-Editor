@@ -352,7 +352,8 @@ export interface GroupMapping {
 // Proficiency Editor types (matches real client format)
 export interface ProficiencyPerk {
   Type: number;
-  Value: number;
+  // Absent on Type 32 (Homing Missile), which uses Probability/Multiplier
+  Value?: number;
   SkillId?: number;
   AugmentType?: number;
   SpellId?: number;
@@ -360,6 +361,9 @@ export interface ProficiencyPerk {
   BestiaryName?: string;
   DamageType?: number;
   ElementId?: number;
+  MissileId?: number;
+  Multiplier?: number;
+  Probability?: number;
   Range?: number;
 }
 
