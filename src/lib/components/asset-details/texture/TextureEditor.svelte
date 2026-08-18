@@ -313,11 +313,16 @@
 
   async function handleAppend(detail: { spriteIds: number[] }) {
     const category = activeTextureCategory;
-    if (!category || !spriteInfo?.sprite_ids) return;
+    // Don't require spriteInfo/sprite_ids to already exist here: a freshly
+    // added frame group has sprite_info = None until something is appended
+    // to it. append_appearance_sprites on the Rust side already lazily
+    // initializes a default SpriteInfo when it's missing (see the analogous
+    // check a few lines above this in update.rs) - this guard used to block
+    // that valid case before the backend ever got a chance to run,
+    // silently no-op'ing the very first sprite import into a new item.
+    if (!category) return;
     const { spriteIds } = detail;
     if (!spriteIds?.length) return;
-    const offset = getGroupOffset();
-    const previousCount = spriteInfo.sprite_ids.length;
     try {
       await invoke("append_appearance_sprites", {
         category,
@@ -328,19 +333,14 @@
         },
       });
       await invoke("save_appearances_file");
-      spriteInfo.sprite_ids.push(...spriteIds);
-      if (details.frame_groups[viewState.frameGroupIndex])
-        details.frame_groups[viewState.frameGroupIndex].sprite_info = {
-          ...spriteInfo,
-        };
-      const current = sprites.slice();
-      const buffers = await fetchSpriteBuffers(spriteIds);
-      current.splice(offset + previousCount, 0, ...buffers);
-      sprites = current;
+      // Re-fetch from the backend instead of hand-patching local state:
+      // spriteInfo may not have existed locally before this call, so there's
+      // nothing safe to splice/push into here.
+      await refreshDetailsAfterStructureChange();
       appendCachedAppearanceSprites(
         activeTextureCategory!,
         details.id,
-        buffers,
+        await fetchSpriteBuffers(spriteIds),
       );
       refreshDetailPreviews();
       showStatus(translate("status.spriteReplaced"), "success");
