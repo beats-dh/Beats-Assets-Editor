@@ -24,6 +24,41 @@
   ];
   const LENS_BASE = 1100;
 
+  // Mirrors ItemSubcategory::display_name() in
+  // src-tauri/src/features/appearances/commands/category_types.rs, in the
+  // same 1..27 order (index 0 = value 1) — the market.category select had no
+  // labels at all, just the raw ITEM_CATEGORY number, making values like
+  // "18" impossible to pick correctly without cross-referencing the source.
+  const MARKET_CATEGORY_LABELS = [
+    "Armors",
+    "Amulets",
+    "Boots",
+    "Containers",
+    "Decoration",
+    "Food",
+    "Helmets & Hats",
+    "Legs",
+    "Others",
+    "Potions",
+    "Rings",
+    "Runes",
+    "Shields",
+    "Tools",
+    "Valuables",
+    "Ammunition",
+    "Axes",
+    "Clubs",
+    "Distance Weapons",
+    "Swords",
+    "Wands & Rods",
+    "Premium Scrolls",
+    "Tibia Coins",
+    "Creature Products",
+    "Quiver",
+    "Soulcores",
+    "Fist Weapons",
+  ];
+
   interface Props {
     details: CompleteAppearanceItem;
     category?: string;
@@ -400,8 +435,8 @@
       <div class="select-input">
         <select bind:value={flags.market.category}
           ><option value={undefined}>—</option
-          >{#each Array.from({ length: 27 }, (_, i) => i + 1) as v}<option
-              value={v}>{v}</option
+          >{#each MARKET_CATEGORY_LABELS as label, i}<option value={i + 1}
+              >{i + 1} - {label}</option
             >{/each}</select
         >
       </div>
