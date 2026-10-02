@@ -100,15 +100,15 @@ pub async fn list_appearance_files(tibia_path: String) -> Result<Vec<String>, St
         }
     }
 
-    // Sort files, prioritizing the working file first, then by size (desc)
+    // Sort files, prioritizing the working file (appearances_latest.dat) first, then by size (desc)
     files_data.sort_by(|(a_name, a_size), (b_name, b_size)| {
-        if a_name == "appearances-feee1f9feba00a63606228c8bc46fa003c90dff144fb1b60a3759f97aad6e3c8.dat" {
-            std::cmp::Ordering::Less
-        } else if b_name == "appearances-feee1f9feba00a63606228c8bc46fa003c90dff144fb1b60a3759f97aad6e3c8.dat" {
-            std::cmp::Ordering::Greater
-        } else if a_name == "appearances_latest.dat" {
+        if a_name == "appearances_latest.dat" {
             std::cmp::Ordering::Less
         } else if b_name == "appearances_latest.dat" {
+            std::cmp::Ordering::Greater
+        } else if a_name == "appearances-feee1f9feba00a63606228c8bc46fa003c90dff144fb1b60a3759f97aad6e3c8.dat" {
+            std::cmp::Ordering::Less
+        } else if b_name == "appearances-feee1f9feba00a63606228c8bc46fa003c90dff144fb1b60a3759f97aad6e3c8.dat" {
             std::cmp::Ordering::Greater
         } else {
             b_size.cmp(a_size).then_with(|| a_name.cmp(b_name))
