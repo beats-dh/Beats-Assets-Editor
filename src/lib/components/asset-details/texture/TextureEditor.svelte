@@ -351,7 +351,11 @@
         current.splice(offset + previousCount, 0, ...buffers);
         sprites = current;
       } else {
-        await refreshDetailsAfterStructureChange();
+        const stillShown = await refreshDetailsAfterStructureChange(category, appearanceId);
+        if (!stillShown) {
+          showStatus(translate("status.spriteReplaced"), "success");
+          return;
+        }
       }
       refreshDetailPreviews();
       showStatus(translate("status.spriteReplaced"), "success");
@@ -372,20 +376,34 @@
     }
   }
 
-  async function refreshDetailsAfterStructureChange() {
-    if (!activeTextureCategory) return;
+  // Returns false when the user navigated to another asset while the details were
+  // reloading; only that asset's grid preview is refreshed then.
+  async function refreshDetailsAfterStructureChange(
+    category = activeTextureCategory,
+    appearanceId = details.id,
+  ): Promise<boolean> {
+    if (!category) return false;
     try {
       const updated = await invoke("get_complete_appearance", {
-        category: activeTextureCategory,
-        id: details.id,
+        category,
+        id: appearanceId,
       });
-      if (updated && detailsModal.selectedAsset?.id === details.id) {
+      if (
+        updated &&
+        detailsModal.selectedAsset?.id === appearanceId &&
+        activeTextureCategory === category
+      ) {
         detailsModal.selectedAsset = updated as CompleteAppearanceItem;
       }
     } catch (err) {
       console.error("Failed to refresh details", err);
     }
+    if (details?.id !== appearanceId || activeTextureCategory !== category) {
+      void refreshAssetPreview(category, appearanceId);
+      return false;
+    }
     await loadSprites();
+    return true;
   }
 
   async function handleAddFrameGroup() {
