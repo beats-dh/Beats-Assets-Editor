@@ -92,7 +92,7 @@ pub async fn list_appearance_files(tibia_path: String) -> Result<Vec<String>, St
         if let Some(file_name) = path.file_name() {
             let file_name_str = file_name.to_string_lossy().to_string();
 
-            if (file_name_str.starts_with("appearances-") || file_name_str == "appearances_latest.dat") && file_name_str.ends_with(".dat") {
+            if (file_name_str.starts_with("appearances-") || file_name_str == "appearances_latest.dat" || file_name_str == "appearances.dat") && file_name_str.ends_with(".dat") {
                 let size = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
                 files_data.push((file_name_str, size));
             }
