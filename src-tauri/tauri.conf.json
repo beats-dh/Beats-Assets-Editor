@@ -15,8 +15,7 @@
       {
         "title": "Canary Studio",
         "width": 800,
-        "height": 600,
-        "dragDropEnabled": false
+        "height": 600
       }
     ],
     "security": {

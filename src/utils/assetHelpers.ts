@@ -1,3 +1,5 @@
+import type { TranslationKey } from '../i18n';
+
 export function getClothesSlotName(slot: number | undefined): string {
   if (slot === undefined || slot === null) return 'None';
   const slots: Record<number, string> = {
@@ -65,3 +67,34 @@ export function getMarketCategoryName(category: number): string {
   };
   return categories[category] ? `${categories[category]} (${category})` : `Unknown (${category})`;
 }
+
+// ITEM_CATEGORY 1..27, same order as shared.proto / ItemSubcategory
+export const MARKET_CATEGORY_KEYS = [
+  'subcategory.armors',
+  'subcategory.amulets',
+  'subcategory.boots',
+  'subcategory.containers',
+  'subcategory.decoration',
+  'subcategory.food',
+  'subcategory.helmetsHats',
+  'subcategory.legs',
+  'subcategory.others',
+  'subcategory.potions',
+  'subcategory.rings',
+  'subcategory.runes',
+  'subcategory.shields',
+  'subcategory.tools',
+  'subcategory.valuables',
+  'subcategory.ammunition',
+  'subcategory.axes',
+  'subcategory.clubs',
+  'subcategory.distance',
+  'subcategory.swords',
+  'subcategory.wandsRods',
+  'subcategory.premiumScrolls',
+  'subcategory.tibiaCoins',
+  'subcategory.creatureProducts',
+  'subcategory.quiver',
+  'subcategory.soulcores',
+  'subcategory.fistWeapons'
+] as const satisfies readonly TranslationKey[];

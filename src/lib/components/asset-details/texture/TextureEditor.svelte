@@ -313,35 +313,41 @@
 
   async function handleAppend(detail: { spriteIds: number[] }) {
     const category = activeTextureCategory;
-    // Don't require spriteInfo/sprite_ids to already exist here: a freshly
-    // added frame group has sprite_info = None until something is appended
-    // to it. append_appearance_sprites on the Rust side already lazily
-    // initializes a default SpriteInfo when it's missing (see the analogous
-    // check a few lines above this in update.rs) - this guard used to block
-    // that valid case before the backend ever got a chance to run,
-    // silently no-op'ing the very first sprite import into a new item.
+    // A new frame group has no sprite_info yet; append_appearance_sprites creates it.
     if (!category) return;
     const { spriteIds } = detail;
     if (!spriteIds?.length) return;
+    const appearanceId = details.id;
+    const frameGroupIndex = viewState.frameGroupIndex;
+    const info = spriteInfo;
+    const hadSpriteInfo = !!info?.sprite_ids;
+    const offset = getGroupOffset();
+    const previousCount = info?.sprite_ids?.length ?? 0;
     try {
       await invoke("append_appearance_sprites", {
         category,
-        id: details.id,
+        id: appearanceId,
         update: {
-          frame_group_index: viewState.frameGroupIndex,
+          frame_group_index: frameGroupIndex,
           sprite_ids: spriteIds,
         },
       });
       await invoke("save_appearances_file");
-      // Re-fetch from the backend instead of hand-patching local state:
-      // spriteInfo may not have existed locally before this call, so there's
-      // nothing safe to splice/push into here.
-      await refreshDetailsAfterStructureChange();
-      appendCachedAppearanceSprites(
-        activeTextureCategory!,
-        details.id,
-        await fetchSpriteBuffers(spriteIds),
-      );
+      if (hadSpriteInfo && info) {
+        info.sprite_ids.push(...spriteIds);
+        if (details.frame_groups[frameGroupIndex])
+          details.frame_groups[frameGroupIndex].sprite_info = {
+            ...info,
+          };
+        const current = sprites.slice();
+        const buffers = await fetchSpriteBuffers(spriteIds);
+        current.splice(offset + previousCount, 0, ...buffers);
+        sprites = current;
+        appendCachedAppearanceSprites(category, appearanceId, buffers);
+      } else {
+        invalidateAppearanceCache(category, appearanceId);
+        await refreshDetailsAfterStructureChange();
+      }
       refreshDetailPreviews();
       showStatus(translate("status.spriteReplaced"), "success");
     } catch (err) {

@@ -432,11 +432,7 @@ export async function handleDuplicate(category: string, id: number, newId?: numb
       }
     }
 
-    // create_empty_appearance/duplicate_appearance return the full appearance
-    // object on the Rust side (CompleteAppearanceItem), not just the numeric
-    // id — the old `invoke<number>` type annotation didn't match, so callers
-    // ended up passing the whole object where an id was expected (IPC error
-    // "invalid type: map, expected u32" downstream in openAssetDetails).
+    // Returns the full CompleteAppearanceItem, not just the id.
     const duplicated = await invoke<CompleteAppearanceItem>(COMMANDS.DUPLICATE_APPEARANCE, {
       category,
       sourceId: id,
@@ -477,8 +473,7 @@ export async function handleCreateNew(category: string, desiredId?: number): Pro
       }
     }
 
-    // See the analogous note on duplicate_appearance above: this also
-    // returns the full appearance object, not just the id.
+    // Returns the full CompleteAppearanceItem, not just the id.
     const created = await invoke<CompleteAppearanceItem>(COMMANDS.CREATE_EMPTY_APPEARANCE, {
       category,
       newId,
