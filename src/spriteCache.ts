@@ -198,6 +198,23 @@ export async function getAppearancePreviewSpritesBatch(
   return allResults;
 }
 
+/**
+ * Clears the canvas and draws `img` scaled to fit it while keeping its aspect ratio
+ * (centered, nearest-neighbor), so 32x64 / 64x32 sprites aren't stretched into a
+ * square canvas.
+ */
+export function drawSpriteFitted(ctx: CanvasRenderingContext2D, img: HTMLImageElement): void {
+  const { width, height } = ctx.canvas;
+  ctx.clearRect(0, 0, width, height);
+  ctx.imageSmoothingEnabled = false;
+  const srcWidth = img.naturalWidth || width;
+  const srcHeight = img.naturalHeight || height;
+  const scale = Math.min(width / srcWidth, height / srcHeight);
+  const drawWidth = Math.round(srcWidth * scale);
+  const drawHeight = Math.round(srcHeight * scale);
+  ctx.drawImage(img, Math.floor((width - drawWidth) / 2), Math.floor((height - drawHeight) / 2), drawWidth, drawHeight);
+}
+
 export function createSpriteImage(data: Uint8Array, className = 'sprite-image'): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.className = className;
@@ -217,9 +234,7 @@ export function createSpriteImage(data: Uint8Array, className = 'sprite-image'):
     const url = spriteUrlStore.get(data);
     const img = new Image();
     img.onload = () => {
-      c.clearRect(0, 0, canvas.width, canvas.height);
-      c.imageSmoothingEnabled = false;
-      c.drawImage(img, 0, 0, canvas.width, canvas.height);
+      drawSpriteFitted(c, img);
     };
     img.onerror = () => {
       // Blob URL was revoked mid-flight — get a fresh one and retry
@@ -260,9 +275,7 @@ export function pixelSprite(canvas: HTMLCanvasElement, src: string | null) {
     if (!ctx || !url) return;
     const img = new Image();
     img.onload = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      drawSpriteFitted(ctx, img);
     };
     img.src = url;
   }
