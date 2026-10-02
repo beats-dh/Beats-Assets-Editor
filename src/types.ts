@@ -1,4 +1,47 @@
-// Type definitions for Tibia Assets Editor
+// Type definitions for Canary Studio Editor
+
+// ── Client config (config.ini URLs + BattleEye) ──────────────────────────────
+export interface ClientUrlEntry {
+  key: string;
+  value: string;
+}
+
+export interface ClientUrls {
+  configPath: string;
+  entries: ClientUrlEntry[];
+}
+
+/** State of the client-side BattleEye gate in client.exe. */
+export interface BattleEyeStatus {
+  found: boolean;
+  /** true = active (JNZ), false = disabled (JMP), null if not found. */
+  enabled: boolean | null;
+  /** File offset of the flipped byte. */
+  offset: number | null;
+  signature: string | null;
+}
+
+export interface BattleEyeInfo {
+  exePath: string | null;
+  status: BattleEyeStatus;
+  scanned: string[];
+}
+
+/** State of the RSA login modulus in client.exe. */
+export interface RsaStatus {
+  found: boolean;
+  /** Current modulus as uppercase hex (256 chars), or null. */
+  modulus: string | null;
+  offset: number | null;
+  /** True when the current modulus is the OT/TFS/Canary default. */
+  isOtDefault: boolean;
+}
+
+export interface RsaInfo {
+  exePath: string | null;
+  status: RsaStatus;
+  scanned: string[];
+}
 
 export interface AppearanceStats {
   // Primary counts (last IDs - like Assets Editor)
@@ -9,8 +52,124 @@ export interface AppearanceStats {
   // Additional info - actual item counts in file
   actual_objects: number;
   actual_outfits: number;
-  actual_effects: number;
+  actual_effects?: number;
   actual_missiles: number;
+  // Deterministic content fingerprint shown as the "catalog version".
+  content_hash?: string;
+}
+
+export interface StaticDataStats {
+  /** "old" | "new" — which client schema the loaded file matched. */
+  version: string;
+  total_creatures: number; // new schema: monsters
+  total_monster_classes: number; // new schema only
+  total_achievements: number; // legacy field 2 / new field 3
+  total_houses: number;
+  total_bosses: number;
+  total_quests: number;
+}
+
+export interface StaticMonsterClass {
+  id: number;
+  name: string;
+}
+
+export interface StaticMapDataStats {
+  total_houses_details: number;
+}
+
+export interface OutfitColors {
+  head?: number;
+  body?: number;
+  legs?: number;
+  feet?: number;
+}
+
+export interface OutfitLook {
+  looktype?: number;
+  colors?: OutfitColors;
+  addons?: number;
+  mount?: number;
+}
+
+// Static Data entities
+export interface StaticCreature {
+  id: number;
+  name: string;
+  outfit?: OutfitLook;
+  difficulty: number;
+  occurrence: number;
+  is_npc: boolean;
+  is_hostile: boolean;
+}
+
+export interface StaticAchievement {
+  id: number;
+  name: string;
+  description: string;
+  grade: number;
+}
+
+export interface StaticQuest {
+  id: number;
+  name: string;
+}
+
+export interface StaticBoss {
+  id: number;
+  name: string;
+  outfit?: OutfitLook;
+  is_archfoe: boolean;
+}
+
+export interface StaticHouse {
+  id: number;
+  name: string;
+  description: string;
+  rent: number;
+  size: number;
+  position?: Coordinate;
+  beds: number;
+  guildhall: boolean;
+  town: string;
+  is_premium: boolean;
+}
+
+// Static Map Data Entities
+export interface StaticMapHouseDetail {
+  house_id?: number;
+  layout?: StaticMapHouseLayout;
+}
+
+export interface StaticMapHouseLayout {
+  position?: Coordinate;
+  size?: StaticMapAreaSize;
+  tiles?: StaticMapHouseTiles;
+}
+
+export interface StaticMapAreaSize {
+  width?: number;
+  height?: number;
+  floors?: number;
+}
+
+export interface StaticMapHouseTiles {
+  floor_data?: StaticMapHouseFloorData;
+}
+
+export interface StaticMapHouseFloorData {
+  rows: StaticMapHouseTileRow[];
+}
+
+export interface StaticMapHouseTileRow {
+  tiles: StaticMapHouseTile[];
+  flags?: number;
+}
+
+export interface StaticMapHouseTile {
+  object_id?: number;
+  wall_info?: { is_wall?: boolean };
+  door_info?: { is_door?: boolean };
 }
 
 // Complete appearance types matching Rust backend
@@ -18,10 +177,8 @@ export interface CompleteAppearanceItem {
   id: number;
   name?: string;
   description?: string;
-  appearance_type?: number;
   frame_groups: CompleteFrameGroup[];
   flags?: CompleteFlags;
-  sprite_data: string[];
 }
 
 export interface CompleteFrameGroup {
@@ -35,29 +192,18 @@ export interface CompleteSpriteInfo {
   pattern_height?: number;
   pattern_depth?: number;
   layers?: number;
-  pattern_size?: number;
-  // Extra optional pattern fields present from backend mapping
   pattern_layers?: number;
-  pattern_x?: number;
-  pattern_y?: number;
-  pattern_z?: number;
-  pattern_frames?: number;
   sprite_ids: number[];
   bounding_square?: number;
   animation?: SpriteAnimation;
-  // Flag indicating animation presence
-  is_animation?: boolean;
   is_opaque?: boolean;
   bounding_boxes: BoundingBox[];
 }
 
 export interface SpriteAnimation {
-  default_start_phase?: number;
   synchronized?: boolean;
-  random_start_phase?: boolean;
   loop_type?: number;
   loop_count?: number;
-  animation_mode?: number;
   phases: SpritePhase[];
 }
 
@@ -123,9 +269,6 @@ export interface CompleteFlags {
   write?: { max_text_length?: number };
   write_once?: { max_text_length_once?: number };
   hook?: { direction?: number };
-  // Hook mount booleans
-  hook_south?: boolean;
-  hook_east?: boolean;
   light?: { brightness?: number; color?: number };
   shift?: { x?: number; y?: number };
   height?: { elevation?: number };
@@ -133,14 +276,11 @@ export interface CompleteFlags {
   lenshelp?: { id?: number };
   clothes?: { slot?: number };
   default_action?: { action?: number };
+  weapon_type?: number;
   market?: {
     category?: number;
     trade_as_object_id?: number;
     show_as_object_id?: number;
-    restrict_to_vocation: number[];
-    minimum_level?: number;
-    name?: string;
-    vocation?: number;
   };
   npc_sale_data: FlagNPC[];
   changed_to_expire?: { former_object_typeid?: number };
@@ -153,8 +293,6 @@ export interface CompleteFlags {
   // Extras
   restrict_to_vocation: number[];
   minimum_level?: number;
-  weapon_type?: number;
-  transparency_level?: number;
 }
 
 export interface FlagNPC {
@@ -209,4 +347,42 @@ export interface SpriteDecomposition {
 export interface GroupMapping {
   groupIndex: number;
   localIndex: number;
+}
+
+// Proficiency Editor types (matches real client format)
+export interface ProficiencyPerk {
+  Type: number;
+  // Absent on Type 32 (Homing Missile), which uses Probability/Multiplier
+  Value?: number;
+  SkillId?: number;
+  AugmentType?: number;
+  SpellId?: number;
+  BestiaryId?: number;
+  BestiaryName?: string;
+  DamageType?: number;
+  ElementId?: number;
+  MissileId?: number;
+  Multiplier?: number;
+  Probability?: number;
+  Range?: number;
+}
+
+export interface ProficiencyLevel {
+  Perks: ProficiencyPerk[];
+  XpRequired?: number;
+}
+
+export interface ProficiencyEntry {
+  Name: string;
+  ProficiencyId: number;
+  Version?: number;
+  Levels: ProficiencyLevel[];
+}
+
+export interface RawFileInfo {
+  preview: string;
+  topLevelType: string;
+  topLevelKeys: string[];
+  arrayLength?: number;
+  firstValueType?: string;
 }

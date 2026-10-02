@@ -44,6 +44,22 @@
   }
 }
 
+/* Landscape tablets (gap between 1024 and 768) */
+@media (max-width: 900px) {
+  .appearance-action-bar {
+    flex-wrap: wrap;
+    row-gap: var(--space-xs);
+  }
+
+  .header-center {
+    max-width: 320px;
+  }
+
+  .modern-assets-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}
+
 /* Tablet screens */
 @media (max-width: 768px) {
   .header-content {

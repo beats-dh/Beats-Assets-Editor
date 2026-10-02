@@ -1,10 +1,10 @@
 [package]
-name = "tibia-assets-editor"
+name = "Canary-Studio"
 version = "0.1.0"
-description = "A Tibia Assets Editor"
+description = "A Canary Studio Editor"
 authors = ["Beats"]
 edition = "2021"
-default-run = "tibia-assets-editor" 
+default-run = "Canary-Studio" 
 
 [profile.release]
 opt-level = 3
@@ -25,54 +25,68 @@ name = "tibia_assets_editor_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
-prost-build = "0.14"
-protoc-bin-vendored = "3"
+tauri-build = { version = "2.6.3", features = [] }
+prost-build = "0.14.4"
+protoc-bin-vendored = "3.2.0"
 
 [dependencies]
-tauri = { version = "2", features = [] }
-tauri-plugin-opener = "2"
-tauri-plugin-dialog = "2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+tauri = { version = "2.11.5", features = [] }
+tauri-plugin-opener = "2.5.4"
+tauri-plugin-dialog = "2.7.1"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.150", features = ["arbitrary_precision"] }
+
+# CSV import/export (handles quoted multiline fields correctly)
+csv = "1.4.0"
 
 # Protobuf parsing
-prost = "0.14"
-prost-types = "0.14"
+prost = "0.14.4"
+prost-types = "0.14.4"
 
 # LZMA decompression
-lzma-rs = "0.3"
-xz2 = "0.1"
+lzma-rs = "0.3.0"
+xz2 = "0.1.7"
 
 # Image manipulation
-image = { version = "0.25", features = ["png", "jpeg", "bmp"] }
+image = { version = "0.25.10", features = ["png", "jpeg", "bmp"] }
 
 # Error handling
-anyhow = "1.0"
-thiserror = "2.0"
+anyhow = "1.0.103"
+thiserror = "2.0.18"
 
 # Logging
-log = "0.4"
-env_logger = "0.11"
+log = "0.4.33"
+env_logger = "0.11.11"
 
 # Base64 encoding
-base64 = "0.22"
+base64 = "0.22.1"
 
 # Lock-free concurrent data structures
-dashmap = "6.1"
+dashmap = "6.2.1"
 
 # Async runtime
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1.52.3", features = ["full"] }
 
 # High-performance locks (3x faster than std)
-parking_lot = "0.12"
+parking_lot = "0.12.5"
 
 # Data parallelism
-rayon = "1.10"
+rayon = "1.12.0"
 
 # Fast hashing
-ahash = "0.8"
+ahash = "0.8.12"
+
+# Binary parsing helpers
+byteorder = "1.5.0"
 
 # String interning for reduced allocations
-string-interner = "0.17"
+string-interner = "0.20.0"
 
+# Regex for parsing Lua files
+regex = "1.12.4"
+
+# Zlib decompression for RCC resources
+flate2 = "1.1.9"
+# Pure-Rust zstd decoder for Qt RCC resources (Qt 5.13+/Qt6 compress with zstd)
+ruzstd = "0.8.3"
+tauri-plugin-clipboard-manager = "2.3.2"

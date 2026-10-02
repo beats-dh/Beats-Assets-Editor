@@ -1,0 +1,84 @@
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { on } from "svelte/events";
+  import { npcState } from "../../../stores/npcState.svelte";
+  import { invoke } from "../../../utils/invoke";
+  import { translate } from "../../../i18n";
+  import NpcCategoryList from "./NpcCategoryList.svelte";
+  import type { NpcListEntry } from "../../../npcTypes";
+
+  async function loadNpcs(forceReload = false) {
+    const path = npcState.npcsRootPath;
+    if (!path) return;
+
+    if (
+      !forceReload &&
+      npcState.cachedNpcsPath === path &&
+      npcState.npcList.length > 0
+    ) {
+      console.log("NPC list already cached, skipping reload");
+      return;
+    }
+
+    npcState.isLoading = true;
+    try {
+      const [entries] = await Promise.all([
+        invoke<NpcListEntry[]>("list_npc_files", { npcsPath: path }),
+      ]);
+      npcState.npcList = entries;
+      npcState.cachedNpcsPath = path;
+    } catch (err) {
+      console.error("Failed to load npcs:", err);
+      npcState.npcList = [];
+    } finally {
+      npcState.isLoading = false;
+    }
+  }
+
+  function handleReloadEvent() {
+    loadNpcs(true);
+  }
+
+  $effect(() => {
+    const off = on(window, "reload-npc-list", handleReloadEvent);
+    return () => off();
+  });
+
+  onMount(() => {
+    if (npcState.npcsRootPath) loadNpcs();
+  });
+
+  let lastReactivePath = $state<string | null>(null);
+  $effect(() => {
+    if (npcState.npcsRootPath && npcState.npcsRootPath !== lastReactivePath) {
+      lastReactivePath = npcState.npcsRootPath;
+      loadNpcs();
+    }
+  });
+
+  function handleSearch(e: Event) {
+    npcState.npcSearchQuery = (e.target as HTMLInputElement).value;
+  }
+</script>
+
+<aside class="monster-sidebar">
+  <input
+    type="text"
+    class="monster-search"
+    placeholder={translate("npc.sidebar.search")}
+    value={npcState.npcSearchQuery}
+    oninput={handleSearch}
+  />
+
+  <div class="monster-list">
+    {#if npcState.isLoading}
+      <div class="loading">{translate("npc.sidebar.loading")}</div>
+    {:else if !npcState.npcsRootPath}
+      <div class="empty">{translate("npc.sidebar.emptyDir")}</div>
+    {:else if npcState.npcList.length === 0}
+      <div class="empty">{translate("npc.sidebar.noNpcs")}</div>
+    {:else}
+      <NpcCategoryList />
+    {/if}
+  </div>
+</aside>

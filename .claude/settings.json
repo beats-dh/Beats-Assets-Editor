@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo check *)",
+      "Bash(git -C c:/Users/danie/Documents/Beats-Assets-Editor diff HEAD -- src-tauri/Cargo.toml)",
+      "Bash(cargo fmt *)",
+      "Bash(echo \"FMT EXIT: $?\")",
+      "Bash(git -C c:/Users/danie/Documents/Beats-Assets-Editor status --short src-tauri/src)",
+      "Bash(git diff *)",
+      "Bash(git -c core.autocrlf=input status --short)",
+      "Bash(node_modules/.bin/tauri --version)",
+      "Bash(./node_modules/@tauri-apps/cli/tauri.js --version)",
+      "Bash(npm view *)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/@tauri-apps/api/package.json'\\).version\\)\")",
+      "Bash(npm install *)",
+      "Bash(node -e \"console.log\\('api:', require\\('./node_modules/@tauri-apps/api/package.json'\\).version\\)\")",
+      "Bash(node ./node_modules/@tauri-apps/cli/tauri.js --version)",
+      "Bash(node ./node_modules/@tauri-apps/cli/tauri.js info)",
+      "Bash(rustfmt --edition 2021 --config-path src-tauri/rustfmt.toml src-tauri/src/features/appearances/commands/reorganize.rs)",
+      "Bash(git -c core.autocrlf=input status --short -- 'src-tauri/src')"
+    ]
+  }
+}

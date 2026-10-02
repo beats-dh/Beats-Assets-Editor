@@ -1,0 +1,32 @@
+<script lang="ts">
+  import { appState } from "./stores/appState.svelte";
+  import Launcher from "./lib/pages/Launcher.svelte";
+  import AssetEditorLayout from "./lib/pages/AssetEditorLayout.svelte";
+  import MonsterEditorPage from "./lib/pages/MonsterEditorPage.svelte";
+  import NpcEditorPage from "./lib/pages/NpcEditorPage.svelte";
+  import LoggerPanel from "./lib/components/LoggerPanel.svelte";
+  import ConfirmModal from "./lib/components/ConfirmModal.svelte";
+  import PromptModal from "./lib/components/PromptModal.svelte";
+  // Global Styles
+  import "./styles/main.css";
+  import "./features/layout/headerSpacing.css";
+  import "./features/assetGrid/assetSelectionLayout.css";
+  import "./monsterEditor.css";
+</script>
+
+{#if appState.currentView === "launcher"}
+  <Launcher />
+{:else if appState.currentView === "assets-editor"}
+  <AssetEditorLayout />
+{:else if appState.currentView === "monster-editor"}
+  <MonsterEditorPage />
+{:else if appState.currentView === "npc-editor"}
+  <NpcEditorPage />
+{/if}
+
+<!-- Global overlays / toast (available on every page) -->
+<ConfirmModal />
+<PromptModal />
+<LoggerPanel />
+<!-- Hidden until showStatus() sets display:block; avoids an empty sliver at the edge -->
+<div id="status-message" class="status-toast" style="display: none;"></div>

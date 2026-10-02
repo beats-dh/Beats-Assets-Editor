@@ -1,37 +1,86 @@
 import type { CompleteAppearanceItem, CompleteSpriteInfo } from '../../types';
+import type { ComposeResponseMessage } from '../../workers/animationWorker';
 import {
   computeGroupOffsetsFromDetails,
-  computeSpriteIndex
+  computeSpriteIndex,
+  decomposeSpriteIndex
 } from '../../animation';
 import {
   resolveOutfitPreviewDirection,
   resolveOutfitPreviewInterval
 } from './outfit/outfitPreviewSettings';
+import { spriteUrlStore, animationStore } from '../../utils/cacheRegistry';
+import type { PreviewAnimationSequence } from '../../utils/cacheRegistry';
 
-export interface PreviewAnimationSequence {
-  frames: string[];
-  interval: number;
+let composeWorker: Worker | null = null;
+let composeRequestId = 0;
+const workerPending = new Map<string, (value: string | null) => void>();
+
+function bufferToUrl(buffer: Uint8Array): string {
+  return spriteUrlStore.get(buffer);
 }
 
-const previewCache = new Map<string, PreviewAnimationSequence>();
+function initComposeWorker(): void {
+  if (composeWorker) return;
+  try {
+    composeWorker = new Worker(
+      new URL('../../workers/animationWorker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    composeWorker.onmessage = (event: MessageEvent<ComposeResponseMessage>) => {
+      const { id, buffer } = event.data;
+      const resolver = workerPending.get(id);
+      if (resolver) {
+        const dataUrl = buffer ? spriteUrlStore.get(new Uint8Array(buffer)) : null;
+        resolver(dataUrl);
+        workerPending.delete(id);
+      }
+    };
+  } catch (error) {
+    console.warn('assetPreviewAnimator: failed to initialize compose worker', error);
+    composeWorker = null;
+    workerPending.clear();
+  }
+}
+
+async function composeFrameWithWorker(indices: number[], sprites: Uint8Array[]): Promise<string | null> {
+  initComposeWorker();
+  if (!composeWorker || indices.length === 0) return null;
+
+  const id = `compose-${Date.now()}-${composeRequestId++}`;
+  const buffers = indices
+    .map((idx) => {
+      if (idx < 0 || idx >= sprites.length) return null;
+      const sprite = sprites[idx];
+      if (!sprite) return null;
+      return sprite.buffer.slice(sprite.byteOffset, sprite.byteOffset + sprite.byteLength);
+    })
+    .filter((buf): buf is ArrayBuffer => !!buf);
+
+  if (buffers.length === 0) return null;
+
+  const result = new Promise<string | null>((resolve) => {
+    workerPending.set(id, resolve);
+    composeWorker!.postMessage({ id, spriteBuffers: buffers }, buffers);
+  });
+  return await result;
+}
 
 export async function buildAssetPreviewAnimation(
   category: string,
   appearanceId: number,
   details: CompleteAppearanceItem,
-  sprites: string[]
+  sprites: Uint8Array[]
 ): Promise<PreviewAnimationSequence | null> {
-  const cacheKey = `${category}:${appearanceId}`;
-  if (previewCache.has(cacheKey)) {
-    return previewCache.get(cacheKey)!;
-  }
+  const cached = animationStore.getSequence(category, appearanceId);
+  if (cached) return cached;
 
   const sequence = await buildSequence(category, details, sprites);
   if (!sequence) {
     return null;
   }
 
-  previewCache.set(cacheKey, sequence);
+  animationStore.setSequence(category, appearanceId, sequence);
   return sequence;
 }
 
@@ -39,9 +88,6 @@ function getFrameCount(spriteInfo: CompleteSpriteInfo | undefined): number {
   if (!spriteInfo) return 0;
   if (spriteInfo.animation && spriteInfo.animation.phases.length > 0) {
     return spriteInfo.animation.phases.length;
-  }
-  if (spriteInfo.pattern_frames && spriteInfo.pattern_frames > 0) {
-    return spriteInfo.pattern_frames;
   }
   return 0;
 }
@@ -74,7 +120,7 @@ function hasAnimatedSprite(spriteInfo: CompleteSpriteInfo | undefined): boolean 
 async function buildSequence(
   category: string,
   details: CompleteAppearanceItem,
-  sprites: string[]
+  sprites: Uint8Array[]
 ): Promise<PreviewAnimationSequence | null> {
   const groupIndex = selectFrameGroupIndex(category, details);
   if (groupIndex < 0) {
@@ -108,112 +154,39 @@ async function buildSequence(
     return { frames, interval };
   }
 
-  const frames = await buildGenericFrames(spriteInfo, baseOffset, sprites, frameCount);
+  const frames = buildGenericFrames(spriteInfo, baseOffset, sprites, frameCount);
   if (frames.length === 0) {
     return null;
   }
   return {
     frames,
-    interval: Math.max(100, spriteInfo.animation?.phases?.[0]?.duration_min ?? 100)
+    interval: 100
   };
 }
 
-async function buildGenericFrames(
+function buildGenericFrames(
   spriteInfo: CompleteSpriteInfo,
   baseOffset: number,
-  sprites: string[],
+  sprites: Uint8Array[],
   frameCount: number
-): Promise<string[]> {
+): string[] {
   const frames: string[] = [];
-  const width = Math.max(1, ensureNumber(spriteInfo.pattern_width, 1));
-  const height = Math.max(1, ensureNumber(spriteInfo.pattern_height, 1));
-  const layers = Math.max(1, ensureNumber(spriteInfo.layers, 1));
-  const patternZ = Math.max(1, ensureNumber(spriteInfo.pattern_depth, 1));
-  
-  const imageCache = new Map<number, Promise<HTMLImageElement>>();
-
+  const baseDimensions = decomposeSpriteIndex(spriteInfo, 0);
   for (let phase = 0; phase < frameCount; phase++) {
-    // If it's a simple 1x1x1 sprite, use fast path
-    if (width === 1 && height === 1 && layers === 1 && patternZ === 1) {
-      const spriteIndex = baseOffset + computeSpriteIndex(spriteInfo, 0, 0, 0, 0, phase);
-      const sprite = sprites[spriteIndex];
-      if (sprite) {
-        frames.push(sprite);
-      }
-      continue;
-    }
-
-    // Multitile composition
-    const parts: { index: number; x: number; y: number }[] = [];
-    
-    // Iterate dimensions exactly as OTClient does (ThingType::draw)
-    // Z -> Y -> X -> Layers
-    for (let z = 0; z < patternZ; z++) {
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          for (let l = 0; l < layers; l++) {
-            const spriteIndex = baseOffset + computeSpriteIndex(
-              spriteInfo,
-              l,
-              x,
-              y,
-              z,
-              phase
-            );
-
-            // Calculate position: Bottom-Right Start
-            // Invert X and Y for visual position
-            const posX = (width - 1 - x) * 32;
-            const posY = (height - 1 - y) * 32;
-
-            parts.push({ index: spriteIndex, x: posX, y: posY });
-          }
-        }
-      }
-    }
-
-    const composed = await composeMultitileFrame(parts, sprites, imageCache, width * 32, height * 32);
-    if (composed) {
-      frames.push(composed);
+    const spriteIndex = baseOffset + computeSpriteIndex(
+      spriteInfo,
+      baseDimensions.layerIndex,
+      baseDimensions.x,
+      baseDimensions.y,
+      baseDimensions.z,
+      phase
+    );
+    const sprite = sprites[spriteIndex];
+    if (sprite) {
+      frames.push(bufferToUrl(sprite));
     }
   }
   return frames;
-}
-
-async function composeMultitileFrame(
-  parts: { index: number; x: number; y: number }[],
-  sprites: string[],
-  cache: Map<number, Promise<HTMLImageElement>>,
-  totalWidth: number,
-  totalHeight: number
-): Promise<string | null> {
-  const canvas = document.createElement('canvas');
-  canvas.width = totalWidth;
-  canvas.height = totalHeight;
-  const context = canvas.getContext('2d');
-  if (!context) return null;
-
-  let hasContent = false;
-
-  for (const part of parts) {
-    if (part.index < 0 || part.index >= sprites.length) continue;
-    const base64 = sprites[part.index];
-    if (!base64) continue;
-
-    try {
-      const image = await loadImage(part.index, base64, cache);
-      context.drawImage(image, part.x, part.y);
-      hasContent = true;
-    } catch (e) {
-      console.warn(`Failed to load sprite ${part.index} for composition`, e);
-    }
-  }
-
-  if (!hasContent) return null;
-
-  const dataUrl = canvas.toDataURL('image/png');
-  const [, base64] = dataUrl.split(',');
-  return base64 || null;
 }
 
 function ensureNumber(value: number | undefined, fallback: number): number {
@@ -223,7 +196,7 @@ function ensureNumber(value: number | undefined, fallback: number): number {
 async function buildOutfitFrames(
   spriteInfo: CompleteSpriteInfo,
   baseOffset: number,
-  sprites: string[],
+  sprites: Uint8Array[],
   frameCount: number,
   directionIndex: number,
   maxFrames = frameCount
@@ -235,8 +208,6 @@ async function buildOutfitFrames(
   const safeDirectionIndex = Math.min(Math.max(0, directionIndex), directionCount - 1);
   const addonMax = Math.max(addonCount - 1, 0);
   const mountIndex = Math.min(0, mountCount - 1);
-  const imageCache = new Map<number, Promise<HTMLImageElement>>();
-
   const totalFrames = Math.min(frameCount, Math.max(1, maxFrames));
 
   for (let frame = 0; frame < totalFrames; frame++) {
@@ -252,7 +223,7 @@ async function buildOutfitFrames(
       );
       aggregatedIndexes.push(spriteIndex);
     }
-    const composed = await composeFrame(aggregatedIndexes, sprites, imageCache);
+    const composed = await composeFrame(aggregatedIndexes, sprites);
     if (composed) {
       frames.push(composed);
     }
@@ -262,58 +233,13 @@ async function buildOutfitFrames(
 
 async function composeFrame(
   indices: number[],
-  sprites: string[],
-  cache: Map<number, Promise<HTMLImageElement>>
+  sprites: Uint8Array[]
 ): Promise<string | null> {
-  const images: HTMLImageElement[] = [];
-  for (const index of indices) {
-    if (index < 0 || index >= sprites.length) {
-      continue;
-    }
-    const base64 = sprites[index];
-    if (!base64) {
-      continue;
-    }
-    images.push(await loadImage(index, base64, cache));
-  }
-  if (images.length === 0) {
-    return null;
-  }
-  const width = Math.max(...images.map(img => img.width));
-  const height = Math.max(...images.map(img => img.height));
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext('2d');
-  if (!context) {
-    return null;
-  }
-  images.forEach(image => {
-    context.drawImage(image, 0, 0);
-  });
-  const dataUrl = canvas.toDataURL('image/png');
-  const [, base64] = dataUrl.split(',');
-  return base64 || null;
-}
-
-function loadImage(
-  index: number,
-  base64: string,
-  cache: Map<number, Promise<HTMLImageElement>>
-): Promise<HTMLImageElement> {
-  if (cache.has(index)) {
-    return cache.get(index)!;
-  }
-  const promise = new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = (error) => reject(error);
-    image.src = `data:image/png;base64,${base64}`;
-  });
-  cache.set(index, promise);
-  return promise;
+  return composeFrameWithWorker(indices, sprites);
 }
 
 export function clearPreviewAnimationCache(): void {
-  previewCache.clear();
+  animationStore.clearSequences();
+  spriteUrlStore.clear();
+  workerPending.clear();
 }

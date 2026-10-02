@@ -49,6 +49,7 @@ pub enum ItemSubcategory {
     CreatureProducts, // 24
     Quiver,           // 25
     Soulcores,        // 26
+    FistWeapons,      // 27
 }
 
 impl ItemSubcategory {
@@ -82,6 +83,7 @@ impl ItemSubcategory {
             ItemSubcategory::CreatureProducts => Some(24i32),
             ItemSubcategory::Quiver => Some(25i32),
             ItemSubcategory::Soulcores => Some(26i32),
+            ItemSubcategory::FistWeapons => Some(27i32),
         }
     }
 
@@ -115,6 +117,7 @@ impl ItemSubcategory {
             ItemSubcategory::CreatureProducts => "Creature Products",
             ItemSubcategory::Quiver => "Quiver",
             ItemSubcategory::Soulcores => "Soulcores",
+            ItemSubcategory::FistWeapons => "Fist Weapons",
         }
     }
 }
@@ -125,8 +128,6 @@ pub struct AppearanceDetails {
     pub id: u32,
     pub name: Option<String>,
     pub description: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub appearance_type: Option<i32>,
     pub category: AppearanceCategory,
     pub frame_groups: Vec<FrameGroupInfo>,
     pub flags: Option<AppearanceFlagsInfo>,

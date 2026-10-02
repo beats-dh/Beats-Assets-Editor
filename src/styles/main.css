@@ -1,5 +1,5 @@
 /**
- * Tibia Assets Editor - Main Stylesheet
+ * Canary Studio Editor - Main Stylesheet
  *
  * This file imports all modular CSS files in the correct order.
  * Order matters: variables first, then base styles, then components.
@@ -34,6 +34,8 @@
 /* 7. Texture Styles */
 @import './texture.css';
 
-/* 8. Theme Styles (overrides) */
-@import './theme.css';
+/* 8. IDE editor theme tokens (ScriptingCard) */
+@import './ide-theme.css';
 
+/* 9. Theme Styles (overrides) */
+@import './theme.css';

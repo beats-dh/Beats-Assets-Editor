@@ -1,0 +1,65 @@
+name: Tauri Build Release (Windows)
+permissions:
+  contents: read
+
+# Cancela uma release em andamento quando chega um push novo no mesmo ref.
+# (build-release só dispara em push para main, mas mantemos a chave consistente.)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "src-tauri/**"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.*"
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/Cargo.lock"
+  workflow_dispatch:
+
+jobs:
+  tauri-build-release-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: stable
+
+      # windows-latest ships the MSVC toolchain + WebView2 runtime, so Tauri
+      # needs no extra system packages here (unlike the Linux apt step).
+      - name: Cache cargo/target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: src-tauri
+          # Keep the dependency cache even when the build fails.
+          cache-on-failure: true
+
+      - name: Build Tauri (release)
+        run: npm run tauri build
+
+      - name: Upload release bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-release-bundle-windows
+          path: src-tauri/target/release/bundle

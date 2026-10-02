@@ -3,10 +3,11 @@
 
 mod category_types;
 mod conversion;
-mod helpers;
+pub mod helpers;
 mod import_export;
 mod io;
 mod query;
+mod reorganize;
 mod update;
 
 // Re-export command types
@@ -17,4 +18,5 @@ pub use conversion::*;
 pub use import_export::*;
 pub use io::*;
 pub use query::*;
+pub use reorganize::*;
 pub use update::*;
