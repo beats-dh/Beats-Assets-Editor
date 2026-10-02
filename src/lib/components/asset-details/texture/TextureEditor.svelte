@@ -7,7 +7,6 @@
     getSpriteById,
     invalidateAppearanceCache,
     removeCachedAppearanceSprites,
-    appendCachedAppearanceSprites,
   } from "../../../../spriteCache";
   import TexturePreview from "./TexturePreview.svelte";
   import TextureControls from "./TextureControls.svelte";
@@ -333,6 +332,15 @@
         },
       });
       await invoke("save_appearances_file");
+      invalidateAppearanceCache(category, appearanceId);
+      const buffers = hadSpriteInfo ? await fetchSpriteBuffers(spriteIds) : [];
+      // The user may have navigated to another asset while the save ran; never
+      // apply this asset's sprite_info or sprites to the one now on screen.
+      if (details?.id !== appearanceId || activeTextureCategory !== category) {
+        void refreshAssetPreview(category, appearanceId);
+        showStatus(translate("status.spriteReplaced"), "success");
+        return;
+      }
       if (hadSpriteInfo && info) {
         info.sprite_ids.push(...spriteIds);
         if (details.frame_groups[frameGroupIndex])
@@ -340,12 +348,9 @@
             ...info,
           };
         const current = sprites.slice();
-        const buffers = await fetchSpriteBuffers(spriteIds);
         current.splice(offset + previousCount, 0, ...buffers);
         sprites = current;
-        appendCachedAppearanceSprites(category, appearanceId, buffers);
       } else {
-        invalidateAppearanceCache(category, appearanceId);
         await refreshDetailsAfterStructureChange();
       }
       refreshDetailPreviews();
