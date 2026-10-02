@@ -50,10 +50,9 @@ async function loadAppearancesFromPathInternal(tibiaPath: string): Promise<void>
   }
 
   const assetsDir = await join(tibiaPath, "assets");
-  let selectedFile = "appearances_latest.dat";
-  if (!files.includes(selectedFile)) {
-    selectedFile = files[0];
-  }
+  // The backend lists the file referenced by catalog-content.json first (the one the
+  // client loads), then appearances_latest.dat / the other fallbacks.
+  const selectedFile = files[0];
   const appearancePath = await join(assetsDir, selectedFile);
 
   cachedStats = await invoke<AppearanceStats>(COMMANDS.LOAD_APPEARANCES_FILE, { path: appearancePath });

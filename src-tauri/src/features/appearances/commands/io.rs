@@ -1,4 +1,4 @@
-use crate::features::appearances::parsers::{get_statistics, load_appearances, AppearanceStats};
+use crate::features::appearances::parsers::{find_appearances_file_in_catalog, get_statistics, load_appearances, AppearanceStats};
 use crate::state::AppState;
 use std::path::PathBuf;
 use tauri::State;
@@ -74,7 +74,8 @@ pub async fn select_tibia_directory() -> Result<String, String> {
     Ok(r"C:\Program Files\Tibia".to_string())
 }
 
-/// List available appearance files in Tibia directory
+/// List available appearance files in Tibia directory.
+/// The file referenced by `catalog-content.json` (the one the client loads) comes first.
 #[tauri::command]
 pub async fn list_appearance_files(tibia_path: String) -> Result<Vec<String>, String> {
     use std::fs;
@@ -114,7 +115,17 @@ pub async fn list_appearance_files(tibia_path: String) -> Result<Vec<String>, St
         }
     });
 
-    let files = files_data.into_iter().map(|(name, _)| name).collect::<Vec<String>>();
+    let mut files = files_data.into_iter().map(|(name, _)| name).collect::<Vec<String>>();
+
+    // A broken catalog must not hide the files found above: log it and keep the fallback order.
+    match find_appearances_file_in_catalog(&assets_path) {
+        Ok(Some(catalog_file)) => {
+            files.retain(|name| name != &catalog_file);
+            files.insert(0, catalog_file);
+        }
+        Ok(None) => {}
+        Err(e) => log::warn!("Ignoring catalog-content.json for appearances lookup: {:#}", e),
+    }
 
     Ok(files)
 }
@@ -152,7 +163,7 @@ pub async fn save_appearances_file(state: tauri::State<'_, AppState>) -> Result<
         let mut buf = Vec::new();
         appearances_clone.encode(&mut buf).map_err(|e| format!("Failed to encode appearances: {}", e))?;
 
-        std::fs::write(&path_clone, &buf).map_err(|e| format!("Failed to write appearances to {:?}: {}", path_clone, e))?;
+        crate::core::fs_util::write_atomic(&path_clone, &buf).map_err(|e| format!("Failed to write appearances to {:?}: {:#}", path_clone, e))?;
 
         Ok::<usize, String>(buf.len())
     })
