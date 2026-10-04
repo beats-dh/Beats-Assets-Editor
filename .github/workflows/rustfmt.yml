@@ -52,7 +52,7 @@ jobs:
           git config --global user.name "GitHub Actions"
 
       - name: Checkout (pull_request → head ref; outros → ref padrão)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.event.inputs.ref || github.ref }}
           repository: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
@@ -60,13 +60,13 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust (stable + rustfmt)
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
         with:
           toolchain: stable
           components: rustfmt
 
       - name: Cache cargo/target
-        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: src-tauri
 
@@ -82,7 +82,7 @@ jobs:
 
       - name: Commit formatted code
         if: ${{ github.event.inputs.dry_run != 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
-        uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9.1.4
+        uses: EndBug/add-and-commit@cc9c08ba6c8df3b93a8f2db63e89b98368ae2ae8 # v11.1.1
         with:
           author_name: GitHub Actions
           author_email: github-actions[bot]@users.noreply.github.com

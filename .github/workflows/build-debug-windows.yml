@@ -30,30 +30,30 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout (PR → head; outros → ref)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
           repository: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
           fetch-depth: 0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "26"
           cache: "npm"
 
       - name: Install frontend deps
         run: npm ci
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
         with:
           toolchain: stable
 
       # windows-latest ships the MSVC toolchain + WebView2 runtime, so Tauri
       # needs no extra system packages here (unlike the Linux apt step).
       - name: Cache cargo/target
-        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: src-tauri
           # Keep the dependency cache even when the build fails, so a retry
@@ -67,7 +67,7 @@ jobs:
 
       - name: Upload debug bundle
         if: ${{ github.event_name != 'pull_request' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tauri-debug-bundle-windows
           path: src-tauri/target/debug/bundle
