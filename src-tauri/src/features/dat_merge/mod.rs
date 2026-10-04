@@ -95,8 +95,8 @@ pub struct MergeFolderStats {
 pub async fn load_merge_folder(assets_path: String, state: State<'_, AppState>) -> Result<MergeFolderStats, String> {
     let dir = PathBuf::from(&assets_path);
 
-    // Auto-discover appearances file (appearances-{hash}.dat or appearances_latest.dat)
-    let appearances_path = find_appearances_dat(&dir).ok_or_else(|| "Nenhum arquivo appearances-*.dat ou appearances_latest.dat encontrado na pasta selecionada".to_string())?;
+    // Auto-discover appearances file (appearances-{hash}.dat, appearances_latest.dat or appearances.dat)
+    let appearances_path = find_appearances_dat(&dir).ok_or_else(|| "Nenhum arquivo appearances-*.dat, appearances_latest.dat ou appearances.dat encontrado na pasta selecionada".to_string())?;
     let appearances = load_appearances(&appearances_path).map_err(|e: anyhow::Error| format!("Falha ao carregar appearances.dat: {}", e))?;
 
     let appearances_stats = MergeSourceStats {
@@ -616,13 +616,13 @@ fn remap_category(items: &mut Vec<Appearance>, threshold: u32, old_to_new: &Hash
 }
 
 /// Discover the appearances .dat in an assets folder.
-/// Matches `appearances_latest.dat` or `appearances-*.dat`, picks the largest file.
+/// Matches `appearances_latest.dat`, `appearances.dat` or `appearances-*.dat`, picks the largest file.
 fn find_appearances_dat(dir: &PathBuf) -> Option<PathBuf> {
     let entries = std::fs::read_dir(dir).ok()?;
     let mut files: Vec<(PathBuf, u64)> = entries
         .filter_map(|e| e.ok())
         .map(|e| e.path())
-        .filter(|p| p.file_name().and_then(|n| n.to_str()).map(|n| (n.starts_with("appearances-") || n == "appearances_latest.dat") && n.ends_with(".dat")).unwrap_or(false))
+        .filter(|p| p.file_name().and_then(|n| n.to_str()).map(|n| (n.starts_with("appearances-") || n == "appearances_latest.dat" || n == "appearances.dat") && n.ends_with(".dat")).unwrap_or(false))
         .map(|p| {
             let size = std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
             (p, size)

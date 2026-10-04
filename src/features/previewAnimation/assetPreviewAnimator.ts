@@ -160,8 +160,16 @@ async function buildSequence(
   }
   return {
     frames,
-    interval: 100
+    interval: resolveGenericPreviewInterval(spriteInfo)
   };
+}
+
+// The sequence is played with a single setInterval, so per-phase timing can't be
+// honoured; use the same rule as the detail sprite cards in animation.ts (first
+// phase's duration_min clamped to 50..1000 ms), falling back to 100 ms.
+function resolveGenericPreviewInterval(spriteInfo: CompleteSpriteInfo): number {
+  const duration = ensureNumber(spriteInfo.animation?.phases?.[0]?.duration_min, 100);
+  return Math.max(50, Math.min(1000, duration));
 }
 
 function buildGenericFrames(

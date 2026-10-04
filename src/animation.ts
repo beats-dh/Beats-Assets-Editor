@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { CompleteAppearanceItem, CompleteSpriteInfo, SpriteDecomposition, GroupMapping } from './types';
-import { getAppearanceSprites } from './spriteCache';
+import { getAppearanceSprites, drawSpriteFitted } from './spriteCache';
 import { buildAssetPreviewAnimation } from './features/previewAnimation/assetPreviewAnimator';
 import { perfConfig } from './stores/performanceConfig.svelte';
 import { appearanceCache, spriteUrlStore, animationStore } from './utils/cacheRegistry';
@@ -11,9 +11,7 @@ function redrawCanvas(canvas: HTMLCanvasElement, url: string): void {
   if (!ctx) return;
   const img = new Image();
   img.onload = () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    drawSpriteFitted(ctx, img);
   };
   img.src = url;
 }

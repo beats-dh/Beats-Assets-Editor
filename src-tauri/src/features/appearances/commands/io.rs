@@ -1,4 +1,4 @@
-use crate::features::appearances::parsers::{get_statistics, load_appearances, AppearanceStats};
+use crate::features::appearances::parsers::{find_appearances_file_in_catalog, get_statistics, load_appearances, AppearanceStats};
 use crate::state::AppState;
 use std::path::PathBuf;
 use tauri::State;
@@ -74,7 +74,8 @@ pub async fn select_tibia_directory() -> Result<String, String> {
     Ok(r"C:\Program Files\Tibia".to_string())
 }
 
-/// List available appearance files in Tibia directory
+/// List available appearance files in Tibia directory.
+/// The file referenced by `catalog-content.json` (the one the client loads) comes first.
 #[tauri::command]
 pub async fn list_appearance_files(tibia_path: String) -> Result<Vec<String>, String> {
     use std::fs;
@@ -92,29 +93,39 @@ pub async fn list_appearance_files(tibia_path: String) -> Result<Vec<String>, St
         if let Some(file_name) = path.file_name() {
             let file_name_str = file_name.to_string_lossy().to_string();
 
-            if (file_name_str.starts_with("appearances-") || file_name_str == "appearances_latest.dat") && file_name_str.ends_with(".dat") {
+            if (file_name_str.starts_with("appearances-") || file_name_str == "appearances_latest.dat" || file_name_str == "appearances.dat") && file_name_str.ends_with(".dat") {
                 let size = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
                 files_data.push((file_name_str, size));
             }
         }
     }
 
-    // Sort files, prioritizing the working file first, then by size (desc)
+    // Sort files, prioritizing the working file (appearances_latest.dat) first, then by size (desc)
     files_data.sort_by(|(a_name, a_size), (b_name, b_size)| {
-        if a_name == "appearances-feee1f9feba00a63606228c8bc46fa003c90dff144fb1b60a3759f97aad6e3c8.dat" {
-            std::cmp::Ordering::Less
-        } else if b_name == "appearances-feee1f9feba00a63606228c8bc46fa003c90dff144fb1b60a3759f97aad6e3c8.dat" {
-            std::cmp::Ordering::Greater
-        } else if a_name == "appearances_latest.dat" {
+        if a_name == "appearances_latest.dat" {
             std::cmp::Ordering::Less
         } else if b_name == "appearances_latest.dat" {
+            std::cmp::Ordering::Greater
+        } else if a_name == "appearances-feee1f9feba00a63606228c8bc46fa003c90dff144fb1b60a3759f97aad6e3c8.dat" {
+            std::cmp::Ordering::Less
+        } else if b_name == "appearances-feee1f9feba00a63606228c8bc46fa003c90dff144fb1b60a3759f97aad6e3c8.dat" {
             std::cmp::Ordering::Greater
         } else {
             b_size.cmp(a_size).then_with(|| a_name.cmp(b_name))
         }
     });
 
-    let files = files_data.into_iter().map(|(name, _)| name).collect::<Vec<String>>();
+    let mut files = files_data.into_iter().map(|(name, _)| name).collect::<Vec<String>>();
+
+    // A broken catalog must not hide the files found above: log it and keep the fallback order.
+    match find_appearances_file_in_catalog(&assets_path) {
+        Ok(Some(catalog_file)) => {
+            files.retain(|name| name != &catalog_file);
+            files.insert(0, catalog_file);
+        }
+        Ok(None) => {}
+        Err(e) => log::warn!("Ignoring catalog-content.json for appearances lookup: {:#}", e),
+    }
 
     Ok(files)
 }
@@ -152,7 +163,7 @@ pub async fn save_appearances_file(state: tauri::State<'_, AppState>) -> Result<
         let mut buf = Vec::new();
         appearances_clone.encode(&mut buf).map_err(|e| format!("Failed to encode appearances: {}", e))?;
 
-        std::fs::write(&path_clone, &buf).map_err(|e| format!("Failed to write appearances to {:?}: {}", path_clone, e))?;
+        crate::core::fs_util::write_atomic(&path_clone, &buf).map_err(|e| format!("Failed to write appearances to {:?}: {:#}", path_clone, e))?;
 
         Ok::<usize, String>(buf.len())
     })
