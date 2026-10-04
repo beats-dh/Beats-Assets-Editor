@@ -7,7 +7,6 @@
     getSpriteById,
     invalidateAppearanceCache,
     removeCachedAppearanceSprites,
-    appendCachedAppearanceSprites,
   } from "../../../../spriteCache";
   import TexturePreview from "./TexturePreview.svelte";
   import TextureControls from "./TextureControls.svelte";
@@ -313,35 +312,51 @@
 
   async function handleAppend(detail: { spriteIds: number[] }) {
     const category = activeTextureCategory;
-    if (!category || !spriteInfo?.sprite_ids) return;
+    // A new frame group has no sprite_info yet; append_appearance_sprites creates it.
+    if (!category) return;
     const { spriteIds } = detail;
     if (!spriteIds?.length) return;
+    const appearanceId = details.id;
+    const frameGroupIndex = viewState.frameGroupIndex;
+    const info = spriteInfo;
+    const hadSpriteInfo = !!info?.sprite_ids;
     const offset = getGroupOffset();
-    const previousCount = spriteInfo.sprite_ids.length;
+    const previousCount = info?.sprite_ids?.length ?? 0;
     try {
       await invoke("append_appearance_sprites", {
         category,
-        id: details.id,
+        id: appearanceId,
         update: {
-          frame_group_index: viewState.frameGroupIndex,
+          frame_group_index: frameGroupIndex,
           sprite_ids: spriteIds,
         },
       });
       await invoke("save_appearances_file");
-      spriteInfo.sprite_ids.push(...spriteIds);
-      if (details.frame_groups[viewState.frameGroupIndex])
-        details.frame_groups[viewState.frameGroupIndex].sprite_info = {
-          ...spriteInfo,
-        };
-      const current = sprites.slice();
-      const buffers = await fetchSpriteBuffers(spriteIds);
-      current.splice(offset + previousCount, 0, ...buffers);
-      sprites = current;
-      appendCachedAppearanceSprites(
-        activeTextureCategory!,
-        details.id,
-        buffers,
-      );
+      invalidateAppearanceCache(category, appearanceId);
+      const buffers = hadSpriteInfo ? await fetchSpriteBuffers(spriteIds) : [];
+      // The user may have navigated to another asset while the save ran; never
+      // apply this asset's sprite_info or sprites to the one now on screen.
+      if (details?.id !== appearanceId || activeTextureCategory !== category) {
+        void refreshAssetPreview(category, appearanceId);
+        showStatus(translate("status.spriteReplaced"), "success");
+        return;
+      }
+      if (hadSpriteInfo && info) {
+        info.sprite_ids.push(...spriteIds);
+        if (details.frame_groups[frameGroupIndex])
+          details.frame_groups[frameGroupIndex].sprite_info = {
+            ...info,
+          };
+        const current = sprites.slice();
+        current.splice(offset + previousCount, 0, ...buffers);
+        sprites = current;
+      } else {
+        const stillShown = await refreshDetailsAfterStructureChange(category, appearanceId);
+        if (!stillShown) {
+          showStatus(translate("status.spriteReplaced"), "success");
+          return;
+        }
+      }
       refreshDetailPreviews();
       showStatus(translate("status.spriteReplaced"), "success");
     } catch (err) {
@@ -361,20 +376,34 @@
     }
   }
 
-  async function refreshDetailsAfterStructureChange() {
-    if (!activeTextureCategory) return;
+  // Returns false when the user navigated to another asset while the details were
+  // reloading; only that asset's grid preview is refreshed then.
+  async function refreshDetailsAfterStructureChange(
+    category = activeTextureCategory,
+    appearanceId = details.id,
+  ): Promise<boolean> {
+    if (!category) return false;
     try {
       const updated = await invoke("get_complete_appearance", {
-        category: activeTextureCategory,
-        id: details.id,
+        category,
+        id: appearanceId,
       });
-      if (updated && detailsModal.selectedAsset?.id === details.id) {
+      if (
+        updated &&
+        detailsModal.selectedAsset?.id === appearanceId &&
+        activeTextureCategory === category
+      ) {
         detailsModal.selectedAsset = updated as CompleteAppearanceItem;
       }
     } catch (err) {
       console.error("Failed to refresh details", err);
     }
+    if (details?.id !== appearanceId || activeTextureCategory !== category) {
+      void refreshAssetPreview(category, appearanceId);
+      return false;
+    }
     await loadSprites();
+    return true;
   }
 
   async function handleAddFrameGroup() {

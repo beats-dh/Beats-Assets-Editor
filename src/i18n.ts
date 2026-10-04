@@ -1472,6 +1472,62 @@ const translationEntries = {
     es: 'Varitas y bastones',
     ru: 'Жезлы и посохи'
   },
+  'subcategory.others': {
+    default: 'Others',
+    'pt-BR': 'Outros',
+    en: 'Others',
+    es: 'Otros',
+    ru: 'Прочее'
+  },
+  'subcategory.ammunition': {
+    default: 'Ammunition',
+    'pt-BR': 'Munição',
+    en: 'Ammunition',
+    es: 'Munición',
+    ru: 'Боеприпасы'
+  },
+  'subcategory.premiumScrolls': {
+    default: 'Premium Scrolls',
+    'pt-BR': 'Pergaminhos premium',
+    en: 'Premium scrolls',
+    es: 'Pergaminos premium',
+    ru: 'Премиум-свитки'
+  },
+  'subcategory.tibiaCoins': {
+    default: 'Tibia Coins',
+    'pt-BR': 'Tibia Coins',
+    en: 'Tibia Coins',
+    es: 'Tibia Coins',
+    ru: 'Tibia Coins'
+  },
+  'subcategory.creatureProducts': {
+    default: 'Creature Products',
+    'pt-BR': 'Produtos de criaturas',
+    en: 'Creature products',
+    es: 'Productos de criaturas',
+    ru: 'Продукты существ'
+  },
+  'subcategory.quiver': {
+    default: 'Quivers',
+    'pt-BR': 'Aljavas',
+    en: 'Quivers',
+    es: 'Carcajes',
+    ru: 'Колчаны'
+  },
+  'subcategory.soulcores': {
+    default: 'Soulcores',
+    'pt-BR': 'Soulcores',
+    en: 'Soulcores',
+    es: 'Soulcores',
+    ru: 'Ядра душ'
+  },
+  'subcategory.fistWeapons': {
+    default: 'Fist Weapons',
+    'pt-BR': 'Armas de punho',
+    en: 'Fist weapons',
+    es: 'Armas de puño',
+    ru: 'Кастеты'
+  },
   'search.placeholder': {
     default: 'Search assets...',
     'pt-BR': 'Pesquisar assets...',

@@ -8,6 +8,7 @@ import { loadAssetsData } from "./assetService";
 import { openImportModal, type ImportContext } from "../stores/importExportState.svelte";
 import { openConfirmModal } from "../stores/confirmState.svelte";
 import { openPromptModal } from "../stores/promptState.svelte";
+import type { CompleteAppearanceItem } from "../types";
 import { clearAssetSelection, removeAssetSelection } from "../stores/selectionState.svelte";
 import { importedSpritesState, refreshImportedSpriteCount } from "../stores/importedSpritesState.svelte";
 import { openSpriteImportSizeModal, isStandardTileSize } from "../stores/spriteImportSizeState.svelte";
@@ -431,11 +432,13 @@ export async function handleDuplicate(category: string, id: number, newId?: numb
       }
     }
 
-    const duplicatedId = await invoke<number>(COMMANDS.DUPLICATE_APPEARANCE, {
+    // Returns the full CompleteAppearanceItem, not just the id.
+    const duplicated = await invoke<CompleteAppearanceItem>(COMMANDS.DUPLICATE_APPEARANCE, {
       category,
       sourceId: id,
       targetId,
     });
+    const duplicatedId = duplicated.id;
 
     await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssetsData();
@@ -470,10 +473,12 @@ export async function handleCreateNew(category: string, desiredId?: number): Pro
       }
     }
 
-    const createdId = await invoke<number>(COMMANDS.CREATE_EMPTY_APPEARANCE, {
+    // Returns the full CompleteAppearanceItem, not just the id.
+    const created = await invoke<CompleteAppearanceItem>(COMMANDS.CREATE_EMPTY_APPEARANCE, {
       category,
       newId,
     });
+    const createdId = created.id;
 
     await invoke(COMMANDS.SAVE_APPEARANCES_FILE);
     await loadAssetsData();

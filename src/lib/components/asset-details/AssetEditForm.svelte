@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { CompleteAppearanceItem } from "../../../types";
   import { translate } from "../../../i18n";
+  import { MARKET_CATEGORY_KEYS } from "../../../utils/assetHelpers";
   import { openSelect } from "../../../stores/spriteLibraryState.svelte";
   import { openPromptModal } from "../../../stores/promptState.svelte";
   import { untrack } from "svelte";
@@ -400,8 +401,8 @@
       <div class="select-input">
         <select bind:value={flags.market.category}
           ><option value={undefined}>—</option
-          >{#each Array.from({ length: 27 }, (_, i) => i + 1) as v}<option
-              value={v}>{v}</option
+          >{#each MARKET_CATEGORY_KEYS as key, i}<option value={i + 1}
+              >{i + 1} - {translate(key)}</option
             >{/each}</select
         >
       </div>
