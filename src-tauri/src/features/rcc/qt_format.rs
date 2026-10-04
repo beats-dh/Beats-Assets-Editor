@@ -100,7 +100,9 @@ pub fn decompress_zlib(data: &[u8]) -> Result<Vec<u8>, String> {
 /// Decompress a zstd frame (Qt resource compression, Qt >= 5.13).
 pub fn decompress_zstd(data: &[u8]) -> Result<Vec<u8>, String> {
     // ruzstd 0.8 moved StreamingDecoder under the `decoding` module.
-    let mut decoder = ruzstd::decoding::StreamingDecoder::new(data).map_err(|e| format!("zstd init: {}", e))?;
+    // ruzstd 0.9 caps the frame window at 100 MiB by default; u64::MAX (clamped to the zstd spec
+    // maximum) keeps the previous uncapped behavior for the first frame.
+    let mut decoder = ruzstd::decoding::StreamingDecoder::new_with_max_window_size(data, u64::MAX).map_err(|e| format!("zstd init: {}", e))?;
     let mut out = Vec::new();
     decoder.read_to_end(&mut out).map_err(|e| format!("zstd read: {}", e))?;
     Ok(out)

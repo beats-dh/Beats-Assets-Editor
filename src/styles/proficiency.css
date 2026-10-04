@@ -151,13 +151,6 @@
     z-index: 2;
 }
 
-:global(.main-sprite-container canvas) {
-    width: 100%;
-    height: 100%;
-    image-rendering: pixelated;
-    object-fit: contain;
-}
-
 .info-circle {
     position: absolute;
     top: 6px;

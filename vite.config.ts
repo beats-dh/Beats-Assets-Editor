@@ -17,7 +17,7 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
     host: host || false,
-    hmr: host
+    ws: host
       ? {
           protocol: "ws",
           host,
@@ -31,23 +31,34 @@ export default defineConfig({
   },
   // ✅ OPTIMIZED: Code splitting configuration
   build: {
-    rollupOptions: {
+    rolldownOptions: {
+      // ✅ OPTIMIZED: Enable tree shaking (was `esbuild.treeShaking`)
+      treeshake: true,
       output: {
-        manualChunks: {
-          // Vendor chunks
-          'vendor-tauri': ['@tauri-apps/api', '@tauri-apps/plugin-dialog', '@tauri-apps/plugin-opener'],
-          
-          // Animation workers
-          'workers': [
-            './src/workers/animationWorker.ts',
-            './src/workers/imageBitmapWorker.ts',
-            './src/workers/outfitComposeWorker.ts'
+        // Rolldown dropped the object form of `manualChunks`; `codeSplitting.groups` is its replacement
+        codeSplitting: {
+          groups: [
+            // Vendor chunks
+            {
+              name: 'vendor-tauri',
+              test: /[\\/]node_modules[\\/]@tauri-apps[\\/](api|plugin-dialog|plugin-opener)[\\/]/,
+            },
+
+            // Animation workers
+            {
+              name: 'workers',
+              test: /[\\/]src[\\/]workers[\\/](animationWorker|imageBitmapWorker|outfitComposeWorker)\.ts$/,
+            },
           ],
         },
         // ✅ OPTIMIZED: Optimize chunk naming
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
+        // ✅ OPTIMIZED: Strip legal comments (was `esbuild.legalComments: 'none'`)
+        comments: {
+          legal: false,
+        },
       },
     },
     // Optimize chunk size
@@ -55,7 +66,7 @@ export default defineConfig({
     // Enable CSS code splitting
     cssCodeSplit: true,
     // Minify for production
-    minify: 'esbuild',
+    minify: 'oxc',
     // Source maps for debugging (disabled for smaller bundle)
     sourcemap: false,
     // ✅ OPTIMIZED: Target modern browsers for smaller bundle
@@ -68,10 +79,5 @@ export default defineConfig({
   // ✅ OPTIMIZED: Optimize dependencies
   optimizeDeps: {
     include: ['@tauri-apps/api', '@tauri-apps/plugin-dialog', '@tauri-apps/plugin-opener'],
-  },
-  // ✅ OPTIMIZED: Enable esbuild optimizations
-  esbuild: {
-    legalComments: 'none',
-    treeShaking: true,
   },
 });

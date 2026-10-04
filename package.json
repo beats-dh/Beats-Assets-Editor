@@ -10,20 +10,20 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@sveltejs/vite-plugin-svelte": "^6.2.4",
-    "@tauri-apps/api": "^2.11.1",
-    "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
-    "@tauri-apps/plugin-dialog": "^2.7.1",
-    "@tauri-apps/plugin-opener": "^2.5.4",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tauri-apps/api": "^2.12.1",
+    "@tauri-apps/plugin-clipboard-manager": "^2.4.1",
+    "@tauri-apps/plugin-dialog": "^2.8.1",
+    "@tauri-apps/plugin-opener": "^2.7.0",
     "gifenc": "^1.0.3",
-    "svelte": "^5.48.2",
-    "svelte-dnd-action": "^0.9.69"
+    "svelte": "^5.57.1",
+    "svelte-dnd-action": "^0.9.79"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.11.4",
-    "playwright": "^1.56.1",
+    "@tauri-apps/cli": "^2.12.1",
+    "playwright": "^1.63.0",
     "tslib": "^2.8.1",
     "typescript": "^7.0.2",
-    "vite": "^6.0.3"
+    "vite": "^8.3.2"
   }
 }

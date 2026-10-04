@@ -25,16 +25,16 @@ name = "tibia_assets_editor_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.6.3", features = [] }
+tauri-build = { version = "2.7.1", features = [] }
 prost-build = "0.14.4"
 protoc-bin-vendored = "3.2.0"
 
 [dependencies]
-tauri = { version = "2.11.5", features = [] }
-tauri-plugin-opener = "2.5.4"
-tauri-plugin-dialog = "2.7.1"
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = { version = "1.0.150", features = ["arbitrary_precision"] }
+tauri = { version = "2.12.1", features = [] }
+tauri-plugin-opener = "2.7.0"
+tauri-plugin-dialog = "2.8.1"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["arbitrary_precision"] }
 
 # CSV import/export (handles quoted multiline fields correctly)
 csv = "1.4.0"
@@ -51,21 +51,21 @@ xz2 = "0.1.7"
 image = { version = "0.25.10", features = ["png", "jpeg", "bmp"] }
 
 # Error handling
-anyhow = "1.0.103"
-thiserror = "2.0.18"
+anyhow = "1.0.104"
+thiserror = "2.0.21"
 
 # Logging
-log = "0.4.33"
+log = "0.4.34"
 env_logger = "0.11.11"
 
 # Base64 encoding
-base64 = "0.22.1"
+base64 = "0.23.1"
 
 # Lock-free concurrent data structures
 dashmap = "6.2.1"
 
 # Async runtime
-tokio = { version = "1.52.3", features = ["full"] }
+tokio = { version = "1.53.1", features = ["full"] }
 
 # High-performance locks (3x faster than std)
 parking_lot = "0.12.5"
@@ -83,10 +83,10 @@ byteorder = "1.5.0"
 string-interner = "0.20.0"
 
 # Regex for parsing Lua files
-regex = "1.12.4"
+regex = "1.13.1"
 
 # Zlib decompression for RCC resources
-flate2 = "1.1.9"
+flate2 = "1.1.10"
 # Pure-Rust zstd decoder for Qt RCC resources (Qt 5.13+/Qt6 compress with zstd)
-ruzstd = "0.8.3"
-tauri-plugin-clipboard-manager = "2.3.2"
+ruzstd = "0.9.0"
+tauri-plugin-clipboard-manager = "2.4.1"
